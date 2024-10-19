@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
                              QTableWidget, QTableWidgetItem, QHeaderView,
                              QMessageBox, QTextEdit, QComboBox, QSplitter, QTreeView)
 
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QImage, QPalette, QBrush, QPainter
 
 from neo4j import GraphDatabase
 
@@ -57,6 +57,8 @@ class WorldBuildingApp(QWidget):
             self.driver = GraphDatabase.driver(
                 "bolt://192.168.178.84:7687", auth=("neo4j", neo4j_password))
             self.init_ui()
+            self.setObjectName("WorldBuildingApp")
+
         except Exception as e:
             logging.error(f"Initialization error: {e}")
             QMessageBox.critical(self, "Error",
@@ -65,16 +67,25 @@ class WorldBuildingApp(QWidget):
 
         self.resize(800, 600)
 
+        background = QImage("background.png")
+        palette = QPalette()
+        palette.setBrush(QPalette.Window, QBrush(background))
+        self.setPalette(palette)
+
+
     def on_tree_selection_changed(self, selected, deselected):
         indexes = selected.indexes()
         if indexes:
             selected_item = self.tree_model.itemFromIndex(indexes[0])
-            node_name = selected_item.text()
+            node_name = selected_item.text().split(' -> ')[-1]
             self.name_input.setText(node_name)
             self.load_node_data()
 
     def init_ui(self):
         layout = QVBoxLayout()
+
+        # Set margins and spacing
+        layout.setContentsMargins(20, 20,20, 20)
 
         # Splitter to separate tree view and main UI
         splitter = QSplitter(Qt.Horizontal)
@@ -172,8 +183,9 @@ class WorldBuildingApp(QWidget):
 
         # Initialize the tree view model
         self.tree_model = QStandardItemModel()
-        self.tree_model.setHorizontalHeaderLabels(['Nodes'])
         self.tree_view.setModel(self.tree_model)
+        self.tree_model.clear()
+        self.tree_model.setHorizontalHeaderLabels(['Relationships'])
 
         # Connect tree view selection signal
         self.tree_view.selectionModel().selectionChanged.connect(self.on_tree_selection_changed)
@@ -290,18 +302,35 @@ class WorldBuildingApp(QWidget):
 
     def populate_tree_view(self, node_data: dict) -> None:
         self.tree_model.clear()
+        self.tree_model.setHorizontalHeaderLabels(['Relationships'])
+        # Log the contents of node_data
+        logging.info(f"node_data: {node_data}")
         root_item = QStandardItem(node_data['n']['name'])
         self.tree_model.appendRow(root_item)
-        self.add_relationships_to_tree(root_item, node_data['relationships'], depth=2)
+        self.add_relationships_to_tree(root_item, node_data['relationships'], depth=3)
+        self.expand_all_tree_items()
+
+    def expand_all_tree_items(self):
+        def recursive_expand(item):
+            for row in range(item.rowCount()):
+                child = item.child(row)
+                if child:
+                    self.tree_view.setExpanded(self.tree_model.indexFromItem(child), True)
+                    recursive_expand(child)
+
+        root_item = self.tree_model.invisibleRootItem()
+        recursive_expand(root_item)
 
     def add_relationships_to_tree(self, parent_item, relationships, depth):
         if depth <= 0:
             return
         for rel in relationships:
-            child_item = QStandardItem(rel['end'])
-            parent_item.appendRow(child_item)
-            # Fetch and add child relationships if needed
-            # self.add_relationships_to_tree(child_item, child_relationships, depth - 1)
+            if rel['dir'] == '>':  # Ensure only outgoing relationships are processed
+                branch_name = f"{rel['type']} -> {rel['end']}"
+                child_item = QStandardItem(branch_name)
+                parent_item.appendRow(child_item)
+                # Fetch and add child relationships if needed
+                # self.add_relationships_to_tree(child_item, child_relationships, depth - 1)
 
     def populate_node_fields(self, node_data: dict) -> None:
         node = node_data.get('n')
