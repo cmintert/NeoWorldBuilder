@@ -8,7 +8,10 @@ from PyQt5.QtCore import (QThread, pyqtSignal, QTimer, QStringListModel, Qt)
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QLineEdit, QPushButton, QCompleter,
                              QTableWidget, QTableWidgetItem, QHeaderView,
-                             QMessageBox, QTextEdit, QComboBox)
+                             QMessageBox, QTextEdit, QComboBox, QSplitter, QTreeView)
+
+from PyQt5.QtGui import QStandardItemModel, QStandardItem
+
 from neo4j import GraphDatabase
 
 # Configure logging
@@ -62,8 +65,30 @@ class WorldBuildingApp(QWidget):
 
         self.resize(800, 600)
 
+    def on_tree_selection_changed(self, selected, deselected):
+        indexes = selected.indexes()
+        if indexes:
+            selected_item = self.tree_model.itemFromIndex(indexes[0])
+            node_name = selected_item.text()
+            self.name_input.setText(node_name)
+            self.load_node_data()
+
     def init_ui(self):
         layout = QVBoxLayout()
+
+        # Splitter to separate tree view and main UI
+        splitter = QSplitter(Qt.Horizontal)
+        layout.addWidget(splitter)
+
+        # Tree view for the left sidebar
+        self.tree_view = QTreeView()
+        splitter.addWidget(self.tree_view)
+
+        # Main UI container
+        main_ui_container = QWidget()
+        main_ui_layout = QVBoxLayout()
+        main_ui_container.setLayout(main_ui_layout)
+        splitter.addWidget(main_ui_container)
 
         # Name input
         name_layout = QHBoxLayout()
@@ -71,51 +96,51 @@ class WorldBuildingApp(QWidget):
         self.name_input = QLineEdit()
         self.name_input.setMaxLength(100)
         name_layout.addWidget(self.name_input)
-        layout.addLayout(name_layout)
+        main_ui_layout.addLayout(name_layout)
 
         # Description input
-        layout.addWidget(QLabel("Description:"))
+        main_ui_layout.addWidget(QLabel("Description:"))
         self.description_input = QTextEdit()
         self.description_input.setPlaceholderText("Enter description (max 10,000 characters)")
-        layout.addWidget(self.description_input)
+        main_ui_layout.addWidget(self.description_input)
 
         # Labels input
-        layout.addWidget(QLabel("Labels (comma-separated):"))
+        main_ui_layout.addWidget(QLabel("Labels (comma-separated):"))
         self.labels_input = QLineEdit()
         self.labels_input.setMaxLength(500)  # Adjust as needed
-        layout.addWidget(self.labels_input)
+        main_ui_layout.addWidget(self.labels_input)
 
         # Tags input
-        layout.addWidget(QLabel("Tags (comma-separated):"))
+        main_ui_layout.addWidget(QLabel("Tags (comma-separated):"))
         self.tags_input = QLineEdit()
         self.tags_input.setMaxLength(500)  # Adjust as needed
-        layout.addWidget(self.tags_input)
+        main_ui_layout.addWidget(self.tags_input)
 
         # Properties input
-        layout.addWidget(QLabel("Properties:"))
+        main_ui_layout.addWidget(QLabel("Properties:"))
         self.properties_table = QTableWidget(0, 2)
         self.properties_table.setHorizontalHeaderLabels(["Key", "Value"])
         self.properties_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        layout.addWidget(self.properties_table)
+        main_ui_layout.addWidget(self.properties_table)
 
         # Add property button
         add_prop_button = QPushButton("Add Property")
         add_prop_button.clicked.connect(self.add_property_row)
-        layout.addWidget(add_prop_button)
+        main_ui_layout.addWidget(add_prop_button)
 
         # Relationships table
-        layout.addWidget(QLabel("Relationships:"))
+        main_ui_layout.addWidget(QLabel("Relationships:"))
         self.relationships_table = QTableWidget(0, 4)
         self.relationships_table.setHorizontalHeaderLabels(
             ["Related Node", "Type", "Direction", "Properties"])
         self.relationships_table.horizontalHeader().setSectionResizeMode(
             QHeaderView.Stretch)
-        layout.addWidget(self.relationships_table)
+        main_ui_layout.addWidget(self.relationships_table)
 
         # Add relationship button
         add_rel_button = QPushButton("Add Relationship")
         add_rel_button.clicked.connect(self.add_relationship_row)
-        layout.addWidget(add_rel_button)
+        main_ui_layout.addWidget(add_rel_button)
 
 
         # Save and Delete buttons
@@ -128,10 +153,10 @@ class WorldBuildingApp(QWidget):
         delete_button.clicked.connect(self.delete_node)
         buttons_layout.addWidget(delete_button)
 
-        layout.addLayout(buttons_layout)
+        main_ui_layout.addLayout(buttons_layout)
 
         self.setLayout(layout)
-        self.setWindowTitle('World Building App')
+        self.setWindowTitle('NeoRealmBuilder')
         self.show()
 
         # Initialize the model and completer
@@ -144,6 +169,14 @@ class WorldBuildingApp(QWidget):
 
         # Connect the completers activated signal
         self.completer.activated.connect(self.on_completer_activated)
+
+        # Initialize the tree view model
+        self.tree_model = QStandardItemModel()
+        self.tree_model.setHorizontalHeaderLabels(['Nodes'])
+        self.tree_view.setModel(self.tree_model)
+
+        # Connect tree view selection signal
+        self.tree_view.selectionModel().selectionChanged.connect(self.on_tree_selection_changed)
 
         # Setup debounce timer for name input (for updating completer suggestions)
         self.name_input_debounce_timer = QTimer()
@@ -247,12 +280,28 @@ class WorldBuildingApp(QWidget):
             if records:
                 node_data = records[0]
                 self.populate_node_fields(node_data)
+                self.populate_tree_view(node_data)
             else:
                 self.clear_fields()
         except Exception as e:
             error_message = f"Error handling node data: {e}"
             logging.error(error_message)
             QMessageBox.critical(self, "Error", error_message)
+
+    def populate_tree_view(self, node_data: dict) -> None:
+        self.tree_model.clear()
+        root_item = QStandardItem(node_data['n']['name'])
+        self.tree_model.appendRow(root_item)
+        self.add_relationships_to_tree(root_item, node_data['relationships'], depth=2)
+
+    def add_relationships_to_tree(self, parent_item, relationships, depth):
+        if depth <= 0:
+            return
+        for rel in relationships:
+            child_item = QStandardItem(rel['end'])
+            parent_item.appendRow(child_item)
+            # Fetch and add child relationships if needed
+            # self.add_relationships_to_tree(child_item, child_relationships, depth - 1)
 
     def populate_node_fields(self, node_data: dict) -> None:
         node = node_data.get('n')
