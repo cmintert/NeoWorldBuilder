@@ -1,6 +1,7 @@
 import json
 import sys
 import logging
+from typing import Optional
 
 from PyQt5.QtCore import (QThread, pyqtSignal, QTimer, QStringListModel, Qt)
 
@@ -141,7 +142,7 @@ class WorldBuildingApp(QWidget):
         self.completer.setFilterMode(Qt.MatchContains)
         self.name_input.setCompleter(self.completer)
 
-        # Connect the completer's activated signal
+        # Connect the completers activated signal
         self.completer.activated.connect(self.on_completer_activated)
 
         # Setup debounce timer for name input (for updating completer suggestions)
@@ -348,22 +349,60 @@ class WorldBuildingApp(QWidget):
 
     def save_node(self):
         name = self.name_input.text().strip()
-        if not name:
-            QMessageBox.warning(self, "Warning", "Node name cannot be empty.")
-            return
-
-        if len(name) > 100:
-            QMessageBox.warning(
-                self, "Warning", "Node name cannot exceed 100 characters.")
+        if not self.validate_node_name(name):
             return
 
         description = self.description_input.toPlainText()[:10000]
-        tags = [tag.strip()[:50]
-                for tag in self.tags_input.text().split(',') if tag.strip()][:100]
-        labels = [label.strip()[:50]
-                  for label in self.labels_input.text().split(',') if label.strip()][:100]
+        tags = self.parse_input_tags()
+        labels = self.parse_input_labels()
 
-        # Collect additional properties
+        additional_properties = self.collect_additional_properties()
+        if additional_properties is None:
+            return  # Error already handled in collect_additional_properties
+
+        relationships = self.collect_relationships()
+        if relationships is None:
+            return  # Error already handled in collect_relationships
+
+        # Run save operation in a separate thread to avoid blocking UI
+        self.worker = Neo4jQueryWorker(
+            self.driver,
+            self._save_node,
+            name,
+            description,
+            tags,
+            additional_properties,
+            relationships,
+            labels
+        )
+        self.worker.result_ready.connect(self.on_save_success)
+        self.worker.error_occurred.connect(self.handle_error)
+        self.worker.start()
+
+    def validate_node_name(self, name: str) -> bool:
+        if not name:
+            QMessageBox.warning(self, "Warning", "Node name cannot be empty.")
+            return False
+        if len(name) > 100:
+            QMessageBox.warning(self, "Warning", "Node name cannot exceed 100 characters.")
+            return False
+        return True
+
+    def parse_input_tags(self) -> list:
+        return [
+                   tag.strip()[:50]
+                   for tag in self.tags_input.text().split(',')
+                   if tag.strip()
+               ][:100]
+
+    def parse_input_labels(self) -> list:
+        return [
+                   label.strip()[:50]
+                   for label in self.labels_input.text().split(',')
+                   if label.strip()
+               ][:100]
+
+    def collect_additional_properties(self) -> Optional[dict]:
         additional_properties = {}
         for row in range(self.properties_table.rowCount()):
             key_item = self.properties_table.item(row, 0)
@@ -375,20 +414,24 @@ class WorldBuildingApp(QWidget):
             if not key:
                 QMessageBox.warning(
                     self, "Warning",
-                    f"Property key in row {row + 1} cannot be empty.")
-                return
+                    f"Property key in row {row + 1} cannot be empty."
+                )
+                return None
             if key.lower() in ['description', 'tags']:
                 QMessageBox.warning(
                     self, "Warning",
-                    f"Property key '{key}' is reserved and cannot be used as an additional property.")
-                return
+                    f"Property key '{key}' is reserved and cannot be used as an additional property."
+                )
+                return None
             try:
                 # Attempt to parse JSON value; if fails, keep as string
                 parsed_value = json.loads(value) if value else value
             except json.JSONDecodeError:
                 parsed_value = value
             additional_properties[key] = parsed_value
+        return additional_properties
 
+    def collect_relationships(self) -> Optional[list]:
         relationships = []
         for row in range(self.relationships_table.rowCount()):
             related_node_item = self.relationships_table.item(row, 0)
@@ -398,36 +441,34 @@ class WorldBuildingApp(QWidget):
 
             if not related_node_item or not rel_type_item or not direction_combo:
                 QMessageBox.warning(
-                    self, "Warning", f"Missing data in relationship row {row + 1}.")
-                return
+                    self, "Warning",
+                    f"Missing data in relationship row {row + 1}."
+                )
+                return None
 
             related_node = related_node_item.text().strip()[:100]
             rel_type = rel_type_item.text().strip()[:50]
             direction = direction_combo.currentText()
-            properties_text = properties_item.text() if properties_item else ''
-            properties_text = properties_text.strip()[:1000]
+            properties_text = properties_item.text().strip()[:1000] if properties_item else ''
 
             if not related_node or not rel_type:
                 QMessageBox.warning(
-                    self, "Warning", f"Related node and type are required in relationship row {row + 1}.")
-                return
+                    self, "Warning",
+                    f"Related node and type are required in relationship row {row + 1}."
+                )
+                return None
 
             try:
                 properties = json.loads(properties_text) if properties_text else {}
             except json.JSONDecodeError:
                 QMessageBox.warning(
-                    self, "Warning", f"Invalid JSON for relationship properties in row {row + 1}.")
-                return
+                    self, "Warning",
+                    f"Invalid JSON for relationship properties in row {row + 1}."
+                )
+                return None
 
-            relationships.append(
-                (related_node, rel_type, direction, properties))
-
-        # Run save operation in a separate thread to avoid blocking UI
-        self.worker = Neo4jQueryWorker(
-            self.driver, self._save_node, name, description, tags, additional_properties, relationships, labels)
-        self.worker.result_ready.connect(self.on_save_success)
-        self.worker.error_occurred.connect(self.handle_error)
-        self.worker.start()
+            relationships.append((related_node, rel_type, direction, properties))
+        return relationships
 
     def _save_node(self, session, name, description, tags, additional_properties, relationships, labels):
         session.execute_write(
