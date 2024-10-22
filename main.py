@@ -105,6 +105,7 @@ class WorldBuildingApp(QWidget):
                 NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
             self.init_ui()
             self.setObjectName("WorldBuildingApp")
+            self.show()
 
         except Exception as e:
             logging.error(f"Initialization error: {e}")
@@ -128,39 +129,78 @@ class WorldBuildingApp(QWidget):
             self.load_node_data()
 
     def init_ui(self):
-        layout = QVBoxLayout()
+        logging.info("Initializing UI...")
 
-        # Set margins and spacing
-        layout.setContentsMargins(20, 20, 20, 20)
+        try:
+            layout = QVBoxLayout()
+            layout.setContentsMargins(20, 20, 20, 20)
 
-        # Splitter to separate tree view and main UI
+            logging.info("Creating main splitter...")
+            main_splitter = self.create_main_splitter()
+            layout.addWidget(main_splitter)
+
+            logging.info("Creating main UI container...")
+            _ , form_image_splitter = self.create_main_ui_container(main_splitter)
+
+            logging.info("Creating image display...")
+            self.create_image_display(form_image_splitter)
+
+            self.setLayout(layout)
+            self.setWindowTitle('NeoRealmBuilder')
+
+            # Final setup for sizes and initializations
+            logging.info("Finalizing UI...")
+            self.finalize_ui(main_splitter)
+
+            logging.info("UI initialization complete.")
+
+        except Exception as e:
+            logging.error(f"Error during UI initialization: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to initialize UI: {e}")
+
+    def create_main_splitter(self):
+        """Creates the main splitter for the tree view and main UI."""
         main_splitter = QSplitter(Qt.Horizontal)
-        layout.addWidget(main_splitter)
 
         # Tree view for the left sidebar
         self.tree_view = QTreeView()
+        self.tree_view.setSortingEnabled(False)  # Disable sorting
         main_splitter.addWidget(self.tree_view)
 
-        # **Disable automatic sorting to preserve order**
-        self.tree_view.setSortingEnabled(False)
+        return main_splitter
 
-        # Main UI container
+    def create_main_ui_container(self, main_splitter):
+        """Creates the main UI container and its splitter."""
         main_ui_container = QWidget()
         main_ui_layout = QVBoxLayout()
         main_ui_container.setLayout(main_ui_layout)
         main_splitter.addWidget(main_ui_container)
 
-        # Further splitter to separate main form and image display
+        # Further splitter for form and image display
         form_image_splitter = QSplitter(Qt.Horizontal)
         main_ui_layout.addWidget(form_image_splitter)
 
-        # Form layout (left side of form_image_splitter)
+        return main_ui_container, form_image_splitter
+
+    def create_form_layout(self, form_image_splitter):
+        """Creates the form layout within the form_image_splitter."""
         form_container = QWidget()
         form_layout = QVBoxLayout()
         form_container.setLayout(form_layout)
         form_image_splitter.addWidget(form_container)
 
-        # Name input
+        self.create_name_input(form_layout)
+        self.create_description_input(form_layout)
+        self.create_labels_input(form_layout)
+        self.create_tags_input(form_layout)
+        self.create_properties_table(form_layout)
+        self.create_relationships_table(form_layout)
+        self.create_form_buttons(form_layout)
+
+        return form_container
+
+    def create_name_input(self, form_layout):
+        """Creates the name input field."""
         name_layout = QHBoxLayout()
         name_layout.addWidget(QLabel("Name:"))
         self.name_input = QLineEdit()
@@ -168,25 +208,29 @@ class WorldBuildingApp(QWidget):
         name_layout.addWidget(self.name_input)
         form_layout.addLayout(name_layout)
 
-        # Description input
+    def create_description_input(self, form_layout):
+        """Creates the description input field."""
         form_layout.addWidget(QLabel("Description:"))
         self.description_input = QTextEdit()
         self.description_input.setPlaceholderText(f"Enter description (max {MAX_DESCRIPTION_LENGTH} characters)")
         form_layout.addWidget(self.description_input)
 
-        # Labels input
+    def create_labels_input(self, form_layout):
+        """Creates the labels input field."""
         form_layout.addWidget(QLabel("Labels (comma-separated):"))
         self.labels_input = QLineEdit()
         self.labels_input.setMaxLength(MAX_LABELS_LENGTH)  # Adjust as needed
         form_layout.addWidget(self.labels_input)
 
-        # Tags input
+    def create_tags_input(self, form_layout):
+        """Creates the tags input field."""
         form_layout.addWidget(QLabel("Tags (comma-separated):"))
         self.tags_input = QLineEdit()
         self.tags_input.setMaxLength(MAX_TAGS_LENGTH)  # Adjust as needed
         form_layout.addWidget(self.tags_input)
 
-        # Properties input
+    def create_properties_table(self, form_layout):
+        """Creates the properties table and the add property button."""
         form_layout.addWidget(QLabel("Properties:"))
         self.properties_table = QTableWidget(0, 2)
         self.properties_table.setHorizontalHeaderLabels(["Key", "Value"])
@@ -195,27 +239,27 @@ class WorldBuildingApp(QWidget):
         self.properties_table.verticalHeader().setVisible(False)
         form_layout.addWidget(self.properties_table)
 
-        # Add property button
         add_prop_button = QPushButton("Add Property")
         add_prop_button.clicked.connect(self.add_property_row)
         form_layout.addWidget(add_prop_button)
 
-        # Relationships table
+    def create_relationships_table(self, form_layout):
+        """Creates the relationships table and the add relationship button."""
         form_layout.addWidget(QLabel("Relationships:"))
         self.relationships_table = QTableWidget(0, 4)
         self.relationships_table.setHorizontalHeaderLabels(
-            ["Related Node", "Type", "Direction", "Properties"])
+            ["Type", "Related Node", "Direction", "Properties"])
         self.relationships_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.relationships_table.verticalHeader().setVisible(False)
         self.relationships_table.horizontalHeader().setStyleSheet(HEADER_COLOR_STYLE)
         form_layout.addWidget(self.relationships_table)
 
-        # Add relationship button
         add_rel_button = QPushButton("Add Relationship")
         add_rel_button.clicked.connect(self.add_relationship_row)
         form_layout.addWidget(add_rel_button)
 
-        # Save and Delete buttons
+    def create_form_buttons(self, form_layout):
+        """Creates save and delete buttons."""
         buttons_layout = QHBoxLayout()
         save_button = QPushButton("Save")
         save_button.clicked.connect(self.save_node)
@@ -227,7 +271,8 @@ class WorldBuildingApp(QWidget):
 
         form_layout.addLayout(buttons_layout)
 
-        # Image display area (right side of form_image_splitter)
+    def create_image_display(self, form_image_splitter):
+        """Creates the image display area with buttons."""
         image_container = QWidget()
         image_layout = QVBoxLayout()
         image_layout.setAlignment(Qt.AlignCenter)
@@ -235,8 +280,8 @@ class WorldBuildingApp(QWidget):
         form_image_splitter.addWidget(image_container)
 
         # Image display frame
-        image_frame_layout = QHBoxLayout()  # Horizontal layout to center the image
-        image_frame_layout.setAlignment(Qt.AlignCenter)  # Center the image horizontally
+        image_frame_layout = QHBoxLayout()
+        image_frame_layout.setAlignment(Qt.AlignCenter)
         image_layout.addLayout(image_frame_layout)
 
         self.image_label = QLabel()
@@ -246,10 +291,14 @@ class WorldBuildingApp(QWidget):
         image_frame_layout.addWidget(self.image_label)
 
         # Load default image
-        self.default_image_path = DEFAULT_IMAGE_PATH  # Ensure this exists in your directory
+        self.default_image_path = DEFAULT_IMAGE_PATH
         self.load_default_image()
 
-        # Buttons below the image
+        # Image buttons
+        self.create_image_buttons(image_layout)
+
+    def create_image_buttons(self, image_layout):
+        """Creates buttons for changing and deleting images."""
         image_buttons_layout = QHBoxLayout()
         change_image_button = QPushButton("Change Image")
         change_image_button.clicked.connect(self.change_image)
@@ -261,13 +310,10 @@ class WorldBuildingApp(QWidget):
 
         image_layout.addLayout(image_buttons_layout)
 
-        self.setLayout(layout)
-        self.setWindowTitle('NeoRealmBuilder')
-
-        self.show()
-
-        # Set initial sizes for the main splitter
-        QTimer.singleShot(0, lambda: main_splitter.setSizes([MAIN_SPLITTER_LEFT_SIZE, MAIN_SPLITTER_CENTER, MAIN_SPLITTER_RIGHT_SIZE]))
+    def finalize_ui(self, main_splitter):
+        """Finalizes the UI setup, such as splitter sizes and input connections."""
+        QTimer.singleShot(0, lambda: main_splitter.setSizes(
+            [MAIN_SPLITTER_LEFT_SIZE, MAIN_SPLITTER_CENTER, MAIN_SPLITTER_RIGHT_SIZE]))
 
         # Initialize the model and completer
         self.node_name_model = QStringListModel()
@@ -277,7 +323,7 @@ class WorldBuildingApp(QWidget):
         self.completer.setFilterMode(Qt.MatchContains)
         self.name_input.setCompleter(self.completer)
 
-        # Connect the completers activated signal
+        # Connect the completer's activated signal
         self.completer.activated.connect(self.on_completer_activated)
 
         # Initialize the tree view model
@@ -289,7 +335,7 @@ class WorldBuildingApp(QWidget):
         # Connect tree view selection signal
         self.tree_view.selectionModel().selectionChanged.connect(self.on_tree_selection_changed)
 
-        # Setup debounce timer for name input (for updating completer suggestions)
+        # Setup debounce timer for name input
         self.name_input_debounce_timer = QTimer()
         self.name_input_debounce_timer.setSingleShot(True)
         self.name_input.textChanged.connect(self.debounce_update_name_completer)
@@ -597,17 +643,15 @@ class WorldBuildingApp(QWidget):
             return
         self.relationships_table.insertRow(row)
 
-        # Ensure related_node is a string
-        related_node_str = str(related_node)
-        related_node_item = QTableWidgetItem(related_node_str)
-        related_node_item.setToolTip(related_node_str)
-        self.relationships_table.setItem(row, 0, related_node_item)
-
-        # Relationship Type
         rel_type_str = str(rel_type)
         rel_type_item = QTableWidgetItem(rel_type_str)
         rel_type_item.setToolTip(rel_type_str)
-        self.relationships_table.setItem(row, 1, rel_type_item)
+        self.relationships_table.setItem(row, 0, rel_type_item)
+
+        related_node_str = str(related_node)
+        related_node_item = QTableWidgetItem(related_node_str)
+        related_node_item.setToolTip(related_node_str)
+        self.relationships_table.setItem(row, 1, related_node_item)
 
         # Direction
         direction_combo = QComboBox()
@@ -717,8 +761,9 @@ class WorldBuildingApp(QWidget):
     def collect_relationships(self) -> Optional[list]:
         relationships = []
         for row in range(self.relationships_table.rowCount()):
-            related_node_item = self.relationships_table.item(row, 0)
-            rel_type_item = self.relationships_table.item(row, 1)
+
+            rel_type_item = self.relationships_table.item(row, 0)
+            related_node_item = self.relationships_table.item(row, 1)
             direction_combo = self.relationships_table.cellWidget(row, 2)
             properties_item = self.relationships_table.item(row, 3)
 
@@ -729,8 +774,8 @@ class WorldBuildingApp(QWidget):
                 )
                 return None
 
-            related_node = related_node_item.text().strip()[:MAX_RELATIONSHIP_NAME_LENGTH]
             rel_type = rel_type_item.text().strip()[:MAX_RELATIONSHIP_TYPE_LENGTH]
+            related_node = related_node_item.text().strip()[:MAX_RELATIONSHIP_NAME_LENGTH]
             direction = direction_combo.currentText()
             properties_text = properties_item.text().strip()[:MAX_RELATIONSHIP_PROPERTIES_LENGTH] if properties_item else ''
 
