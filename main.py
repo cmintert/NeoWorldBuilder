@@ -1,3 +1,52 @@
+# Constants
+
+# UI Constants
+WINDOW_WIDTH = 1000
+WINDOW_HEIGHT = 600
+BACKGROUND_IMAGE_PATH = "background.png"
+DEFAULT_IMAGE_PATH = "default.png"
+DEFAULT_IMAGE_SIZE = (200, 200)
+DEFAULT_IMAGE_LABEL_SIZE = (300, 300)
+DEFAULT_IMAGE_BORDER_WIDTH = 1
+HEADER_COLOR_STYLE = """
+    QHeaderView::section {
+        background-color: #E0E0E0;
+        padding: 4px;
+        border: 1px solid #D0D0D0;
+    }
+"""
+
+# Text Input Limits
+MAX_NODE_NAME_LENGTH = 100
+MAX_DESCRIPTION_LENGTH = 10000
+MAX_LABELS_LENGTH = 500
+MAX_TAGS_LENGTH = 500
+MAX_PROPERTY_KEY_LENGTH = 1000
+MAX_PROPERTY_VALUE_LENGTH = 1000
+MAX_RELATIONSHIP_NAME_LENGTH = 100
+MAX_RELATIONSHIP_TYPE_LENGTH = 50
+MAX_RELATIONSHIP_PROPERTIES_LENGTH = 1000
+MAX_RELATIONSHIPS_COUNT = 100
+
+# Timing Constants
+NAME_INPUT_DEBOUNCE_TIME_MS = 100
+
+# Neo4j Database Settings
+NEO4J_URI = "bolt://192.168.178.84:7687"
+NEO4J_USERNAME = "neo4j"
+NEO4J_PASSWORD = "Godfather666"
+
+# Neo4j Query Limits
+MATCH_NODE_LIMIT = 50
+
+# UI Layout Constants
+MAIN_SPLITTER_LEFT_SIZE = 200
+MAIN_SPLITTER_CENTER = 500
+MAIN_SPLITTER_RIGHT_SIZE = 300
+# Property Keys
+RESERVED_PROPERTY_KEYS = ['description', 'tags', 'image_path']
+
+# Imports
 import json
 import sys
 import logging
@@ -23,9 +72,7 @@ logging.basicConfig(level=logging.INFO,
 
 
 class Neo4jQueryWorker(QThread):
-    """
-    Worker thread for executing Neo4j queries asynchronously.
-    """
+    # Worker thread for executing Neo4j queries asynchronously.
     result_ready = pyqtSignal(object)
     error_occurred = pyqtSignal(str)
 
@@ -48,17 +95,14 @@ class Neo4jQueryWorker(QThread):
 
 
 class WorldBuildingApp(QWidget):
-    """
-    Main application class.
-    """
+    # Main application class.
     def __init__(self):
         super().__init__()
         self.worker = None  # Initialize self.worker
         try:
             # Use a plain password (replace with your actual password)
-            neo4j_password = 'Godfather666'  # Replace with your actual password
             self.driver = GraphDatabase.driver(
-                "bolt://192.168.178.84:7687", auth=("neo4j", neo4j_password))
+                NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
             self.init_ui()
             self.setObjectName("WorldBuildingApp")
 
@@ -68,9 +112,9 @@ class WorldBuildingApp(QWidget):
                                  f"Failed to initialize the application: {e}")
             sys.exit(1)
 
-        self.resize(1000, 600)  # Increased width to accommodate image
+        self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)  # Increased width to accommodate image
 
-        background = QImage("background.png")
+        background = QImage(BACKGROUND_IMAGE_PATH)
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(background))
         self.setPalette(palette)
@@ -120,26 +164,26 @@ class WorldBuildingApp(QWidget):
         name_layout = QHBoxLayout()
         name_layout.addWidget(QLabel("Name:"))
         self.name_input = QLineEdit()
-        self.name_input.setMaxLength(100)
+        self.name_input.setMaxLength(MAX_NODE_NAME_LENGTH)
         name_layout.addWidget(self.name_input)
         form_layout.addLayout(name_layout)
 
         # Description input
         form_layout.addWidget(QLabel("Description:"))
         self.description_input = QTextEdit()
-        self.description_input.setPlaceholderText("Enter description (max 10,000 characters)")
+        self.description_input.setPlaceholderText(f"Enter description (max {MAX_DESCRIPTION_LENGTH} characters)")
         form_layout.addWidget(self.description_input)
 
         # Labels input
         form_layout.addWidget(QLabel("Labels (comma-separated):"))
         self.labels_input = QLineEdit()
-        self.labels_input.setMaxLength(500)  # Adjust as needed
+        self.labels_input.setMaxLength(MAX_LABELS_LENGTH)  # Adjust as needed
         form_layout.addWidget(self.labels_input)
 
         # Tags input
         form_layout.addWidget(QLabel("Tags (comma-separated):"))
         self.tags_input = QLineEdit()
-        self.tags_input.setMaxLength(500)  # Adjust as needed
+        self.tags_input.setMaxLength(MAX_TAGS_LENGTH)  # Adjust as needed
         form_layout.addWidget(self.tags_input)
 
         # Properties input
@@ -147,6 +191,8 @@ class WorldBuildingApp(QWidget):
         self.properties_table = QTableWidget(0, 2)
         self.properties_table.setHorizontalHeaderLabels(["Key", "Value"])
         self.properties_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.properties_table.horizontalHeader().setStyleSheet(HEADER_COLOR_STYLE)
+        self.properties_table.verticalHeader().setVisible(False)
         form_layout.addWidget(self.properties_table)
 
         # Add property button
@@ -159,8 +205,9 @@ class WorldBuildingApp(QWidget):
         self.relationships_table = QTableWidget(0, 4)
         self.relationships_table.setHorizontalHeaderLabels(
             ["Related Node", "Type", "Direction", "Properties"])
-        self.relationships_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.Stretch)
+        self.relationships_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.relationships_table.verticalHeader().setVisible(False)
+        self.relationships_table.horizontalHeader().setStyleSheet(HEADER_COLOR_STYLE)
         form_layout.addWidget(self.relationships_table)
 
         # Add relationship button
@@ -193,13 +240,13 @@ class WorldBuildingApp(QWidget):
         image_layout.addLayout(image_frame_layout)
 
         self.image_label = QLabel()
-        self.image_label.setFixedSize(300  , 300)
+        self.image_label.setFixedSize(*DEFAULT_IMAGE_LABEL_SIZE)
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setStyleSheet("border: 1px solid black;")
+        self.image_label.setStyleSheet(f"border: {DEFAULT_IMAGE_BORDER_WIDTH}px solid black;")
         image_frame_layout.addWidget(self.image_label)
 
         # Load default image
-        self.default_image_path = "default.png"  # Ensure this exists in your directory
+        self.default_image_path = DEFAULT_IMAGE_PATH  # Ensure this exists in your directory
         self.load_default_image()
 
         # Buttons below the image
@@ -220,7 +267,7 @@ class WorldBuildingApp(QWidget):
         self.show()
 
         # Set initial sizes for the main splitter
-        QTimer.singleShot(0, lambda: main_splitter.setSizes([250, 750]))
+        QTimer.singleShot(0, lambda: main_splitter.setSizes([MAIN_SPLITTER_LEFT_SIZE, MAIN_SPLITTER_CENTER, MAIN_SPLITTER_RIGHT_SIZE]))
 
         # Initialize the model and completer
         self.node_name_model = QStringListModel()
@@ -256,7 +303,7 @@ class WorldBuildingApp(QWidget):
             pixmap = QPixmap(self.default_image_path)
         else:
             # Create a placeholder pixmap if default image is missing
-            pixmap = QPixmap(200, 200)
+            pixmap = QPixmap(*DEFAULT_IMAGE_SIZE)
             pixmap.fill(QColor('gray'))
             painter = QPainter(pixmap)
             painter.setPen(Qt.black)
@@ -311,7 +358,7 @@ class WorldBuildingApp(QWidget):
         self.properties_table.setItem(row, 1, value_item)
 
     def debounce_update_name_completer(self):
-        self.name_input_debounce_timer.start(100)  # Reduced debounce time
+        self.name_input_debounce_timer.start(NAME_INPUT_DEBOUNCE_TIME_MS)  # Reduced debounce time
 
     def update_name_completer(self):
         text = self.name_input.text()
@@ -336,8 +383,8 @@ class WorldBuildingApp(QWidget):
 
     def query_func_fetch_names(self, session, prefix):
         result = session.run(
-            "MATCH (n:Node) WHERE toLower(n.name) CONTAINS toLower($prefix) RETURN n.name AS name LIMIT 50",
-            prefix=prefix)
+            "MATCH (n:Node) WHERE toLower(n.name) CONTAINS toLower($prefix) RETURN n.name AS name LIMIT $limit",
+            prefix=prefix, limit=MATCH_NODE_LIMIT)
         return [record["name"] for record in result]
 
     def handle_matching_node_names(self, names):
@@ -488,15 +535,15 @@ class WorldBuildingApp(QWidget):
             description = all_props.pop('description', '')
             tags = all_props.pop('tags', [])
 
-            self.description_input.setPlainText(str(description)[:10000])
+            self.description_input.setPlainText(str(description)[:MAX_DESCRIPTION_LENGTH])
 
             # Handle tags
             tags = self.parse_tags(tags)
-            self.tags_input.setText(', '.join(tags[:100]))
+            self.tags_input.setText(', '.join(tags[:MAX_TAGS_LENGTH]))
 
             # Handle labels
             labels = self.parse_labels(node_data.get('labels', []))
-            self.labels_input.setText(', '.join(labels[:100]))
+            self.labels_input.setText(', '.join(labels[:MAX_LABELS_LENGTH]))
 
             # Populate properties and relationships
             self.populate_properties(all_props)
@@ -515,18 +562,18 @@ class WorldBuildingApp(QWidget):
     def populate_properties(self, properties: dict) -> None:
         self.properties_table.setRowCount(0)
         for key, value in properties.items():
-            self.add_property_row(key, json.dumps(value) if isinstance(value, (dict, list)) else str(value)[:1000])
+            self.add_property_row(key, json.dumps(value) if isinstance(value, (dict, list)) else str(value)[:MAX_PROPERTY_VALUE_LENGTH])
 
     def populate_relationships(self, relationships: list) -> None:
         self.relationships_table.setRowCount(0)
         relationships = [rel for rel in relationships if rel is not None]
-        for rel in relationships[:100]:
+        for rel in relationships[:MAX_RELATIONSHIPS_COUNT]:
             if not isinstance(rel, dict):
                 continue
-            related_node = rel.get('end', '')[:100] if rel.get('end') else ''
-            rel_type = str(rel.get('type', ''))[:50]
+            related_node = rel.get('end', '')[:MAX_RELATIONSHIP_NAME_LENGTH] if rel.get('end') else ''
+            rel_type = str(rel.get('type', ''))[:MAX_RELATIONSHIP_TYPE_LENGTH]
             direction = str(rel.get('dir', ''))
-            properties = json.dumps(rel.get('props', {}))[:1000] if rel.get('props') else '{}'
+            properties = json.dumps(rel.get('props', {}))[:MAX_RELATIONSHIP_PROPERTIES_LENGTH] if rel.get('props') else '{}'
             self.add_relationship_row(related_node, rel_type, direction, properties)
 
     def clear_fields(self):
@@ -544,7 +591,7 @@ class WorldBuildingApp(QWidget):
 
     def add_relationship_row(self, related_node="", rel_type="", direction=">", properties=""):
         row = self.relationships_table.rowCount()
-        if row >= 100:  # Limit number of relationships
+        if row >= MAX_RELATIONSHIPS_COUNT:  # Limit number of relationships
             QMessageBox.warning(
                 self, "Warning", "Maximum number of relationships reached.")
             return
@@ -581,7 +628,7 @@ class WorldBuildingApp(QWidget):
         if not self.validate_node_name(name):
             return
 
-        description = self.description_input.toPlainText()[:10000]
+        description = self.description_input.toPlainText()[:MAX_DESCRIPTION_LENGTH]
         tags = self.parse_input_tags()
         labels = self.parse_input_labels()
 
@@ -619,24 +666,24 @@ class WorldBuildingApp(QWidget):
         if not name:
             QMessageBox.warning(self, "Warning", "Node name cannot be empty.")
             return False
-        if len(name) > 100:
+        if len(name) > MAX_NODE_NAME_LENGTH:
             QMessageBox.warning(self, "Warning", "Node name cannot exceed 100 characters.")
             return False
         return True
 
     def parse_input_tags(self) -> list:
         return [
-                   tag.strip()[:50]
+                   tag.strip()[:MAX_RELATIONSHIP_TYPE_LENGTH]
                    for tag in self.tags_input.text().split(',')
                    if tag.strip()
-               ][:100]
+               ][:MAX_TAGS_LENGTH]
 
     def parse_input_labels(self) -> list:
         return [
-                   label.strip()[:50]
+                   label.strip()[:MAX_RELATIONSHIP_TYPE_LENGTH]
                    for label in self.labels_input.text().split(',')
                    if label.strip()
-               ][:100]
+               ][:MAX_LABELS_LENGTH]
 
     def collect_additional_properties(self) -> Optional[dict]:
         additional_properties = {}
@@ -653,7 +700,7 @@ class WorldBuildingApp(QWidget):
                     f"Property key in row {row + 1} cannot be empty."
                 )
                 return None
-            if key.lower() in ['description', 'tags', 'image_path']:
+            if key.lower() in RESERVED_PROPERTY_KEYS:
                 QMessageBox.warning(
                     self, "Warning",
                     f"Property key '{key}' is reserved and cannot be used as an additional property."
@@ -682,10 +729,10 @@ class WorldBuildingApp(QWidget):
                 )
                 return None
 
-            related_node = related_node_item.text().strip()[:100]
-            rel_type = rel_type_item.text().strip()[:50]
+            related_node = related_node_item.text().strip()[:MAX_RELATIONSHIP_NAME_LENGTH]
+            rel_type = rel_type_item.text().strip()[:MAX_RELATIONSHIP_TYPE_LENGTH]
             direction = direction_combo.currentText()
-            properties_text = properties_item.text().strip()[:1000] if properties_item else ''
+            properties_text = properties_item.text().strip()[:MAX_RELATIONSHIP_PROPERTIES_LENGTH] if properties_item else ''
 
             if not related_node or not rel_type:
                 QMessageBox.warning(
