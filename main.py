@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
                              QTableWidget, QTableWidgetItem, QHeaderView,
                              QMessageBox, QTextEdit, QComboBox, QSplitter, QTreeView)
 
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QImage, QPalette, QBrush, QPainter
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QImage, QPalette, QBrush, QPainter, QColor
 
 from neo4j import GraphDatabase
 
@@ -173,7 +173,11 @@ class WorldBuildingApp(QWidget):
 
         self.setLayout(layout)
         self.setWindowTitle('NeoRealmBuilder')
+
         self.show()
+
+        # Set initial sizes for the splitter
+        QTimer.singleShot(0, lambda: splitter.setSizes([250, 550]))
 
         # Initialize the model and completer
         self.node_name_model = QStringListModel()
@@ -316,7 +320,7 @@ class WorldBuildingApp(QWidget):
         root_item = QStandardItem(node_data['n']['name'])
 
         # Highlight the active node in green
-        root_item.setForeground(QBrush(Qt.green))
+        root_item.setForeground(QBrush(QColor(90,160,100)))
 
         # Add the active node to the model (it appears only once)
         self.tree_model.appendRow(root_item)
