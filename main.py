@@ -2,6 +2,7 @@ import json
 import sys
 import logging
 import re
+import os
 
 from typing import Optional
 
@@ -10,9 +11,9 @@ from PyQt5.QtCore import (QThread, pyqtSignal, QTimer, QStringListModel, Qt)
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QLineEdit, QPushButton, QCompleter,
                              QTableWidget, QTableWidgetItem, QHeaderView,
-                             QMessageBox, QTextEdit, QComboBox, QSplitter, QTreeView)
+                             QMessageBox, QTextEdit, QComboBox, QSplitter, QTreeView, QFileDialog)
 
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QImage, QPalette, QBrush, QPainter, QColor
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QImage, QPalette, QBrush, QPainter, QColor, QPixmap
 
 from neo4j import GraphDatabase
 
@@ -67,13 +68,12 @@ class WorldBuildingApp(QWidget):
                                  f"Failed to initialize the application: {e}")
             sys.exit(1)
 
-        self.resize(800, 600)
+        self.resize(1000, 600)  # Increased width to accommodate image
 
         background = QImage("background.png")
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(background))
         self.setPalette(palette)
-
 
     def on_tree_selection_changed(self, selected, deselected):
         indexes = selected.indexes()
@@ -87,15 +87,15 @@ class WorldBuildingApp(QWidget):
         layout = QVBoxLayout()
 
         # Set margins and spacing
-        layout.setContentsMargins(20, 20,20, 20)
+        layout.setContentsMargins(20, 20, 20, 20)
 
         # Splitter to separate tree view and main UI
-        splitter = QSplitter(Qt.Horizontal)
-        layout.addWidget(splitter)
+        main_splitter = QSplitter(Qt.Horizontal)
+        layout.addWidget(main_splitter)
 
         # Tree view for the left sidebar
         self.tree_view = QTreeView()
-        splitter.addWidget(self.tree_view)
+        main_splitter.addWidget(self.tree_view)
 
         # **Disable automatic sorting to preserve order**
         self.tree_view.setSortingEnabled(False)
@@ -104,7 +104,17 @@ class WorldBuildingApp(QWidget):
         main_ui_container = QWidget()
         main_ui_layout = QVBoxLayout()
         main_ui_container.setLayout(main_ui_layout)
-        splitter.addWidget(main_ui_container)
+        main_splitter.addWidget(main_ui_container)
+
+        # Further splitter to separate main form and image display
+        form_image_splitter = QSplitter(Qt.Horizontal)
+        main_ui_layout.addWidget(form_image_splitter)
+
+        # Form layout (left side of form_image_splitter)
+        form_container = QWidget()
+        form_layout = QVBoxLayout()
+        form_container.setLayout(form_layout)
+        form_image_splitter.addWidget(form_container)
 
         # Name input
         name_layout = QHBoxLayout()
@@ -112,52 +122,51 @@ class WorldBuildingApp(QWidget):
         self.name_input = QLineEdit()
         self.name_input.setMaxLength(100)
         name_layout.addWidget(self.name_input)
-        main_ui_layout.addLayout(name_layout)
+        form_layout.addLayout(name_layout)
 
         # Description input
-        main_ui_layout.addWidget(QLabel("Description:"))
+        form_layout.addWidget(QLabel("Description:"))
         self.description_input = QTextEdit()
         self.description_input.setPlaceholderText("Enter description (max 10,000 characters)")
-        main_ui_layout.addWidget(self.description_input)
+        form_layout.addWidget(self.description_input)
 
         # Labels input
-        main_ui_layout.addWidget(QLabel("Labels (comma-separated):"))
+        form_layout.addWidget(QLabel("Labels (comma-separated):"))
         self.labels_input = QLineEdit()
         self.labels_input.setMaxLength(500)  # Adjust as needed
-        main_ui_layout.addWidget(self.labels_input)
+        form_layout.addWidget(self.labels_input)
 
         # Tags input
-        main_ui_layout.addWidget(QLabel("Tags (comma-separated):"))
+        form_layout.addWidget(QLabel("Tags (comma-separated):"))
         self.tags_input = QLineEdit()
         self.tags_input.setMaxLength(500)  # Adjust as needed
-        main_ui_layout.addWidget(self.tags_input)
+        form_layout.addWidget(self.tags_input)
 
         # Properties input
-        main_ui_layout.addWidget(QLabel("Properties:"))
+        form_layout.addWidget(QLabel("Properties:"))
         self.properties_table = QTableWidget(0, 2)
         self.properties_table.setHorizontalHeaderLabels(["Key", "Value"])
         self.properties_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        main_ui_layout.addWidget(self.properties_table)
+        form_layout.addWidget(self.properties_table)
 
         # Add property button
         add_prop_button = QPushButton("Add Property")
         add_prop_button.clicked.connect(self.add_property_row)
-        main_ui_layout.addWidget(add_prop_button)
+        form_layout.addWidget(add_prop_button)
 
         # Relationships table
-        main_ui_layout.addWidget(QLabel("Relationships:"))
+        form_layout.addWidget(QLabel("Relationships:"))
         self.relationships_table = QTableWidget(0, 4)
         self.relationships_table.setHorizontalHeaderLabels(
             ["Related Node", "Type", "Direction", "Properties"])
         self.relationships_table.horizontalHeader().setSectionResizeMode(
             QHeaderView.Stretch)
-        main_ui_layout.addWidget(self.relationships_table)
+        form_layout.addWidget(self.relationships_table)
 
         # Add relationship button
         add_rel_button = QPushButton("Add Relationship")
         add_rel_button.clicked.connect(self.add_relationship_row)
-        main_ui_layout.addWidget(add_rel_button)
-
+        form_layout.addWidget(add_rel_button)
 
         # Save and Delete buttons
         buttons_layout = QHBoxLayout()
@@ -169,15 +178,49 @@ class WorldBuildingApp(QWidget):
         delete_button.clicked.connect(self.delete_node)
         buttons_layout.addWidget(delete_button)
 
-        main_ui_layout.addLayout(buttons_layout)
+        form_layout.addLayout(buttons_layout)
+
+        # Image display area (right side of form_image_splitter)
+        image_container = QWidget()
+        image_layout = QVBoxLayout()
+        image_layout.setAlignment(Qt.AlignCenter)
+        image_container.setLayout(image_layout)
+        form_image_splitter.addWidget(image_container)
+
+        # Image display frame
+        image_frame_layout = QHBoxLayout()  # Horizontal layout to center the image
+        image_frame_layout.setAlignment(Qt.AlignCenter)  # Center the image horizontally
+        image_layout.addLayout(image_frame_layout)
+
+        self.image_label = QLabel()
+        self.image_label.setFixedSize(300  , 300)
+        self.image_label.setAlignment(Qt.AlignCenter)
+        self.image_label.setStyleSheet("border: 1px solid black;")
+        image_frame_layout.addWidget(self.image_label)
+
+        # Load default image
+        self.default_image_path = "default.png"  # Ensure this exists in your directory
+        self.load_default_image()
+
+        # Buttons below the image
+        image_buttons_layout = QHBoxLayout()
+        change_image_button = QPushButton("Change Image")
+        change_image_button.clicked.connect(self.change_image)
+        image_buttons_layout.addWidget(change_image_button)
+
+        delete_image_button = QPushButton("Delete Image")
+        delete_image_button.clicked.connect(self.delete_image)
+        image_buttons_layout.addWidget(delete_image_button)
+
+        image_layout.addLayout(image_buttons_layout)
 
         self.setLayout(layout)
         self.setWindowTitle('NeoRealmBuilder')
 
         self.show()
 
-        # Set initial sizes for the splitter
-        QTimer.singleShot(0, lambda: splitter.setSizes([250, 550]))
+        # Set initial sizes for the main splitter
+        QTimer.singleShot(0, lambda: main_splitter.setSizes([250, 750]))
 
         # Initialize the model and completer
         self.node_name_model = QStringListModel()
@@ -207,6 +250,55 @@ class WorldBuildingApp(QWidget):
 
         # Connect editingFinished to load data when user presses Enter or focus leaves
         self.name_input.editingFinished.connect(self.load_node_data)
+
+    def load_default_image(self):
+        if os.path.exists(self.default_image_path):
+            pixmap = QPixmap(self.default_image_path)
+        else:
+            # Create a placeholder pixmap if default image is missing
+            pixmap = QPixmap(200, 200)
+            pixmap.fill(QColor('gray'))
+            painter = QPainter(pixmap)
+            painter.setPen(Qt.black)
+            painter.drawText(pixmap.rect(), Qt.AlignCenter, "No Image")
+            painter.end()
+        self.display_image(pixmap)
+
+    def display_image(self, pixmap: QPixmap):
+        scaled_pixmap = pixmap.scaled(
+            self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.image_label.setPixmap(scaled_pixmap)
+
+    def resizeEvent(self, event):
+        # Update image scaling on window resize
+        if self.image_label.pixmap():
+            self.display_image(self.image_label.pixmap())
+        super().resizeEvent(event)
+
+    def change_image(self):
+        options = QFileDialog.Options()
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Image", "", "Image Files (*.png *.jpg *.jpeg *.bmp *.gif)", options=options)
+        if file_path:
+            if os.path.exists(file_path):
+                pixmap = QPixmap(file_path)
+                if pixmap.isNull():
+                    QMessageBox.warning(self, "Warning", "Selected file is not a valid image.")
+                    return
+                self.display_image(pixmap)
+                self.current_image_path = file_path
+            else:
+                QMessageBox.warning(self, "Warning", "Selected file does not exist.")
+
+    def delete_image(self):
+        confirm = QMessageBox.question(
+            self, "Confirm Deletion",
+            "Are you sure you want to delete the image associated with this node?",
+            QMessageBox.Yes | QMessageBox.No)
+
+        if confirm == QMessageBox.Yes:
+            self.load_default_image()
+            self.current_image_path = None
 
     def add_property_row(self, key="", value=""):
         row = self.properties_table.rowCount()
@@ -302,8 +394,10 @@ class WorldBuildingApp(QWidget):
                 node_data = records[0]
                 self.populate_node_fields(node_data)
                 self.populate_tree_view(node_data)
+                self.load_node_image(node_data)
             else:
                 self.clear_fields()
+                self.load_default_image()
         except Exception as e:
             error_message = f"Error handling node data: {e}"
             logging.error(error_message)
@@ -320,7 +414,7 @@ class WorldBuildingApp(QWidget):
         root_item = QStandardItem(node_data['n']['name'])
 
         # Highlight the active node in green
-        root_item.setForeground(QBrush(QColor(90,160,100)))
+        root_item.setForeground(QBrush(QColor(90, 160, 100)))
 
         # Add the active node to the model (it appears only once)
         self.tree_model.appendRow(root_item)
@@ -441,6 +535,8 @@ class WorldBuildingApp(QWidget):
         self.labels_input.clear()
         self.properties_table.setRowCount(0)
         self.relationships_table.setRowCount(0)
+        self.load_default_image()
+        self.current_image_path = None
 
     def handle_error(self, error_message):
         logging.error(error_message)
@@ -497,6 +593,13 @@ class WorldBuildingApp(QWidget):
         if relationships is None:
             return  # Error already handled in collect_relationships
 
+        # Handle image path
+        image_path = getattr(self, 'current_image_path', None)
+        if image_path:
+            additional_properties['image_path'] = image_path
+        else:
+            additional_properties['image_path'] = None
+
         # Run save operation in a separate thread to avoid blocking UI
         self.worker = Neo4jQueryWorker(
             self.driver,
@@ -550,7 +653,7 @@ class WorldBuildingApp(QWidget):
                     f"Property key in row {row + 1} cannot be empty."
                 )
                 return None
-            if key.lower() in ['description', 'tags']:
+            if key.lower() in ['description', 'tags', 'image_path']:
                 QMessageBox.warning(
                     self, "Warning",
                     f"Property key '{key}' is reserved and cannot be used as an additional property."
@@ -645,8 +748,12 @@ class WorldBuildingApp(QWidget):
 
         # Set additional properties if any
         if additional_properties:
-            query_props = "MATCH (n:Node {name: $name}) SET n += $additional_properties"
-            tx.run(query_props, name=name, additional_properties=additional_properties)
+            # Remove image_path if it's None
+            if 'image_path' in additional_properties and additional_properties['image_path'] is None:
+                tx.run("MATCH (n:Node {name: $name}) REMOVE n.image_path", name=name)
+            else:
+                query_props = "MATCH (n:Node {name: $name}) SET n += $additional_properties"
+                tx.run(query_props, name=name, additional_properties=additional_properties)
 
         # Remove existing relationships
         query_remove_rels = "MATCH (n:Node {name: $name})-[r]-() DELETE r"
@@ -725,6 +832,27 @@ class WorldBuildingApp(QWidget):
     def update_name_completer(self):
         # Fetch all node names starting with an empty string to refresh the completer
         self.fetch_matching_node_names('')
+
+    def load_node_image(self, node_data: dict):
+        all_props = node_data.get('all_props', {})
+        image_path = all_props.get('image_path', None)
+
+        if image_path and isinstance(image_path, str):
+            if os.path.exists(image_path):
+                pixmap = QPixmap(image_path)
+                if pixmap.isNull():
+                    logging.warning(f"Image at {image_path} is invalid.")
+                    self.load_default_image()
+                else:
+                    self.display_image(pixmap)
+                    self.current_image_path = image_path
+            else:
+                logging.warning(f"Image path {image_path} does not exist.")
+                self.load_default_image()
+                self.current_image_path = None
+        else:
+            self.load_default_image()
+            self.current_image_path = None
 
 
 if __name__ == '__main__':
