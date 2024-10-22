@@ -1,0 +1,37 @@
+{
+    "UI": {
+        "WINDOW_WIDTH": 1000,
+        "WINDOW_HEIGHT": 600,
+        "BACKGROUND_IMAGE_PATH": "background.png",
+        "DEFAULT_IMAGE_PATH": "default.png",
+        "DEFAULT_IMAGE_SIZE": [200, 200],
+        "DEFAULT_IMAGE_LABEL_SIZE": [300, 300],
+        "DEFAULT_IMAGE_BORDER_WIDTH": 1,
+        "HEADER_COLOR_STYLE": "QHeaderView::section { background-color: #E0E0E0; padding: 4px; border: 1px solid #D0D0D0; }",
+        "MAIN_SPLITTER_LEFT_SIZE": 200,
+        "MAIN_SPLITTER_CENTER": 500,
+        "MAIN_SPLITTER_RIGHT_SIZE": 300
+    },
+    "LIMITS": {
+        "MAX_NODE_NAME_LENGTH": 100,
+        "MAX_DESCRIPTION_LENGTH": 10000,
+        "MAX_LABELS_LENGTH": 500,
+        "MAX_TAGS_LENGTH": 500,
+        "MAX_PROPERTY_KEY_LENGTH": 1000,
+        "MAX_PROPERTY_VALUE_LENGTH": 1000,
+        "MAX_RELATIONSHIP_NAME_LENGTH": 100,
+        "MAX_RELATIONSHIP_TYPE_LENGTH": 50,
+        "MAX_RELATIONSHIP_PROPERTIES_LENGTH": 1000,
+        "MAX_RELATIONSHIPS_COUNT": 100
+    },
+    "TIMING": {
+        "NAME_INPUT_DEBOUNCE_TIME_MS": 100
+    },
+    "NEO4J": {
+        "URI": "bolt://192.168.178.84:7687",
+        "USERNAME": "neo4j",
+        "PASSWORD": "Godfather666",
+        "MATCH_NODE_LIMIT": 50
+    },
+    "RESERVED_PROPERTY_KEYS": ["description", "tags", "image_path"]
+}
