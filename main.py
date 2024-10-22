@@ -1,6 +1,8 @@
 import json
 import sys
 import logging
+import re
+
 from typing import Optional
 
 from PyQt5.QtCore import (QThread, pyqtSignal, QTimer, QStringListModel, Qt)
@@ -77,7 +79,7 @@ class WorldBuildingApp(QWidget):
         indexes = selected.indexes()
         if indexes:
             selected_item = self.tree_model.itemFromIndex(indexes[0])
-            node_name = selected_item.text().split(' -> ')[-1]
+            node_name = re.split(r' -> | <- ', selected_item.text())[-1]
             self.name_input.setText(node_name)
             self.load_node_data()
 
@@ -94,6 +96,9 @@ class WorldBuildingApp(QWidget):
         # Tree view for the left sidebar
         self.tree_view = QTreeView()
         splitter.addWidget(self.tree_view)
+
+        # **Disable automatic sorting to preserve order**
+        self.tree_view.setSortingEnabled(False)
 
         # Main UI container
         main_ui_container = QWidget()
@@ -303,17 +308,49 @@ class WorldBuildingApp(QWidget):
     def populate_tree_view(self, node_data: dict) -> None:
         self.tree_model.clear()
         self.tree_model.setHorizontalHeaderLabels(['Relationships'])
+
         # Log the contents of node_data
         logging.info(f"node_data: {node_data}")
+
+        # Create the root item representing the active node
         root_item = QStandardItem(node_data['n']['name'])
+
+        # Highlight the active node in green
+        root_item.setForeground(QBrush(Qt.green))
+
+        # Add the active node to the model (it appears only once)
         self.tree_model.appendRow(root_item)
-        self.add_relationships_to_tree(root_item, node_data['relationships'], depth=3)
-        self.expand_all_tree_items()
+
+        # Separate incoming and outgoing relationships
+        incoming_rels = [rel for rel in node_data['relationships'] if rel['dir'] == '<']
+        outgoing_rels = [rel for rel in node_data['relationships'] if rel['dir'] == '>']
+
+        # Add a placeholder for passive relationships if they exist
+        if incoming_rels:
+            passive_placeholder = QStandardItem("Passive Relationships")
+            root_item.appendRow(passive_placeholder)
+            for rel in incoming_rels:
+                parent_item = QStandardItem(f"{rel['type']} <- {rel['end']}")
+                passive_placeholder.appendRow(parent_item)
+
+        # Add active relationships as direct children of the active node
+        active_placeholder = None
+        if outgoing_rels:
+            active_placeholder = QStandardItem("Active Relationships")
+            root_item.appendRow(active_placeholder)
+            for rel in outgoing_rels:
+                parent_item = QStandardItem(f"{rel['type']} -> {rel['end']}")
+                active_placeholder.appendRow(parent_item)
+
+        # Expand only the 'Active Relationships' branch
+        if active_placeholder:
+            self.expand_active_relationships_branch(root_item, active_placeholder)
 
     def expand_all_tree_items(self):
         def recursive_expand(item):
             for row in range(item.rowCount()):
                 child = item.child(row)
+                print(child.text())
                 if child:
                     self.tree_view.setExpanded(self.tree_model.indexFromItem(child), True)
                     recursive_expand(child)
@@ -321,16 +358,30 @@ class WorldBuildingApp(QWidget):
         root_item = self.tree_model.invisibleRootItem()
         recursive_expand(root_item)
 
+    def expand_active_relationships_branch(self, root_item, active_placeholder):
+        def recursive_expand(item):
+            for row in range(item.rowCount()):
+                child = item.child(row)
+                if child:
+                    self.tree_view.setExpanded(self.tree_model.indexFromItem(child), True)
+                    recursive_expand(child)
+
+        # Expand the root node (active node)
+        self.tree_view.setExpanded(self.tree_model.indexFromItem(root_item), True)
+
+        # Expand the entire 'Active Relationships' branch
+        self.tree_view.setExpanded(self.tree_model.indexFromItem(active_placeholder), True)
+        recursive_expand(active_placeholder)
+
     def add_relationships_to_tree(self, parent_item, relationships, depth):
         if depth <= 0:
             return
         for rel in relationships:
-            if rel['dir'] == '>':  # Ensure only outgoing relationships are processed
-                branch_name = f"{rel['type']} -> {rel['end']}"
-                child_item = QStandardItem(branch_name)
-                parent_item.appendRow(child_item)
-                # Fetch and add child relationships if needed
-                # self.add_relationships_to_tree(child_item, child_relationships, depth - 1)
+            branch_name = f"{rel['type']} -> {rel['end']}" if rel['dir'] == '>' else f"{rel['type']} <- {rel['end']}"
+            child_item = QStandardItem(branch_name)
+            parent_item.appendRow(child_item)
+            # Optionally, fetch and add further relationships recursively
+            # self.add_relationships_to_tree(child_item, child_relationships, depth - 1)
 
     def populate_node_fields(self, node_data: dict) -> None:
         node = node_data.get('n')
