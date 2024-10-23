@@ -1,7 +1,7 @@
 {
     "UI": {
         "WINDOW_WIDTH": 1000,
-        "WINDOW_HEIGHT": 600,
+        "WINDOW_HEIGHT": 800,
         "BACKGROUND_IMAGE_PATH": "background.png",
         "DEFAULT_IMAGE_PATH": "default.png",
         "DEFAULT_IMAGE_SIZE": [200, 200],
@@ -33,5 +33,6 @@
         "PASSWORD": "Godfather666",
         "MATCH_NODE_LIMIT": 50
     },
-    "RESERVED_PROPERTY_KEYS": ["description", "tags", "image_path"]
+    "RESERVED_PROPERTY_KEYS": ["description", "tags", "image_path"],
+    "VERSION": "0.1.0"
 }

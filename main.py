@@ -7,25 +7,54 @@ import os
 
 from typing import Optional
 
-from PyQt5.QtCore import (QThread, pyqtSignal, QTimer, QStringListModel, Qt)
-from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
-                             QLabel, QLineEdit, QPushButton, QCompleter,
-                             QTableWidget, QTableWidgetItem, QHeaderView,
-                             QMessageBox, QTextEdit, QComboBox, QSplitter,
-                             QTreeView, QFileDialog, QSizePolicy, QScrollArea,
-                             QGroupBox, QFormLayout, QSpacerItem, QMainWindow)
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QImage, QPalette, QBrush, QPainter, QColor, QPixmap
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer, QStringListModel, Qt
+from PyQt5.QtWidgets import (
+    QApplication,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QCompleter,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QMessageBox,
+    QTextEdit,
+    QComboBox,
+    QSplitter,
+    QTreeView,
+    QFileDialog,
+    QSizePolicy,
+    QScrollArea,
+    QGroupBox,
+    QFormLayout,
+    QSpacerItem,
+    QMainWindow,
+)
+from PyQt5.QtGui import (
+    QStandardItemModel,
+    QStandardItem,
+    QImage,
+    QPalette,
+    QBrush,
+    QPainter,
+    QColor,
+    QPixmap,
+)
 
 from neo4j import GraphDatabase
 
 # Configure logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class Config:
     def __init__(self, json_file):
-        with open(json_file, 'r') as f:
+        with open(json_file, "r") as f:
             constants = json.load(f)
         for category, values in constants.items():
             if isinstance(values, dict):
@@ -68,7 +97,8 @@ class Neo4jModel:
     def load_node(self, name):
         try:
             with self.driver.session() as session:
-                result = session.run("""
+                result = session.run(
+                    """
                     MATCH (n:Node {name: $name})
                     WITH n, labels(n) AS labels,
                          [(n)-[r]->(m) | {end: m.name, type: type(r), dir: '>', props: properties(r)}] AS out_rels,
@@ -79,7 +109,9 @@ class Neo4jModel:
                            labels,
                            all_props
                     LIMIT 1
-                """, name=name)
+                """,
+                    name=name,
+                )
                 records = list(result)
                 return records
         except Exception as e:
@@ -99,12 +131,12 @@ class Neo4jModel:
     @staticmethod
     def _save_node_transaction(tx, node_data):
         # Extract data from node_data
-        name = node_data['name']
-        description = node_data['description']
-        tags = node_data['tags']
-        additional_properties = node_data['additional_properties']
-        relationships = node_data['relationships']
-        labels = node_data['labels']
+        name = node_data["name"]
+        description = node_data["description"]
+        tags = node_data["tags"]
+        additional_properties = node_data["additional_properties"]
+        relationships = node_data["relationships"]
+        labels = node_data["labels"]
 
         # Merge with 'Node' label
         query_merge = (
@@ -114,10 +146,12 @@ class Neo4jModel:
         tx.run(query_merge, name=name, description=description, tags=tags)
 
         # Retrieve existing labels excluding 'Node'
-        result = tx.run("MATCH (n:Node {name: $name}) RETURN labels(n) AS labels", name=name)
+        result = tx.run(
+            "MATCH (n:Node {name: $name}) RETURN labels(n) AS labels", name=name
+        )
         record = result.single()
         existing_labels = record["labels"] if record else []
-        existing_labels = [label for label in existing_labels if label != 'Node']
+        existing_labels = [label for label in existing_labels if label != "Node"]
 
         # Determine labels to add and remove
         input_labels_set = set(labels)
@@ -141,12 +175,19 @@ class Neo4jModel:
         # Set additional properties if any
         if additional_properties:
             # Remove image_path if it's None
-            if 'image_path' in additional_properties and additional_properties['image_path'] is None:
+            if (
+                "image_path" in additional_properties
+                and additional_properties["image_path"] is None
+            ):
                 tx.run("MATCH (n:Node {name: $name}) REMOVE n.image_path", name=name)
-                del additional_properties['image_path']
+                del additional_properties["image_path"]
             if additional_properties:
-                query_props = "MATCH (n:Node {name: $name}) SET n += $additional_properties"
-                tx.run(query_props, name=name, additional_properties=additional_properties)
+                query_props = (
+                    "MATCH (n:Node {name: $name}) SET n += $additional_properties"
+                )
+                tx.run(
+                    query_props, name=name, additional_properties=additional_properties
+                )
 
         # Remove existing relationships
         query_remove_rels = "MATCH (n:Node {name: $name})-[r]-() DELETE r"
@@ -155,7 +196,7 @@ class Neo4jModel:
         # Create/update relationships
         for rel in relationships:
             rel_type, rel_name, direction, properties = rel
-            if direction == '>':
+            if direction == ">":
                 query_rel = (
                     "MATCH (n:Node {name: $name}) "
                     "WITH n "
@@ -194,7 +235,9 @@ class Neo4jModel:
                 result = session.run(
                     "MATCH (n:Node) WHERE toLower(n.name) CONTAINS toLower($prefix) "
                     "RETURN n.name AS name LIMIT $limit",
-                    prefix=prefix, limit=limit)
+                    prefix=prefix,
+                    limit=limit,
+                )
                 names = [record["name"] for record in result]
                 return names
         except Exception as e:
@@ -215,139 +258,185 @@ class WorldBuildingUI(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        # Main horizontal layout
-        main_layout = QHBoxLayout()
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(10)
+        """Initialize the main UI layout"""
+        main_layout = self._create_main_layout()
+        left_panel = self._create_left_panel()
+        right_panel = self._create_right_panel()
 
-        # Left sidebar: TreeView
-        self.tree_view = QTreeView()
-        self.tree_view.setMinimumWidth(200)
-        self.tree_view.setMaximumWidth(300)
-        self.tree_view.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
-        self.tree_view.setHeaderHidden(False)
-        self.tree_view.setSortingEnabled(False)
-        main_layout.addWidget(self.tree_view)
+        main_layout.addWidget(left_panel)
+        main_layout.addWidget(right_panel)
 
-        # Right main area with ScrollArea
+        self.setLayout(main_layout)
+
+    def _create_main_layout(self) -> QHBoxLayout:
+        """Create and configure the main horizontal layout"""
+        layout = QHBoxLayout()
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(10)
+        return layout
+
+    def _create_left_panel(self) -> QTreeView:
+        """Create and configure the tree view panel"""
+        tree_view = QTreeView()
+        tree_view.setMinimumWidth(200)
+        tree_view.setMaximumWidth(300)
+        tree_view.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+        tree_view.setHeaderHidden(False)
+        tree_view.setSortingEnabled(False)
+        self.tree_view = tree_view
+        return tree_view
+
+    def _create_right_panel(self) -> QScrollArea:
+        """Create the right panel with scroll area"""
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        main_layout.addWidget(scroll_area)
 
-        # Container widget for scroll area
         container = QWidget()
-        scroll_area.setWidget(container)
-
-        # Vertical layout for the container
-        container_layout = QVBoxLayout()
-        container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(15)
-        container_layout.setAlignment(Qt.AlignTop)
+        container_layout = self._create_container_layout()
         container.setLayout(container_layout)
 
-        # **New: Horizontal layout for Node Details and Image**
-        top_horizontal_layout = QHBoxLayout()
-        top_horizontal_layout.setSpacing(20)
+        scroll_area.setWidget(container)
+        return scroll_area
 
-        # **Node Details GroupBox**
-        form_group = QGroupBox("Node Details")
-        form_layout = QFormLayout()
-        form_layout.setLabelAlignment(Qt.AlignRight)
-        form_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
-        form_layout.setHorizontalSpacing(10)
-        form_layout.setVerticalSpacing(10)
-        form_group.setLayout(form_layout)
+    def _create_container_layout(self) -> QVBoxLayout:
+        """Create the main container layout"""
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(15)
+        layout.setAlignment(Qt.AlignTop)
 
-        # Name input with completer
+        # Add all major sections
+        layout.addLayout(self._create_top_section())
+        layout.addWidget(self._create_properties_group())
+        layout.addWidget(self._create_relationships_group())
+        layout.addItem(self._create_spacer())
+        layout.addLayout(self._create_bottom_buttons())
+
+        return layout
+
+    def _create_top_section(self) -> QHBoxLayout:
+        """Create the top section with node details and image"""
+        layout = QHBoxLayout()
+        layout.setSpacing(20)
+
+        form_group = self._create_node_details_group()
+        image_group = self._create_image_group()
+
+        layout.addWidget(form_group, stretch=3)
+        layout.addWidget(image_group, stretch=1)
+
+        return layout
+
+    def _create_node_details_group(self) -> QGroupBox:
+        """Create the node details form group"""
+        group = QGroupBox("Node Details")
+        layout = QFormLayout()
+        layout.setLabelAlignment(Qt.AlignRight)
+        layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
+        layout.setHorizontalSpacing(10)
+        layout.setVerticalSpacing(10)
+
+        # Create form fields
         self.name_input = QLineEdit()
-        form_layout.addRow(QLabel("Name:"), self.name_input)
-
-        # Description input
         self.description_input = QTextEdit()
         self.description_input.setFixedHeight(100)
-        form_layout.addRow(QLabel("Description:"), self.description_input)
-
-        # Labels input
         self.labels_input = QLineEdit()
-        form_layout.addRow(QLabel("Labels (comma-separated):"), self.labels_input)
-
-        # Tags input
         self.tags_input = QLineEdit()
-        form_layout.addRow(QLabel("Tags (comma-separated):"), self.tags_input)
 
-        # **Image Display GroupBox**
-        image_group = QGroupBox("Image")
-        image_layout = QVBoxLayout()
-        image_group.setLayout(image_layout)
+        # Add fields to layout
+        layout.addRow(QLabel("Name:"), self.name_input)
+        layout.addRow(QLabel("Description:"), self.description_input)
+        layout.addRow(QLabel("Labels (comma-separated):"), self.labels_input)
+        layout.addRow(QLabel("Tags (comma-separated):"), self.tags_input)
 
+        group.setLayout(layout)
+        return group
+
+    def _create_image_group(self) -> QGroupBox:
+        """Create the image display group"""
+        group = QGroupBox("Image")
+        layout = QVBoxLayout()
+
+        # Image display
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setFixedSize(200, 200)  # Fixed size for consistency
-        image_layout.addWidget(self.image_label)
+        self.image_label.setFixedSize(200, 200)
+        layout.addWidget(self.image_label)
 
         # Image buttons
-        image_buttons_layout = QHBoxLayout()
+        button_layout = QHBoxLayout()
         self.change_image_button = QPushButton("Change Image")
         self.delete_image_button = QPushButton("Delete Image")
-        image_buttons_layout.addWidget(self.change_image_button)
-        image_buttons_layout.addWidget(self.delete_image_button)
-        image_layout.addLayout(image_buttons_layout)
+        button_layout.addWidget(self.change_image_button)
+        button_layout.addWidget(self.delete_image_button)
+        layout.addLayout(button_layout)
 
-        # Add the group boxes with stretch factors
-        top_horizontal_layout.addWidget(form_group, stretch=3)  # Node Details takes more space
-        top_horizontal_layout.addWidget(image_group, stretch=1)  # Image Display takes less space
+        group.setLayout(layout)
+        return group
 
-        # Add the horizontal layout to the container's vertical layout
-        container_layout.addLayout(top_horizontal_layout)
+    def _create_properties_group(self) -> QGroupBox:
+        """Create the properties group with table"""
+        group = QGroupBox("Properties")
+        layout = QVBoxLayout()
 
-        # **Properties GroupBox**
-        properties_group = QGroupBox("Properties")
-        properties_layout = QVBoxLayout()
-        properties_group.setLayout(properties_layout)
+        # Properties table
+        self.properties_table = self._create_table(
+            columns=2,
+            headers=["Key", "Value"]
+        )
+        layout.addWidget(self.properties_table)
 
-        self.properties_table = QTableWidget(0, 2)
-        self.properties_table.setHorizontalHeaderLabels(["Key", "Value"])
-        self.properties_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        properties_layout.addWidget(self.properties_table)
-
+        # Add property button
         self.add_prop_button = QPushButton("Add Property")
-        properties_layout.addWidget(self.add_prop_button)
+        layout.addWidget(self.add_prop_button)
 
-        container_layout.addWidget(properties_group)
+        group.setLayout(layout)
+        return group
 
-        # **Relationships GroupBox**
-        relationships_group = QGroupBox("Relationships")
-        relationships_layout = QVBoxLayout()
-        relationships_group.setLayout(relationships_layout)
+    def _create_relationships_group(self) -> QGroupBox:
+        """Create the relationships group with table"""
+        group = QGroupBox("Relationships")
+        layout = QVBoxLayout()
 
-        self.relationships_table = QTableWidget(0, 4)
-        self.relationships_table.setHorizontalHeaderLabels(
-            ["Type", "Related Node","Direction", "Properties"])
-        self.relationships_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        relationships_layout.addWidget(self.relationships_table)
+        # Relationships table
+        self.relationships_table = self._create_table(
+            columns=4,
+            headers=["Type", "Related Node", "Direction", "Properties"]
+        )
+        layout.addWidget(self.relationships_table)
 
+        # Add relationship button
         self.add_rel_button = QPushButton("Add Relationship")
-        relationships_layout.addWidget(self.add_rel_button)
+        layout.addWidget(self.add_rel_button)
 
-        container_layout.addWidget(relationships_group)
+        group.setLayout(layout)
+        return group
 
-        # Spacer to push buttons to the top
-        spacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
-        container_layout.addItem(spacer)
+    def _create_table(self, columns: int, headers: list) -> QTableWidget:
+        """Create a configured table widget"""
+        table = QTableWidget(0, columns)
+        table.setHorizontalHeaderLabels(headers)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        table.verticalHeader().setVisible(False)
+        return table
 
-        # **Save and Delete Buttons**
-        buttons_layout = QHBoxLayout()
+    def _create_spacer(self) -> QSpacerItem:
+        """Create a spacer item"""
+        return QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
+
+    def _create_bottom_buttons(self) -> QHBoxLayout:
+        """Create the bottom save/delete buttons"""
+        layout = QHBoxLayout()
+
         self.save_button = QPushButton("Save")
         self.delete_button = QPushButton("Delete")
-        buttons_layout.addStretch()  # Add stretchable space before the buttons
-        buttons_layout.addWidget(self.save_button)
-        buttons_layout.addWidget(self.delete_button)
-        buttons_layout.addStretch()  # Add stretchable space after the buttons
 
-        container_layout.addLayout(buttons_layout)
+        layout.addStretch()
+        layout.addWidget(self.save_button)
+        layout.addWidget(self.delete_button)
+        layout.addStretch()
 
-        # Set the main layout
-        self.setLayout(main_layout)
+        return layout
 
     # Methods to update UI elements
     def update_properties_table(self, properties: dict):
@@ -368,15 +457,21 @@ class WorldBuildingUI(QWidget):
     def update_relationships_table(self, relationships: list):
         self.relationships_table.setRowCount(0)
         for rel in relationships:
-            related_node = rel.get('end', '')
-            rel_type = rel.get('type', '')
-            direction = rel.get('dir', '>')
-            properties = rel.get('props', {})
+            related_node = rel.get("end", "")
+            rel_type = rel.get("type", "")
+            direction = rel.get("dir", ">")
+            properties = rel.get("props", {})
             # Convert properties dict to a JSON string for better readability
-            properties_str = json.dumps(properties) if isinstance(properties, dict) else str(properties)
+            properties_str = (
+                json.dumps(properties)
+                if isinstance(properties, dict)
+                else str(properties)
+            )
             self.add_relationship_row(related_node, rel_type, direction, properties_str)
 
-    def add_relationship_row(self, related_node="", rel_type="", direction=">", properties=""):
+    def add_relationship_row(
+        self, related_node="", rel_type="", direction=">", properties=""
+    ):
         row = self.relationships_table.rowCount()
         self.relationships_table.insertRow(row)
 
@@ -387,7 +482,7 @@ class WorldBuildingUI(QWidget):
         self.relationships_table.setItem(row, 1, related_node_item)
 
         direction_combo = QComboBox()
-        direction_combo.addItems(['>', '<'])
+        direction_combo.addItems([">", "<"])
         direction_combo.setCurrentText(direction)
         self.relationships_table.setCellWidget(row, 2, direction_combo)
 
@@ -415,7 +510,7 @@ class WorldBuildingUI(QWidget):
 
     def create_placeholder_image(self, size):
         pixmap = QPixmap(*size)
-        pixmap.fill(QColor('gray'))
+        pixmap.fill(QColor("gray"))
         painter = QPainter(pixmap)
         painter.setPen(Qt.black)
         painter.drawText(pixmap.rect(), Qt.AlignCenter, "No Image")
@@ -425,7 +520,8 @@ class WorldBuildingUI(QWidget):
     def display_image(self, pixmap: QPixmap):
         if not pixmap.isNull():
             scaled_pixmap = pixmap.scaled(
-                self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
             self.image_label.setPixmap(scaled_pixmap)
         else:
             self.image_label.clear()
@@ -435,7 +531,6 @@ class WorldBuildingUI(QWidget):
         if self.image_label.pixmap():
             self.display_image(self.image_label.pixmap())
         super().resizeEvent(event)
-
 
 
 class WorldBuildingController:
@@ -474,8 +569,10 @@ class WorldBuildingController:
         self.tree_model = QStandardItemModel()
         self.ui.tree_view.setModel(self.tree_model)
         self.tree_model.clear()
-        self.tree_model.setHorizontalHeaderLabels(['Relationships'])
-        self.ui.tree_view.selectionModel().selectionChanged.connect(self.on_tree_selection_changed)
+        self.tree_model.setHorizontalHeaderLabels(["Relationships"])
+        self.ui.tree_view.selectionModel().selectionChanged.connect(
+            self.on_tree_selection_changed
+        )
 
         # Debounce timer for name input
         self.name_input_debounce_timer = QTimer()
@@ -484,7 +581,9 @@ class WorldBuildingController:
 
         # Load default image
         self.default_image_path = config.UI_DEFAULT_IMAGE_PATH
-        self.default_image_size = config.UI_DEFAULT_IMAGE_SIZE  # Assuming it's a list or tuple
+        self.default_image_size = (
+            config.UI_DEFAULT_IMAGE_SIZE
+        )  # Assuming it's a list or tuple
         self.ui.load_default_image_ui(self.default_image_path, self.default_image_size)
 
     def stop_all_workers(self):
@@ -495,7 +594,9 @@ class WorldBuildingController:
 
     # Debounce methods
     def debounce_update_name_completer(self):
-        self.name_input_debounce_timer.start(self.config.TIMING_NAME_INPUT_DEBOUNCE_TIME_MS)
+        self.name_input_debounce_timer.start(
+            self.config.TIMING_NAME_INPUT_DEBOUNCE_TIME_MS
+        )
 
     # Completer methods
     def update_name_completer(self):
@@ -507,13 +608,16 @@ class WorldBuildingController:
 
     def fetch_matching_node_names(self, text):
         # Stop existing worker if running
-        if hasattr(self, 'name_fetch_worker') and self.name_fetch_worker.isRunning():
+        if hasattr(self, "name_fetch_worker") and self.name_fetch_worker.isRunning():
             self.name_fetch_worker.quit()
             self.name_fetch_worker.wait()
 
         # Create and start new worker
         worker = Neo4jQueryWorker(
-            self.model.fetch_matching_node_names, text, self.config.NEO4J_MATCH_NODE_LIMIT)
+            self.model.fetch_matching_node_names,
+            text,
+            self.config.NEO4J_MATCH_NODE_LIMIT,
+        )
         worker.result_ready.connect(self.handle_matching_node_names)
         worker.error_occurred.connect(self.handle_error)
         worker.finished.connect(lambda w=worker: self.worker_threads.remove(w))
@@ -545,7 +649,7 @@ class WorldBuildingController:
         indexes = selected.indexes()
         if indexes:
             selected_item = self.tree_model.itemFromIndex(indexes[0])
-            node_name = re.split(r' -> | <- ', selected_item.text())[-1]
+            node_name = re.split(r" -> | <- ", selected_item.text())[-1]
             self.ui.name_input.setText(node_name)
             self.load_node_data()
 
@@ -554,19 +658,20 @@ class WorldBuildingController:
         name = self.ui.name_input.text()
         if not name.strip():
             self.ui.clear_fields()
-            self.ui.load_default_image_ui(self.default_image_path, self.default_image_size)
+            self.ui.load_default_image_ui(
+                self.default_image_path, self.default_image_size
+            )
             return
 
         logging.info(f"Loading node data for name: {name}")
 
         # Stop existing worker if running
-        if hasattr(self, 'load_node_worker') and self.load_node_worker.isRunning():
+        if hasattr(self, "load_node_worker") and self.load_node_worker.isRunning():
             self.load_node_worker.quit()
             self.load_node_worker.wait()
 
         # Create and start new worker
-        worker = Neo4jQueryWorker(
-            self.model.load_node, name)
+        worker = Neo4jQueryWorker(self.model.load_node, name)
         worker.result_ready.connect(self.handle_node_data)
         worker.error_occurred.connect(self.handle_error)
         worker.finished.connect(lambda w=worker: self.worker_threads.remove(w))
@@ -584,8 +689,9 @@ class WorldBuildingController:
 
             else:
                 self.ui.clear_fields()
-                self.ui.load_default_image_ui(self.default_image_path, self.default_image_size)
-
+                self.ui.load_default_image_ui(
+                    self.default_image_path, self.default_image_size
+                )
 
         except Exception as e:
             error_message = f"Error handling node data: {e}"
@@ -593,25 +699,31 @@ class WorldBuildingController:
             QMessageBox.critical(self.ui, "Error", error_message)
 
     def populate_node_fields(self, node_data: dict):
-        node = node_data.get('n')
+        node = node_data.get("n")
         if node:
-            all_props = node_data.get('all_props', {})
-            description = all_props.pop('description', '')
-            tags = all_props.pop('tags', [])
+            all_props = node_data.get("all_props", {})
+            description = all_props.pop("description", "")
+            tags = all_props.pop("tags", [])
 
-            self.ui.description_input.setPlainText(str(description)[:self.config.LIMITS_MAX_DESCRIPTION_LENGTH])
+            self.ui.description_input.setPlainText(
+                str(description)[: self.config.LIMITS_MAX_DESCRIPTION_LENGTH]
+            )
 
             # Handle tags
             tags = self.parse_tags(tags)
-            self.ui.tags_input.setText(', '.join(tags[:self.config.LIMITS_MAX_TAGS_LENGTH]))
+            self.ui.tags_input.setText(
+                ", ".join(tags[: self.config.LIMITS_MAX_TAGS_LENGTH])
+            )
 
             # Handle labels
-            labels = self.parse_labels(node_data.get('labels', []))
-            self.ui.labels_input.setText(', '.join(labels[:self.config.LIMITS_MAX_LABELS_LENGTH]))
+            labels = self.parse_labels(node_data.get("labels", []))
+            self.ui.labels_input.setText(
+                ", ".join(labels[: self.config.LIMITS_MAX_LABELS_LENGTH])
+            )
 
             # Populate properties and relationships
             self.ui.update_properties_table(all_props)
-            self.ui.update_relationships_table(node_data.get('relationships', []))
+            self.ui.update_relationships_table(node_data.get("relationships", []))
         else:
             self.ui.clear_fields()
 
@@ -621,16 +733,16 @@ class WorldBuildingController:
         return [str(tags)]
 
     def parse_labels(self, labels: list) -> list:
-        return [str(label) for label in labels if label != 'Node']
+        return [str(label) for label in labels if label != "Node"]
 
     def populate_tree_view(self, node_data: dict):
         self.tree_model.clear()
-        self.tree_model.setHorizontalHeaderLabels(['Relationships'])
+        self.tree_model.setHorizontalHeaderLabels(["Relationships"])
 
         logging.info(f"node_data: {node_data}")
 
         # Create the root item representing the active node
-        root_item = QStandardItem(node_data['n']['name'])
+        root_item = QStandardItem(node_data["n"]["name"])
 
         # Highlight the active node in green
         root_item.setForeground(QBrush(QColor(90, 160, 100)))
@@ -639,8 +751,8 @@ class WorldBuildingController:
         self.tree_model.appendRow(root_item)
 
         # Separate incoming and outgoing relationships
-        incoming_rels = [rel for rel in node_data['relationships'] if rel['dir'] == '<']
-        outgoing_rels = [rel for rel in node_data['relationships'] if rel['dir'] == '>']
+        incoming_rels = [rel for rel in node_data["relationships"] if rel["dir"] == "<"]
+        outgoing_rels = [rel for rel in node_data["relationships"] if rel["dir"] == ">"]
 
         # Add a placeholder for passive relationships if they exist
         if incoming_rels:
@@ -665,24 +777,30 @@ class WorldBuildingController:
         self.ui.tree_view.expandAll()
 
     def load_node_image(self, node_data: dict):
-        all_props = node_data.get('all_props', {})
-        image_path = all_props.get('image_path', None)
+        all_props = node_data.get("all_props", {})
+        image_path = all_props.get("image_path", None)
 
         if image_path and isinstance(image_path, str):
             if os.path.exists(image_path):
                 pixmap = QPixmap(image_path)
                 if pixmap.isNull():
                     logging.warning(f"Image at {image_path} is invalid.")
-                    self.ui.load_default_image_ui(self.default_image_path, self.default_image_size)
+                    self.ui.load_default_image_ui(
+                        self.default_image_path, self.default_image_size
+                    )
                 else:
                     self.ui.display_image(pixmap)
                     self.current_image_path = image_path
             else:
                 logging.warning(f"Image path {image_path} does not exist.")
-                self.ui.load_default_image_ui(self.default_image_path, self.default_image_size)
+                self.ui.load_default_image_ui(
+                    self.default_image_path, self.default_image_size
+                )
                 self.current_image_path = None
         else:
-            self.ui.load_default_image_ui(self.default_image_path, self.default_image_size)
+            self.ui.load_default_image_ui(
+                self.default_image_path, self.default_image_size
+            )
             self.current_image_path = None
 
     # Save Node
@@ -691,7 +809,9 @@ class WorldBuildingController:
         if not self.validate_node_name(name):
             return
 
-        description = self.ui.description_input.toPlainText()[:self.config.LIMITS_MAX_DESCRIPTION_LENGTH]
+        description = self.ui.description_input.toPlainText()[
+            : self.config.LIMITS_MAX_DESCRIPTION_LENGTH
+        ]
         tags = self.parse_input_tags()
         labels = self.parse_input_labels()
 
@@ -704,22 +824,22 @@ class WorldBuildingController:
             return  # Error already handled
 
         # Handle image path
-        image_path = getattr(self, 'current_image_path', None)
+        image_path = getattr(self, "current_image_path", None)
         if image_path:
-            additional_properties['image_path'] = image_path
+            additional_properties["image_path"] = image_path
         else:
-            additional_properties['image_path'] = None
+            additional_properties["image_path"] = None
 
         node_data = {
-            'name': name,
-            'description': description,
-            'tags': tags,
-            'labels': labels,
-            'additional_properties': additional_properties,
-            'relationships': relationships
+            "name": name,
+            "description": description,
+            "tags": tags,
+            "labels": labels,
+            "additional_properties": additional_properties,
+            "relationships": relationships,
         }
 
-        #Logging the saved node data
+        # Logging the saved node data
 
         logging.info(f"Saving node data for name: {name}")
 
@@ -730,8 +850,7 @@ class WorldBuildingController:
             logging.warning(f"Failed to serialize node_data for logging: {e}")
 
         # Run save operation in a separate thread to avoid blocking UI
-        worker = Neo4jQueryWorker(
-            self.model.save_node, node_data)
+        worker = Neo4jQueryWorker(self.model.save_node, node_data)
         worker.result_ready.connect(self.on_save_success)
         worker.error_occurred.connect(self.handle_error)
         worker.finished.connect(lambda w=worker: self.worker_threads.remove(w))
@@ -744,23 +863,27 @@ class WorldBuildingController:
             QMessageBox.warning(self.ui, "Warning", "Node name cannot be empty.")
             return False
         if len(name) > self.config.LIMITS_MAX_NODE_NAME_LENGTH:
-            QMessageBox.warning(self.ui, "Warning", f"Node name cannot exceed {self.config.LIMITS_MAX_NODE_NAME_LENGTH} characters.")
+            QMessageBox.warning(
+                self.ui,
+                "Warning",
+                f"Node name cannot exceed {self.config.LIMITS_MAX_NODE_NAME_LENGTH} characters.",
+            )
             return False
         return True
 
     def parse_input_tags(self) -> list:
         return [
-            tag.strip()[:self.config.LIMITS_MAX_RELATIONSHIP_TYPE_LENGTH]
-            for tag in self.ui.tags_input.text().split(',')
+            tag.strip()[: self.config.LIMITS_MAX_RELATIONSHIP_TYPE_LENGTH]
+            for tag in self.ui.tags_input.text().split(",")
             if tag.strip()
-        ][:self.config.LIMITS_MAX_TAGS_LENGTH]
+        ][: self.config.LIMITS_MAX_TAGS_LENGTH]
 
     def parse_input_labels(self) -> list:
         return [
-            label.strip()[:self.config.LIMITS_MAX_RELATIONSHIP_TYPE_LENGTH]
-            for label in self.ui.labels_input.text().split(',')
+            label.strip()[: self.config.LIMITS_MAX_RELATIONSHIP_TYPE_LENGTH]
+            for label in self.ui.labels_input.text().split(",")
             if label.strip()
-        ][:self.config.LIMITS_MAX_LABELS_LENGTH]
+        ][: self.config.LIMITS_MAX_LABELS_LENGTH]
 
     def collect_additional_properties(self) -> Optional[dict]:
         additional_properties = {}
@@ -773,14 +896,16 @@ class WorldBuildingController:
             value = value_item.text().strip()
             if not key:
                 QMessageBox.warning(
-                    self.ui, "Warning",
-                    f"Property key in row {row + 1} cannot be empty."
+                    self.ui,
+                    "Warning",
+                    f"Property key in row {row + 1} cannot be empty.",
                 )
                 return None
             if key.lower() in self.config.RESERVED_PROPERTY_KEYS:
                 QMessageBox.warning(
-                    self.ui, "Warning",
-                    f"Property key '{key}' is reserved and cannot be used as an additional property."
+                    self.ui,
+                    "Warning",
+                    f"Property key '{key}' is reserved and cannot be used as an additional property.",
                 )
                 return None
             try:
@@ -801,21 +926,30 @@ class WorldBuildingController:
 
             if not related_node_item or not rel_type_item or not direction_combo:
                 QMessageBox.warning(
-                    self.ui, "Warning",
-                    f"Missing data in relationship row {row + 1}."
+                    self.ui, "Warning", f"Missing data in relationship row {row + 1}."
                 )
                 return None
 
-            related_node = related_node_item.text().strip()[:self.config.LIMITS_MAX_RELATIONSHIP_NAME_LENGTH]
-            rel_type = rel_type_item.text().strip()[:self.config.LIMITS_MAX_RELATIONSHIP_TYPE_LENGTH]
+            related_node = related_node_item.text().strip()[
+                : self.config.LIMITS_MAX_RELATIONSHIP_NAME_LENGTH
+            ]
+            rel_type = rel_type_item.text().strip()[
+                : self.config.LIMITS_MAX_RELATIONSHIP_TYPE_LENGTH
+            ]
             direction = direction_combo.currentText()
-            properties_text = properties_item.text().strip()[
-                              :self.config.LIMITS_MAX_RELATIONSHIP_PROPERTIES_LENGTH] if properties_item else ''
+            properties_text = (
+                properties_item.text().strip()[
+                    : self.config.LIMITS_MAX_RELATIONSHIP_PROPERTIES_LENGTH
+                ]
+                if properties_item
+                else ""
+            )
 
             if not related_node or not rel_type:
                 QMessageBox.warning(
-                    self.ui, "Warning",
-                    f"Related node and type are required in relationship row {row + 1}."
+                    self.ui,
+                    "Warning",
+                    f"Related node and type are required in relationship row {row + 1}.",
                 )
                 return None
 
@@ -823,12 +957,13 @@ class WorldBuildingController:
                 properties = json.loads(properties_text) if properties_text else {}
             except json.JSONDecodeError:
                 QMessageBox.warning(
-                    self.ui, "Warning",
-                    f"Invalid JSON for relationship properties in row {row + 1}."
+                    self.ui,
+                    "Warning",
+                    f"Invalid JSON for relationship properties in row {row + 1}.",
                 )
                 return None
 
-            relationships.append((rel_type,related_node, direction, properties))
+            relationships.append((rel_type, related_node, direction, properties))
         return relationships
 
     def on_save_success(self, _):
@@ -839,23 +974,28 @@ class WorldBuildingController:
         name = self.ui.name_input.text().strip()
         if not name:
             QMessageBox.warning(
-                self.ui, "Warning", "Please enter a node name to delete.")
+                self.ui, "Warning", "Please enter a node name to delete."
+            )
             return
 
         confirm = QMessageBox.question(
-            self.ui, "Confirm Deletion",
+            self.ui,
+            "Confirm Deletion",
             f"Are you sure you want to delete the node '{name}'?",
-            QMessageBox.Yes | QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+        )
 
         if confirm == QMessageBox.Yes:
             # Stop existing worker if running
-            if hasattr(self, 'delete_node_worker') and self.delete_node_worker.isRunning():
+            if (
+                hasattr(self, "delete_node_worker")
+                and self.delete_node_worker.isRunning()
+            ):
                 self.delete_node_worker.quit()
                 self.delete_node_worker.wait()
 
             # Create and start new worker
-            worker = Neo4jQueryWorker(
-                self.model.delete_node, name)
+            worker = Neo4jQueryWorker(self.model.delete_node, name)
             worker.result_ready.connect(self.on_delete_success)
             worker.error_occurred.connect(self.handle_error)
             worker.finished.connect(lambda w=worker: self.worker_threads.remove(w))
@@ -864,7 +1004,11 @@ class WorldBuildingController:
             self.delete_node_worker = worker
 
     def on_delete_success(self, _):
-        QMessageBox.information(self.ui, "Success", f"Node '{self.ui.name_input.text()}' deleted successfully.")
+        QMessageBox.information(
+            self.ui,
+            "Success",
+            f"Node '{self.ui.name_input.text()}' deleted successfully.",
+        )
         self.ui.clear_fields()
         self.ui.name_input.clear()
         self.update_name_completer()
@@ -876,12 +1020,19 @@ class WorldBuildingController:
     def change_image(self):
         options = QFileDialog.Options()
         file_path, _ = QFileDialog.getOpenFileName(
-            self.ui, "Select Image", "", "Image Files (*.png *.jpg *.jpeg *.bmp *.gif)", options=options)
+            self.ui,
+            "Select Image",
+            "",
+            "Image Files (*.png *.jpg *.jpeg *.bmp *.gif)",
+            options=options,
+        )
         if file_path:
             if os.path.exists(file_path):
                 pixmap = QPixmap(file_path)
                 if pixmap.isNull():
-                    QMessageBox.warning(self.ui, "Warning", "Selected file is not a valid image.")
+                    QMessageBox.warning(
+                        self.ui, "Warning", "Selected file is not a valid image."
+                    )
                     return
                 self.ui.display_image(pixmap)
                 self.current_image_path = file_path
@@ -891,9 +1042,11 @@ class WorldBuildingController:
 
     def delete_image(self):
         confirm = QMessageBox.question(
-            self.ui, "Confirm Deletion",
+            self.ui,
+            "Confirm Deletion",
             "Are you sure you want to delete the image associated with this node?",
-            QMessageBox.Yes | QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+        )
 
         if confirm == QMessageBox.Yes:
             self.ui.display_image(QPixmap())  # Clear image
@@ -901,97 +1054,189 @@ class WorldBuildingController:
             self.ui.image_deleted.emit()  # Corrected
 
 
+from PyQt5.QtWidgets import QMainWindow, QMessageBox
+from PyQt5.QtCore import QSize
+import logging
+import sys
+import os
+from typing import Optional
+from dataclasses import dataclass
+
+
+@dataclass
+class AppComponents:
+    """Container for main application components"""
+
+    ui: "WorldBuildingUI"
+    model: "Neo4jModel"
+    controller: "WorldBuildingController"
+    config: "Config"
+
+
 class WorldBuildingApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.components: Optional[AppComponents] = None
+        self.initialize_application()
+
+    def initialize_application(self) -> None:
+        """Initialize all application components with proper error handling"""
         try:
-            # **1. Load Configuration**
-            # Initialize the Config class to load settings from 'config.json'
-            config = Config('config.json')
-            logging.info("Configuration loaded successfully.")
+            # 1. Load Configuration
+            config = self._load_configuration()
 
-            # **2. Initialize Data Model**
-            # Create an instance of Neo4jModel with credentials from the config
-            self.model = Neo4jModel(
-                config.NEO4J_URI,
-                config.NEO4J_USERNAME,
-                config.NEO4J_PASSWORD
+            # 2. Initialize Database Model
+            model = self._initialize_database(config)
+
+            # 3. Setup UI
+            ui = self._setup_ui()
+
+            # 4. Initialize Controller
+            controller = self._initialize_controller(ui, model, config)
+
+            # Store components for access in other methods
+            self.components = AppComponents(
+                ui=ui, model=model, controller=controller, config=config
             )
-            logging.info("Neo4jModel initialized and connected to the database.")
 
-            # **3. Initialize UI**
-            # Create an instance of WorldBuildingUI which sets up all UI components
-            self.ui = WorldBuildingUI()
-            logging.info("WorldBuildingUI initialized.")
+            # 5. Configure Window
+            self._configure_main_window()
 
-            # **4. Initialize Controller**
-            # Create an instance of WorldBuildingController, passing references to the UI, model, and config
-            self.controller = WorldBuildingController(self.ui, self.model, config)
-            logging.info("WorldBuildingController initialized.")
+            # 6. Setup Background
+            self._setup_background()
 
-            # **5. Set Central Widget**
-            self.setCentralWidget(self.ui)
-
-            # **6. Set Application Properties**
-            # Assign an object name for styling or identification purposes
-            self.setObjectName("WorldBuildingApp")
-
-            # **7. Resize the Main Window**
-            # Set the initial size of the application window based on configuration
-            self.resize(config.UI_WINDOW_WIDTH, config.UI_WINDOW_HEIGHT)
-            self.setMinimumSize(config.UI_WINDOW_WIDTH,
-                                config.UI_WINDOW_HEIGHT)  # Prevent the window from being too small
-            logging.info(f"Application window resized to {config.UI_WINDOW_WIDTH}x{config.UI_WINDOW_HEIGHT}.")
-
-            # **8. Set Background Image via Stylesheet**
-            # Load and set the background image for the main window using stylesheet
-            if os.path.exists(config.UI_BACKGROUND_IMAGE_PATH):
-                self.setStyleSheet(f"""
-                    QMainWindow {{
-                        background-image: url("{config.UI_BACKGROUND_IMAGE_PATH}");
-                        background-repeat: no-repeat;
-                        background-position: center;
-                    }}
-                """)
-                logging.info(f"Background image set from {config.UI_BACKGROUND_IMAGE_PATH}.")
-            else:
-                logging.warning(f"Background image path {config.UI_BACKGROUND_IMAGE_PATH} does not exist.")
-
-            # **9. Show the Main Window**
+            # 7. Show Window
             self.show()
 
-        except Exception as e:
-            # **Error Handling**
-            # Log the error and show a critical message box to the user before exiting
-            logging.error(f"Initialization error: {e}")
-            QMessageBox.critical(
-                self,
-                "Initialization Error",
-                f"Failed to initialize the application:\n{e}"
-            )
-            sys.exit(1)  # Exit the application with an error code
+            logging.info("Application initialized successfully")
 
-    def closeEvent(self, event):
+        except Exception as e:
+            self._handle_initialization_error(e)
+
+    def _load_configuration(self) -> "Config":
+        """Load application configuration"""
+        config = Config("config.json")
+        logging.info("Configuration loaded successfully")
+        return config
+
+    def _initialize_database(self, config: "Config") -> "Neo4jModel":
+        """Initialize database connection"""
+        model = Neo4jModel(
+            config.NEO4J_URI, config.NEO4J_USERNAME, config.NEO4J_PASSWORD
+        )
+        logging.info("Neo4jModel initialized and connected to the database")
+        return model
+
+    def _setup_ui(self) -> "WorldBuildingUI":
+        """Initialize user interface"""
+        ui = WorldBuildingUI()
+        logging.info("WorldBuildingUI initialized")
+        return ui
+
+    def _initialize_controller(
+        self, ui: "WorldBuildingUI", model: "Neo4jModel", config: "Config"
+    ) -> "WorldBuildingController":
+        """Initialize application controller"""
+        controller = WorldBuildingController(ui, model, config)
+        logging.info("WorldBuildingController initialized")
+        return controller
+
+    def _configure_main_window(self) -> None:
+        """Configure main window properties"""
+        self.setObjectName("WorldBuildingApp")
+        self.setCentralWidget(self.components.ui)
+
+        # Set window title
+        self.setWindowTitle(f"NeoRealmBuilder {self.components.config.VERSION}")
+
+        # Set window size
+        self.resize(
+            self.components.config.UI_WINDOW_WIDTH,
+            self.components.config.UI_WINDOW_HEIGHT,
+        )
+        self.setMinimumSize(
+            self.components.config.UI_WINDOW_WIDTH,
+            self.components.config.UI_WINDOW_HEIGHT,
+        )
+
+        logging.info(
+            f"Application window resized to "
+            f"{self.components.config.UI_WINDOW_WIDTH}x"
+            f"{self.components.config.UI_WINDOW_HEIGHT}"
+        )
+
+    def _setup_background(self) -> None:
+        """Setup tiling background image using PyQt5's palette system"""
+        bg_path = self.components.config.UI_BACKGROUND_IMAGE_PATH
+        if os.path.exists(bg_path):
+            try:
+                # Create a palette for the window
+                palette = self.palette()
+
+                # Load the image
+                image = QImage(bg_path)
+                if image.isNull():
+                    logging.error("Failed to load background image")
+                    return
+
+                # Create a brush that tiles the image
+                brush = QBrush(image)
+
+                # Set the background using the palette
+                palette.setBrush(QPalette.Window, brush)
+
+                # Apply the palette
+                self.setPalette(palette)
+
+                # Enable auto fill background
+                self.setAutoFillBackground(True)
+
+                # Also set for central widget
+                self.centralWidget().setAutoFillBackground(True)
+                self.centralWidget().setPalette(palette)
+
+                logging.info(f"Tiling background image set from {bg_path}")
+
+            except Exception as e:
+                logging.error(f"Error setting background image: {e}")
+        else:
+            logging.warning(f"Background image path {bg_path} does not exist.")
+
+    def _handle_initialization_error(self, error: Exception) -> None:
+        """Handle initialization errors"""
+        error_message = f"Failed to initialize the application:\n{str(error)}"
+        logging.error(error_message)
+
+        QMessageBox.critical(self, "Initialization Error", error_message)
+
+        # Cleanup resources if needed
+        if self.components and self.components.model:
+            try:
+                self.components.model.close()
+            except Exception as e:
+                logging.error(f"Failed to cleanup resources: {e}")
+
+        sys.exit(1)
+
+    def closeEvent(self, event) -> None:
+        """Handle application shutdown"""
         logging.info("Closing application...")
         try:
-            # **Graceful Shutdown**
-            # Ensure all worker threads are stopped to prevent orphaned threads
-            self.controller.stop_all_workers()
+            # Stop all worker threads
+            self.components.controller.stop_all_workers()
             logging.info("All worker threads terminated.")
 
-            # **Close Data Model**
-            # Close the Neo4j database connection gracefully
-            self.model.close()
+            # Close database connection
+            self.components.model.close()
             logging.info("Neo4jModel connection closed.")
-        except Exception as e:
-            # Log any errors that occur during the shutdown process
-            logging.error(f"Error during application shutdown: {e}")
-        finally:
-            # Accept the close event to proceed with application termination
+
             event.accept()
+        except Exception as e:
+            logging.error(f"Error during application shutdown: {e}")
+            event.accept()  # Accept the close event even if cleanup fails
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     ex = WorldBuildingApp()
     sys.exit(app.exec_())
