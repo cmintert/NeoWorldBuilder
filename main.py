@@ -35,38 +35,177 @@ class Config:
 
 
 class Neo4jQueryWorker(QThread):
-    # Worker thread for executing Neo4j queries asynchronously.
+    # handles executing Neo4j queries asynchronously in a separate thread
     result_ready = pyqtSignal(object)
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, driver, query_func, *args, **kwargs):
+    def __init__(self, model_method, *args, **kwargs):
         super().__init__()
-        self.driver = driver
-        self.query_func = query_func
+        self.model_method = model_method
         self.args = args
         self.kwargs = kwargs
 
     def run(self):
         try:
-            with self.driver.session() as session:
-                result = self.query_func(session, *self.args, **self.kwargs)
-                self.result_ready.emit(result)
+            result = self.model_method(*self.args, **self.kwargs)
+            self.result_ready.emit(result)
         except Exception as e:
             error_message = str(e)
-            logging.error(f"Neo4jWorker error: {error_message}")
+            logging.error(f"Neo4jQueryWorker error: {error_message}")
             self.error_occurred.emit(error_message)
 
+class Neo4jModel:
+    def __init__(self, uri, username, password):
+        self.driver = GraphDatabase.driver(uri, auth=(username, password))
+        logging.info("Neo4jModel initialized and connected to the database.")
+
+    def close(self):
+        self.driver.close()
+        logging.info("Neo4jModel connection closed.")
+
+    def load_node(self, name):
+        try:
+            with self.driver.session() as session:
+                result = session.run("""
+                    MATCH (n:Node {name: $name})
+                    WITH n, labels(n) AS labels,
+                         [(n)-[r]->(m) | {end: m.name, type: type(r), dir: '>', props: properties(r)}] AS out_rels,
+                         [(n)<-[r2]-(o) | {end: o.name, type: type(r2), dir: '<', props: properties(r2)}] AS in_rels,
+                         properties(n) AS all_props
+                    RETURN n,
+                           out_rels + in_rels AS relationships,
+                           labels,
+                           all_props
+                    LIMIT 1
+                """, name=name)
+                records = list(result)
+                return records
+        except Exception as e:
+            logging.error(f"Error loading node: {e}")
+            raise e  # Reraise exception to be handled by caller
+
+    def save_node(self, node_data):
+        try:
+            with self.driver.session() as session:
+                session.write_transaction(self._save_node_transaction, node_data)
+            logging.info(f"Node '{node_data['name']}' saved successfully.")
+            return None  # Indicate success
+        except Exception as e:
+            logging.error(f"Error saving node: {e}")
+            raise e  # Reraise exception to be handled by caller
+
+    @staticmethod
+    def _save_node_transaction(tx, node_data):
+        # Extract data from node_data
+        name = node_data['name']
+        description = node_data['description']
+        tags = node_data['tags']
+        additional_properties = node_data['additional_properties']
+        relationships = node_data['relationships']
+        labels = node_data['labels']
+
+        # Merge with 'Node' label
+        query_merge = (
+            "MERGE (n:Node {name: $name}) "
+            "SET n.description = $description, n.tags = $tags"
+        )
+        tx.run(query_merge, name=name, description=description, tags=tags)
+
+        # Retrieve existing labels excluding 'Node'
+        result = tx.run("MATCH (n:Node {name: $name}) RETURN labels(n) AS labels", name=name)
+        record = result.single()
+        existing_labels = record["labels"] if record else []
+        existing_labels = [label for label in existing_labels if label != 'Node']
+
+        # Determine labels to add and remove
+        input_labels_set = set(labels)
+        existing_labels_set = set(existing_labels)
+
+        labels_to_add = input_labels_set - existing_labels_set
+        labels_to_remove = existing_labels_set - input_labels_set
+
+        # Add new labels
+        if labels_to_add:
+            labels_str = ":".join([f"`{label}`" for label in labels_to_add])
+            query_add = f"MATCH (n:Node {{name: $name}}) SET n:{labels_str}"
+            tx.run(query_add, name=name)
+
+        # Remove labels that are no longer needed
+        if labels_to_remove:
+            labels_str = ", ".join([f"n:`{label}`" for label in labels_to_remove])
+            query_remove = f"MATCH (n:Node {{name: $name}}) REMOVE {labels_str}"
+            tx.run(query_remove, name=name)
+
+        # Set additional properties if any
+        if additional_properties:
+            # Remove image_path if it's None
+            if 'image_path' in additional_properties and additional_properties['image_path'] is None:
+                tx.run("MATCH (n:Node {name: $name}) REMOVE n.image_path", name=name)
+                del additional_properties['image_path']
+            if additional_properties:
+                query_props = "MATCH (n:Node {name: $name}) SET n += $additional_properties"
+                tx.run(query_props, name=name, additional_properties=additional_properties)
+
+        # Remove existing relationships
+        query_remove_rels = "MATCH (n:Node {name: $name})-[r]-() DELETE r"
+        tx.run(query_remove_rels, name=name)
+
+        # Create/update relationships
+        for rel in relationships:
+            rel_name, rel_type, direction, properties = rel
+            if direction == '>':
+                query_rel = (
+                    "MATCH (n:Node {name: $name}), (m:Node {name: $rel_name}) "
+                    f"MERGE (n)-[r:`{rel_type}`]->(m) "
+                    "SET r = $properties"
+                )
+            else:
+                query_rel = (
+                    "MATCH (n:Node {name: $name}), (m:Node {name: $rel_name}) "
+                    f"MERGE (m)-[r:`{rel_type}`]->(n) "
+                    "SET r = $properties"
+                )
+            tx.run(query_rel, name=name, rel_name=rel_name, properties=properties)
+
+    def delete_node(self, name):
+        try:
+            with self.driver.session() as session:
+                session.write_transaction(self._delete_node_transaction, name)
+            logging.info(f"Node '{name}' deleted successfully.")
+            return None  # Indicate success
+        except Exception as e:
+            logging.error(f"Error deleting node: {e}")
+            raise e  # Reraise exception to be handled by caller
+
+    @staticmethod
+    def _delete_node_transaction(tx, name):
+        query = "MATCH (n:Node {name: $name}) DETACH DELETE n"
+        tx.run(query, name=name)
+
+    def fetch_matching_node_names(self, prefix, limit):
+        try:
+            with self.driver.session() as session:
+                result = session.run(
+                    "MATCH (n:Node) WHERE toLower(n.name) CONTAINS toLower($prefix) "
+                    "RETURN n.name AS name LIMIT $limit",
+                    prefix=prefix, limit=limit)
+                names = [record["name"] for record in result]
+                return names
+        except Exception as e:
+            logging.error(f"Error fetching matching node names: {e}")
+            raise e
 
 class WorldBuildingApp(QWidget):
     # Main application class.
     def __init__(self):
         super().__init__()
         self.worker = None  # Initialize self.worker
+        self.worker_threads = [] # Keep track of worker threads
         try:
             # Use a plain password (replace with your actual password)
             print(config.NEO4J_URI, config.NEO4J_USERNAME, config.NEO4J_PASSWORD)
-            self.driver = GraphDatabase.driver(
-                config.NEO4J_URI, auth=(config.NEO4J_USERNAME, config.NEO4J_PASSWORD))
+            self.model = Neo4jModel(
+                config.NEO4J_URI, config.NEO4J_USERNAME, config.NEO4J_PASSWORD)
             print("Connected to Neo4j")
             print("Initializing UI...")
             self.init_ui()
@@ -340,22 +479,20 @@ class WorldBuildingApp(QWidget):
             self.node_name_model.setStringList([])
 
     def fetch_matching_node_names(self, text):
+        # Stop existing worker if running
         if hasattr(self, 'name_fetch_worker') and self.name_fetch_worker.isRunning():
             self.name_fetch_worker.quit()
             self.name_fetch_worker.wait()
 
-        self.name_fetch_worker = Neo4jQueryWorker(
-            self.driver, self.query_func_fetch_names, text)
-        self.name_fetch_worker.result_ready.connect(
-            self.handle_matching_node_names)
-        self.name_fetch_worker.error_occurred.connect(self.handle_error)
-        self.name_fetch_worker.start()
-
-    def query_func_fetch_names(self, session, prefix):
-        result = session.run(
-            "MATCH (n:Node) WHERE toLower(n.name) CONTAINS toLower($prefix) RETURN n.name AS name LIMIT $limit",
-            prefix=prefix, limit=config.NEO4J_MATCH_NODE_LIMIT)
-        return [record["name"] for record in result]
+        # Create and start new worker
+        worker = Neo4jQueryWorker(
+            self.model.fetch_matching_node_names, text, config.NEO4J_MATCH_NODE_LIMIT)
+        worker.result_ready.connect(self.handle_matching_node_names)
+        worker.error_occurred.connect(self.handle_error)
+        worker.finished.connect(lambda w=worker: self.worker_threads.remove(w))
+        self.worker_threads.append(worker)
+        worker.start()
+        self.name_fetch_worker = worker  # Assign to instance variable
 
     def handle_matching_node_names(self, names):
         try:
@@ -379,31 +516,21 @@ class WorldBuildingApp(QWidget):
 
         logging.info(f"Loading node data for name: {name}")
 
-        # Ensure self.worker is initialized and not running
-        if self.worker is not None and self.worker.isRunning():
-            self.worker.quit()
-            self.worker.wait()
+        # Stop existing worker if running
+        if hasattr(self, 'load_node_worker') and self.load_node_worker.isRunning():
+            self.load_node_worker.quit()
+            self.load_node_worker.wait()
 
-        self.worker = Neo4jQueryWorker(
-            self.driver, self.query_func_load_node, name)
-        self.worker.result_ready.connect(self.handle_node_data)
-        self.worker.error_occurred.connect(self.handle_error)
-        self.worker.start()
-
-    def query_func_load_node(self, session, name):
-        result = session.run("""
-            MATCH (n:Node {name: $name})
-            WITH n, labels(n) AS labels,
-                 [(n)-[r]->(m) | {end: m.name, type: type(r), dir: '>', props: properties(r)}] AS out_rels,
-                 [(n)<-[r2]-(o) | {end: o.name, type: type(r2), dir: '<', props: properties(r2)}] AS in_rels,
-                 properties(n) AS all_props
-            RETURN n,
-                   out_rels + in_rels AS relationships,
-                   labels,
-                   all_props
-            LIMIT 1
-        """, name=name)
-        return list(result)
+        # Create and start new worker
+        worker = Neo4jQueryWorker(
+            self.model.load_node, name)
+        worker.result_ready.connect(self.handle_node_data)
+        worker.error_occurred.connect(self.handle_error)
+        # Capture the worker instance in the lambda
+        worker.finished.connect(lambda w=worker: self.worker_threads.remove(w))
+        self.worker_threads.append(worker)
+        worker.start()
+        self.load_node_worker = worker  # Assign to instance variable
 
     def handle_node_data(self, records: list) -> None:
         try:
@@ -594,6 +721,7 @@ class WorldBuildingApp(QWidget):
         properties_item.setToolTip(properties_str)
         self.relationships_table.setItem(row, 3, properties_item)
 
+
     def save_node(self):
         name = self.name_input.text().strip()
         if not self.validate_node_name(name):
@@ -618,20 +746,24 @@ class WorldBuildingApp(QWidget):
         else:
             additional_properties['image_path'] = None
 
+        node_data = {
+            'name': name,
+            'description': description,
+            'tags': tags,
+            'labels': labels,
+            'additional_properties': additional_properties,
+            'relationships': relationships
+        }
+
         # Run save operation in a separate thread to avoid blocking UI
-        self.worker = Neo4jQueryWorker(
-            self.driver,
-            self._save_node,
-            name,
-            description,
-            tags,
-            additional_properties,
-            relationships,
-            labels
-        )
-        self.worker.result_ready.connect(self.on_save_success)
-        self.worker.error_occurred.connect(self.handle_error)
-        self.worker.start()
+        worker = Neo4jQueryWorker(
+            self.model.save_node, node_data)
+        worker.result_ready.connect(self.on_save_success)
+        worker.error_occurred.connect(self.handle_error)
+        worker.finished.connect(lambda w=worker: self.worker_threads.remove(w))
+        self.worker_threads.append(worker)
+        worker.start()
+        self.save_node_worker = worker
 
     def validate_node_name(self, name: str) -> bool:
         if not name:
@@ -724,78 +856,6 @@ class WorldBuildingApp(QWidget):
             relationships.append((related_node, rel_type, direction, properties))
         return relationships
 
-    def _save_node(self, session, name, description, tags, additional_properties, relationships, labels):
-        session.execute_write(
-            self._save_node_transaction, name, description, tags, additional_properties, relationships, labels)
-        return None
-
-    @staticmethod
-    def _save_node_transaction(tx, name, description, tags, additional_properties, relationships, labels):
-        # Merge with 'Node' label
-        query_merge = (
-            "MERGE (n:Node {name: $name}) "
-            "SET n.description = $description, n.tags = $tags"
-        )
-        tx.run(query_merge, name=name, description=description, tags=tags)
-
-        # Retrieve existing labels excluding 'Node'
-        result = tx.run("MATCH (n:Node {name: $name}) RETURN labels(n) AS labels", name=name)
-        record = result.single()
-        existing_labels = record["labels"] if record else []
-        existing_labels = [label for label in existing_labels if label != 'Node']
-
-        # Determine labels to add and remove
-        input_labels_set = set(labels)
-        existing_labels_set = set(existing_labels)
-
-        labels_to_add = input_labels_set - existing_labels_set
-        labels_to_remove = existing_labels_set - input_labels_set
-
-        # Add new labels
-        if labels_to_add:
-            # Properly escape labels to prevent Cypher injection
-            labels_str = ":".join([f"`{label}`" for label in labels_to_add])
-            query_add = f"MATCH (n:Node {{name: $name}}) SET n:{labels_str}"
-            tx.run(query_add, name=name)
-
-        # Remove labels that are no longer needed
-        for label in labels_to_remove:
-            # Properly escape label to prevent Cypher injection
-            query_remove = f"MATCH (n:Node {{name: $name}}) REMOVE n:`{label}`"
-            tx.run(query_remove, name=name)
-
-        # Set additional properties if any
-        if additional_properties:
-            # Remove image_path if it's None
-            if 'image_path' in additional_properties and additional_properties['image_path'] is None:
-                tx.run("MATCH (n:Node {name: $name}) REMOVE n.image_path", name=name)
-            else:
-                query_props = "MATCH (n:Node {name: $name}) SET n += $additional_properties"
-                tx.run(query_props, name=name, additional_properties=additional_properties)
-
-        # Remove existing relationships
-        query_remove_rels = "MATCH (n:Node {name: $name})-[r]-() DELETE r"
-        tx.run(query_remove_rels, name=name)
-
-        # Create/update relationships
-        for rel in relationships:
-            rel_name, rel_type, direction, properties = rel
-            if direction == '>':
-                query_rel = (
-                    "MATCH (n:Node {name: $name}) "
-                    "MERGE (m:Node {name: $rel_name}) "
-                    f"MERGE (n)-[r:`{rel_type}`]->(m) "
-                    "SET r = $properties"
-                )
-            else:
-                query_rel = (
-                    "MATCH (n:Node {name: $name}) "
-                    "MERGE (m:Node {name: $rel_name}) "
-                    f"MERGE (m)-[r:`{rel_type}`]->(n) "
-                    "SET r = $properties"
-                )
-            tx.run(query_rel, name=name, rel_name=rel_name, properties=properties)
-
     def on_save_success(self, _):
         QMessageBox.information(self, "Success", "Node saved successfully.")
         self.update_name_completer()
@@ -813,21 +873,20 @@ class WorldBuildingApp(QWidget):
             QMessageBox.Yes | QMessageBox.No)
 
         if confirm == QMessageBox.Yes:
-            # Run delete operation in a separate thread to avoid blocking UI
-            self.worker = Neo4jQueryWorker(
-                self.driver, self._delete_node, name)
-            self.worker.result_ready.connect(self.on_delete_success)
-            self.worker.error_occurred.connect(self.handle_error)
-            self.worker.start()
+            # Stop existing worker if running
+            if hasattr(self, 'delete_node_worker') and self.delete_node_worker.isRunning():
+                self.delete_node_worker.quit()
+                self.delete_node_worker.wait()
 
-    def _delete_node(self, session, name):
-        session.execute_write(self._delete_node_transaction, name)
-        return None
-
-    @staticmethod
-    def _delete_node_transaction(tx, name):
-        query = "MATCH (n:Node {name: $name}) DETACH DELETE n"
-        tx.run(query, name=name)
+            # Create and start new worker
+            worker = Neo4jQueryWorker(
+                self.model.delete_node, name)
+            worker.result_ready.connect(self.on_delete_success)
+            worker.error_occurred.connect(self.handle_error)
+            worker.finished.connect(lambda w=worker: self.worker_threads.remove(w))
+            self.worker_threads.append(worker)
+            worker.start()
+            self.delete_node_worker = worker
 
     def on_delete_success(self, _):
         QMessageBox.information(self, "Success", f"Node '{self.name_input.text()}' deleted successfully.")
@@ -839,12 +898,13 @@ class WorldBuildingApp(QWidget):
         logging.info("Closing application")
         try:
             # Ensure all threads are stopped
-            if self.worker is not None and self.worker.isRunning():
-                self.worker.quit()
-                self.worker.wait()
-            self.driver.close()
+            for worker in self.worker_threads:
+                if worker.isRunning():
+                    worker.quit()
+                    worker.wait()
+            self.model.close()
         except Exception as e:
-            logging.error(f"Error closing Neo4j driver: {e}")
+            logging.error(f"Error closing Neo4jModel: {e}")
         event.accept()
 
     def update_name_completer(self):
