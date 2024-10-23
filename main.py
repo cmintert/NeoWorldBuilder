@@ -89,7 +89,7 @@ class Neo4jModel:
     def save_node(self, node_data):
         try:
             with self.driver.session() as session:
-                session.write_transaction(self._save_node_transaction, node_data)
+                session.execute_write(self._save_node_transaction, node_data)
             logging.info(f"Node '{node_data['name']}' saved successfully.")
             return None  # Indicate success
         except Exception as e:
@@ -154,16 +154,20 @@ class Neo4jModel:
 
         # Create/update relationships
         for rel in relationships:
-            rel_name, rel_type, direction, properties = rel
+            rel_type, rel_name, direction, properties = rel
             if direction == '>':
                 query_rel = (
-                    "MATCH (n:Node {name: $name}), (m:Node {name: $rel_name}) "
+                    "MATCH (n:Node {name: $name}) "
+                    "WITH n "
+                    "MATCH (m:Node {name: $rel_name}) "
                     f"MERGE (n)-[r:`{rel_type}`]->(m) "
                     "SET r = $properties"
                 )
             else:
                 query_rel = (
-                    "MATCH (n:Node {name: $name}), (m:Node {name: $rel_name}) "
+                    "MATCH (n:Node {name: $name}) "
+                    "WITH n "
+                    "MATCH (m:Node {name: $rel_name}) "
                     f"MERGE (m)-[r:`{rel_type}`]->(n) "
                     "SET r = $properties"
                 )
@@ -172,7 +176,7 @@ class Neo4jModel:
     def delete_node(self, name):
         try:
             with self.driver.session() as session:
-                session.write_transaction(self._delete_node_transaction, name)
+                session.execute_write(self._delete_node_transaction, name)
             logging.info(f"Node '{name}' deleted successfully.")
             return None  # Indicate success
         except Exception as e:
@@ -318,7 +322,7 @@ class WorldBuildingUI(QWidget):
 
         self.relationships_table = QTableWidget(0, 4)
         self.relationships_table.setHorizontalHeaderLabels(
-            ["Related Node", "Type", "Direction", "Properties"])
+            ["Type", "Related Node","Direction", "Properties"])
         self.relationships_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         relationships_layout.addWidget(self.relationships_table)
 
@@ -364,17 +368,23 @@ class WorldBuildingUI(QWidget):
     def update_relationships_table(self, relationships: list):
         self.relationships_table.setRowCount(0)
         for rel in relationships:
-            self.add_relationship_row(*rel)
+            related_node = rel.get('end', '')
+            rel_type = rel.get('type', '')
+            direction = rel.get('dir', '>')
+            properties = rel.get('props', {})
+            # Convert properties dict to a JSON string for better readability
+            properties_str = json.dumps(properties) if isinstance(properties, dict) else str(properties)
+            self.add_relationship_row(related_node, rel_type, direction, properties_str)
 
     def add_relationship_row(self, related_node="", rel_type="", direction=">", properties=""):
         row = self.relationships_table.rowCount()
         self.relationships_table.insertRow(row)
 
-        related_node_item = QTableWidgetItem(related_node)
-        self.relationships_table.setItem(row, 0, related_node_item)
-
         rel_type_item = QTableWidgetItem(rel_type)
-        self.relationships_table.setItem(row, 1, rel_type_item)
+        self.relationships_table.setItem(row, 0, rel_type_item)
+
+        related_node_item = QTableWidgetItem(related_node)
+        self.relationships_table.setItem(row, 1, related_node_item)
 
         direction_combo = QComboBox()
         direction_combo.addItems(['>', '<'])
@@ -385,7 +395,7 @@ class WorldBuildingUI(QWidget):
         self.relationships_table.setItem(row, 3, properties_item)
 
     def clear_fields(self):
-        self.name_input.clear()
+
         self.description_input.clear()
         self.labels_input.clear()
         self.tags_input.clear()
@@ -571,9 +581,12 @@ class WorldBuildingController:
                 self.populate_node_fields(node_data)
                 self.populate_tree_view(node_data)
                 self.load_node_image(node_data)
+
             else:
                 self.ui.clear_fields()
                 self.ui.load_default_image_ui(self.default_image_path, self.default_image_size)
+
+
         except Exception as e:
             error_message = f"Error handling node data: {e}"
             logging.error(error_message)
@@ -706,6 +719,16 @@ class WorldBuildingController:
             'relationships': relationships
         }
 
+        #Logging the saved node data
+
+        logging.info(f"Saving node data for name: {name}")
+
+        try:
+            node_data_json = json.dumps(node_data, indent=2)
+            logging.info(f"Node data being saved: {node_data_json}")
+        except (TypeError, ValueError) as e:
+            logging.warning(f"Failed to serialize node_data for logging: {e}")
+
         # Run save operation in a separate thread to avoid blocking UI
         worker = Neo4jQueryWorker(
             self.model.save_node, node_data)
@@ -771,8 +794,8 @@ class WorldBuildingController:
     def collect_relationships(self) -> Optional[list]:
         relationships = []
         for row in range(self.ui.relationships_table.rowCount()):
-            related_node_item = self.ui.relationships_table.item(row, 0)
-            rel_type_item = self.ui.relationships_table.item(row, 1)
+            rel_type_item = self.ui.relationships_table.item(row, 0)
+            related_node_item = self.ui.relationships_table.item(row, 1)
             direction_combo = self.ui.relationships_table.cellWidget(row, 2)
             properties_item = self.ui.relationships_table.item(row, 3)
 
@@ -805,7 +828,7 @@ class WorldBuildingController:
                 )
                 return None
 
-            relationships.append((related_node, rel_type, direction, properties))
+            relationships.append((rel_type,related_node, direction, properties))
         return relationships
 
     def on_save_success(self, _):
