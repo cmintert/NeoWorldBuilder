@@ -33,6 +33,6 @@
         "PASSWORD": "Godfather666",
         "MATCH_NODE_LIMIT": 50
     },
-    "RESERVED_PROPERTY_KEYS": ["description", "tags", "image_path"],
+    "RESERVED_PROPERTY_KEYS": ["name","description", "tags", "image_path"],
     "VERSION": "0.1.0"
 }
