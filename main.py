@@ -942,25 +942,6 @@ class WorldBuildingController:
         if name:
             self.update_relationship_tree(name)
 
-    def _update_tree_view(self, hierarchy_data):
-        """Update tree view with hierarchy data"""
-        self.tree_model.clear()
-        self.tree_model.setHorizontalHeaderLabels(["Node Hierarchy"])
-
-        # Add root items
-        for category, nodes in hierarchy_data.items():
-            category_item = QStandardItem(category)
-            category_item.setEditable(False)
-
-            for node in nodes:
-                node_item = QStandardItem(node)
-                node_item.setEditable(False)
-                category_item.appendRow(node_item)
-
-            self.tree_model.appendRow(category_item)
-
-        self.ui.tree_view.expandAll()
-
     def on_save_success(self, _):
         """Handle successful node save"""
         QMessageBox.information(self.ui, "Success", "Node saved successfully")
@@ -1069,7 +1050,6 @@ class WorldBuildingController:
         """Populate UI fields with node data"""
         try:
             # Extract data from Neo4j response
-            node = node_data["n"]
             relationships = node_data["relationships"]
             labels = node_data["labels"]
             all_props = node_data["all_props"]
