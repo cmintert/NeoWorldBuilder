@@ -88,7 +88,12 @@ class Neo4jQueryWorker(QThread):
 
 
 class Neo4jModel:
+    #############################################
+    # 1. Connection Management
+    #############################################
+
     def __init__(self, uri, username, password):
+        """Initialize Neo4j connection parameters and establish connection."""
         self._uri = uri
         self._auth = (username, password)
         self._driver = None
@@ -125,43 +130,20 @@ class Neo4jModel:
                 self._driver = None
         logging.info("Neo4jModel connection closed.")
 
-    def get_node_relationships(self, node_name):
-        """
-        Fetch all relationships for a given node, both incoming and outgoing.
-
-        Args:
-            node_name (str): Name of the node to fetch relationships for
-
-        Returns:
-            dict: Dictionary with 'outgoing' and 'incoming' relationship lists
-        """
-        with self.get_session() as session:
-            result = session.run("""
-                MATCH (n:Node {name: $name})
-                OPTIONAL MATCH (n)-[r]->(m:Node)
-                WITH n, collect({end: m.name, type: type(r), dir: '>'}) as outRels
-                OPTIONAL MATCH (n)<-[r2]-(o:Node)
-                WITH n, outRels, collect({end: o.name, type: type(r2), dir: '<'}) as inRels
-                RETURN outRels + inRels as relationships
-            """, name=node_name)
-
-            record = result.single()
-            return record["relationships"] if record else []
-
-    def get_node_hierarchy(self):
-        with self.get_session() as session:
-            result = session.run("""
-                MATCH (n:Node)
-                WITH n, labels(n) AS labels
-                WHERE size(labels) > 1
-                RETURN DISTINCT head(labels) as category, 
-                       collect(n.name) as nodes
-                ORDER BY category
-            """)
-            return {record["category"]: record["nodes"]
-                    for record in result}
+    #############################################
+    # 2. Node CRUD Operations
+    #############################################
 
     def load_node(self, name):
+        """
+        Load a node and its relationships by name.
+
+        Args:
+            name (str): Name of the node to load
+
+        Returns:
+            list: Records containing node data and relationships
+        """
         try:
             with self.get_session() as session:
                 result = session.run(
@@ -186,6 +168,15 @@ class Neo4jModel:
             raise e  # Reraise exception to be handled by caller
 
     def save_node(self, node_data):
+        """
+        Save or update a node and its relationships.
+
+        Args:
+            node_data (dict): Node data including properties and relationships
+
+        Returns:
+            None on success, raises exception on failure
+        """
         try:
             with self.get_session() as session:
                 session.execute_write(self._save_node_transaction, node_data)
@@ -193,10 +184,14 @@ class Neo4jModel:
             return None  # Indicate success
         except Exception as e:
             logging.error(f"Error saving node: {e}")
-            raise e  # Reraise exception to be handled by caller
+            raise e
 
     @staticmethod
     def _save_node_transaction(tx, node_data):
+        """
+        Private transaction handler for save_node.
+        Handles the complex transaction of saving a node and its relationships.
+        """
         # Extract data from node_data
         name = node_data["name"]
         description = node_data["description"]
@@ -243,8 +238,8 @@ class Neo4jModel:
         if additional_properties:
             # Remove image_path if it's None
             if (
-                "image_path" in additional_properties
-                and additional_properties["image_path"] is None
+                    "image_path" in additional_properties
+                    and additional_properties["image_path"] is None
             ):
                 tx.run("MATCH (n:Node {name: $name}) REMOVE n.image_path", name=name)
                 del additional_properties["image_path"]
@@ -282,6 +277,15 @@ class Neo4jModel:
             tx.run(query_rel, name=name, rel_name=rel_name, properties=properties)
 
     def delete_node(self, name):
+        """
+        Delete a node and all its relationships.
+
+        Args:
+            name (str): Name of the node to delete
+
+        Returns:
+            None on success, raises exception on failure
+        """
         try:
             with self.get_session() as session:
                 session.execute_write(self._delete_node_transaction, name)
@@ -289,14 +293,71 @@ class Neo4jModel:
             return None  # Indicate success
         except Exception as e:
             logging.error(f"Error deleting node: {e}")
-            raise e  # Reraise exception to be handled by caller
+            raise e
 
     @staticmethod
     def _delete_node_transaction(tx, name):
+        """Private transaction handler for delete_node."""
         query = "MATCH (n:Node {name: $name}) DETACH DELETE n"
         tx.run(query, name=name)
 
+    #############################################
+    # 3. Node Query Operations
+    #############################################
+
+    def get_node_relationships(self, node_name):
+        """
+        Fetch all relationships for a given node, both incoming and outgoing.
+
+        Args:
+            node_name (str): Name of the node to fetch relationships for
+
+        Returns:
+            dict: Dictionary with 'outgoing' and 'incoming' relationship lists
+        """
+        with self.get_session() as session:
+            result = session.run("""
+                MATCH (n:Node {name: $name})
+                OPTIONAL MATCH (n)-[r]->(m:Node)
+                WITH n, collect({end: m.name, type: type(r), dir: '>'}) as outRels
+                OPTIONAL MATCH (n)<-[r2]-(o:Node)
+                WITH n, outRels, collect({end: o.name, type: type(r2), dir: '<'}) as inRels
+                RETURN outRels + inRels as relationships
+            """, name=node_name)
+
+            record = result.single()
+            return record["relationships"] if record else []
+
+    def get_node_hierarchy(self):
+        """
+        Get the hierarchy of nodes grouped by their primary label.
+
+        Returns:
+            dict: Category to node names mapping
+        """
+        with self.get_session() as session:
+            result = session.run("""
+                MATCH (n:Node)
+                WITH n, labels(n) AS labels
+                WHERE size(labels) > 1
+                RETURN DISTINCT head(labels) as category, 
+                       collect(n.name) as nodes
+                ORDER BY category
+            """)
+            return {record["category"]: record["nodes"]
+                    for record in result}
+
     def fetch_matching_node_names(self, prefix, limit):
+        """
+        Search for nodes whose names match a given prefix.
+
+        Args:
+            prefix (str): The search prefix
+            limit (int): Maximum number of results to return
+
+        Returns:
+            list: Matching node names
+        """
         try:
             with self.get_session() as session:
                 result = session.run(
@@ -313,10 +374,15 @@ class Neo4jModel:
 
 
 class WorldBuildingUI(QWidget):
-    # Keep only essential signals
+    #############################################
+    # 1. Core Initialization and Setup
+    #############################################
+
+    # Class-level signals
     name_selected = pyqtSignal(str)
 
     def __init__(self):
+        """Initialize the UI widget."""
         super().__init__()
         self.init_ui()
         self.apply_styles()
@@ -344,6 +410,10 @@ class WorldBuildingUI(QWidget):
 
         main_layout.addWidget(splitter)
         self.setLayout(main_layout)
+
+    #############################################
+    # 2. Main UI Components Creation
+    #############################################
 
     def _create_left_panel(self):
         """Create improved left panel with tree view"""
@@ -374,9 +444,9 @@ class WorldBuildingUI(QWidget):
                 color: black;
             }
             QTreeView::item:selected:active {
-            background: #e6f3ff;
-            color: black;
-        }
+                background: #e6f3ff;
+                color: black;
+            }
         """)
 
         layout.addWidget(self.tree_view)
@@ -419,6 +489,10 @@ class WorldBuildingUI(QWidget):
         """)
         layout.addWidget(tabs)
         return panel
+
+    #############################################
+    # 3. Secondary UI Components
+    #############################################
 
     def _create_header_layout(self):
         """Create header with node name and actions"""
@@ -507,31 +581,6 @@ class WorldBuildingUI(QWidget):
         layout.addWidget(self.properties_table)
         return tab
 
-    def _create_table(self, columns, headers):
-        """Create a styled table widget"""
-        table = QTableWidget(0, columns)
-        table.setHorizontalHeaderLabels(headers)
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        table.setAlternatingRowColors(True)
-        table.verticalHeader().setVisible(False)
-        table.setStyleSheet("""
-            QTableWidget {
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                background: white;
-            }
-            QTableWidget::item {
-                padding: 5px;
-            }
-            QHeaderView::section {
-                background: #f8f9fa;
-                padding: 5px;
-                border: none;
-                border-bottom: 1px solid #dee2e6;
-            }
-        """)
-        return table
-
     def _create_image_group(self):
         """Create the image display group"""
         group = QGroupBox("Image")
@@ -567,6 +616,35 @@ class WorldBuildingUI(QWidget):
 
         group.setLayout(layout)
         return group
+
+    #############################################
+    # 4. Utility Methods and Helpers
+    #############################################
+
+    def _create_table(self, columns, headers):
+        """Create a styled table widget"""
+        table = QTableWidget(0, columns)
+        table.setHorizontalHeaderLabels(headers)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        table.setAlternatingRowColors(True)
+        table.verticalHeader().setVisible(False)
+        table.setStyleSheet("""
+            QTableWidget {
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background: white;
+            }
+            QTableWidget::item {
+                padding: 5px;
+            }
+            QHeaderView::section {
+                background: #f8f9fa;
+                padding: 5px;
+                border: none;
+                border-bottom: 1px solid #dee2e6;
+            }
+        """)
+        return table
 
     def add_relationship_row(self, rel_type="", target="", direction=">", properties=""):
         """Add a new relationship row with combobox"""
@@ -635,20 +713,196 @@ class WorldBuildingUI(QWidget):
 
 
 class WorldBuildingController:
+    #############################################
+    # 1. Class Setup and Initialization
+    #############################################
+
     def __init__(self, ui: WorldBuildingUI, model: Neo4jModel, config: Config):
+        """Initialize the controller with UI, model, and configuration."""
         self.ui = ui
         self.model = model
         self.config = config
         self.worker_threads = []
 
-        # Connect UI elements
+        # Initialize core components
         self._initialize_tree_view()
         self._initialize_completer()
-
         self._setup_debounce_timer()
         self._connect_signals()
-
         self._load_default_state()
+
+    def _initialize_tree_view(self):
+        """Initialize the tree view model with relationship structure"""
+        self.tree_model = QStandardItemModel()
+        self.tree_model.setHorizontalHeaderLabels(["Node Relationships"])
+        self.ui.tree_view.setModel(self.tree_model)
+
+        # Connect selection changed signal
+        self.ui.tree_view.selectionModel().selectionChanged.connect(
+            self.on_tree_selection_changed
+        )
+
+    def _initialize_completer(self):
+        """Initialize and set up name completer"""
+        self.node_name_model = QStringListModel()
+        self.completer = QCompleter(self.node_name_model)
+        self.completer.setCaseSensitivity(False)
+        self.completer.setFilterMode(Qt.MatchContains)
+        self.ui.name_input.setCompleter(self.completer)
+        self.completer.activated.connect(self.on_completer_activated)
+
+    def _setup_debounce_timer(self):
+        """Set up debounce timer for name input"""
+        self.name_input_timer = QTimer()
+        self.name_input_timer.setSingleShot(True)
+        self.name_input_timer.timeout.connect(self._fetch_matching_nodes)
+
+    def _connect_signals(self):
+        """Connect all UI signals to their handlers"""
+        # Direct button connections
+        self.ui.save_button.clicked.connect(self.save_node)
+        self.ui.delete_button.clicked.connect(self.delete_node)
+
+        # Image buttons
+        self.ui.change_image_button.clicked.connect(self.change_image)
+        self.ui.delete_image_button.clicked.connect(self.delete_image)
+
+        # Name input with autocomplete
+        self.ui.name_input.textChanged.connect(self.debounce_name_input)
+        self.ui.name_input.editingFinished.connect(self.load_node_data)
+
+        # Ensure completer is connected
+        self.completer.activated.connect(self.on_completer_activated)
+
+        # Table buttons
+        self.ui.add_prop_button.clicked.connect(
+            lambda: self.ui.properties_table.insertRow(
+                self.ui.properties_table.rowCount()
+            )
+        )
+        self.ui.add_rel_button.clicked.connect(
+            lambda: self.ui.add_relationship_row()
+        )
+
+    def _load_default_state(self):
+        """Load initial UI state"""
+        # Clear all fields
+        self.ui.name_input.clear()
+        self.ui.description_input.clear()
+        self.ui.labels_input.clear()
+        self.ui.tags_input.clear()
+        self.ui.properties_table.setRowCount(0)
+        self.ui.relationships_table.setRowCount(0)
+
+        # Initial tree view population
+        self.refresh_tree_view()
+
+    #############################################
+    # 2. Core Node Operations (CRUD)
+    #############################################
+
+    def save_node(self):
+        """Save the current node"""
+        name = self.ui.name_input.text().strip()
+        if not self.validate_node_name(name):
+            return
+
+        node_data = self._collect_node_data()
+        if node_data:
+            self._create_worker(
+                self.model.save_node,
+                self.on_save_success,
+                node_data
+            )
+
+    def load_node_data(self):
+        """Load node data when selected"""
+        name = self.ui.name_input.text()
+        if not name.strip():
+            return
+
+        # Update the relationship tree when loading a node
+        self.update_relationship_tree(name)
+
+        self._create_worker(
+            self.model.load_node,
+            self._handle_node_data,
+            name
+        )
+
+    def delete_node(self):
+        """Delete the current node"""
+        name = self.ui.name_input.text().strip()
+        if not name:
+            return
+
+        reply = QMessageBox.question(
+            self.ui,
+            'Confirm Deletion',
+            f'Are you sure you want to delete node "{name}"?',
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            self._create_worker(
+                self.model.delete_node,
+                self._handle_delete_success,
+                name
+            )
+
+    def _handle_node_data(self, records):
+        """Handle loaded node data"""
+        if not records:
+            return
+
+        node_data = records[0]
+        self._populate_node_fields(node_data)
+
+    def _handle_delete_success(self, _):
+        """Handle successful node deletion"""
+        QMessageBox.information(self.ui, "Success", "Node deleted successfully")
+        self.ui.name_input.clear()
+        self._load_default_state()
+        self.refresh_tree_view()
+
+    def on_save_success(self, _):
+        """Handle successful node save"""
+        QMessageBox.information(self.ui, "Success", "Node saved successfully")
+        self.refresh_tree_view()
+
+    #############################################
+    # 3. UI Event Handlers
+    #############################################
+
+    ### 3.1 General UI Events ###
+
+    def debounce_name_input(self, text):
+        """Debounce the name input for autocompletion"""
+        self.name_input_timer.start(300)  # 300ms debounce
+
+    def on_completer_activated(self, text):
+        """Handle completer selection"""
+        if text:
+            self.ui.name_input.setText(text)
+            self.load_node_data()
+
+    def _fetch_matching_nodes(self):
+        """Fetch matching node names for autocompletion"""
+        text = self.ui.name_input.text()
+        if text.strip():
+            self._create_worker(
+                self.model.fetch_matching_node_names,
+                self._handle_autocomplete_results,
+                text,
+                self.config.NEO4J_MATCH_NODE_LIMIT
+            )
+
+    def _handle_autocomplete_results(self, names):
+        """Handle autocomplete results"""
+        self.node_name_model.setStringList(names)
+
+    ### 3.2 Image Handling ###
 
     def change_image(self):
         """Handle image selection and update"""
@@ -698,52 +952,7 @@ class WorldBuildingController:
             self.current_image_path = None
             self.save_node()
 
-    def _connect_signals(self):
-        """Connect all UI signals to their handlers"""
-        # Direct button connections
-        self.ui.save_button.clicked.connect(self.save_node)
-        self.ui.delete_button.clicked.connect(self.delete_node)
-
-        # Image buttons
-        self.ui.change_image_button.clicked.connect(self.change_image)
-        self.ui.delete_image_button.clicked.connect(self.delete_image)
-
-        # Name input with autocomplete
-        self.ui.name_input.textChanged.connect(self.debounce_name_input)
-        self.ui.name_input.editingFinished.connect(self.load_node_data)
-
-        # Ensure completer is connected
-        self.completer.activated.connect(self.on_completer_activated)
-
-        # Table buttons
-        self.ui.add_prop_button.clicked.connect(
-            lambda: self.ui.properties_table.insertRow(
-                self.ui.properties_table.rowCount()
-            )
-        )
-        self.ui.add_rel_button.clicked.connect(
-            lambda: self.ui.add_relationship_row()
-        )
-
-    def _initialize_completer(self):
-        """Initialize and set up name completer"""
-        self.node_name_model = QStringListModel()
-        self.completer = QCompleter(self.node_name_model)
-        self.completer.setCaseSensitivity(False)
-        self.completer.setFilterMode(Qt.MatchContains)
-        self.ui.name_input.setCompleter(self.completer)
-        self.completer.activated.connect(self.on_completer_activated)
-
-    def _initialize_tree_view(self):
-        """Initialize the tree view model with relationship structure"""
-        self.tree_model = QStandardItemModel()
-        self.tree_model.setHorizontalHeaderLabels(["Node Relationships"])
-        self.ui.tree_view.setModel(self.tree_model)
-
-        # Connect selection changed signal
-        self.ui.tree_view.selectionModel().selectionChanged.connect(
-            self.on_tree_selection_changed
-        )
+    ### 3.3 Tree View Management ###
 
     def update_relationship_tree(self, node_name):
         """Update the tree view to show relationships for the selected node"""
@@ -794,67 +1003,29 @@ class WorldBuildingController:
         # Expand all items
         self.ui.tree_view.expandAll()
 
-    def _setup_debounce_timer(self):
-        """Set up debounce timer for name input"""
-        self.name_input_timer = QTimer()
-        self.name_input_timer.setSingleShot(True)
-        self.name_input_timer.timeout.connect(self._fetch_matching_nodes)
-
-    def debounce_name_input(self, text):
-        """Debounce the name input for autocompletion"""
-        self.name_input_timer.start(300)  # 300ms debounce
-
-    def _load_default_state(self):
-        """Load initial UI state"""
-        # Clear all fields
-        self.ui.name_input.clear()
-        self.ui.description_input.clear()
-        self.ui.labels_input.clear()
-        self.ui.tags_input.clear()
-        self.ui.properties_table.setRowCount(0)
-        self.ui.relationships_table.setRowCount(0)
-
-        # Initial tree view population
-        self.refresh_tree_view()
-
-    def _fetch_matching_nodes(self):
-        """Fetch matching node names for autocompletion"""
-        text = self.ui.name_input.text()
-        if text.strip():
-            self._create_worker(
-                self.model.fetch_matching_node_names,
-                self._handle_autocomplete_results,
-                text,
-                self.config.NEO4J_MATCH_NODE_LIMIT
-            )
-
-    def _handle_autocomplete_results(self, names):
-        """Handle autocomplete results"""
-        self.node_name_model.setStringList(names)
-
-    def _create_worker(self, method, callback, *args, **kwargs):
-        """Create and start a new worker thread"""
-        worker = Neo4jQueryWorker(method, *args, **kwargs)
-        worker.result_ready.connect(callback)
-        worker.error_occurred.connect(self.handle_error)
-        worker.finished.connect(lambda w=worker: self.worker_threads.remove(w))
-        self.worker_threads.append(worker)
-        worker.start()
-        return worker
-
-    def save_node(self):
-        """Save the current node"""
+    def refresh_tree_view(self):
+        """Refresh the tree view with current node hierarchy"""
         name = self.ui.name_input.text().strip()
-        if not self.validate_node_name(name):
-            return
+        if name:
+            self.update_relationship_tree(name)
 
-        node_data = self._collect_node_data()
-        if node_data:
-            self._create_worker(
-                self.model.save_node,
-                self.on_save_success,
-                node_data
-            )
+    def on_tree_selection_changed(self, selected, deselected):
+        """Handle tree view selection"""
+        indexes = selected.indexes()
+        if indexes:
+            selected_item = self.tree_model.itemFromIndex(indexes[0])
+            if selected_item and selected_item.parent():
+                # Only act on node items (those with the 🔵 prefix)
+                text = selected_item.text()
+                if text.startswith("🔵"):
+                    node_name = text[2:].strip()  # Remove emoji and whitespace
+                    if node_name != self.ui.name_input.text():
+                        self.ui.name_input.setText(node_name)
+                        self.load_node_data()
+
+    #############################################
+    # 4. Data Collection and Validation
+    #############################################
 
     def _collect_node_data(self):
         """Collect all node data from UI"""
@@ -884,10 +1055,6 @@ class WorldBuildingController:
         except ValueError as e:
             self.handle_error(str(e))
             return None
-
-    def _parse_comma_separated(self, text):
-        """Parse comma-separated input with validation"""
-        return [item.strip() for item in text.split(',') if item.strip()]
 
     def _collect_properties(self):
         """Collect properties from the properties table"""
@@ -936,71 +1103,9 @@ class WorldBuildingController:
 
         return relationships
 
-    def refresh_tree_view(self):
-        """Refresh the tree view with current node hierarchy"""
-        name = self.ui.name_input.text().strip()
-        if name:
-            self.update_relationship_tree(name)
-
-    def on_save_success(self, _):
-        """Handle successful node save"""
-        QMessageBox.information(self.ui, "Success", "Node saved successfully")
-        self.refresh_tree_view()
-
-    def handle_error(self, error_message: str):
-        """Handle any errors that occur"""
-        logging.error(error_message)
-        QMessageBox.critical(self.ui, "Error", error_message)
-
-    def stop_all_workers(self):
-        """Stop all running worker threads"""
-        for worker in self.worker_threads:
-            if worker.isRunning():
-                worker.quit()
-                worker.wait()
-
-    def on_completer_activated(self, text):
-        """Handle completer selection"""
-        if text:
-            self.ui.name_input.setText(text)
-            self.load_node_data()
-
-    def on_tree_selection_changed(self, selected, deselected):
-        """Handle tree view selection"""
-        indexes = selected.indexes()
-        if indexes:
-            selected_item = self.tree_model.itemFromIndex(indexes[0])
-            if selected_item and selected_item.parent():
-                # Only act on node items (those with the 🔵 prefix)
-                text = selected_item.text()
-                if text.startswith("🔵"):
-                    node_name = text[2:].strip()  # Remove emoji and whitespace
-                    if node_name != self.ui.name_input.text():
-                        self.ui.name_input.setText(node_name)
-                        self.load_node_data()
-
-    def load_node_data(self):
-        """Load node data when selected"""
-        name = self.ui.name_input.text()
-        if not name.strip():
-            return
-
-        # Update the relationship tree when loading a node
-        self.update_relationship_tree(name)
-
-        self._create_worker(
-            self.model.load_node,
-            self._handle_node_data,
-            name
-        )
-
-    def _handle_node_data(self, records):
-        """Handle loaded node data"""
-        if not records:
-            return
-
-        node_data = records[0]
-        self._populate_node_fields(node_data)
+    def _parse_comma_separated(self, text):
+        """Parse comma-separated input with validation"""
+        return [item.strip() for item in text.split(',') if item.strip()]
 
     def validate_node_name(self, name: str) -> bool:
         """Validate node name"""
@@ -1018,34 +1123,6 @@ class WorldBuildingController:
 
         return True
 
-    def delete_node(self):
-        """Delete the current node"""
-        name = self.ui.name_input.text().strip()
-        if not name:
-            return
-
-        reply = QMessageBox.question(
-            self.ui,
-            'Confirm Deletion',
-            f'Are you sure you want to delete node "{name}"?',
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-
-        if reply == QMessageBox.Yes:
-            self._create_worker(
-                self.model.delete_node,
-                self._handle_delete_success,
-                name
-            )
-
-    def _handle_delete_success(self, _):
-        """Handle successful node deletion"""
-        QMessageBox.information(self.ui, "Success", "Node deleted successfully")
-        self.ui.name_input.clear()
-        self._load_default_state()
-        self.refresh_tree_view()
-
     def _populate_node_fields(self, node_data):
         """Populate UI fields with node data"""
         try:
@@ -1059,6 +1136,8 @@ class WorldBuildingController:
 
             # Set labels (excluding 'Node' label)
             label_list = [label for label in labels if label != "Node"]
+            self.ui.labels_input.setText(", ".join(label_list))
+
             self.ui.labels_input.setText(", ".join(label_list))
 
             # Set tags
@@ -1103,6 +1182,34 @@ class WorldBuildingController:
             logging.error(f"Error populating node fields: {e}")
             self.handle_error(f"Error loading node data: {str(e)}")
 
+    #############################################
+    # 5. Worker Management and Error Handling
+    #############################################
+
+
+    def _create_worker(self, method, callback, *args, **kwargs):
+        """Create and start a new worker thread"""
+        worker = Neo4jQueryWorker(method, *args, **kwargs)
+        worker.result_ready.connect(callback)
+        worker.error_occurred.connect(self.handle_error)
+        worker.finished.connect(lambda w=worker: self.worker_threads.remove(w))
+        self.worker_threads.append(worker)
+        worker.start()
+        return worker
+
+
+    def stop_all_workers(self):
+        """Stop all running worker threads"""
+        for worker in self.worker_threads:
+            if worker.isRunning():
+                worker.quit()
+                worker.wait()
+
+
+    def handle_error(self, error_message: str):
+        """Handle any errors that occur"""
+        logging.error(error_message)
+        QMessageBox.critical(self.ui, "Error", error_message)
 
 @dataclass
 class AppComponents:
