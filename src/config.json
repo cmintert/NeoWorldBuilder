@@ -34,5 +34,7 @@
         "MATCH_NODE_LIMIT": 50
     },
     "RESERVED_PROPERTY_KEYS": ["name","description", "tags", "image_path"],
-    "VERSION": "0.1.0"
+    "VERSION": "0.1.0",
+    "LOGGING_FILE": "logs.log",
+    "LOGGING_LEVEL": "DEBUG"
 }
