@@ -492,8 +492,10 @@ class WorldBuildingUI(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.setObjectName("CentralWidget")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)  # Important for QSS styling
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)  # Allow transparency
         self.init_ui()
-        self.apply_styles()
 
     def init_ui(self):
         """Initialize the main UI layout with enhanced components"""
@@ -518,6 +520,9 @@ class WorldBuildingUI(QWidget):
 
         main_layout.addWidget(splitter)
         self.setLayout(main_layout)
+
+        # Apply styles
+        self.apply_styles()
 
     def _create_left_panel(self):
         """Create improved left panel with tree view and search"""
@@ -830,19 +835,26 @@ class WorldBuildingUI(QWidget):
         self.relationships_table.setItem(row, 3, props_item)
 
     def apply_styles(self):
+        logging.debug("apply_styles method called")
         try:
-
             current_dir = os.path.dirname(os.path.abspath(__file__))
             stylesheet_path = os.path.join(current_dir, "style_default.qss")
 
+            # Log the paths for debugging
+            logging.info(f"Stylesheet path: {stylesheet_path}")
+
             with open(stylesheet_path, "r") as f:
                 stylesheet = f.read()
+
             self.setStyleSheet(stylesheet)
             logging.info(f"Stylesheet applied successfully from {stylesheet_path}")
+
         except Exception as e:
             error_message = f"Failed to load stylesheet: {e}"
             logging.error(error_message)
             QMessageBox.warning(self, "Stylesheet Error", error_message)
+        logging.debug("Completed apply_styles method")
+
 
 
 class WorldBuildingController(QObject):
@@ -1479,6 +1491,10 @@ class WorldBuildingApp(QMainWindow):
             # Set window title with version
             self.setWindowTitle(f"NeoRealmBuilder {self.components.config.VERSION}")
 
+            # Ensure transparency is properly set
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+            self.components.ui.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+
             # Set window size
             self.resize(
                 self.components.config.UI_WINDOW_WIDTH,
@@ -1523,6 +1539,8 @@ class WorldBuildingApp(QMainWindow):
                     self.components.model.close()
                 except Exception as e:
                     logging.error(f"Error during model cleanup: {e}")
+
+
 
     def closeEvent(self, event) -> None:
         """Handle application shutdown with proper cleanup"""

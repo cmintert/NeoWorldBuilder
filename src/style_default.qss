@@ -74,6 +74,8 @@
 
     #treeView {
         background: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
     }
 
     #mainTabs::pane {
@@ -106,11 +108,12 @@
         background-color: #e9ecef;
     }
 
-    #WorldBuildingApp {
-    background-image: url("background.png");
-    background-repeat: repeat;
-    background-position: center;
-    background-origin: padding;
-}
+    #CentralWidget {
+        background-color: transparent;
+    }
 
-    /* Additional Styles as Needed */
+    #WorldBuildingApp {
+        background-image: url(background.png);
+        background-repeat: repeat;
+        background-position: center;
+}
