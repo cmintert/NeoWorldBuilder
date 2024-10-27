@@ -1258,24 +1258,57 @@ class WorldBuildingController(QObject):
             self.tree_model.setHorizontalHeaderLabels(["Node Relationships"])
 
             if not records:
+                logging.info("No relationship records found.")
                 return
 
             record = records[0]
             relationships = record['relationships']
+            logging.debug(f"Relationships: {relationships}")
+
 
             root_item = self.tree_model.invisibleRootItem()
             node_item = QStandardItem(f"🔵 {self.ui.name_input.text()}")
+
+            # Create folders for Active and Passive Relationships
+            active_rels_item = QStandardItem("➡️ Active Relationships")
+            passive_rels_item = QStandardItem("⬅️ Passive Relationships")
+
+            # Initialize counters to check if folders have any relationships
+            active_count = 0
+            passive_count = 0
 
             for rel in relationships:
                 direction = rel['dir']
                 rel_type = rel['type']
                 end_node = rel['end']
-                item_text = f"{direction} [{rel_type}] 🔵 {end_node}"
+
+                #Format Relationship Text
+                item_text = f"{direction} [{rel_type}] 🔹 {end_node}"
                 child_item = QStandardItem(item_text)
-                node_item.appendRow(child_item)
+
+                if direction == '>':
+                    active_rels_item.appendRow(child_item)
+                    active_count += 1
+                elif direction == '<':
+                    passive_rels_item.appendRow(child_item)
+                    passive_count += 1
+                else:
+                    logging.warning(f"Unknown relationship direction: {direction}")
+
+            # Only add folders if they contain relationships
+            if active_count > 0:
+                node_item.appendRow(active_rels_item)
+
+            if passive_count > 0:
+                node_item.appendRow(passive_rels_item)
+
+            self.tree_model.appendRow(node_item)
+
+            tree_view = self.ui.tree_view
+            tree_view.expandAll()
 
             root_item.appendRow(node_item)
-            self.ui.tree_view.expandAll()
+
             logging.info("Relationship tree populated successfully.")
 
         except Exception as e:
