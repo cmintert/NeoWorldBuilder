@@ -503,7 +503,6 @@ class WorldBuildingUI(QWidget):
 
         # Create splitter for resizable panels
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setStyleSheet("QSplitter { background: transparent; }")
 
         # Left panel with search and tree
         left_panel = self._create_left_panel()
@@ -529,37 +528,18 @@ class WorldBuildingUI(QWidget):
 
         # Enhanced tree view
         self.tree_view = QTreeView()
+        self.tree_view.setObjectName("treeView")
         self.tree_view.setHeaderHidden(True)
         self.tree_view.setAnimated(True)
         self.tree_view.setAlternatingRowColors(True)
         self.tree_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree_view.customContextMenuRequested.connect(self._show_tree_context_menu)
 
-        # Style the tree view
-        self.tree_view.setStyleSheet(
-            """
-            QTreeView {
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                background-color: white;
-            }
-            QTreeView::item {
-                padding: 5px;
-            }
-            QTreeView::item:hover {
-                background: #e6f3ff;
-            }
-            QTreeView::item:selected {
-                background: #cce8ff;
-                color: black;
-            }
-        """
-        )
-
         layout.addWidget(self.tree_view)
 
         # Add status label
         self.status_label = QLabel("Ready")
+        self.status_label.setObjectName("statusLabel")
         layout.addWidget(self.status_label)
 
         return panel
@@ -567,14 +547,6 @@ class WorldBuildingUI(QWidget):
     def _create_right_panel(self):
         """Create improved right panel with proper spacing and opacity"""
         panel = QWidget()
-        panel.setStyleSheet("""
-            QWidget {
-                background: transparent;
-            }
-            QLineEdit, QPushButton {
-                background-color: white;
-            }
-        """)
 
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -588,16 +560,18 @@ class WorldBuildingUI(QWidget):
 
         # Progress bar (initially hidden)
         self.progress_bar = QProgressBar()
+        self.progress_bar.setObjectName("progressBar")
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
 
         # Tabs
-        tabs = QTabWidget()
-        tabs.addTab(self._create_basic_info_tab(), "Basic Info")
-        tabs.addTab(self._create_relationships_tab(), "Relationships")
-        tabs.addTab(self._create_properties_tab(), "Properties")
+        self.tabs = QTabWidget()
+        self.tabs.setObjectName("mainTabs")
+        self.tabs.addTab(self._create_basic_info_tab(), "Basic Info")
+        self.tabs.addTab(self._create_relationships_tab(), "Relationships")
+        self.tabs.addTab(self._create_properties_tab(), "Properties")
 
-        layout.addWidget(tabs)
+        layout.addWidget(self.tabs)
         return panel
 
     def _create_header_layout(self):
@@ -606,14 +580,18 @@ class WorldBuildingUI(QWidget):
 
         # Node name input
         self.name_input = QLineEdit()
+        self.name_input.setObjectName("nameInput")
         self.name_input.setPlaceholderText("Enter node name...")
         self.name_input.setMinimumHeight(35)
         self.name_input.setMaxLength(100)
 
         # Action buttons with loading states
         self.save_button = QPushButton("💾 Save")
+        self.save_button.setObjectName("saveButton")
         self.delete_button = QPushButton("🗑️ Delete")
+        self.delete_button.setObjectName("deleteButton")
         self.cancel_button = QPushButton("⚠️ Cancel")
+        self.cancel_button.setObjectName("cancelButton")
         self.cancel_button.setVisible(False)
 
         # Style buttons
@@ -631,21 +609,23 @@ class WorldBuildingUI(QWidget):
     def _create_basic_info_tab(self):
         """Create the basic info tab with input fields and image handling"""
         tab = QWidget()
-        tab.setStyleSheet("background-color: white;")
         layout = QFormLayout(tab)
         layout.setSpacing(15)
 
         # Description
         self.description_input = QTextEdit()
+        self.description_input.setObjectName("descriptionInput")
         self.description_input.setPlaceholderText("Enter description...")
         self.description_input.setMinimumHeight(100)
 
         # Labels with auto-completion
         self.labels_input = QLineEdit()
+        self.labels_input.setObjectName("labelsInput")
         self.labels_input.setPlaceholderText("Enter labels (comma-separated)")
 
         # Tags
         self.tags_input = QLineEdit()
+        self.tags_input.setObjectName("tagsInput")
         self.tags_input.setPlaceholderText("Enter tags (comma-separated)")
 
         # Image section
@@ -661,28 +641,24 @@ class WorldBuildingUI(QWidget):
     def _create_image_group(self):
         """Create the image display group"""
         group = QGroupBox("Image")
+        group.setObjectName("imageGroupBox")
         layout = QVBoxLayout()
 
         # Image display
         self.image_label = QLabel()
+        self.image_label.setObjectName("imageLabel")
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image_label.setFixedSize(200, 200)
-        self.image_label.setStyleSheet(
-            """
-            QLabel {
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                background: white;
-            }
-        """
-        )
+
         layout.addWidget(self.image_label)
 
         # Image buttons
         button_layout = QHBoxLayout()
         button_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.change_image_button = QPushButton("📷 Change")
+        self.change_image_button.setObjectName("changeImageButton")
         self.delete_image_button = QPushButton("🗑️ Remove")
+        self.delete_image_button.setObjectName("deleteImageButton")
 
         for button in [self.change_image_button, self.delete_image_button]:
             button.setFixedWidth(97)
@@ -699,16 +675,17 @@ class WorldBuildingUI(QWidget):
     def _create_relationships_tab(self):
         """Create relationships tab with table"""
         tab = QWidget()
-        tab.setStyleSheet("background-color: white;")
         layout = QVBoxLayout(tab)
 
         # Add relationship button
         self.add_rel_button = QPushButton("➕ Add Relationship")
+        self.add_rel_button.setObjectName("addRelationshipButton")
         self.add_rel_button.setFixedWidth(150)
         self.add_rel_button.setMinimumHeight(30)
 
         # Enhanced table
         self.relationships_table = QTableWidget(0, 4)
+        self.relationships_table.setObjectName("relationshipsTable")
         self.relationships_table.setHorizontalHeaderLabels(
             ["Type", "Related Node", "Direction", "Properties"]
         )
@@ -717,24 +694,7 @@ class WorldBuildingUI(QWidget):
         )
         self.relationships_table.setAlternatingRowColors(True)
         self.relationships_table.verticalHeader().setVisible(False)
-        self.relationships_table.setStyleSheet(
-            """
-            QTableWidget {
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                background: white;
-            }
-            QTableWidget::item {
-                padding: 5px;
-            }
-            QHeaderView::section {
-                background: white;
-                padding: 5px;
-                border: none;
-                border-bottom: 1px solid #dee2e6;
-            }
-        """
-        )
+
 
         layout.addWidget(self.add_rel_button)
         layout.addWidget(self.relationships_table)
@@ -743,40 +703,23 @@ class WorldBuildingUI(QWidget):
     def _create_properties_tab(self):
         """Create properties tab with table"""
         tab = QWidget()
-        tab.setStyleSheet("background-color: white;")
         layout = QVBoxLayout(tab)
 
         # Add property button
         self.add_prop_button = QPushButton("➕ Add Property")
+        self.add_prop_button.setObjectName("addPropertyButton")
         self.add_prop_button.setFixedWidth(150)
         self.add_prop_button.setMinimumHeight(30)
 
         # Enhanced table
         self.properties_table = QTableWidget(0, 2)
+        self.properties_table.setObjectName("propertiesTable")
         self.properties_table.setHorizontalHeaderLabels(["Key", "Value"])
         self.properties_table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch
         )
         self.properties_table.setAlternatingRowColors(True)
         self.properties_table.verticalHeader().setVisible(False)
-        self.properties_table.setStyleSheet(
-            """
-            QTableWidget {
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                background: white;
-            }
-            QTableWidget::item {
-                padding: 5px;
-            }
-            QHeaderView::section {
-                background: #f8f9fa;
-                padding: 5px;
-                border: none;
-                border-bottom: 1px solid #dee2e6;
-            }
-        """
-        )
 
         layout.addWidget(self.add_prop_button)
         layout.addWidget(self.properties_table)
@@ -887,109 +830,19 @@ class WorldBuildingUI(QWidget):
         self.relationships_table.setItem(row, 3, props_item)
 
     def apply_styles(self):
-        """Apply enhanced modern styling"""
-        self.setStyleSheet(
-            """
-                QWidget {
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
-                    font-size: 13px;
-                }
+        try:
 
-                QPushButton {
-                    background-color: white;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    padding: 5px 15px;
-                    color: black;
-                }
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            stylesheet_path = os.path.join(current_dir, "style_default.qss")
 
-                QPushButton:hover {
-                    background-color: #e9ecef;
-                }
-
-                QPushButton:pressed {
-                    background-color: #dee2e6;
-                }
-
-                QPushButton:disabled {
-                    background-color: #e9ecef;
-                    color: #6c757d;
-                }
-
-                QLineEdit, QTextEdit {
-                    border: 1px solid #ccc;
-                    border-radius: 4px;
-                    padding: 5px;
-                    background: white; 
-                }
-
-                QLineEdit:focus, QTextEdit:focus {
-                    border-color: #007bff;
-                }
-
-                QProgressBar {
-                    border: 1px solid #ccc;
-                    border-radius: 4px;
-                    text-align: center;
-                    background: white; 
-                }
-
-                QProgressBar::chunk {
-                    background-color: #007bff;
-                }
-
-                QLabel {
-                    color: #212529;
-                    background: transparent;  
-                }
-
-                QGroupBox {
-                    border: 1px solid #ccc;
-                    border-radius: 4px;
-                    margin-top: 1em;
-                    padding-top: 10px;
-                    background: white;  
-                }
-
-                QTableWidget {
-                    background: white; 
-                }
-
-                QTreeView {
-                    background: white;  
-                }
-
-                QTabWidget::pane {
-                    background: white;
-                    border: 1px solid #ccc;
-                    border-radius: 4px;
-                }
-
-                QTabBar::tab {
-                    background-color: white;
-                    border: 1px solid #ccc;
-                    border-bottom-color: white;
-                    border-top-left-radius: 4px;
-                    border-top-right-radius: 4px;
-                    padding: 5px 10px;
-                    margin-right: 2px;
-                }
-
-                QTabBar::tab:selected {
-                    background-color: white;
-                    border-bottom-color: transparent;
-                }
-
-                QTabBar::tab:!selected {
-                    background-color: #f0f0f0;
-                    margin-top: 2px;
-                }
-
-                QTabBar::tab:!selected:hover {
-                    background-color: #e9ecef;
-                }
-            """
-        )
+            with open(stylesheet_path, "r") as f:
+                stylesheet = f.read()
+            self.setStyleSheet(stylesheet)
+            logging.info(f"Stylesheet applied successfully from {stylesheet_path}")
+        except Exception as e:
+            error_message = f"Failed to load stylesheet: {e}"
+            logging.error(error_message)
+            QMessageBox.warning(self, "Stylesheet Error", error_message)
 
 
 class WorldBuildingController(QObject):
@@ -1500,6 +1353,7 @@ class WorldBuildingApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.components: Optional[AppComponents] = None
+        self.setObjectName("WorldBuildingApp")
         self.initialize_application()
 
     def initialize_application(self) -> None:
@@ -1528,10 +1382,7 @@ class WorldBuildingApp(QMainWindow):
             # 6. Configure Window
             self._configure_main_window()
 
-            # 7. Setup Background
-            self._setup_background()
-
-            # 8. Show Window
+            # 7. Show Window
             self.show()
 
             logging.info("Application initialized successfully")
@@ -1646,38 +1497,6 @@ class WorldBuildingApp(QMainWindow):
         except Exception as e:
             raise RuntimeError(f"Failed to configure main window: {str(e)}")
 
-    def _setup_background(self) -> None:
-        """Setup background while maintaining opaque widgets"""
-        bg_path = self.components.config.UI_BACKGROUND_IMAGE_PATH
-
-        if not os.path.exists(bg_path):
-            logging.warning(f"Background image not found at {bg_path}")
-            return
-
-        try:
-            # Load the background image
-            pixmap = QPixmap(bg_path)
-            if not pixmap.isNull():
-                # Create and set palette for main window
-                palette = self.palette()
-                palette.setBrush(QPalette.ColorRole.Window, QBrush(pixmap))
-                self.setPalette(palette)
-
-                # Don't set translucent background on central widget
-                self.setAutoFillBackground(True)
-
-                # Make sure widgets remain opaque
-                if self.centralWidget():
-                    self.centralWidget().setAutoFillBackground(False)
-                    self.centralWidget().setStyleSheet("")
-
-                logging.info(f"Background image set successfully from {bg_path}")
-            else:
-                logging.error("Failed to load background image")
-
-        except Exception as e:
-            logging.error(f"Error setting background image: {e}")
-
     def _handle_initialization_error(self, error: Exception) -> None:
         """Handle initialization errors with cleanup"""
         error_message = f"Failed to initialize the application:\n{str(error)}"
@@ -1701,7 +1520,7 @@ class WorldBuildingApp(QMainWindow):
 
             if self.components.model:
                 try:
-                    self.components.model.cleanup()
+                    self.components.model.close()
                 except Exception as e:
                     logging.error(f"Error during model cleanup: {e}")
 
@@ -1717,7 +1536,7 @@ class WorldBuildingApp(QMainWindow):
 
             # Clean up model resources
             if self.components and self.components.model:
-                self.components.model.cleanup()
+                self.components.model.close()
                 logging.info("Model resources cleaned up")
 
             event.accept()

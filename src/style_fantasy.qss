@@ -1,0 +1,329 @@
+/* ====================================================
+   Fantasy-Themed Qt Stylesheet for WorldBuildingUI
+   ==================================================== */
+
+#WorldBuildingApp {
+    background-image: url("background.png");
+    background-repeat: repeat;
+    background-position: center;
+    background-origin: padding;
+}
+
+
+/* -------------------------
+   General Widget Styles
+   ------------------------- */
+QWidget {
+    /* Use a classic serif font with a touch of fantasy flair */
+    font-family: 'Cinzel', 'Garamond', 'Times New Roman', serif;
+    font-size: 14px;
+    color: #f0e6d2; /* Off-white color for text */
+    background-color: #1e1e2e; /* Very dark blue-gray background */
+}
+
+/* -------------------------
+   Buttons
+   ------------------------- */
+#saveButton, #deleteButton, #cancelButton,
+#changeImageButton, #deleteImageButton,
+#addRelationshipButton, #addPropertyButton {
+    background-color: #4a148c; /* Deep purple */
+    border: 2px solid #6a1b9a; /* Purple border */
+    border-radius: 8px; /* Rounded corners */
+    padding: 8px 16px;
+    color: #f0e6d2; /* Off-white text */
+    font-weight: bold;
+    /* Optional: Add background image for thematic icons */
+    /* background-image: url(:/icons/save_icon.png); */
+    /* background-repeat: no-repeat; */
+    /* background-position: left center; */
+}
+
+#saveButton:hover, #deleteButton:hover, #cancelButton:hover,
+#changeImageButton:hover, #deleteImageButton:hover,
+#addRelationshipButton:hover, #addPropertyButton:hover {
+    background-color: #6a1b9a; /* Lighter purple on hover */
+    border-color: #8e24aa;
+}
+
+#saveButton:pressed, #deleteButton:pressed, #cancelButton:pressed,
+#changeImageButton:pressed, #deleteImageButton:pressed,
+#addRelationshipButton:pressed, #addPropertyButton:pressed {
+    background-color: #4a148c; /* Darker purple when pressed */
+    border-color: #6a1b9a;
+}
+
+#saveButton:disabled, #deleteButton:disabled, #cancelButton:disabled {
+    background-color: #3a1a56;
+    border-color: #5a1b7a;
+    color: #b0a8c1;
+}
+
+/* -------------------------
+   LineEdits and TextEdits
+   ------------------------- */
+#nameInput, #labelsInput, #tagsInput, #descriptionInput {
+    background-color: #2e2e3e; /* Darker gray-blue */
+    border: 2px solid #6a1b9a; /* Purple border */
+    border-radius: 6px;
+    padding: 6px;
+    color: #f0e6d2; /* Off-white text */
+}
+
+#nameInput:focus, #labelsInput:focus, #tagsInput:focus, #descriptionInput:focus {
+    border-color: #d4af37; /* Gold color on focus */
+    outline: none; /* Remove default outline */
+    background-color: #3a3a4a;
+}
+
+/* -------------------------
+   Progress Bar
+   ------------------------- */
+#progressBar {
+    border: 2px solid #6a1b9a;
+    border-radius: 6px;
+    background-color: #2e2e3e;
+    text-align: center;
+    color: #f0e6d2;
+}
+
+#progressBar::chunk {
+    background-color: #d4af37; /* Gold chunks */
+    border-radius: 6px;
+}
+
+/* -------------------------
+   Labels
+   ------------------------- */
+#statusLabel, QLabel {
+    color: #f0e6d2;
+    font-weight: bold;
+    /* Removed text-shadow */
+}
+
+/* -------------------------
+   Group Boxes
+   ------------------------- */
+#imageGroupBox {
+    border: 2px solid #6a1b9a;
+    border-radius: 8px;
+    margin-top: 1em;
+    padding-top: 10px;
+    background-color: #2e2e3e;
+}
+
+#imageLabel {
+    border: 2px solid #6a1b9a;
+    border-radius: 6px;
+    background-color: #1e1e2e;
+    color: #f0e6d2;
+    /* Optional: Add background image or decorative elements */
+}
+
+/* -------------------------
+   Tables
+   ------------------------- */
+#relationshipsTable, #propertiesTable {
+    background-color: #2e2e3e;
+    border: 2px solid #6a1b9a;
+    alternate-background-color: #3a3a4a;
+    color: #f0e6d2;
+}
+
+QHeaderView::section {
+    background-color: #6a1b9a; /* Purple headers */
+    color: #f0e6d2;
+    padding: 6px;
+    border: 1px solid #8e24aa;
+    font-weight: bold;
+    font-family: 'Cinzel', 'Garamond', 'Times New Roman', serif;
+}
+
+QTableWidget::item:selected {
+    background-color: #d4af37; /* Gold highlight */
+    color: #1e1e2e;
+}
+
+/* -------------------------
+   Tree View
+   ------------------------- */
+#treeView {
+    background-color: #2e2e3e;
+    border: 2px solid #6a1b9a;
+    color: #f0e6d2;
+}
+
+QTreeView::item {
+    padding: 6px;
+    margin: 2px;
+}
+
+QTreeView::item:hover {
+    background-color: #5e35b1; /* Purple hover */
+}
+
+QTreeView::item:selected {
+    background-color: #d4af37;
+    color: #1e1e2e;
+}
+
+/* -------------------------
+   Tabs
+   ------------------------- */
+#mainTabs::pane {
+    background-color: #2e2e3e;
+    border: 2px solid #6a1b9a;
+    border-radius: 8px;
+}
+
+#mainTabs QTabBar::tab {
+    background-color: #6a1b9a;
+    border: 2px solid #8e24aa;
+    border-bottom-color: #2e2e3e;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    padding: 8px 16px;
+    margin-right: 2px;
+    color: #f0e6d2;
+    font-weight: bold;
+}
+
+#mainTabs QTabBar::tab:selected {
+    background-color: #d4af37; /* Gold background for selected tab */
+    border-bottom-color: #d4af37;
+    color: #1e1e2e;
+}
+
+#mainTabs QTabBar::tab:hover {
+    background-color: #8e24aa; /* Lighter purple on hover */
+}
+
+/* -------------------------
+   Scrollbars
+   ------------------------- */
+QScrollBar:vertical {
+    background-color: #2e2e3e;
+    width: 12px;
+    margin: 16px 0 16px 0;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #6a1b9a;
+    min-height: 20px;
+    border-radius: 6px;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    background: none;
+    height: 0;
+}
+
+QScrollBar:horizontal {
+    background-color: #2e2e3e;
+    height: 12px;
+    margin: 0 16px 0 16px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #6a1b9a;
+    min-width: 20px;
+    border-radius: 6px;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    background: none;
+    width: 0;
+}
+
+/* -------------------------
+   Tooltips
+   ------------------------- */
+QToolTip {
+    background-color: #6a1b9a;
+    color: #f0e6d2;
+    border: 1px solid #8e24aa;
+    padding: 5px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: 'Cinzel', 'Garamond', 'Times New Roman', serif;
+}
+
+/* -------------------------
+   Message Boxes
+   ------------------------- */
+QMessageBox {
+    background-color: #2e2e3e;
+    color: #f0e6d2;
+}
+
+QMessageBox QLabel {
+    color: #f0e6d2;
+    font-weight: bold;
+    font-family: 'Cinzel', 'Garamond', 'Times New Roman', serif;
+}
+
+/* -------------------------
+   Comboboxes
+   ------------------------- */
+QComboBox {
+    background-color: #2e2e3e;
+    border: 2px solid #6a1b9a;
+    border-radius: 6px;
+    padding: 6px;
+    color: #f0e6d2;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+    border-left: 1px solid #8e24aa;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+
+QComboBox::down-arrow {
+    image: url(:/icons/down_arrow.png); /* Optional: Custom arrow icon */
+    /* Ensure the icon exists in your resources */
+}
+
+/* -------------------------
+   Additional Decorative Elements
+   ------------------------- */
+
+/* Optional: Add background images or textures to specific widgets */
+/*
+#mainTabs::pane {
+    background-image: url(:/images/magical_texture.png);
+    background-repeat: repeat;
+}
+*/
+
+/* Optional: Add shadows to widgets for depth */
+QGroupBox {
+    background-color: #2e2e3e;
+    border: 2px solid #6a1b9a;
+    border-radius: 8px;
+    /* Shadow effect via QGraphicsDropShadowEffect in Python code */
+}
+
+/* -------------------------
+   Scroll Area Styles
+   ------------------------- */
+QScrollArea {
+    background-color: #2e2e3e;
+    border: none;
+}
+
+/* -------------------------
+   Push Buttons with Icons
+   ------------------------- */
+#saveButton, #deleteButton, #cancelButton,
+#changeImageButton, #deleteImageButton,
+#addRelationshipButton, #addPropertyButton {
+    /* Padding to accommodate icons if used */
+    padding-left: 10px;
+    text-align: left;
+}

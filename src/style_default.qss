@@ -1,0 +1,116 @@
+
+    /* General Styles */
+    QWidget {
+        font-family:  'Segoe UI';
+        font-size: 13px;
+    }
+
+    /* Specific Widget Styles */
+    #saveButton, #deleteButton, #cancelButton, #changeImageButton, #deleteImageButton, #addRelationshipButton, #addPropertyButton {
+        background-color: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 5px 15px;
+        color: black;
+    }
+
+    #saveButton:hover, #deleteButton:hover, #cancelButton:hover, #changeImageButton:hover, #deleteImageButton:hover, #addRelationshipButton:hover, #addPropertyButton:hover {
+        background-color: #e9ecef;
+    }
+
+    #saveButton:pressed, #deleteButton:pressed, #cancelButton:pressed, #changeImageButton:pressed, #deleteImageButton:pressed, #addRelationshipButton:pressed, #addPropertyButton:pressed {
+        background-color: #dee2e6;
+    }
+
+    #saveButton:disabled, #deleteButton:disabled, #cancelButton:disabled {
+        background-color: #e9ecef;
+        color: #6c757d;
+    }
+
+    #nameInput, #descriptionInput, #labelsInput, #tagsInput {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 5px;
+        background: white;
+    }
+
+    #nameInput:focus, #descriptionInput:focus, #labelsInput:focus, #tagsInput:focus {
+        border-color: #007bff;
+    }
+
+    #progressBar {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        text-align: center;
+        background: white;
+    }
+
+    #progressBar::chunk {
+        background-color: #007bff;
+    }
+
+    #statusLabel {
+        color: #212529;
+        background: transparent;
+    }
+
+    #imageGroupBox {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        margin-top: 1em;
+        padding-top: 10px;
+        background: white;
+    }
+
+    #imageLabel {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: white;
+    }
+
+    #relationshipsTable, #propertiesTable {
+        background: white;
+    }
+
+    #treeView {
+        background: white;
+    }
+
+    #mainTabs::pane {
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    #mainTabs QTabBar::tab {
+        background-color: white;
+        border: 1px solid #ccc;
+        border-bottom-color: white;
+        border-top-left-radius: 4px;
+        border-top-right-radius: 4px;
+        padding: 5px 10px;
+        margin-right: 2px;
+    }
+
+    #mainTabs QTabBar::tab:selected {
+        background-color: white;
+        border-bottom-color: transparent;
+    }
+
+    #mainTabs QTabBar::tab:!selected {
+        background-color: #f0f0f0;
+        margin-top: 2px;
+    }
+
+    #mainTabs QTabBar::tab:!selected:hover {
+        background-color: #e9ecef;
+    }
+
+    #WorldBuildingApp {
+    background-image: url("background.png");
+    background-repeat: repeat;
+    background-position: center;
+    background-origin: padding;
+}
+
+    /* Additional Styles as Needed */
