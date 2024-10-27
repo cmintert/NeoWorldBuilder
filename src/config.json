@@ -2,7 +2,7 @@
     "UI": {
         "WINDOW_WIDTH": 1000,
         "WINDOW_HEIGHT": 800,
-        "BACKGROUND_IMAGE_PATH": "background.png",
+        "BACKGROUND_IMAGE_PATH": "src/background.png",
         "DEFAULT_IMAGE_PATH": "default.png",
         "DEFAULT_IMAGE_SIZE": [200, 200],
         "DEFAULT_IMAGE_LABEL_SIZE": [300, 300],

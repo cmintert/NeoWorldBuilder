@@ -503,6 +503,7 @@ class WorldBuildingUI(QWidget):
 
         # Create splitter for resizable panels
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setStyleSheet("QSplitter { background: transparent; }")
 
         # Left panel with search and tree
         left_panel = self._create_left_panel()
@@ -525,11 +526,6 @@ class WorldBuildingUI(QWidget):
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
-
-        # Add search box
-        self.search_box = QLineEdit()
-        self.search_box.setPlaceholderText("Search nodes...")
-        layout.addWidget(self.search_box)
 
         # Enhanced tree view
         self.tree_view = QTreeView()
@@ -569,15 +565,26 @@ class WorldBuildingUI(QWidget):
         return panel
 
     def _create_right_panel(self):
-        """Create improved right panel with progress indication"""
+        """Create improved right panel with proper spacing and opacity"""
         panel = QWidget()
+        panel.setStyleSheet("""
+            QWidget {
+                background: transparent;
+            }
+            QLineEdit, QPushButton {
+                background-color: white;
+            }
+        """)
+
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(15)
 
         # Header with node name and actions
+        header_widget = QWidget()
         header_layout = self._create_header_layout()
-        layout.addLayout(header_layout)
+        header_widget.setLayout(header_layout)
+        layout.addWidget(header_widget)
 
         # Progress bar (initially hidden)
         self.progress_bar = QProgressBar()
@@ -589,29 +596,6 @@ class WorldBuildingUI(QWidget):
         tabs.addTab(self._create_basic_info_tab(), "Basic Info")
         tabs.addTab(self._create_relationships_tab(), "Relationships")
         tabs.addTab(self._create_properties_tab(), "Properties")
-
-        # Style the tabs
-        tabs.setStyleSheet(
-            """
-            QTabWidget::pane {
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                background: white;
-            }
-            QTabBar::tab {
-                background: #f0f0f0;
-                border: 1px solid #ccc;
-                padding: 8px 16px;
-                margin-right: 2px;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
-            }
-            QTabBar::tab:selected {
-                background: white;
-                border-bottom-color: white;
-            }
-        """
-        )
 
         layout.addWidget(tabs)
         return panel
@@ -647,6 +631,7 @@ class WorldBuildingUI(QWidget):
     def _create_basic_info_tab(self):
         """Create the basic info tab with input fields and image handling"""
         tab = QWidget()
+        tab.setStyleSheet("background-color: white;")
         layout = QFormLayout(tab)
         layout.setSpacing(15)
 
@@ -714,6 +699,7 @@ class WorldBuildingUI(QWidget):
     def _create_relationships_tab(self):
         """Create relationships tab with table"""
         tab = QWidget()
+        tab.setStyleSheet("background-color: white;")
         layout = QVBoxLayout(tab)
 
         # Add relationship button
@@ -742,7 +728,7 @@ class WorldBuildingUI(QWidget):
                 padding: 5px;
             }
             QHeaderView::section {
-                background: #f8f9fa;
+                background: white;
                 padding: 5px;
                 border: none;
                 border-bottom: 1px solid #dee2e6;
@@ -757,6 +743,7 @@ class WorldBuildingUI(QWidget):
     def _create_properties_tab(self):
         """Create properties tab with table"""
         tab = QWidget()
+        tab.setStyleSheet("background-color: white;")
         layout = QVBoxLayout(tab)
 
         # Add property button
@@ -903,63 +890,105 @@ class WorldBuildingUI(QWidget):
         """Apply enhanced modern styling"""
         self.setStyleSheet(
             """
-            QWidget {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
-                font-size: 13px;
-            }
+                QWidget {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
+                    font-size: 13px;
+                }
 
-            QPushButton {
-                background-color: #f8f9fa;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                padding: 5px 15px;
-            }
+                QPushButton {
+                    background-color: white;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    padding: 5px 15px;
+                    color: black;
+                }
 
-            QPushButton:hover {
-                background-color: #e9ecef;
-            }
+                QPushButton:hover {
+                    background-color: #e9ecef;
+                }
 
-            QPushButton:pressed {
-                background-color: #dee2e6;
-            }
+                QPushButton:pressed {
+                    background-color: #dee2e6;
+                }
 
-            QPushButton:disabled {
-                background-color: #e9ecef;
-                color: #6c757d;
-            }
+                QPushButton:disabled {
+                    background-color: #e9ecef;
+                    color: #6c757d;
+                }
 
-            QLineEdit, QTextEdit {
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                padding: 5px;
-                background: white;
-            }
+                QLineEdit, QTextEdit {
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                    padding: 5px;
+                    background: white; 
+                }
 
-            QLineEdit:focus, QTextEdit:focus {
-                border-color: #007bff;
-            }
+                QLineEdit:focus, QTextEdit:focus {
+                    border-color: #007bff;
+                }
 
-            QProgressBar {
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                text-align: center;
-            }
+                QProgressBar {
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                    text-align: center;
+                    background: white; 
+                }
 
-            QProgressBar::chunk {
-                background-color: #007bff;
-            }
+                QProgressBar::chunk {
+                    background-color: #007bff;
+                }
 
-            QLabel {
-                color: #212529;
-            }
+                QLabel {
+                    color: #212529;
+                    background: transparent;  
+                }
 
-            QGroupBox {
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                margin-top: 1em;
-                padding-top: 10px;
-            }
-        """
+                QGroupBox {
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                    margin-top: 1em;
+                    padding-top: 10px;
+                    background: white;  
+                }
+
+                QTableWidget {
+                    background: white; 
+                }
+
+                QTreeView {
+                    background: white;  
+                }
+
+                QTabWidget::pane {
+                    background: white;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                }
+
+                QTabBar::tab {
+                    background-color: white;
+                    border: 1px solid #ccc;
+                    border-bottom-color: white;
+                    border-top-left-radius: 4px;
+                    border-top-right-radius: 4px;
+                    padding: 5px 10px;
+                    margin-right: 2px;
+                }
+
+                QTabBar::tab:selected {
+                    background-color: white;
+                    border-bottom-color: transparent;
+                }
+
+                QTabBar::tab:!selected {
+                    background-color: #f0f0f0;
+                    margin-top: 2px;
+                }
+
+                QTabBar::tab:!selected:hover {
+                    background-color: #e9ecef;
+                }
+            """
         )
 
 
@@ -1434,16 +1463,14 @@ class WorldBuildingController(QObject):
 
         return True
 
-    def change_image(self):  # TODO check on this method
+    def change_image(self):
         """Handle changing the image"""
         try:
-            options = QFileDialog.Option.DontUseNativeDialog
             file_name, _ = QFileDialog.getOpenFileName(
                 self.ui,
                 "Select Image",
                 "",
                 "Image Files (*.png *.jpg *.bmp)",
-                options=options
             )
             if file_name:
                 # Process image in the UI thread since it's UI-related
@@ -1620,7 +1647,7 @@ class WorldBuildingApp(QMainWindow):
             raise RuntimeError(f"Failed to configure main window: {str(e)}")
 
     def _setup_background(self) -> None:
-        """Setup background with error handling and fallback"""
+        """Setup background while maintaining opaque widgets"""
         bg_path = self.components.config.UI_BACKGROUND_IMAGE_PATH
 
         if not os.path.exists(bg_path):
@@ -1628,31 +1655,28 @@ class WorldBuildingApp(QMainWindow):
             return
 
         try:
-            # Create and configure palette
-            palette = self.palette()
+            # Load the background image
+            pixmap = QPixmap(bg_path)
+            if not pixmap.isNull():
+                # Create and set palette for main window
+                palette = self.palette()
+                palette.setBrush(QPalette.ColorRole.Window, QBrush(pixmap))
+                self.setPalette(palette)
 
-            # Load and verify image
-            image = QImage(bg_path)
-            if image.isNull():
-                raise RuntimeError("Failed to load background image")
+                # Don't set translucent background on central widget
+                self.setAutoFillBackground(True)
 
-            # Create and set brush
-            brush = QBrush(image)
-            palette.setBrush(QPalette.Window, brush)
+                # Make sure widgets remain opaque
+                if self.centralWidget():
+                    self.centralWidget().setAutoFillBackground(False)
+                    self.centralWidget().setStyleSheet("")
 
-            # Apply palette
-            self.setPalette(palette)
-            self.setAutoFillBackground(True)
-
-            # Configure central widget
-            self.centralWidget().setAutoFillBackground(True)
-            self.centralWidget().setPalette(palette)
-
-            logging.info(f"Background image set from {bg_path}")
+                logging.info(f"Background image set successfully from {bg_path}")
+            else:
+                logging.error("Failed to load background image")
 
         except Exception as e:
             logging.error(f"Error setting background image: {e}")
-            # Continue without background rather than crashing
 
     def _handle_initialization_error(self, error: Exception) -> None:
         """Handle initialization errors with cleanup"""
