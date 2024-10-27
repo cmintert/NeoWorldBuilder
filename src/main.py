@@ -1394,6 +1394,10 @@ class WorldBuildingApp(QMainWindow):
             # 6. Configure Window
             self._configure_main_window()
 
+            #8. Set Background Image
+
+            self.set_background_image("src/background.png")
+
             # 7. Show Window
             self.show()
 
@@ -1401,6 +1405,17 @@ class WorldBuildingApp(QMainWindow):
 
         except Exception as e:
             self._handle_initialization_error(e)
+
+    def set_background_image(self, image_path: str) -> None:
+        """Set the background image for the main window"""
+        try:
+            palette = QPalette()
+            pixmap = QPixmap(image_path)
+            palette.setBrush(QPalette.ColorRole.Window, QBrush(pixmap))
+            self.setPalette(palette)
+            logging.info(f"Background image set from {image_path}")
+        except Exception as e:
+            logging.error(f"Failed to set background image: {e}")
 
     def _load_configuration(self) -> "Config":
         """Load application configuration with error handling"""
