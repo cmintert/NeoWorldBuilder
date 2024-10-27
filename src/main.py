@@ -1037,13 +1037,11 @@ class WorldBuildingController(QObject):
         indexes = selected.indexes()
         if indexes:
             selected_item = self.tree_model.itemFromIndex(indexes[0])
-            if selected_item and selected_item.parent():
-                text = selected_item.text()
-                if text.startswith("🔵"):
-                    node_name = text[2:].strip()
-                    if node_name != self.ui.name_input.text():
-                        self.ui.name_input.setText(node_name)
-                        self.load_node_data()
+            if selected_item:
+                node_name = selected_item.data(Qt.ItemDataRole.UserRole)
+                if node_name and node_name != self.ui.name_input.text():
+                    self.ui.name_input.setText(node_name)
+                    self.load_node_data()
 
     #############################################
     # 4. Auto-completion and Search
@@ -1267,7 +1265,9 @@ class WorldBuildingController(QObject):
 
 
             root_item = self.tree_model.invisibleRootItem()
+            node_name = self.ui.name_input.text().strip()
             node_item = QStandardItem(f"🔵 {self.ui.name_input.text()}")
+            node_item.setData(node_name, Qt.ItemDataRole.UserRole)
 
             # Create folders for Active and Passive Relationships
             active_rels_item = QStandardItem("➡️ Active Relationships")
@@ -1285,6 +1285,7 @@ class WorldBuildingController(QObject):
                 #Format Relationship Text
                 item_text = f"{direction} [{rel_type}] 🔹 {end_node}"
                 child_item = QStandardItem(item_text)
+                child_item.setData(end_node, Qt.ItemDataRole.UserRole)
 
                 if direction == '>':
                     active_rels_item.appendRow(child_item)
