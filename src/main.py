@@ -53,7 +53,7 @@ from neo4j import GraphDatabase
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 
@@ -68,46 +68,23 @@ class Config:
             else:
                 setattr(self, category, values)
 
-
-class Neo4jQueryWorker(QThread):
-    # Handles executing Neo4j queries asynchronously in a separate thread
-    result_ready = pyqtSignal(object)
-    error_occurred = pyqtSignal(str)
-
-    def __init__(self, model_method, *args, **kwargs):
-        super().__init__()
-        self.model_method = model_method
-        self.args = args
-        self.kwargs = kwargs
-
-    def run(self):
-        try:
-            result = self.model_method(*self.args, **self.kwargs)
-            self.result_ready.emit(result)
-        except Exception as e:
-            error_message = str(e)
-            logging.error(f"Neo4jQueryWorker error: {error_message}")
-            self.error_occurred.emit(error_message)
-
-
 class BaseNeo4jWorker(QThread):
     """Base class for Neo4j worker threads"""
 
     error_occurred = pyqtSignal(str)
     progress_updated = pyqtSignal(int)
 
-    def __init__(self, driver_config):
+    def __init__(self, uri, auth):
         super().__init__()
-        self._config = driver_config
+        self._uri = uri
+        self._auth = auth
         self._driver = None
         self._is_cancelled = False
 
     def connect(self):
         """Create Neo4j driver connection"""
         if not self._driver:
-            self._driver = GraphDatabase.driver(
-                self._config.uri, auth=(self._config.user, self._config.password)
-            )
+            self._driver = GraphDatabase.driver(self._uri, auth=self._auth)
 
     def cleanup(self):
         """Clean up resources"""
@@ -118,16 +95,18 @@ class BaseNeo4jWorker(QThread):
     def cancel(self):
         """Cancel current operation"""
         self._is_cancelled = True
+        self.quit()  # Tell thread to quit
+        self.wait()
 
     def run(self):
-        """Base run implementation"""
-        try:
-            self.connect()
-            self.execute_operation()
-        except Exception as e:
-            self.error_occurred.emit(str(e))
-        finally:
-            self.cleanup()
+            """Base run implementation"""
+            try:
+                self.connect()
+                self.execute_operation()
+            except Exception as e:
+                self.error_occurred.emit(str(e))
+            finally:
+                self.cleanup()
 
     def execute_operation(self):
         """Override in subclasses"""
@@ -139,8 +118,8 @@ class QueryWorker(BaseNeo4jWorker):
 
     query_finished = pyqtSignal(list)
 
-    def __init__(self, driver_config, query, params=None):
-        super().__init__(driver_config)
+    def __init__(self, uri, auth, query, params=None):
+        super().__init__(uri, auth)
         self.query = query
         self.params = params or {}
 
@@ -156,14 +135,14 @@ class WriteWorker(BaseNeo4jWorker):
 
     write_finished = pyqtSignal(bool)
 
-    def __init__(self, driver_config, query, params=None):
-        super().__init__(driver_config)
-        self.query = query
-        self.params = params or {}
+    def __init__(self, uri, auth, func, *args):
+        super().__init__(uri, auth)
+        self.func = func
+        self.args = args
 
     def execute_operation(self):
         with self._driver.session() as session:
-            session.execute_write(self._run_transaction, self.query, self.params)
+            session.execute_write(self.func, *self.args)
             if not self._is_cancelled:
                 self.write_finished.emit(True)
 
@@ -273,57 +252,48 @@ class Neo4jModel:
     # 2. Node CRUD Operations
     #############################################
 
-    def load_node(self, name):
+    def load_node(self, name, callback):
         """
-        Load a node and its relationships by name.
+        Load a node and its relationships by name using a worker.
 
         Args:
             name (str): Name of the node to load
+            callback (function): Function to call with the result
 
         Returns:
-            list: Records containing node data and relationships
+            QueryWorker: A worker that will execute the query
         """
-        try:
-            with self.get_session() as session:
-                result = session.run(
-                    """
-                    MATCH (n:Node {name: $name})
-                    WITH n, labels(n) AS labels,
-                         [(n)-[r]->(m) | {end: m.name, type: type(r), dir: '>', props: properties(r)}] AS out_rels,
-                         [(n)<-[r2]-(o) | {end: o.name, type: type(r2), dir: '<', props: properties(r2)}] AS in_rels,
-                         properties(n) AS all_props
-                    RETURN n,
-                           out_rels + in_rels AS relationships,
-                           labels,
-                           all_props
-                    LIMIT 1
-                """,
-                    name=name,
-                )
-                records = list(result)
-                return records
-        except Exception as e:
-            logging.error(f"Error loading node: {e}")
-            raise e  # Reraise exception to be handled by caller
+        query = """
+            MATCH (n:Node {name: $name})
+            WITH n, labels(n) AS labels,
+                 [(n)-[r]->(m) | {end: m.name, type: type(r), dir: '>', props: properties(r)}] AS out_rels,
+                 [(n)<-[r2]-(o) | {end: o.name, type: type(r2), dir: '<', props: properties(r2)}] AS in_rels,
+                 properties(n) AS all_props
+            RETURN n,
+                   out_rels + in_rels AS relationships,
+                   labels,
+                   all_props
+            LIMIT 1
+        """
+        params = {"name": name}
+        worker = QueryWorker(self._uri, self._auth, query, params)
+        worker.query_finished.connect(callback)
+        return worker
 
-    def save_node(self, node_data):
+    def save_node(self, node_data, callback):
         """
-        Save or update a node and its relationships.
+        Save or update a node and its relationships using a worker.
 
         Args:
             node_data (dict): Node data including properties and relationships
+            callback (function): Function to call when done
 
         Returns:
-            None on success, raises exception on failure
+            WriteWorker: A worker that will execute the write operation
         """
-        try:
-            with self.get_session() as session:
-                session.execute_write(self._save_node_transaction, node_data)
-            logging.info(f"Node '{node_data['name']}' saved successfully.")
-            return None  # Indicate success
-        except Exception as e:
-            logging.error(f"Error saving node: {e}")
-            raise e
+        worker = WriteWorker(self._uri, self._auth, self._save_node_transaction, node_data)
+        worker.write_finished.connect(callback)
+        return worker
 
     @staticmethod
     def _save_node_transaction(tx, node_data):
@@ -415,24 +385,20 @@ class Neo4jModel:
                 )
             tx.run(query_rel, name=name, rel_name=rel_name, properties=properties)
 
-    def delete_node(self, name):
+    def delete_node(self, name, callback):
         """
-        Delete a node and all its relationships.
+        Delete a node and all its relationships using a worker.
 
         Args:
             name (str): Name of the node to delete
+            callback (function): Function to call when done
 
         Returns:
-            None on success, raises exception on failure
+            WriteWorker: A worker that will execute the delete operation
         """
-        try:
-            with self.get_session() as session:
-                session.execute_write(self._delete_node_transaction, name)
-            logging.info(f"Node '{name}' deleted successfully.")
-            return None  # Indicate success
-        except Exception as e:
-            logging.error(f"Error deleting node: {e}")
-            raise e
+        worker = WriteWorker(self._uri, self._auth, self._delete_node_transaction, name)
+        worker.write_finished.connect(callback)
+        return worker
 
     @staticmethod
     def _delete_node_transaction(tx, name):
@@ -444,31 +410,19 @@ class Neo4jModel:
     # 3. Node Query Operations
     #############################################
 
-    def get_node_relationships(self, node_name):
+    def get_node_relationships(self, node_name, callback):
+        query = """
+            MATCH (n:Node {name: $name})
+            OPTIONAL MATCH (n)-[r]->(m:Node)
+            WITH n, collect({end: m.name, type: type(r), dir: '>'}) as outRels
+            OPTIONAL MATCH (n)<-[r2]-(o:Node)
+            WITH n, outRels, collect({end: o.name, type: type(r2), dir: '<'}) as inRels
+            RETURN outRels + inRels as relationships
         """
-        Fetch all relationships for a given node, both incoming and outgoing.
-
-        Args:
-            node_name (str): Name of the node to fetch relationships for
-
-        Returns:
-            dict: Dictionary with 'outgoing' and 'incoming' relationship lists
-        """
-        with self.get_session() as session:
-            result = session.run(
-                """
-                MATCH (n:Node {name: $name})
-                OPTIONAL MATCH (n)-[r]->(m:Node)
-                WITH n, collect({end: m.name, type: type(r), dir: '>'}) as outRels
-                OPTIONAL MATCH (n)<-[r2]-(o:Node)
-                WITH n, outRels, collect({end: o.name, type: type(r2), dir: '<'}) as inRels
-                RETURN outRels + inRels as relationships
-            """,
-                name=node_name,
-            )
-
-            record = result.single()
-            return record["relationships"] if record else []
+        params = {"name": node_name}
+        worker = QueryWorker(self._uri, self._auth, query, params)
+        worker.query_finished.connect(callback)
+        return worker
 
     def get_node_hierarchy(self):
         """
@@ -490,30 +444,26 @@ class Neo4jModel:
             )
             return {record["category"]: record["nodes"] for record in result}
 
-    def fetch_matching_node_names(self, prefix, limit):
+    def fetch_matching_node_names(self, prefix, limit, callback):
         """
-        Search for nodes whose names match a given prefix.
+        Search for nodes whose names match a given prefix using a worker.
 
         Args:
             prefix (str): The search prefix
             limit (int): Maximum number of results to return
+            callback (function): Function to call with the result
 
         Returns:
-            list: Matching node names
+            QueryWorker: A worker that will execute the query
         """
-        try:
-            with self.get_session() as session:
-                result = session.run(
-                    "MATCH (n:Node) WHERE toLower(n.name) CONTAINS toLower($prefix) "
-                    "RETURN n.name AS name LIMIT $limit",
-                    prefix=prefix,
-                    limit=limit,
-                )
-                names = [record["name"] for record in result]
-                return names
-        except Exception as e:
-            logging.error(f"Error fetching matching node names: {e}")
-            raise e
+        query = (
+            "MATCH (n:Node) WHERE toLower(n.name) CONTAINS toLower($prefix) "
+            "RETURN n.name AS name LIMIT $limit"
+        )
+        params = {"prefix": prefix, "limit": limit}
+        worker = QueryWorker(self._uri, self._auth, query, params)
+        worker.query_finished.connect(callback)
+        return worker
 
 
 class WorldBuildingUI(QWidget):
@@ -896,7 +846,7 @@ class WorldBuildingUI(QWidget):
             pixmap = QPixmap(image_path)
             if not pixmap.isNull():
                 scaled_pixmap = pixmap.scaled(
-                    self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+                    self.image_label.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
                 )
                 self.image_label.setPixmap(scaled_pixmap)
             else:
@@ -1015,11 +965,6 @@ class WorldBuildingController(QObject):
         self._connect_signals()
         self._load_default_state()
 
-        # Track current workers
-        self.current_load_worker = None
-        self.current_save_worker = None
-        self.current_search_worker = None
-
     #############################################
     # 1. Initialization Methods
     #############################################
@@ -1047,6 +992,7 @@ class WorldBuildingController(QObject):
         self.name_input_timer = QTimer()
         self.name_input_timer.setSingleShot(True)
         self.name_input_timer.timeout.connect(self._fetch_matching_nodes)
+        self.name_input_timer.setInterval(self.config.TIMING_NAME_INPUT_DEBOUNCE_TIME_MS)
 
     def _connect_signals(self):
         """Connect all UI signals to handlers"""
@@ -1091,7 +1037,7 @@ class WorldBuildingController(QObject):
             return
 
         # Cancel any existing load operation
-        if self.current_load_worker:
+        if hasattr(self, 'current_load_worker') and self.current_load_worker:
             self.current_load_worker.cancel()
 
         # Start new load operation
@@ -1113,13 +1059,12 @@ class WorldBuildingController(QObject):
             return
 
         # Cancel any existing save operation
-        if self.current_save_worker:
+        if hasattr(self, 'current_save_worker') and self.current_save_worker:
             self.current_save_worker.cancel()
 
         # Start new save operation
         self.current_save_worker = self.model.save_node(node_data, self.on_save_success)
         self.current_save_worker.error_occurred.connect(self.handle_error)
-        self.current_save_worker.batch_progress.connect(self._update_save_progress)
         self.current_save_worker.start()
 
     def delete_node(self):
@@ -1183,9 +1128,9 @@ class WorldBuildingController(QObject):
 
     def debounce_name_input(self, text: str):
         """Debounce name input for search"""
-        if self.current_search_worker:
-            self.current_search_worker.cancel()
-        self.name_input_timer.start(300)
+        self.name_input_timer.stop()
+        if text.strip():
+            self.name_input_timer.start()
 
     def _fetch_matching_nodes(self):
         """Fetch matching nodes for auto-completion"""
@@ -1310,9 +1255,13 @@ class WorldBuildingController(QObject):
         QMessageBox.information(self.ui, "Success", "Node saved successfully")
         self.refresh_tree_view()
 
-    def _handle_autocomplete_results(self, names: List[str]):
+    def _handle_autocomplete_results(self, records: List[Any]):
         """Handle autocomplete results"""
-        self.node_name_model.setStringList(names)
+        try:
+            names = [record["name"] for record in records]
+            self.node_name_model.setStringList(names)
+        except Exception as e:
+            self.handle_error(f"Error processing autocomplete results: {str(e)}")
 
     def _update_save_progress(self, current: int, total: int):
         """Update progress during save operation"""
@@ -1358,13 +1307,21 @@ class WorldBuildingController(QObject):
 
     def change_image(self):  # TODO check on this method
         """Handle changing the image"""
-        options = QFileDialog.Options()
-        file_name, _ = QFileDialog.getOpenFileName(
-            self.ui, "Select Image", "", "Image Files (*.png *.jpg *.bmp)", options=options
-        )
-        if file_name:
-            self.current_image_path = file_name
-            self.ui.set_image(file_name)
+        try:
+            options = QFileDialog.Option.DontUseNativeDialog
+            file_name, _ = QFileDialog.getOpenFileName(
+                self.ui,
+                "Select Image",
+                "",
+                "Image Files (*.png *.jpg *.bmp)",
+                options=options
+            )
+            if file_name:
+                # Process image in the UI thread since it's UI-related
+                self.current_image_path = file_name
+                self.ui.set_image(file_name)
+        except Exception as e:
+            self.handle_error(f"Error changing image: {str(e)}")
 
     def delete_image(self):
         """Handle deleting the image"""
