@@ -3,13 +3,17 @@ import json
 import sys
 import logging
 import os
+import faulthandler
+import traceback
+
 from dataclasses import dataclass
 from datetime import time
 from logging.handlers import RotatingFileHandler
 
 from typing import Optional, Dict, Any, List
 
-from PyQt6.QtCore import QThread, pyqtSignal, QTimer, QStringListModel, Qt, QObject
+from PyQt6.QtCore import (QThread, pyqtSignal, QTimer, QStringListModel, Qt, QObject, QMetaObject, Q_ARG, QObject,
+                          pyqtSlot)
 from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
@@ -45,8 +49,7 @@ from PyQt6.QtGui import (
     QPalette,
     QBrush,
 
-
-    QPixmap,
+    QPixmap, QStandardItem,
 )
 
 from neo4j import GraphDatabase
@@ -55,6 +58,16 @@ from neo4j import GraphDatabase
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+
+faulthandler.enable()
+
+def exception_hook(exctype, value, tb):
+    logging.critical("Unhandled exception", exc_info=(exctype, value, tb))
+    traceback.print_exception(exctype, value, tb)
+    sys.__excepthook__(exctype, value, tb)
+    QMessageBox.critical(None, "Unhandled Exception", f"An unhandled exception occurred:\n{value}")
+
+sys.excepthook = exception_hook
 
 
 class Config:
@@ -124,10 +137,14 @@ class QueryWorker(BaseNeo4jWorker):
         self.params = params or {}
 
     def execute_operation(self):
-        with self._driver.session() as session:
-            result = list(session.run(self.query, self.params))
-            if not self._is_cancelled:
-                self.query_finished.emit(result)
+        try:
+            with self._driver.session() as session:
+                result = list(session.run(self.query, self.params))
+                if not self._is_cancelled:
+                    self.query_finished.emit(result)
+        except Exception as e:
+            error_message = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+            self.error_occurred.emit(error_message)
 
 
 class WriteWorker(BaseNeo4jWorker):
@@ -965,6 +982,12 @@ class WorldBuildingController(QObject):
         self._connect_signals()
         self._load_default_state()
 
+        # Initialize worker manager
+        self.current_load_worker = None
+        self.current_save_worker = None
+        self.current_relationship_worker = None
+        self.current_search_worker = None
+
     #############################################
     # 1. Initialization Methods
     #############################################
@@ -1037,8 +1060,9 @@ class WorldBuildingController(QObject):
             return
 
         # Cancel any existing load operation
-        if hasattr(self, 'current_load_worker') and self.current_load_worker:
+        if self.current_load_worker:
             self.current_load_worker.cancel()
+            self.current_load_worker.wait()
 
         # Start new load operation
         self.current_load_worker = self.model.load_node(name, self._handle_node_data)
@@ -1097,11 +1121,16 @@ class WorldBuildingController(QObject):
             self.tree_model.setHorizontalHeaderLabels(["Node Relationships"])
             return
 
-        worker = self.model.get_node_relationships(
+        # Cancel any existing relationship worker
+        if self.current_relationship_worker:
+            self.current_relationship_worker.cancel()
+            self.current_relationship_worker.wait()
+
+        self.current_relationship_worker = self.model.get_node_relationships(
             node_name, self._populate_relationship_tree
         )
-        worker.error_occurred.connect(self.handle_error)
-        worker.start()
+        self.current_relationship_worker.error_occurred.connect(self.handle_error)
+        self.current_relationship_worker.start()
 
     def refresh_tree_view(self):
         """Refresh the entire tree view"""
@@ -1137,6 +1166,11 @@ class WorldBuildingController(QObject):
         text = self.ui.name_input.text().strip()
         if not text:
             return
+
+        # Cancel any existing search worker
+        if self.current_search_worker:
+            self.current_search_worker.cancel()
+            self.current_search_worker.wait()
 
         self.current_search_worker = self.model.fetch_matching_node_names(
             text, self.config.NEO4J_MATCH_NODE_LIMIT, self._handle_autocomplete_results
@@ -1235,15 +1269,15 @@ class WorldBuildingController(QObject):
     # 6. Event Handlers
     #############################################
 
-    def _handle_node_data(self, records: List[Any]):
-        """Handle loaded node data"""
-        if not records:
-            return
-
-        try:
-            self._populate_node_fields(records[0])
-        except Exception as e:
-            self.handle_error(f"Error loading node data: {str(e)}")
+    @pyqtSlot(list)
+    def _handle_node_data(self, data: List[Any]):
+        """Handle node data fetched by the worker"""
+        logging.debug(f"Handling node data: {data}")
+        if data:
+            record = data[0]  # Extract the first record
+            self._populate_node_fields(record)
+        else:
+            self.handle_error("No data returned from query")
 
     def _handle_delete_success(self, _):
         """Handle successful node deletion"""
@@ -1255,6 +1289,7 @@ class WorldBuildingController(QObject):
         QMessageBox.information(self.ui, "Success", "Node saved successfully")
         self.refresh_tree_view()
 
+    @pyqtSlot(list)
     def _handle_autocomplete_results(self, records: List[Any]):
         """Handle autocomplete results"""
         try:
@@ -1268,13 +1303,107 @@ class WorldBuildingController(QObject):
         # Could be connected to a progress bar in the UI
         logging.info(f"Save progress: {current}/{total}")
 
+    @pyqtSlot(object)
+    def _populate_node_fields(self, record):
+        """Populate UI fields with node data."""
+        logging.debug(f"Populating node fields with record: {record}")
+        try:
+            # Extract data from the record
+            node = record['n']
+            labels = record['labels']
+            relationships = record['relationships']
+            properties = record['all_props']
+
+            # Ensure node properties are accessed correctly
+            node_properties = dict(node)
+            node_name = node_properties.get('name', '')
+            node_description = node_properties.get('description', '')
+            node_tags = node_properties.get('tags', [])
+            image_path = node_properties.get('image_path')
+
+            # Update UI elements in the main thread
+            self.ui.name_input.setText(node_name)
+            self.ui.description_input.setPlainText(node_description)
+            self.ui.labels_input.setText(', '.join(labels))
+            self.ui.tags_input.setText(', '.join(node_tags))
+
+            # Update properties table
+            self.ui.properties_table.setRowCount(0)
+            for key, value in properties.items():
+                if key not in ['name', 'description', 'tags', 'image_path']:
+                    row = self.ui.properties_table.rowCount()
+                    self.ui.properties_table.insertRow(row)
+                    self.ui.properties_table.setItem(row, 0, QTableWidgetItem(key))
+                    self.ui.properties_table.setItem(row, 1, QTableWidgetItem(str(value)))
+
+            # Update relationships table
+            self.ui.relationships_table.setRowCount(0)
+            for rel in relationships:
+                rel_type = rel.get('type', '')
+                target = rel.get('end', '')
+                direction = rel.get('dir', '>')
+                props = json.dumps(rel.get('props', {}))
+
+                self.ui.add_relationship_row(rel_type, target, direction, props)
+
+            # Update image if available
+            self.current_image_path = image_path
+            self.ui.set_image(image_path)
+
+            logging.info("Node data populated successfully.")
+
+        except Exception as e:
+            self.handle_error(f"Error populating node fields: {str(e)}")
+
+    @pyqtSlot(list)
+    def _populate_relationship_tree(self, records: List[Any]):
+        """Populate the tree view with relationships."""
+        logging.debug(f"Populating relationship tree with records: {records}")
+        try:
+            self.tree_model.clear()
+            self.tree_model.setHorizontalHeaderLabels(["Node Relationships"])
+
+            if not records:
+                return
+
+            record = records[0]
+            relationships = record['relationships']
+
+            root_item = self.tree_model.invisibleRootItem()
+            node_item = QStandardItem(f"🔵 {self.ui.name_input.text()}")
+
+            for rel in relationships:
+                direction = rel['dir']
+                rel_type = rel['type']
+                end_node = rel['end']
+                item_text = f"{direction} [{rel_type}] 🔵 {end_node}"
+                child_item = QStandardItem(item_text)
+                node_item.appendRow(child_item)
+
+            root_item.appendRow(node_item)
+            self.ui.tree_view.expandAll()
+            logging.info("Relationship tree populated successfully.")
+
+        except Exception as e:
+            self.handle_error(f"Error populating relationship tree: {str(e)}")
+
     #############################################
     # 7. Cleanup and Error Handling
     #############################################
 
     def cleanup(self):
         """Clean up resources"""
-        self.model.cleanup()
+        # Cancel and wait for any running workers
+        for worker in [
+            self.current_load_worker,
+            self.current_save_worker,
+            self.current_relationship_worker,
+            self.current_search_worker,
+        ]:
+            if worker is not None:
+                worker.cancel()
+                worker.wait()
+        self.model.close()
 
     def handle_error(self, error_message: str):
         """Handle any errors"""
