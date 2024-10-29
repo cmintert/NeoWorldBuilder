@@ -12,8 +12,18 @@ from logging.handlers import RotatingFileHandler
 
 from typing import Optional, Dict, Any, List
 
-from PyQt6.QtCore import (QThread, pyqtSignal, QTimer, QStringListModel, Qt, QObject, QMetaObject, Q_ARG, QObject,
-                          pyqtSlot)
+from PyQt6.QtCore import (
+    QThread,
+    pyqtSignal,
+    QTimer,
+    QStringListModel,
+    Qt,
+    QObject,
+    QMetaObject,
+    Q_ARG,
+    QObject,
+    pyqtSlot,
+)
 from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
@@ -32,11 +42,8 @@ from PyQt6.QtWidgets import (
     QSplitter,
     QTreeView,
     QFileDialog,
-
-
     QGroupBox,
     QFormLayout,
-
     QMainWindow,
     QTabWidget,
     QProgressBar,
@@ -44,12 +51,11 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import (
     QStandardItemModel,
-
     QImage,
     QPalette,
     QBrush,
-
-    QPixmap, QStandardItem,
+    QPixmap,
+    QStandardItem,
 )
 
 from neo4j import GraphDatabase
@@ -61,11 +67,15 @@ logging.basicConfig(
 
 faulthandler.enable()
 
+
 def exception_hook(exctype, value, tb):
     logging.critical("Unhandled exception", exc_info=(exctype, value, tb))
     traceback.print_exception(exctype, value, tb)
     sys.__excepthook__(exctype, value, tb)
-    QMessageBox.critical(None, "Unhandled Exception", f"An unhandled exception occurred:\n{value}")
+    QMessageBox.critical(
+        None, "Unhandled Exception", f"An unhandled exception occurred:\n{value}"
+    )
+
 
 sys.excepthook = exception_hook
 
@@ -80,6 +90,7 @@ class Config:
                     setattr(self, f"{category}_{key}", value)
             else:
                 setattr(self, category, values)
+
 
 class BaseNeo4jWorker(QThread):
     """Base class for Neo4j worker threads"""
@@ -112,14 +123,14 @@ class BaseNeo4jWorker(QThread):
         self.wait()
 
     def run(self):
-            """Base run implementation"""
-            try:
-                self.connect()
-                self.execute_operation()
-            except Exception as e:
-                self.error_occurred.emit(str(e))
-            finally:
-                self.cleanup()
+        """Base run implementation"""
+        try:
+            self.connect()
+            self.execute_operation()
+        except Exception as e:
+            self.error_occurred.emit(str(e))
+        finally:
+            self.cleanup()
 
     def execute_operation(self):
         """Override in subclasses"""
@@ -143,7 +154,9 @@ class QueryWorker(BaseNeo4jWorker):
                 if not self._is_cancelled:
                     self.query_finished.emit(result)
         except Exception as e:
-            error_message = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+            error_message = "".join(
+                traceback.format_exception(type(e), e, e.__traceback__)
+            )
             self.error_occurred.emit(error_message)
 
 
@@ -308,7 +321,9 @@ class Neo4jModel:
         Returns:
             WriteWorker: A worker that will execute the write operation
         """
-        worker = WriteWorker(self._uri, self._auth, self._save_node_transaction, node_data)
+        worker = WriteWorker(
+            self._uri, self._auth, self._save_node_transaction, node_data
+        )
         worker.write_finished.connect(callback)
         return worker
 
@@ -490,11 +505,16 @@ class WorldBuildingUI(QWidget):
     name_selected = pyqtSignal(str)
     refresh_requested = pyqtSignal()
 
-    def __init__(self):
+    def __init__(self, controller):
         super().__init__()
+        self.controller = controller
         self.setObjectName("CentralWidget")
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)  # Important for QSS styling
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)  # Allow transparency
+        self.setAttribute(
+            Qt.WidgetAttribute.WA_StyledBackground, True
+        )  # Important for QSS styling
+        self.setAttribute(
+            Qt.WidgetAttribute.WA_TranslucentBackground, True
+        )  # Allow transparency
         self.init_ui()
 
     def init_ui(self):
@@ -700,7 +720,6 @@ class WorldBuildingUI(QWidget):
         self.relationships_table.setAlternatingRowColors(True)
         self.relationships_table.verticalHeader().setVisible(False)
 
-
         layout.addWidget(self.add_rel_button)
         layout.addWidget(self.relationships_table)
         return tab
@@ -798,7 +817,9 @@ class WorldBuildingUI(QWidget):
             pixmap = QPixmap(image_path)
             if not pixmap.isNull():
                 scaled_pixmap = pixmap.scaled(
-                    self.image_label.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+                    self.image_label.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
                 )
                 self.image_label.setPixmap(scaled_pixmap)
             else:
@@ -806,8 +827,6 @@ class WorldBuildingUI(QWidget):
         except Exception as e:
             self.image_label.clear()
             QMessageBox.warning(self, "Image Error", f"Failed to load image: {str(e)}")
-
-
 
     def add_relationship_row(
         self, rel_type="", target="", direction=">", properties=""
@@ -823,6 +842,7 @@ class WorldBuildingUI(QWidget):
         # Target with completion
         target_item = QTableWidgetItem(target)
         self.relationships_table.setItem(row, 1, target_item)
+        self.controller._add_target_completer_to_row(row)
 
         # Direction ComboBox
         direction_combo = QComboBox()
@@ -856,7 +876,6 @@ class WorldBuildingUI(QWidget):
         logging.debug("Completed apply_styles method")
 
 
-
 class WorldBuildingController(QObject):
     """
     Controller class managing interaction between UI and Neo4j model using QThread workers
@@ -869,9 +888,12 @@ class WorldBuildingController(QObject):
         self.config = config
         self.current_image_path: Optional[str] = None
 
+        self.ui.controller = self
+
         # Initialize UI state
         self._initialize_tree_view()
         self._initialize_completer()
+        self._initialize_target_completer()
         self._setup_debounce_timer()
         self._connect_signals()
         self._load_default_state()
@@ -904,12 +926,67 @@ class WorldBuildingController(QObject):
         self.ui.name_input.setCompleter(self.completer)
         self.completer.activated.connect(self.on_completer_activated)
 
+    def _initialize_target_completer(self):
+        """Initialize target auto-completion for relationship table"""
+        self.target_name_model = QStringListModel()
+        self.target_completer = QCompleter(self.target_name_model)
+        self.target_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.target_completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        self.target_completer.activated.connect(self.on_target_completer_activated)
+
+    def _add_target_completer_to_row(self, row):
+        """Add target completer to the target input field in the relationship table"""
+        target_item = self.ui.relationships_table.item(row, 1)
+        if target_item:
+            target_text = target_item.text()
+            line_edit = QLineEdit(target_text)
+            line_edit.setCompleter(self.target_completer)
+            line_edit.textChanged.connect(
+                lambda text: self._fetch_matching_target_nodes(text)
+            )
+            self.ui.relationships_table.setCellWidget(row, 1, line_edit)
+
+    def on_target_completer_activated(self, text: str):
+        """Handle target completer selection"""
+        current_row = self.ui.relationships_table.currentRow()
+        if current_row >= 0:
+            self.ui.relationships_table.item(current_row, 1).setText(text)
+
+    def _fetch_matching_target_nodes(self, text: str):
+        """Fetch matching target nodes for auto-completion"""
+        if not text:
+            return
+
+        # Cancel any existing search worker
+        if self.current_search_worker:
+            self.current_search_worker.cancel()
+            self.current_search_worker.wait()
+
+        self.current_search_worker = self.model.fetch_matching_node_names(
+            text,
+            self.config.NEO4J_MATCH_NODE_LIMIT,
+            self._handle_target_autocomplete_results,
+        )
+        self.current_search_worker.error_occurred.connect(self.handle_error)
+        self.current_search_worker.start()
+
+    @pyqtSlot(list)
+    def _handle_target_autocomplete_results(self, records: List[Any]):
+        """Handle target autocomplete results"""
+        try:
+            names = [record["name"] for record in records]
+            self.target_name_model.setStringList(names)
+        except Exception as e:
+            self.handle_error(f"Error processing target autocomplete results: {str(e)}")
+
     def _setup_debounce_timer(self):
         """Setup debounce timer for search"""
         self.name_input_timer = QTimer()
         self.name_input_timer.setSingleShot(True)
         self.name_input_timer.timeout.connect(self._fetch_matching_nodes)
-        self.name_input_timer.setInterval(self.config.TIMING_NAME_INPUT_DEBOUNCE_TIME_MS)
+        self.name_input_timer.setInterval(
+            self.config.TIMING_NAME_INPUT_DEBOUNCE_TIME_MS
+        )
 
     def _connect_signals(self):
         """Connect all UI signals to handlers"""
@@ -953,7 +1030,7 @@ class WorldBuildingController(QObject):
         if not name:
             return
 
-        #Clear all fields to populate them again
+        # Clear all fields to populate them again
         self.ui.clear_all_fields()
 
         # Cancel any existing load operation
@@ -980,7 +1057,7 @@ class WorldBuildingController(QObject):
             return
 
         # Cancel any existing save operation
-        if hasattr(self, 'current_save_worker') and self.current_save_worker:
+        if hasattr(self, "current_save_worker") and self.current_save_worker:
             self.current_save_worker.cancel()
 
         # Start new save operation
@@ -1090,7 +1167,7 @@ class WorldBuildingController(QObject):
                 "name": self.ui.name_input.text().strip(),
                 "description": self.ui.description_input.toPlainText().strip(),
                 "tags": self._parse_comma_separated(self.ui.tags_input.text()),
-                "labels": self._parse_comma_separated(self.ui.labels_input.text()),
+                "labels": [label.strip().upper().replace(" ", "_") for label in self._parse_comma_separated(self.ui.labels_input.text())],
                 "relationships": self._collect_relationships(),
                 "additional_properties": self._collect_properties(),
             }
@@ -1136,7 +1213,7 @@ class WorldBuildingController(QObject):
         relationships = []
         for row in range(self.ui.relationships_table.rowCount()):
             rel_type = self.ui.relationships_table.item(row, 0)
-            target = self.ui.relationships_table.item(row, 1)
+            target = self.ui.relationships_table.cellWidget(row, 1)
             direction = self.ui.relationships_table.cellWidget(row, 2)
             props = self.ui.relationships_table.item(row, 3)
 
@@ -1162,6 +1239,7 @@ class WorldBuildingController(QObject):
             except json.JSONDecodeError as e:
                 raise ValueError(f"Invalid JSON in relationship properties: {e}")
 
+        logging.debug(f"Collected the following Relationships: {relationships}")
         return relationships
 
     #############################################
@@ -1211,40 +1289,45 @@ class WorldBuildingController(QObject):
         logging.debug(f"Populating node fields with record: {record}")
         try:
             # Extract data from the record
-            node = record['n']
-            labels = record['labels']
-            relationships = record['relationships']
-            properties = record['all_props']
+            node = record["n"]
+            labels = record["labels"]
+            relationships = record["relationships"]
+            properties = record["all_props"]
 
             # Ensure node properties are accessed correctly
             node_properties = dict(node)
-            node_name = node_properties.get('name', '')
-            node_description = node_properties.get('description', '')
-            node_tags = node_properties.get('tags', [])
-            image_path = node_properties.get('image_path')
+            node_name = node_properties.get("name", "")
+            node_description = node_properties.get("description", "")
+            node_tags = node_properties.get("tags", [])
+            image_path = node_properties.get("image_path")
+
+            # Filter out "node" label. It should not be displayed
+            filtered_labels = [label for label in labels if label.lower() != "node"]
 
             # Update UI elements in the main thread
             self.ui.name_input.setText(node_name)
             self.ui.description_input.setPlainText(node_description)
-            self.ui.labels_input.setText(', '.join(labels))
-            self.ui.tags_input.setText(', '.join(node_tags))
+            self.ui.labels_input.setText(", ".join(filtered_labels))
+            self.ui.tags_input.setText(", ".join(node_tags))
 
             # Update properties table
             self.ui.properties_table.setRowCount(0)
             for key, value in properties.items():
-                if key not in ['name', 'description', 'tags', 'image_path']:
+                if key not in ["name", "description", "tags", "image_path"]:
                     row = self.ui.properties_table.rowCount()
                     self.ui.properties_table.insertRow(row)
                     self.ui.properties_table.setItem(row, 0, QTableWidgetItem(key))
-                    self.ui.properties_table.setItem(row, 1, QTableWidgetItem(str(value)))
+                    self.ui.properties_table.setItem(
+                        row, 1, QTableWidgetItem(str(value))
+                    )
 
             # Update relationships table
             self.ui.relationships_table.setRowCount(0)
             for rel in relationships:
-                rel_type = rel.get('type', '')
-                target = rel.get('end', '')
-                direction = rel.get('dir', '>')
-                props = json.dumps(rel.get('props', {}))
+                rel_type = rel.get("type", "")
+                target = rel.get("end", "")
+                direction = rel.get("dir", ">")
+                props = json.dumps(rel.get("props", {}))
 
                 self.ui.add_relationship_row(rel_type, target, direction, props)
 
@@ -1270,9 +1353,8 @@ class WorldBuildingController(QObject):
                 return
 
             record = records[0]
-            relationships = record['relationships']
+            relationships = record["relationships"]
             logging.debug(f"Relationships: {relationships}")
-
 
             root_item = self.tree_model.invisibleRootItem()
             node_name = self.ui.name_input.text().strip()
@@ -1288,19 +1370,19 @@ class WorldBuildingController(QObject):
             passive_count = 0
 
             for rel in relationships:
-                direction = rel['dir']
-                rel_type = rel['type']
-                end_node = rel['end']
+                direction = rel["dir"]
+                rel_type = rel["type"]
+                end_node = rel["end"]
 
-                #Format Relationship Text
+                # Format Relationship Text
                 item_text = f"{direction} [{rel_type}] 🔹 {end_node}"
                 child_item = QStandardItem(item_text)
                 child_item.setData(end_node, Qt.ItemDataRole.UserRole)
 
-                if direction == '>':
+                if direction == ">":
                     active_rels_item.appendRow(child_item)
                     active_count += 1
-                elif direction == '<':
+                elif direction == "<":
                     passive_rels_item.appendRow(child_item)
                     passive_count += 1
                 else:
@@ -1393,6 +1475,7 @@ class WorldBuildingController(QObject):
         self.current_image_path = None
         self.ui.set_image(None)
 
+
 @dataclass
 class AppComponents:
     """Container for main application components"""
@@ -1424,11 +1507,13 @@ class WorldBuildingApp(QMainWindow):
             # 3. Initialize Database Model
             model = self._initialize_database(config)
 
-            # 4. Setup UI
-            ui = self._setup_ui()
+            # 4 Setup UI
+            ui = self._setup_ui(None)
 
             # 5. Initialize Controller
             controller = self._initialize_controller(ui, model, config)
+
+            ui.controller = controller
 
             # Store components for access
             self.components = AppComponents(
@@ -1438,7 +1523,7 @@ class WorldBuildingApp(QMainWindow):
             # 6. Configure Window
             self._configure_main_window()
 
-            #8. Set Background Image
+            # 8. Set Background Image
 
             self.set_background_image("src/background.png")
 
@@ -1482,7 +1567,9 @@ class WorldBuildingApp(QMainWindow):
 
             # Create a rotating file handler
             rotating_handler = RotatingFileHandler(
-                log_file, maxBytes=1024 * 1024, backupCount=5  # 1MB per file, keep 5 backups
+                log_file,
+                maxBytes=1024 * 1024,
+                backupCount=5,  # 1MB per file, keep 5 backups
             )
 
             # Set up logging configuration
@@ -1521,10 +1608,10 @@ class WorldBuildingApp(QMainWindow):
                         f"Failed to connect to database after {max_retries} attempts: {str(e)}"
                     )
 
-    def _setup_ui(self) -> "WorldBuildingUI":
+    def _setup_ui(self, controller) -> "WorldBuildingUI":
         """Initialize user interface with error handling"""
         try:
-            ui = WorldBuildingUI()
+            ui = WorldBuildingUI(controller)
             logging.info("UI initialized successfully")
             return ui
         except Exception as e:
@@ -1552,7 +1639,9 @@ class WorldBuildingApp(QMainWindow):
 
             # Ensure transparency is properly set
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
-            self.components.ui.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            self.components.ui.setAttribute(
+                Qt.WidgetAttribute.WA_TranslucentBackground, True
+            )
 
             # Set window size
             self.resize(
@@ -1598,8 +1687,6 @@ class WorldBuildingApp(QMainWindow):
                     self.components.model.close()
                 except Exception as e:
                     logging.error(f"Error during model cleanup: {e}")
-
-
 
     def closeEvent(self, event) -> None:
         """Handle application shutdown with proper cleanup"""
