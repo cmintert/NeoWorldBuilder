@@ -1147,9 +1147,13 @@ class WorldBuildingController(QObject):
                 properties = (
                     json.loads(props.text()) if props and props.text().strip() else {}
                 )
+
+                # Enforce uppercase and replace spaces with underscores
+                formatted_rel_type = rel_type.text().strip().upper().replace(" ", "_")
+
                 relationships.append(
                     (
-                        rel_type.text().strip(),
+                        formatted_rel_type,
                         target.text().strip(),
                         direction.currentText(),
                         properties,
