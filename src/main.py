@@ -779,8 +779,8 @@ class WorldBuildingUI(QWidget):
     #############################################
 
     def clear_all_fields(self):
-        """Clear all input fields"""
-        self.name_input.clear()
+        """Clear all input fields except the name_input"""
+
         self.description_input.clear()
         self.labels_input.clear()
         self.tags_input.clear()
@@ -952,6 +952,9 @@ class WorldBuildingController(QObject):
         name = self.ui.name_input.text().strip()
         if not name:
             return
+
+        #Clear all fields to populate them again
+        self.ui.clear_all_fields()
 
         # Cancel any existing load operation
         if self.current_load_worker:
@@ -1165,11 +1168,14 @@ class WorldBuildingController(QObject):
     def _handle_node_data(self, data: List[Any]):
         """Handle node data fetched by the worker"""
         logging.debug(f"Handling node data: {data}")
-        if data:
+        if not data:
+            return  # No need to notify the user
+
+        try:
             record = data[0]  # Extract the first record
             self._populate_node_fields(record)
-        else:
-            self.handle_error("No data returned from query")
+        except Exception as e:
+            self.handle_error(f"Error populating node fields: {str(e)}")
 
     def _handle_delete_success(self, _):
         """Handle successful node deletion"""
