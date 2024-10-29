@@ -562,11 +562,6 @@ class WorldBuildingUI(QWidget):
 
         layout.addWidget(self.tree_view)
 
-        # Add status label
-        self.status_label = QLabel("Ready")
-        self.status_label.setObjectName("statusLabel")
-        layout.addWidget(self.status_label)
-
         return panel
 
     def _create_right_panel(self):
