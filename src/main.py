@@ -1,15 +1,13 @@
 # Imports
+import faulthandler
 import json
-import sys
 import logging
 import os
-import faulthandler
+import sys
 import traceback
-
 from dataclasses import dataclass
 from datetime import time
 from logging.handlers import RotatingFileHandler
-
 from typing import Optional, Dict, Any, List
 
 from PyQt6.QtCore import (
@@ -19,10 +17,14 @@ from PyQt6.QtCore import (
     QStringListModel,
     Qt,
     QObject,
-    QMetaObject,
-    Q_ARG,
-    QObject,
     pyqtSlot,
+)
+from PyQt6.QtGui import (
+    QStandardItemModel,
+    QPalette,
+    QBrush,
+    QPixmap,
+    QStandardItem,
 )
 from PyQt6.QtWidgets import (
     QApplication,
@@ -49,15 +51,6 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QMenu,
 )
-from PyQt6.QtGui import (
-    QStandardItemModel,
-    QImage,
-    QPalette,
-    QBrush,
-    QPixmap,
-    QStandardItem,
-)
-
 from neo4j import GraphDatabase
 
 # Configure logging
@@ -216,7 +209,7 @@ class Neo4jWorkerManager:
         self.active_workers = set()
 
     def create_worker(self, worker_class, *args, **kwargs):
-        """Create and setup a new worker"""
+        """Create and set up a new worker"""
         worker = worker_class(self.config, *args, **kwargs)
         worker.finished.connect(lambda: self._cleanup_worker(worker))
         self.active_workers.add(worker)
@@ -704,16 +697,13 @@ class WorldBuildingUI(QWidget):
         self.add_rel_button.setMinimumHeight(30)
 
         # Enhanced table
-        self.relationships_table = QTableWidget(0, 4)
+        self.relationships_table = QTableWidget(0, 5)
         self.relationships_table.setObjectName("relationshipsTable")
-        self.relationships_table.setHorizontalHeaderLabels(
-            ["Type", "Related Node", "Direction", "Properties"]
-        )
-        self.relationships_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
-        )
         self.relationships_table.setAlternatingRowColors(True)
         self.relationships_table.verticalHeader().setVisible(False)
+
+        # Set up columns
+        self._setup_relationships_table_columns()
 
         layout.addWidget(self.add_rel_button)
         layout.addWidget(self.relationships_table)
@@ -731,14 +721,13 @@ class WorldBuildingUI(QWidget):
         self.add_prop_button.setMinimumHeight(30)
 
         # Enhanced table
-        self.properties_table = QTableWidget(0, 2)
+        self.properties_table = QTableWidget(0, 3)
         self.properties_table.setObjectName("propertiesTable")
-        self.properties_table.setHorizontalHeaderLabels(["Key", "Value"])
-        self.properties_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
-        )
         self.properties_table.setAlternatingRowColors(True)
         self.properties_table.verticalHeader().setVisible(False)
+
+        # Set up columns
+        self._setup_properties_table_columns()
 
         layout.addWidget(self.add_prop_button)
         layout.addWidget(self.properties_table)
@@ -761,6 +750,59 @@ class WorldBuildingUI(QWidget):
             self.tree_view.collapseAll()
         elif action == refresh_action:
             self.refresh_requested.emit()
+
+    def _create_delete_button(self, table, row):
+        """Create a centered delete button for table rows"""
+        # Create container widget for centering
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(4, 0, 4, 0)  # Small horizontal margins for spacing
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Create the delete button
+        button = QPushButton("-")
+        button.setObjectName("rowDeleteButton")
+        button.setFixedWidth(20)
+        button.setFixedHeight(20)
+        button.clicked.connect(lambda: table.removeRow(row))
+
+        # Add button to container
+        layout.addWidget(button)
+
+        return container
+
+    def _setup_relationships_table_columns(self):
+        """Set up relationships table columns with proper sizing"""
+        self.relationships_table.setColumnCount(5)
+        self.relationships_table.setHorizontalHeaderLabels(
+            ["Type", "Related Node", "Direction", "Properties", ""]
+        )
+
+        # Set relationships table column behaviors
+        header = self.relationships_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # Type
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Related Node
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)  # Direction
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)  # Properties
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)  # Delete button column
+
+        # Set fixed widths for specific columns
+        self.relationships_table.setColumnWidth(2, 80)  # Direction column
+        self.relationships_table.setColumnWidth(4, 38)  # Delete button column
+
+    def _setup_properties_table_columns(self):
+        """Set up properties table columns with proper sizing"""
+        self.properties_table.setColumnCount(3)
+        self.properties_table.setHorizontalHeaderLabels(["Key", "Value", ""])
+
+        # Set properties table column behaviors
+        header = self.properties_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # Key
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Value
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)  # Delete button
+
+        # Set fixed width for delete button column
+        self.properties_table.setColumnWidth(2, 38)  # Delete button column
 
     #############################################
     # Progress and Status Methods
@@ -848,6 +890,20 @@ class WorldBuildingUI(QWidget):
         # Properties with validation
         props_item = QTableWidgetItem(properties)
         self.relationships_table.setItem(row, 3, props_item)
+
+        # Add a centered delete button
+        delete_button = self._create_delete_button(self.relationships_table, row)
+        self.relationships_table.setCellWidget(row, 4, delete_button)
+
+    def add_property_row(self):
+        """Add property row with centered delete button"""
+        row = self.properties_table.rowCount()
+        self.properties_table.insertRow(row)
+
+        # Add a centered delete button
+        delete_button = self._create_delete_button(self.properties_table, row)
+        self.properties_table.setCellWidget(row, 2, delete_button)
+
 
     def apply_styles(self):
         logging.debug("apply_styles method called")
@@ -998,12 +1054,8 @@ class WorldBuildingController(QObject):
         self.ui.name_input.editingFinished.connect(self.load_node_data)
 
         # Table buttons
-        self.ui.add_prop_button.clicked.connect(
-            lambda: self.ui.properties_table.insertRow(
-                self.ui.properties_table.rowCount()
-            )
-        )
-        self.ui.add_rel_button.clicked.connect(lambda: self.ui.add_relationship_row())
+        self.ui.add_prop_button.clicked.connect(self.ui.add_property_row)
+        self.ui.add_rel_button.clicked.connect(self.ui.add_relationship_row)
 
     def _load_default_state(self):
         """Initialize default UI state"""

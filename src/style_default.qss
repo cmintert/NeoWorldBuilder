@@ -220,3 +220,24 @@ QToolTip {
 */
 
 /* You can add more custom styles below as needed */
+
+/* Remove border and padding for the delete button column */
+#relationshipsTable QTableWidget::item {
+    border: none;
+    padding: 0;
+}
+
+#propertiesTable QTableWidget::item {
+    border: none;
+    padding: 0;
+}
+
+/* Remove border and padding for the delete button itself */
+#relationshipsTable QPushButton#rowDeleteButton,
+#propertiesTable QPushButton#rowDeleteButton {
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px;
+    background: #A00E0E;
+}
