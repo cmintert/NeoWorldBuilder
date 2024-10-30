@@ -751,7 +751,7 @@ class WorldBuildingUI(QWidget):
         elif action == refresh_action:
             self.refresh_requested.emit()
 
-    def _create_delete_button(self, table, row):
+    def create_delete_button(self, table, row):
         """Create a centered delete button for table rows"""
         # Create container widget for centering
         container = QWidget()
@@ -784,7 +784,9 @@ class WorldBuildingUI(QWidget):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Related Node
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)  # Direction
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)  # Properties
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)  # Delete button column
+        header.setSectionResizeMode(
+            4, QHeaderView.ResizeMode.Fixed
+        )  # Delete button column
 
         # Set fixed widths for specific columns
         self.relationships_table.setColumnWidth(2, 80)  # Direction column
@@ -892,7 +894,7 @@ class WorldBuildingUI(QWidget):
         self.relationships_table.setItem(row, 3, props_item)
 
         # Add a centered delete button
-        delete_button = self._create_delete_button(self.relationships_table, row)
+        delete_button = self.create_delete_button(self.relationships_table, row)
         self.relationships_table.setCellWidget(row, 4, delete_button)
 
     def add_property_row(self):
@@ -901,9 +903,8 @@ class WorldBuildingUI(QWidget):
         self.properties_table.insertRow(row)
 
         # Add a centered delete button
-        delete_button = self._create_delete_button(self.properties_table, row)
+        delete_button = self.create_delete_button(self.properties_table, row)
         self.properties_table.setCellWidget(row, 2, delete_button)
-
 
     def apply_styles(self):
         logging.debug("apply_styles method called")
@@ -1214,7 +1215,12 @@ class WorldBuildingController(QObject):
                 "name": self.ui.name_input.text().strip(),
                 "description": self.ui.description_input.toPlainText().strip(),
                 "tags": self._parse_comma_separated(self.ui.tags_input.text()),
-                "labels": [label.strip().upper().replace(" ", "_") for label in self._parse_comma_separated(self.ui.labels_input.text())],
+                "labels": [
+                    label.strip().upper().replace(" ", "_")
+                    for label in self._parse_comma_separated(
+                        self.ui.labels_input.text()
+                    )
+                ],
                 "relationships": self._collect_relationships(),
                 "additional_properties": self._collect_properties(),
             }
@@ -1367,6 +1373,10 @@ class WorldBuildingController(QObject):
                     self.ui.properties_table.setItem(
                         row, 1, QTableWidgetItem(str(value))
                     )
+                    delete_button = self.ui.create_delete_button(
+                        self.ui.properties_table, row
+                    )
+                    self.ui.properties_table.setCellWidget(row, 2, delete_button)
 
             # Update relationships table
             self.ui.relationships_table.setRowCount(0)
