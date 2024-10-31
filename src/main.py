@@ -174,6 +174,27 @@ class WriteWorker(BaseNeo4jWorker):
         return tx.run(query, params)
 
 
+class DeleteWorker(BaseNeo4jWorker):
+    """Worker for delete operations"""
+
+    delete_finished = pyqtSignal(bool)
+
+    def __init__(self, uri, auth, func, *args):
+        super().__init__(uri, auth)
+        self.func = func
+        self.args = args
+
+    def execute_operation(self):
+        with self._driver.session() as session:
+            session.execute_write(self.func, *self.args)
+            if not self._is_cancelled:
+                self.delete_finished.emit(True)
+
+    @staticmethod
+    def _run_transaction(tx, query, params):
+        return tx.run(query, params)
+
+
 class BatchWorker(BaseNeo4jWorker):
     """Worker for batch operations"""
 
@@ -419,10 +440,10 @@ class Neo4jModel:
             callback (function): Function to call when done
 
         Returns:
-            WriteWorker: A worker that will execute the delete operation
+            DeleteWorker: A worker that will execute the delete operation
         """
-        worker = WriteWorker(self._uri, self._auth, self._delete_node_transaction, name)
-        worker.write_finished.connect(callback)
+        worker = DeleteWorker(self._uri, self._auth, self._delete_node_transaction, name)
+        worker.delete_finished.connect(callback)
         return worker
 
     @staticmethod
@@ -955,6 +976,7 @@ class WorldBuildingController(QObject):
         self.current_save_worker = None
         self.current_relationship_worker = None
         self.current_search_worker = None
+        self.current_delete_worker = None
 
     #############################################
     # 1. Initialization Methods
@@ -1128,9 +1150,15 @@ class WorldBuildingController(QObject):
         )
 
         if reply == QMessageBox.Yes:
-            worker = self.model.delete_node(name, self._handle_delete_success)
-            worker.error_occurred.connect(self.handle_error)
-            worker.start()
+            # Cancel any existing delete operation
+            if self.current_delete_worker:
+                self.current_delete_worker.cancel()
+                self.current_delete_worker.wait()
+
+            # Start new delete operation
+            self.current_delete_worker = self.model.delete_node(name, self._handle_delete_success)
+            self.current_delete_worker.error_occurred.connect(self.handle_error)
+            self.current_delete_worker.start()
 
     #############################################
     # 3. Tree and Relationship Management
@@ -1476,6 +1504,7 @@ class WorldBuildingController(QObject):
             self.current_save_worker,
             self.current_relationship_worker,
             self.current_search_worker,
+            self.current_delete_worker,
         ]:
             if worker is not None:
                 worker.cancel()
