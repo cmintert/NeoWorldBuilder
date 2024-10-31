@@ -92,6 +92,13 @@ class BaseNeo4jWorker(QThread):
     progress_updated = pyqtSignal(int)
 
     def __init__(self, uri, auth):
+        """
+        Initialize the worker with Neo4j connection parameters.
+
+        Args:
+            uri (str): The URI of the Neo4j database.
+            auth (tuple): A tuple containing the username and password for authentication.
+        """
         super().__init__()
         self._uri = uri
         self._auth = auth
@@ -99,24 +106,32 @@ class BaseNeo4jWorker(QThread):
         self._is_cancelled = False
 
     def connect(self):
-        """Create Neo4j driver connection"""
+        """
+        Create Neo4j driver connection.
+        """
         if not self._driver:
             self._driver = GraphDatabase.driver(self._uri, auth=self._auth)
 
     def cleanup(self):
-        """Clean up resources"""
+        """
+        Clean up resources.
+        """
         if self._driver:
             self._driver.close()
             self._driver = None
 
     def cancel(self):
-        """Cancel current operation"""
+        """
+        Cancel current operation.
+        """
         self._is_cancelled = True
         self.quit()  # Tell thread to quit
         self.wait()
 
     def run(self):
-        """Base run implementation"""
+        """
+        Base run implementation.
+        """
         try:
             self.connect()
             self.execute_operation()
@@ -126,7 +141,9 @@ class BaseNeo4jWorker(QThread):
             self.cleanup()
 
     def execute_operation(self):
-        """Override in subclasses"""
+        """
+        Override in subclasses to execute specific operations.
+        """
         raise NotImplementedError
 
 
@@ -136,11 +153,23 @@ class QueryWorker(BaseNeo4jWorker):
     query_finished = pyqtSignal(list)
 
     def __init__(self, uri, auth, query, params=None):
+        """
+        Initialize the worker with query parameters.
+
+        Args:
+            uri (str): The URI of the Neo4j database.
+            auth (tuple): A tuple containing the username and password for authentication.
+            query (str): The Cypher query to execute.
+            params (dict, optional): Parameters for the query. Defaults to None.
+        """
         super().__init__(uri, auth)
         self.query = query
         self.params = params or {}
 
     def execute_operation(self):
+        """
+        Execute the read operation.
+        """
         try:
             with self._driver.session() as session:
                 result = list(session.run(self.query, self.params))
@@ -159,11 +188,23 @@ class WriteWorker(BaseNeo4jWorker):
     write_finished = pyqtSignal(bool)
 
     def __init__(self, uri, auth, func, *args):
+        """
+        Initialize the worker with write function and arguments.
+
+        Args:
+            uri (str): The URI of the Neo4j database.
+            auth (tuple): A tuple containing the username and password for authentication.
+            func (callable): The function to execute in the write transaction.
+            *args: Arguments for the function.
+        """
         super().__init__(uri, auth)
         self.func = func
         self.args = args
 
     def execute_operation(self):
+        """
+        Execute the write operation.
+        """
         with self._driver.session() as session:
             session.execute_write(self.func, *self.args)
             if not self._is_cancelled:
@@ -171,6 +212,17 @@ class WriteWorker(BaseNeo4jWorker):
 
     @staticmethod
     def _run_transaction(tx, query, params):
+        """
+        Run a transaction with the given query and parameters.
+
+        Args:
+            tx: The transaction object.
+            query (str): The Cypher query to execute.
+            params (dict): Parameters for the query.
+
+        Returns:
+            The result of the query.
+        """
         return tx.run(query, params)
 
 
@@ -180,11 +232,23 @@ class DeleteWorker(BaseNeo4jWorker):
     delete_finished = pyqtSignal(bool)
 
     def __init__(self, uri, auth, func, *args):
+        """
+        Initialize the worker with delete function and arguments.
+
+        Args:
+            uri (str): The URI of the Neo4j database.
+            auth (tuple): A tuple containing the username and password for authentication.
+            func (callable): The function to execute in the delete transaction.
+            *args: Arguments for the function.
+        """
         super().__init__(uri, auth)
         self.func = func
         self.args = args
 
     def execute_operation(self):
+        """
+        Execute the delete operation.
+        """
         with self._driver.session() as session:
             session.execute_write(self.func, *self.args)
             if not self._is_cancelled:
@@ -192,6 +256,17 @@ class DeleteWorker(BaseNeo4jWorker):
 
     @staticmethod
     def _run_transaction(tx, query, params):
+        """
+        Run a transaction with the given query and parameters.
+
+        Args:
+            tx: The transaction object.
+            query (str): The Cypher query to execute.
+            params (dict): Parameters for the query.
+
+        Returns:
+            The result of the query.
+        """
         return tx.run(query, params)
 
 
@@ -202,10 +277,20 @@ class BatchWorker(BaseNeo4jWorker):
     batch_finished = pyqtSignal(list)
 
     def __init__(self, driver_config, operations):
+        """
+        Initialize the worker with batch operations.
+
+        Args:
+            driver_config (dict): Configuration for the Neo4j driver.
+            operations (list): List of operations to execute.
+        """
         super().__init__(driver_config)
         self.operations = operations
 
     def execute_operation(self):
+        """
+        Execute the batch operations.
+        """
         results = []
         total = len(self.operations)
 
@@ -226,23 +311,46 @@ class Neo4jWorkerManager:
     """Manages Neo4j worker threads"""
 
     def __init__(self, config):
+        """
+        Initialize the manager with configuration.
+
+        Args:
+            config (dict): Configuration for the Neo4j driver.
+        """
         self.config = config
         self.active_workers = set()
 
     def create_worker(self, worker_class, *args, **kwargs):
-        """Create and set up a new worker"""
+        """
+        Create and set up a new worker.
+
+        Args:
+            worker_class (type): The class of the worker to create.
+            *args: Arguments for the worker.
+            **kwargs: Keyword arguments for the worker.
+
+        Returns:
+            The created worker.
+        """
         worker = worker_class(self.config, *args, **kwargs)
         worker.finished.connect(lambda: self._cleanup_worker(worker))
         self.active_workers.add(worker)
         return worker
 
     def _cleanup_worker(self, worker):
-        """Clean up finished worker"""
+        """
+        Clean up finished worker.
+
+        Args:
+            worker: The worker to clean up.
+        """
         if worker in self.active_workers:
             self.active_workers.remove(worker)
 
     def cancel_all(self):
-        """Cancel all active workers"""
+        """
+        Cancel all active workers.
+        """
         for worker in self.active_workers:
             worker.cancel()
             worker.wait()
@@ -255,7 +363,14 @@ class Neo4jModel:
     #############################################
 
     def __init__(self, uri, username, password):
-        """Initialize Neo4j connection parameters and establish connection."""
+        """
+        Initialize Neo4j connection parameters and establish connection.
+
+        Args:
+            uri (str): The URI of the Neo4j database.
+            username (str): The username for authentication.
+            password (str): The password for authentication.
+        """
         self._uri = uri
         self._auth = (username, password)
         self._driver = None
@@ -263,12 +378,16 @@ class Neo4jModel:
         logging.info("Neo4jModel initialized and connected to the database.")
 
     def connect(self):
-        """Establish connection to Neo4j"""
+        """
+        Establish connection to Neo4j.
+        """
         if not self._driver:
             self._driver = GraphDatabase.driver(self._uri, auth=self._auth)
 
     def ensure_connection(self):
-        """Ensure we have a valid connection, reconnect if necessary"""
+        """
+        Ensure we have a valid connection, reconnect if necessary.
+        """
         try:
             if self._driver:
                 self._driver.verify_connectivity()
@@ -279,12 +398,19 @@ class Neo4jModel:
             self.connect()
 
     def get_session(self):
-        """Get a database session, ensuring connection is valid"""
+        """
+        Get a database session, ensuring connection is valid.
+
+        Returns:
+            The database session.
+        """
         self.ensure_connection()
         return self._driver.session()
 
     def close(self):
-        """Safely close the driver"""
+        """
+        Safely close the driver.
+        """
         if self._driver:
             try:
                 self._driver.close()
@@ -301,11 +427,11 @@ class Neo4jModel:
         Load a node and its relationships by name using a worker.
 
         Args:
-            name (str): Name of the node to load
-            callback (function): Function to call with the result
+            name (str): Name of the node to load.
+            callback (function): Function to call with the result.
 
         Returns:
-            QueryWorker: A worker that will execute the query
+            QueryWorker: A worker that will execute the query.
         """
         query = """
             MATCH (n:Node {name: $name})
@@ -329,11 +455,11 @@ class Neo4jModel:
         Save or update a node and its relationships using a worker.
 
         Args:
-            node_data (dict): Node data including properties and relationships
-            callback (function): Function to call when done
+            node_data (dict): Node data including properties and relationships.
+            callback (function): Function to call when done.
 
         Returns:
-            WriteWorker: A worker that will execute the write operation
+            WriteWorker: A worker that will execute the write operation.
         """
         worker = WriteWorker(
             self._uri, self._auth, self._save_node_transaction, node_data
@@ -346,6 +472,10 @@ class Neo4jModel:
         """
         Private transaction handler for save_node.
         Handles the complex transaction of saving a node and its relationships.
+
+        Args:
+            tx: The transaction object.
+            node_data (dict): Node data including properties and relationships.
         """
         # Extract data from node_data
         name = node_data["name"]
@@ -436,11 +566,11 @@ class Neo4jModel:
         Delete a node and all its relationships using a worker.
 
         Args:
-            name (str): Name of the node to delete
-            callback (function): Function to call when done
+            name (str): Name of the node to delete.
+            callback (function): Function to call when done.
 
         Returns:
-            DeleteWorker: A worker that will execute the delete operation
+            DeleteWorker: A worker that will execute the delete operation.
         """
         worker = DeleteWorker(self._uri, self._auth, self._delete_node_transaction, name)
         worker.delete_finished.connect(callback)
@@ -448,7 +578,13 @@ class Neo4jModel:
 
     @staticmethod
     def _delete_node_transaction(tx, name):
-        """Private transaction handler for delete_node."""
+        """
+        Private transaction handler for delete_node.
+
+        Args:
+            tx: The transaction object.
+            name (str): Name of the node to delete.
+        """
         query = "MATCH (n:Node {name: $name}) DETACH DELETE n"
         tx.run(query, name=name)
 
@@ -457,6 +593,16 @@ class Neo4jModel:
     #############################################
 
     def get_node_relationships(self, node_name, callback):
+        """
+        Get the relationships of a node by name using a worker.
+
+        Args:
+            node_name (str): Name of the node.
+            callback (function): Function to call with the result.
+
+        Returns:
+            QueryWorker: A worker that will execute the query.
+        """
         query = """
             MATCH (n:Node {name: $name})
             OPTIONAL MATCH (n)-[r]->(m:Node)
@@ -475,7 +621,7 @@ class Neo4jModel:
         Get the hierarchy of nodes grouped by their primary label.
 
         Returns:
-            dict: Category to node names mapping
+            dict: Category to node names mapping.
         """
         with self.get_session() as session:
             result = session.run(
@@ -495,12 +641,12 @@ class Neo4jModel:
         Search for nodes whose names match a given prefix using a worker.
 
         Args:
-            prefix (str): The search prefix
-            limit (int): Maximum number of results to return
-            callback (function): Function to call with the result
+            prefix (str): The search prefix.
+            limit (int): Maximum number of results to return.
+            callback (function): Function to call with the result.
 
         Returns:
-            QueryWorker: A worker that will execute the query
+            QueryWorker: A worker that will execute the query.
         """
         query = (
             "MATCH (n:Node) WHERE toLower(n.name) CONTAINS toLower($prefix) "
@@ -520,6 +666,12 @@ class WorldBuildingUI(QWidget):
     refresh_requested = pyqtSignal()
 
     def __init__(self, controller):
+        """
+        Initialize the UI with the given controller.
+
+        Args:
+            controller (WorldBuildingController): The controller managing the UI.
+        """
         super().__init__()
         self.controller = controller
         self.setObjectName("CentralWidget")
@@ -532,7 +684,9 @@ class WorldBuildingUI(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        """Initialize the main UI layout with enhanced components"""
+        """
+        Initialize the main UI layout with enhanced components.
+        """
         main_layout = QHBoxLayout()
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(20)
@@ -559,7 +713,12 @@ class WorldBuildingUI(QWidget):
         self.apply_styles()
 
     def _create_left_panel(self):
-        """Create improved left panel with tree view and search"""
+        """
+        Create improved left panel with tree view and search.
+
+        Returns:
+            QWidget: The left panel widget.
+        """
         panel = QWidget()
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -579,7 +738,12 @@ class WorldBuildingUI(QWidget):
         return panel
 
     def _create_right_panel(self):
-        """Create improved right panel with proper spacing and opacity"""
+        """
+        Create improved right panel with proper spacing and opacity.
+
+        Returns:
+            QWidget: The right panel widget.
+        """
         panel = QWidget()
 
         layout = QVBoxLayout(panel)
@@ -609,7 +773,12 @@ class WorldBuildingUI(QWidget):
         return panel
 
     def _create_header_layout(self):
-        """Create enhanced header with loading indication"""
+        """
+        Create enhanced header with loading indication.
+
+        Returns:
+            QHBoxLayout: The header layout.
+        """
         layout = QHBoxLayout()
 
         # Node name input
@@ -641,7 +810,12 @@ class WorldBuildingUI(QWidget):
         return layout
 
     def _create_basic_info_tab(self):
-        """Create the basic info tab with input fields and image handling"""
+        """
+        Create the basic info tab with input fields and image handling.
+
+        Returns:
+            QWidget: The basic info tab widget.
+        """
         tab = QWidget()
         layout = QFormLayout(tab)
         layout.setSpacing(15)
@@ -673,7 +847,12 @@ class WorldBuildingUI(QWidget):
         return tab
 
     def _create_image_group(self):
-        """Create the image display group"""
+        """
+        Create the image display group.
+
+        Returns:
+            QGroupBox: The image group box.
+        """
         group = QGroupBox("Image")
         group.setObjectName("imageGroupBox")
         layout = QVBoxLayout()
@@ -707,7 +886,12 @@ class WorldBuildingUI(QWidget):
         return group
 
     def _create_relationships_tab(self):
-        """Create relationships tab with table"""
+        """
+        Create relationships tab with table.
+
+        Returns:
+            QWidget: The relationships tab widget.
+        """
         tab = QWidget()
         layout = QVBoxLayout(tab)
 
@@ -731,7 +915,12 @@ class WorldBuildingUI(QWidget):
         return tab
 
     def _create_properties_tab(self):
-        """Create properties tab with table"""
+        """
+        Create properties tab with table.
+
+        Returns:
+            QWidget: The properties tab widget.
+        """
         tab = QWidget()
         layout = QVBoxLayout(tab)
 
@@ -755,7 +944,12 @@ class WorldBuildingUI(QWidget):
         return tab
 
     def _show_tree_context_menu(self, position):
-        """Show context menu for tree items"""
+        """
+        Show context menu for tree items.
+
+        Args:
+            position (QPoint): The position where the context menu should appear.
+        """
         menu = QMenu()
 
         # Add actions based on selected item
@@ -773,7 +967,16 @@ class WorldBuildingUI(QWidget):
             self.refresh_requested.emit()
 
     def create_delete_button(self, table, row):
-        """Create a centered delete button for table rows"""
+        """
+        Create a centered delete button for table rows.
+
+        Args:
+            table (QTableWidget): The table to which the button will be added.
+            row (int): The row number where the button will be placed.
+
+        Returns:
+            QWidget: The container widget with the delete button.
+        """
         # Create container widget for centering
         container = QWidget()
         layout = QHBoxLayout(container)
@@ -793,7 +996,9 @@ class WorldBuildingUI(QWidget):
         return container
 
     def _setup_relationships_table_columns(self):
-        """Set up relationships table columns with proper sizing"""
+        """
+        Set up relationships table columns with proper sizing.
+        """
         self.relationships_table.setColumnCount(5)
         self.relationships_table.setHorizontalHeaderLabels(
             ["Type", "Related Node", "Direction", "Properties", ""]
@@ -814,7 +1019,9 @@ class WorldBuildingUI(QWidget):
         self.relationships_table.setColumnWidth(4, 38)  # Delete button column
 
     def _setup_properties_table_columns(self):
-        """Set up properties table columns with proper sizing"""
+        """
+        Set up properties table columns with proper sizing.
+        """
         self.properties_table.setColumnCount(3)
         self.properties_table.setHorizontalHeaderLabels(["Key", "Value", ""])
 
@@ -832,22 +1039,43 @@ class WorldBuildingUI(QWidget):
     #############################################
 
     def show_progress(self, visible: bool = True):
-        """Show or hide progress bar"""
+        """
+        Show or hide progress bar.
+
+        Args:
+            visible (bool): Whether to show the progress bar. Defaults to True.
+        """
         self.progress_bar.setVisible(visible)
         if visible:
             self.progress_bar.setValue(0)
 
     def set_progress(self, value: int, maximum: int = 100):
-        """Update progress bar"""
+        """
+        Update progress bar.
+
+        Args:
+            value (int): The current progress value.
+            maximum (int): The maximum progress value. Defaults to 100.
+        """
         self.progress_bar.setMaximum(maximum)
         self.progress_bar.setValue(value)
 
     def set_status(self, message: str):
-        """Update status message"""
+        """
+        Update status message.
+
+        Args:
+            message (str): The status message to display.
+        """
         self.status_label.setText(message)
 
     def show_loading(self, is_loading: bool):
-        """Show loading state"""
+        """
+        Show loading state.
+
+        Args:
+            is_loading (bool): Whether the UI is in a loading state.
+        """
         self.save_button.setEnabled(not is_loading)
         self.delete_button.setEnabled(not is_loading)
         self.cancel_button.setVisible(is_loading)
@@ -858,8 +1086,9 @@ class WorldBuildingUI(QWidget):
     #############################################
 
     def clear_all_fields(self):
-        """Clear all input fields except the name_input"""
-
+        """
+        Clear all input fields except the name_input.
+        """
         self.description_input.clear()
         self.labels_input.clear()
         self.tags_input.clear()
@@ -868,7 +1097,12 @@ class WorldBuildingUI(QWidget):
         self.image_label.clear()
 
     def set_image(self, image_path: Optional[str]):
-        """Set image with proper scaling and error handling"""
+        """
+        Set image with proper scaling and error handling.
+
+        Args:
+            image_path (Optional[str]): The path to the image file.
+        """
         if not image_path:
             self.image_label.clear()
             return
@@ -891,7 +1125,15 @@ class WorldBuildingUI(QWidget):
     def add_relationship_row(
         self, rel_type="", target="", direction=">", properties=""
     ):
-        """Add relationship row with improved validation"""
+        """
+        Add relationship row with improved validation.
+
+        Args:
+            rel_type (str): The type of the relationship.
+            target (str): The target node of the relationship.
+            direction (str): The direction of the relationship. Defaults to ">".
+            properties (str): The properties of the relationship in JSON format.
+        """
         row = self.relationships_table.rowCount()
         self.relationships_table.insertRow(row)
 
@@ -919,7 +1161,9 @@ class WorldBuildingUI(QWidget):
         self.relationships_table.setCellWidget(row, 4, delete_button)
 
     def add_property_row(self):
-        """Add property row with centered delete button"""
+        """
+        Add property row with centered delete button.
+        """
         row = self.properties_table.rowCount()
         self.properties_table.insertRow(row)
 
@@ -928,6 +1172,9 @@ class WorldBuildingUI(QWidget):
         self.properties_table.setCellWidget(row, 2, delete_button)
 
     def apply_styles(self):
+        """
+        Apply styles to the UI components.
+        """
         logging.debug("apply_styles method called")
         try:
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -955,6 +1202,14 @@ class WorldBuildingController(QObject):
     """
 
     def __init__(self, ui: "WorldBuildingUI", model: "Neo4jModel", config: "Config"):
+        """
+        Initialize the controller with UI, model, and configuration.
+
+        Args:
+            ui (WorldBuildingUI): The UI instance.
+            model (Neo4jModel): The Neo4j model instance.
+            config (Config): The configuration instance.
+        """
         super().__init__()
         self.ui = ui
         self.model = model
@@ -983,7 +1238,9 @@ class WorldBuildingController(QObject):
     #############################################
 
     def _initialize_tree_view(self):
-        """Initialize the tree view model"""
+        """
+        Initialize the tree view model.
+        """
         self.tree_model = QStandardItemModel()
         self.tree_model.setHorizontalHeaderLabels(["Node Relationships"])
         self.ui.tree_view.setModel(self.tree_model)
@@ -992,7 +1249,9 @@ class WorldBuildingController(QObject):
         )
 
     def _initialize_completer(self):
-        """Initialize name auto-completion"""
+        """
+        Initialize name auto-completion.
+        """
         self.node_name_model = QStringListModel()
         self.completer = QCompleter(self.node_name_model)
         self.completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
@@ -1001,7 +1260,9 @@ class WorldBuildingController(QObject):
         self.completer.activated.connect(self.on_completer_activated)
 
     def _initialize_target_completer(self):
-        """Initialize target auto-completion for relationship table"""
+        """
+        Initialize target auto-completion for relationship table.
+        """
         self.target_name_model = QStringListModel()
         self.target_completer = QCompleter(self.target_name_model)
         self.target_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
@@ -1009,7 +1270,12 @@ class WorldBuildingController(QObject):
         self.target_completer.activated.connect(self.on_target_completer_activated)
 
     def _add_target_completer_to_row(self, row):
-        """Add target completer to the target input field in the relationship table"""
+        """
+        Add target completer to the target input field in the relationship table.
+
+        Args:
+            row (int): The row number where the completer will be added.
+        """
         target_item = self.ui.relationships_table.item(row, 1)
         if target_item:
             target_text = target_item.text()
@@ -1021,13 +1287,23 @@ class WorldBuildingController(QObject):
             self.ui.relationships_table.setCellWidget(row, 1, line_edit)
 
     def on_target_completer_activated(self, text: str):
-        """Handle target completer selection"""
+        """
+        Handle target completer selection.
+
+        Args:
+            text (str): The selected text from the completer.
+        """
         current_row = self.ui.relationships_table.currentRow()
         if current_row >= 0:
             self.ui.relationships_table.item(current_row, 1).setText(text)
 
     def _fetch_matching_target_nodes(self, text: str):
-        """Fetch matching target nodes for auto-completion"""
+        """
+        Fetch matching target nodes for auto-completion.
+
+        Args:
+            text (str): The text to match against node names.
+        """
         if not text:
             return
 
@@ -1046,7 +1322,12 @@ class WorldBuildingController(QObject):
 
     @pyqtSlot(list)
     def _handle_target_autocomplete_results(self, records: List[Any]):
-        """Handle target autocomplete results"""
+        """
+        Handle target autocomplete results.
+
+        Args:
+            records (List[Any]): The list of matching records.
+        """
         try:
             names = [record["name"] for record in records]
             self.target_name_model.setStringList(names)
@@ -1054,7 +1335,9 @@ class WorldBuildingController(QObject):
             self.handle_error(f"Error processing target autocomplete results: {str(e)}")
 
     def _setup_debounce_timer(self):
-        """Setup debounce timer for search"""
+        """
+        Setup debounce timer for search.
+        """
         self.name_input_timer = QTimer()
         self.name_input_timer.setSingleShot(True)
         self.name_input_timer.timeout.connect(self._fetch_matching_nodes)
@@ -1063,7 +1346,9 @@ class WorldBuildingController(QObject):
         )
 
     def _connect_signals(self):
-        """Connect all UI signals to handlers"""
+        """
+        Connect all UI signals to handlers.
+        """
         # Main buttons
         self.ui.save_button.clicked.connect(self.save_node)
         self.ui.delete_button.clicked.connect(self.delete_node)
@@ -1081,7 +1366,9 @@ class WorldBuildingController(QObject):
         self.ui.add_rel_button.clicked.connect(self.ui.add_relationship_row)
 
     def _load_default_state(self):
-        """Initialize default UI state"""
+        """
+        Initialize default UI state.
+        """
         self.ui.name_input.clear()
         self.ui.description_input.clear()
         self.ui.labels_input.clear()
@@ -1095,7 +1382,9 @@ class WorldBuildingController(QObject):
     #############################################
 
     def load_node_data(self):
-        """Load node data using worker thread"""
+        """
+        Load node data using worker thread.
+        """
         name = self.ui.name_input.text().strip()
         if not name:
             return
@@ -1117,7 +1406,9 @@ class WorldBuildingController(QObject):
         self.update_relationship_tree(name)
 
     def save_node(self):
-        """Save node data using worker thread"""
+        """
+        Save node data using worker thread.
+        """
         name = self.ui.name_input.text().strip()
         if not self.validate_node_name(name):
             return
@@ -1136,7 +1427,9 @@ class WorldBuildingController(QObject):
         self.current_save_worker.start()
 
     def delete_node(self):
-        """Delete node using worker thread"""
+        """
+        Delete node using worker thread.
+        """
         name = self.ui.name_input.text().strip()
         if not name:
             return
@@ -1165,7 +1458,12 @@ class WorldBuildingController(QObject):
     #############################################
 
     def update_relationship_tree(self, node_name: str):
-        """Update tree view with node relationships"""
+        """
+        Update tree view with node relationships.
+
+        Args:
+            node_name (str): The name of the node.
+        """
         if not node_name:
             self.tree_model.clear()
             self.tree_model.setHorizontalHeaderLabels(["Node Relationships"])
@@ -1183,13 +1481,21 @@ class WorldBuildingController(QObject):
         self.current_relationship_worker.start()
 
     def refresh_tree_view(self):
-        """Refresh the entire tree view"""
+        """
+        Refresh the entire tree view.
+        """
         name = self.ui.name_input.text().strip()
         if name:
             self.update_relationship_tree(name)
 
     def on_tree_selection_changed(self, selected, deselected):
-        """Handle tree view selection changes"""
+        """
+        Handle tree view selection changes.
+
+        Args:
+            selected: The selected indexes.
+            deselected: The deselected indexes.
+        """
         indexes = selected.indexes()
         if indexes:
             selected_item = self.tree_model.itemFromIndex(indexes[0])
@@ -1204,13 +1510,20 @@ class WorldBuildingController(QObject):
     #############################################
 
     def debounce_name_input(self, text: str):
-        """Debounce name input for search"""
+        """
+        Debounce name input for search.
+
+        Args:
+            text (str): The input text.
+        """
         self.name_input_timer.stop()
         if text.strip():
             self.name_input_timer.start()
 
     def _fetch_matching_nodes(self):
-        """Fetch matching nodes for auto-completion"""
+        """
+        Fetch matching nodes for auto-completion.
+        """
         text = self.ui.name_input.text().strip()
         if not text:
             return
@@ -1227,7 +1540,12 @@ class WorldBuildingController(QObject):
         self.current_search_worker.start()
 
     def on_completer_activated(self, text: str):
-        """Handle completer selection"""
+        """
+        Handle completer selection.
+
+        Args:
+            text (str): The selected text from the completer.
+        """
         if text:
             self.ui.name_input.setText(text)
             self.load_node_data()
@@ -1237,7 +1555,12 @@ class WorldBuildingController(QObject):
     #############################################
 
     def _collect_node_data(self) -> Optional[Dict[str, Any]]:
-        """Collect all node data from UI"""
+        """
+        Collect all node data from UI.
+
+        Returns:
+            Optional[Dict[str, Any]]: The collected node data.
+        """
         try:
             node_data = {
                 "name": self.ui.name_input.text().strip(),
@@ -1266,7 +1589,12 @@ class WorldBuildingController(QObject):
             return None
 
     def _collect_properties(self) -> Dict[str, Any]:
-        """Collect properties from table"""
+        """
+        Collect properties from table.
+
+        Returns:
+            Dict[str, Any]: The collected properties.
+        """
         properties = {}
         for row in range(self.ui.properties_table.rowCount()):
             key = self.ui.properties_table.item(row, 0)
@@ -1290,7 +1618,12 @@ class WorldBuildingController(QObject):
         return properties
 
     def _collect_relationships(self) -> List[tuple]:
-        """Collect relationships from table"""
+        """
+        Collect relationships from table.
+
+        Returns:
+            List[tuple]: The collected relationships.
+        """
         relationships = []
         for row in range(self.ui.relationships_table.rowCount()):
             rel_type = self.ui.relationships_table.item(row, 0)
@@ -1329,7 +1662,12 @@ class WorldBuildingController(QObject):
 
     @pyqtSlot(list)
     def _handle_node_data(self, data: List[Any]):
-        """Handle node data fetched by the worker"""
+        """
+        Handle node data fetched by the worker.
+
+        Args:
+            data (List[Any]): The fetched node data.
+        """
         logging.debug(f"Handling node data: {data}")
         if not data:
             return  # No need to notify the user
@@ -1341,18 +1679,33 @@ class WorldBuildingController(QObject):
             self.handle_error(f"Error populating node fields: {str(e)}")
 
     def _handle_delete_success(self, _):
-        """Handle successful node deletion"""
+        """
+        Handle successful node deletion.
+
+        Args:
+            _: The result of the delete operation.
+        """
         QMessageBox.information(self.ui, "Success", "Node deleted successfully")
         self._load_default_state()
 
     def on_save_success(self, _):
-        """Handle successful node save"""
+        """
+        Handle successful node save.
+
+        Args:
+            _: The result of the save operation.
+        """
         QMessageBox.information(self.ui, "Success", "Node saved successfully")
         self.refresh_tree_view()
 
     @pyqtSlot(list)
     def _handle_autocomplete_results(self, records: List[Any]):
-        """Handle autocomplete results"""
+        """
+        Handle autocomplete results.
+
+        Args:
+            records (List[Any]): The list of matching records.
+        """
         try:
             names = [record["name"] for record in records]
             self.node_name_model.setStringList(names)
@@ -1360,13 +1713,24 @@ class WorldBuildingController(QObject):
             self.handle_error(f"Error processing autocomplete results: {str(e)}")
 
     def _update_save_progress(self, current: int, total: int):
-        """Update progress during save operation"""
+        """
+        Update progress during save operation.
+
+        Args:
+            current (int): The current progress value.
+            total (int): The total progress value.
+        """
         # Could be connected to a progress bar in the UI
         logging.info(f"Save progress: {current}/{total}")
 
     @pyqtSlot(object)
     def _populate_node_fields(self, record):
-        """Populate UI fields with node data."""
+        """
+        Populate UI fields with node data.
+
+        Args:
+            record: The record containing node data.
+        """
         logging.debug(f"Populating node fields with record: {record}")
         try:
             # Extract data from the record
@@ -1427,7 +1791,12 @@ class WorldBuildingController(QObject):
 
     @pyqtSlot(list)
     def _populate_relationship_tree(self, records: List[Any]):
-        """Populate the tree view with relationships."""
+        """
+        Populate the tree view with relationships.
+
+        Args:
+            records (List[Any]): The list of relationship records.
+        """
         logging.debug(f"Populating relationship tree with records: {records}")
         try:
             self.tree_model.clear()
@@ -1497,7 +1866,9 @@ class WorldBuildingController(QObject):
     #############################################
 
     def cleanup(self):
-        """Clean up resources"""
+        """
+        Clean up resources.
+        """
         # Cancel and wait for any running workers
         for worker in [
             self.current_load_worker,
@@ -1512,7 +1883,12 @@ class WorldBuildingController(QObject):
         self.model.close()
 
     def handle_error(self, error_message: str):
-        """Handle any errors"""
+        """
+        Handle any errors.
+
+        Args:
+            error_message (str): The error message to display.
+        """
         logging.error(error_message)
         QMessageBox.critical(self.ui, "Error", error_message)
 
@@ -1521,11 +1897,27 @@ class WorldBuildingController(QObject):
     #############################################
 
     def _parse_comma_separated(self, text: str) -> List[str]:
-        """Parse comma-separated input"""
+        """
+        Parse comma-separated input.
+
+        Args:
+            text (str): The comma-separated input text.
+
+        Returns:
+            List[str]: The parsed list of strings.
+        """
         return [item.strip() for item in text.split(",") if item.strip()]
 
     def validate_node_name(self, name: str) -> bool:
-        """Validate node name"""
+        """
+        Validate node name.
+
+        Args:
+            name (str): The node name to validate.
+
+        Returns:
+            bool: True if the node name is valid, False otherwise.
+        """
         if not name:
             QMessageBox.warning(self.ui, "Warning", "Node name cannot be empty.")
             return False
@@ -1541,7 +1933,9 @@ class WorldBuildingController(QObject):
         return True
 
     def change_image(self):
-        """Handle changing the image"""
+        """
+        Handle changing the image.
+        """
         try:
             file_name, _ = QFileDialog.getOpenFileName(
                 self.ui,
@@ -1557,7 +1951,9 @@ class WorldBuildingController(QObject):
             self.handle_error(f"Error changing image: {str(e)}")
 
     def delete_image(self):
-        """Handle deleting the image"""
+        """
+        Handle deleting the image.
+        """
         self.current_image_path = None
         self.ui.set_image(None)
 
@@ -1576,13 +1972,18 @@ class WorldBuildingApp(QMainWindow):
     """Main application class with improved initialization and error handling"""
 
     def __init__(self):
+        """
+        Initialize the main application window.
+        """
         super().__init__()
         self.components: Optional[AppComponents] = None
         self.setObjectName("WorldBuildingApp")
         self.initialize_application()
 
     def initialize_application(self) -> None:
-        """Initialize all application components with comprehensive error handling"""
+        """
+        Initialize all application components with comprehensive error handling.
+        """
         try:
             # 1. Load Configuration
             config = self._load_configuration()
@@ -1622,7 +2023,12 @@ class WorldBuildingApp(QMainWindow):
             self._handle_initialization_error(e)
 
     def set_background_image(self, image_path: str) -> None:
-        """Set the background image for the main window"""
+        """
+        Set the background image for the main window.
+
+        Args:
+            image_path (str): The path to the background image file.
+        """
         try:
             palette = QPalette()
             pixmap = QPixmap(image_path)
@@ -1633,7 +2039,15 @@ class WorldBuildingApp(QMainWindow):
             logging.error(f"Failed to set background image: {e}")
 
     def _load_configuration(self) -> "Config":
-        """Load application configuration with error handling"""
+        """
+        Load application configuration with error handling.
+
+        Returns:
+            Config: The loaded configuration.
+
+        Raises:
+            RuntimeError: If the configuration file is not found or invalid.
+        """
         try:
             config = Config("src/config.json")
             logging.info("Configuration loaded successfully")
@@ -1646,7 +2060,15 @@ class WorldBuildingApp(QMainWindow):
             raise RuntimeError(f"Error loading configuration: {str(e)}")
 
     def _setup_logging(self, config: "Config") -> None:
-        """Configure logging with rotation and formatting"""
+        """
+        Configure logging with rotation and formatting.
+
+        Args:
+            config (Config): The configuration instance.
+
+        Raises:
+            RuntimeError: If logging setup fails.
+        """
         try:
             log_file = config.LOGGING_FILE
             log_level = getattr(logging, config.LOGGING_LEVEL.upper())
@@ -1672,7 +2094,18 @@ class WorldBuildingApp(QMainWindow):
             raise RuntimeError(f"Failed to setup logging: {str(e)}")
 
     def _initialize_database(self, config: "Config") -> "Neo4jModel":
-        """Initialize database connection with retry logic"""
+        """
+        Initialize database connection with retry logic.
+
+        Args:
+            config (Config): The configuration instance.
+
+        Returns:
+            Neo4jModel: The initialized Neo4j model.
+
+        Raises:
+            RuntimeError: If database connection fails after retries.
+        """
         max_retries = 3
         retry_delay = 2  # seconds
 
@@ -1695,7 +2128,18 @@ class WorldBuildingApp(QMainWindow):
                     )
 
     def _setup_ui(self, controller) -> "WorldBuildingUI":
-        """Initialize user interface with error handling"""
+        """
+        Initialize user interface with error handling.
+
+        Args:
+            controller: The controller instance.
+
+        Returns:
+            WorldBuildingUI: The initialized UI instance.
+
+        Raises:
+            RuntimeError: If UI initialization fails.
+        """
         try:
             ui = WorldBuildingUI(controller)
             logging.info("UI initialized successfully")
@@ -1706,7 +2150,20 @@ class WorldBuildingApp(QMainWindow):
     def _initialize_controller(
         self, ui: "WorldBuildingUI", model: "Neo4jModel", config: "Config"
     ) -> "WorldBuildingController":
-        """Initialize application controller with error handling"""
+        """
+        Initialize application controller with error handling.
+
+        Args:
+            ui (WorldBuildingUI): The UI instance.
+            model (Neo4jModel): The Neo4j model instance.
+            config (Config): The configuration instance.
+
+        Returns:
+            WorldBuildingController: The initialized controller instance.
+
+        Raises:
+            RuntimeError: If controller initialization fails.
+        """
         try:
             controller = WorldBuildingController(ui, model, config)
             logging.info("Controller initialized successfully")
@@ -1715,7 +2172,12 @@ class WorldBuildingApp(QMainWindow):
             raise RuntimeError(f"Failed to initialize controller: {str(e)}")
 
     def _configure_main_window(self) -> None:
-        """Configure main window properties with error handling"""
+        """
+        Configure main window properties with error handling.
+
+        Raises:
+            RuntimeError: If main window configuration fails.
+        """
         try:
             self.setObjectName("WorldBuildingApp")
             self.setCentralWidget(self.components.ui)
@@ -1748,7 +2210,12 @@ class WorldBuildingApp(QMainWindow):
             raise RuntimeError(f"Failed to configure main window: {str(e)}")
 
     def _handle_initialization_error(self, error: Exception) -> None:
-        """Handle initialization errors with cleanup"""
+        """
+        Handle initialization errors with cleanup.
+
+        Args:
+            error (Exception): The initialization error.
+        """
         error_message = f"Failed to initialize the application:\n{str(error)}"
         logging.critical(error_message, exc_info=True)
 
@@ -1760,7 +2227,9 @@ class WorldBuildingApp(QMainWindow):
         sys.exit(1)
 
     def _cleanup_resources(self) -> None:
-        """Clean up application resources"""
+        """
+        Clean up application resources.
+        """
         if self.components:
             if self.components.controller:
                 try:
@@ -1775,7 +2244,12 @@ class WorldBuildingApp(QMainWindow):
                     logging.error(f"Error during model cleanup: {e}")
 
     def closeEvent(self, event) -> None:
-        """Handle application shutdown with proper cleanup"""
+        """
+        Handle application shutdown with proper cleanup.
+
+        Args:
+            event: The close event.
+        """
         logging.info("Application shutdown initiated")
 
         try:
