@@ -1759,13 +1759,10 @@ class WorldBuildingController(QObject):
             node_tags = node_properties.get("tags", [])
             image_path = node_properties.get("image_path")
 
-            # Filter out "node" label. It should not be displayed
-            filtered_labels = [label for label in labels if label.lower() != "node"]
-
             # Update UI elements in the main thread
             self.ui.name_input.setText(node_name)
             self.ui.description_input.setPlainText(node_description)
-            self.ui.labels_input.setText(", ".join(filtered_labels))
+            self.ui.labels_input.setText(", ".join(labels))
             self.ui.tags_input.setText(", ".join(node_tags))
 
             # Update properties table
