@@ -518,9 +518,7 @@ class Neo4jModel:
         tx.run(query_merge, name=name, description=description, tags=tags)
 
         # Retrieve existing labels excluding 'Node'
-        result = tx.run(
-            "MATCH (n {name: $name}) RETURN labels(n) AS labels", name=name
-        )
+        result = tx.run("MATCH (n {name: $name}) RETURN labels(n) AS labels", name=name)
         record = result.single()
         existing_labels = record["labels"] if record else []
         existing_labels = [label for label in existing_labels if label != "Node"]
@@ -546,10 +544,7 @@ class Neo4jModel:
 
         # Set additional properties if any
         if additional_properties:
-            query_props = (
-                "MATCH (n {name: $name}) "
-                "SET n += $additional_properties"
-            )
+            query_props = "MATCH (n {name: $name}) SET n += $additional_properties"
             tx.run(query_props, name=name, additional_properties=additional_properties)
 
         # Remove existing relationships
@@ -584,7 +579,9 @@ class Neo4jModel:
         Returns:
             DeleteWorker: A worker that will execute the delete operation.
         """
-        worker = DeleteWorker(self._uri, self._auth, self._delete_node_transaction, name)
+        worker = DeleteWorker(
+            self._uri, self._auth, self._delete_node_transaction, name
+        )
         worker.delete_finished.connect(callback)
         return worker
 
@@ -1245,6 +1242,8 @@ class WorldBuildingController(QObject):
         self.current_search_worker = None
         self.current_delete_worker = None
 
+        self.NODE_RELATIONSHIPS_HEADER = "Node Relationships"
+
     #############################################
     # 1. Initialization Methods
     #############################################
@@ -1254,7 +1253,7 @@ class WorldBuildingController(QObject):
         Initialize the tree view model.
         """
         self.tree_model = QStandardItemModel()
-        self.tree_model.setHorizontalHeaderLabels(["Node Relationships"])
+        self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
         self.ui.tree_view.setModel(self.tree_model)
         self.ui.tree_view.selectionModel().selectionChanged.connect(
             self.on_tree_selection_changed
@@ -1461,7 +1460,9 @@ class WorldBuildingController(QObject):
                 self.current_delete_worker.wait()
 
             # Start new delete operation
-            self.current_delete_worker = self.model.delete_node(name, self._handle_delete_success)
+            self.current_delete_worker = self.model.delete_node(
+                name, self._handle_delete_success
+            )
             self.current_delete_worker.error_occurred.connect(self.handle_error)
             self.current_delete_worker.start()
 
@@ -1478,7 +1479,7 @@ class WorldBuildingController(QObject):
         """
         if not node_name:
             self.tree_model.clear()
-            self.tree_model.setHorizontalHeaderLabels(["Node Relationships"])
+            self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
             return
 
         # Cancel any existing relationship worker
@@ -1810,7 +1811,7 @@ class WorldBuildingController(QObject):
         logging.debug(f"Populating relationship tree with records: {records}")
         try:
             self.tree_model.clear()
-            self.tree_model.setHorizontalHeaderLabels(["Node Relationships"])
+            self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
 
             if not records:
                 logging.info("No relationship records found.")
