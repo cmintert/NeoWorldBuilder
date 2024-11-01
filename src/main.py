@@ -422,6 +422,30 @@ class Neo4jModel:
     # 2. Node CRUD Operations
     #############################################
 
+    def validate_node_data(self, node_data):
+        """
+        Validate node data before performing any operations.
+
+        Args:
+            node_data (dict): Node data including properties and relationships.
+
+        Raises:
+            ValueError: If validation fails.
+        """
+        # Check for required fields
+        if "name" not in node_data or not node_data["name"].strip():
+            raise ValueError("Node must have a non-empty name.")
+
+        if "labels" not in node_data or not node_data["labels"]:
+            raise ValueError("Node must have at least one label.")
+
+        # Check for proper labels
+        for label in node_data["labels"]:
+            if not label.strip():
+                raise ValueError("Node labels must be non-empty.")
+
+        return True
+
     def load_node(self, name, callback):
         """
         Load a node and its relationships by name using a worker.
@@ -434,7 +458,7 @@ class Neo4jModel:
             QueryWorker: A worker that will execute the query.
         """
         query = """
-            MATCH (n:Node {name: $name})
+            MATCH (n {name: $name})
             WITH n, labels(n) AS labels,
                  [(n)-[r]->(m) | {end: m.name, type: type(r), dir: '>', props: properties(r)}] AS out_rels,
                  [(n)<-[r2]-(o) | {end: o.name, type: type(r2), dir: '<', props: properties(r2)}] AS in_rels,
@@ -461,6 +485,7 @@ class Neo4jModel:
         Returns:
             WriteWorker: A worker that will execute the write operation.
         """
+        self.validate_node_data(node_data)
         worker = WriteWorker(
             self._uri, self._auth, self._save_node_transaction, node_data
         )
@@ -487,21 +512,21 @@ class Neo4jModel:
 
         # Merge with 'Node' label
         query_merge = (
-            "MERGE (n:Node {name: $name}) "
+            "MERGE (n {name: $name}) "
             "SET n.description = $description, n.tags = $tags"
         )
         tx.run(query_merge, name=name, description=description, tags=tags)
 
         # Retrieve existing labels excluding 'Node'
         result = tx.run(
-            "MATCH (n:Node {name: $name}) RETURN labels(n) AS labels", name=name
+            "MATCH (n {name: $name}) RETURN labels(n) AS labels", name=name
         )
         record = result.single()
         existing_labels = record["labels"] if record else []
         existing_labels = [label for label in existing_labels if label != "Node"]
 
-        # Determine labels to add and remove
-        input_labels_set = set(labels)
+        # Determine labels to add and remove, excluding 'Node'
+        input_labels_set = set(labels) - {"Node"}
         existing_labels_set = set(existing_labels)
 
         labels_to_add = input_labels_set - existing_labels_set
@@ -510,34 +535,25 @@ class Neo4jModel:
         # Add new labels
         if labels_to_add:
             labels_str = ":".join([f"`{label}`" for label in labels_to_add])
-            query_add = f"MATCH (n:Node {{name: $name}}) SET n:{labels_str}"
+            query_add = f"MATCH (n {{name: $name}}) SET n:{labels_str}"
             tx.run(query_add, name=name)
 
         # Remove labels that are no longer needed
         if labels_to_remove:
             labels_str = ", ".join([f"n:`{label}`" for label in labels_to_remove])
-            query_remove = f"MATCH (n:Node {{name: $name}}) REMOVE {labels_str}"
+            query_remove = f"MATCH (n {{name: $name}}) REMOVE {labels_str}"
             tx.run(query_remove, name=name)
 
         # Set additional properties if any
         if additional_properties:
-            # Remove image_path if it's None
-            if (
-                "image_path" in additional_properties
-                and additional_properties["image_path"] is None
-            ):
-                tx.run("MATCH (n:Node {name: $name}) REMOVE n.image_path", name=name)
-                del additional_properties["image_path"]
-            if additional_properties:
-                query_props = (
-                    "MATCH (n:Node {name: $name}) SET n += $additional_properties"
-                )
-                tx.run(
-                    query_props, name=name, additional_properties=additional_properties
-                )
+            query_props = (
+                "MATCH (n {name: $name}) "
+                "SET n += $additional_properties"
+            )
+            tx.run(query_props, name=name, additional_properties=additional_properties)
 
         # Remove existing relationships
-        query_remove_rels = "MATCH (n:Node {name: $name})-[r]-() DELETE r"
+        query_remove_rels = "MATCH (n {name: $name})-[r]-() DELETE r"
         tx.run(query_remove_rels, name=name)
 
         # Create/update relationships
@@ -545,18 +561,14 @@ class Neo4jModel:
             rel_type, rel_name, direction, properties = rel
             if direction == ">":
                 query_rel = (
-                    "MATCH (n:Node {name: $name}) "
-                    "WITH n "
-                    "MATCH (m:Node {name: $rel_name}) "
+                    f"MATCH (n {{name: $name}}), (m {{name: $rel_name}}) "
                     f"MERGE (n)-[r:`{rel_type}`]->(m) "
                     "SET r = $properties"
                 )
             else:
                 query_rel = (
-                    "MATCH (n:Node {name: $name}) "
-                    "WITH n "
-                    "MATCH (m:Node {name: $rel_name}) "
-                    f"MERGE (m)-[r:`{rel_type}`]->(n) "
+                    f"MATCH (n {{name: $name}}), (m {{name: $rel_name}}) "
+                    f"MERGE (n)<-[r:`{rel_type}`]-(m) "
                     "SET r = $properties"
                 )
             tx.run(query_rel, name=name, rel_name=rel_name, properties=properties)
@@ -585,7 +597,7 @@ class Neo4jModel:
             tx: The transaction object.
             name (str): Name of the node to delete.
         """
-        query = "MATCH (n:Node {name: $name}) DETACH DELETE n"
+        query = "MATCH (n {name: $name}) DETACH DELETE n"
         tx.run(query, name=name)
 
     #############################################
@@ -604,10 +616,10 @@ class Neo4jModel:
             QueryWorker: A worker that will execute the query.
         """
         query = """
-            MATCH (n:Node {name: $name})
-            OPTIONAL MATCH (n)-[r]->(m:Node)
+            MATCH (n {name: $name})
+            OPTIONAL MATCH (n)-[r]->(m)
             WITH n, collect({end: m.name, type: type(r), dir: '>'}) as outRels
-            OPTIONAL MATCH (n)<-[r2]-(o:Node)
+            OPTIONAL MATCH (n)<-[r2]-(o)
             WITH n, outRels, collect({end: o.name, type: type(r2), dir: '<'}) as inRels
             RETURN outRels + inRels as relationships
         """
@@ -649,7 +661,7 @@ class Neo4jModel:
             QueryWorker: A worker that will execute the query.
         """
         query = (
-            "MATCH (n:Node) WHERE toLower(n.name) CONTAINS toLower($prefix) "
+            "MATCH (n) WHERE toLower(n.name) CONTAINS toLower($prefix) "
             "RETURN n.name AS name LIMIT $limit"
         )
         params = {"prefix": prefix, "limit": limit}
@@ -1697,6 +1709,7 @@ class WorldBuildingController(QObject):
         """
         QMessageBox.information(self.ui, "Success", "Node saved successfully")
         self.refresh_tree_view()
+        self.load_node_data()
 
     @pyqtSlot(list)
     def _handle_autocomplete_results(self, records: List[Any]):
