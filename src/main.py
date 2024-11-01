@@ -1438,11 +1438,11 @@ class WorldBuildingController(QObject):
             self.ui,
             "Confirm Deletion",
             f'Are you sure you want to delete node "{name}"?',
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
 
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             # Cancel any existing delete operation
             if self.current_delete_worker:
                 self.current_delete_worker.cancel()
