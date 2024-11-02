@@ -1294,6 +1294,10 @@ class WorldBuildingController(QObject):
         self.ui.tree_view.selectionModel().selectionChanged.connect(
             self.on_tree_selection_changed
         )
+        self.ui.tree_view.setUniformRowHeights(True)
+        self.ui.tree_view.setItemsExpandable(True)
+        self.ui.tree_view.setAllColumnsShowFocus(True)
+        self.ui.tree_view.setHeaderHidden(False)
 
     def _initialize_completer(self):
         """
@@ -1940,6 +1944,7 @@ class WorldBuildingController(QObject):
                 child_item = QStandardItem(f"🔹 {child_name} [{', '.join(child_labels)}]")
                 child_item.setData(child_name, Qt.ItemDataRole.UserRole)
                 child_item.setIcon(QIcon("path/to/node_icon.png"))
+                child_item.setCheckable(True)
 
                 rel_item.appendRow(child_item)
                 parent_item.appendRow(rel_item)
@@ -1991,6 +1996,7 @@ class WorldBuildingController(QObject):
             root_item = QStandardItem(f"🔵 {root_node_name}")
             root_item.setData(root_node_name, Qt.ItemDataRole.UserRole)
             root_item.setIcon(QIcon("path/to/node_icon.png"))
+            root_item.setCheckable(True)
 
             parent_child_map, skipped_records = self.process_relationship_records(records)
 
