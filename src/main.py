@@ -766,8 +766,11 @@ class WorldBuildingUI(QWidget):
         depth_layout = QHBoxLayout()
         depth_label = QLabel("Relationship Depth:")
         self.depth_spinbox = QSpinBox()
-        self.depth_spinbox.setMinimum(1)
-        self.depth_spinbox.setMaximum(10)
+        self.depth_spinbox.setObjectName("depthSpinBox")
+        self.depth_spinbox.setFixedWidth(70)
+        self.depth_spinbox.setFixedHeight(40)
+        self.depth_spinbox.setMinimum(0)
+        self.depth_spinbox.setMaximum(3)
         self.depth_spinbox.setValue(2)  # Default value; can be loaded from config
 
         depth_layout.addWidget(depth_label)
