@@ -1210,6 +1210,8 @@ class WorldBuildingController(QObject):
     Controller class managing interaction between UI and Neo4j model using QThread workers
     """
 
+    NODE_RELATIONSHIPS_HEADER = "Node Relationships"
+
     def __init__(self, ui: "WorldBuildingUI", model: "Neo4jModel", config: "Config"):
         """
         Initialize the controller with UI, model, and configuration.
@@ -1224,7 +1226,7 @@ class WorldBuildingController(QObject):
         self.model = model
         self.config = config
         self.current_image_path: Optional[str] = None
-
+        self.original_node_data: Optional[Dict[str, Any]] = None
         self.ui.controller = self
 
         # Initialize UI state
@@ -1242,7 +1244,7 @@ class WorldBuildingController(QObject):
         self.current_search_worker = None
         self.current_delete_worker = None
 
-        self.NODE_RELATIONSHIPS_HEADER = "Node Relationships"
+
 
     #############################################
     # 1. Initialization Methods
@@ -1375,6 +1377,14 @@ class WorldBuildingController(QObject):
         # Table buttons
         self.ui.add_prop_button.clicked.connect(self.ui.add_property_row)
         self.ui.add_rel_button.clicked.connect(self.ui.add_relationship_row)
+
+        # Check for unsaved changes
+        self.ui.name_input.textChanged.connect(self.update_unsaved_changes_indicator)
+        self.ui.description_input.textChanged.connect(self.update_unsaved_changes_indicator)
+        self.ui.labels_input.textChanged.connect(self.update_unsaved_changes_indicator)
+        self.ui.tags_input.textChanged.connect(self.update_unsaved_changes_indicator)
+        self.ui.properties_table.itemChanged.connect(self.update_unsaved_changes_indicator)
+        self.ui.relationships_table.itemChanged.connect(self.update_unsaved_changes_indicator)
 
     def _load_default_state(self):
         """
@@ -1688,8 +1698,25 @@ class WorldBuildingController(QObject):
         try:
             record = data[0]  # Extract the first record
             self._populate_node_fields(record)
+            self.original_node_data = self._collect_node_data()
         except Exception as e:
             self.handle_error(f"Error populating node fields: {str(e)}")
+
+    def is_node_changed(self) -> bool:
+        """
+        Check if the node data has changed.
+
+        Returns:
+            bool: Whether the node data has changed.
+        """
+        current_data = self._collect_node_data()
+        return current_data != self.original_node_data
+
+    def update_unsaved_changes_indicator(self):
+        if self.is_node_changed():
+            self.ui.save_button.setStyleSheet("background-color: #83A00E;")
+        else:
+            self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
 
     def _handle_delete_success(self, _):
         """

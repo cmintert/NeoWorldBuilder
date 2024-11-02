@@ -22,9 +22,7 @@ QWidget {
     color: black;                 /* Text color */
 }
 
-#saveButton {
-    background-color: #83A00E;    /* Green color for save button */
-}
+
 #deleteButton {
     background-color: #A00E0E;    /* Red color for delete button */
 }
