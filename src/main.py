@@ -52,6 +52,8 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QMenu,
     QSpinBox,
+    QAction,
+    QMenuBar,
 )
 from neo4j import GraphDatabase
 
@@ -2097,6 +2099,53 @@ class WorldBuildingController(QObject):
         self.current_image_path = None
         self.ui.set_image(None)
 
+    def export_node_data_as_json(self):
+        """
+        Export node data as JSON file.
+        """
+        node_data = self._collect_node_data()
+        if not node_data:
+            return
+
+        file_name, _ = QFileDialog.getSaveFileName(
+            self.ui, "Export as JSON", "", "JSON Files (*.json)"
+        )
+        if file_name:
+            try:
+                with open(file_name, "w") as file:
+                    json.dump(node_data, file, indent=4)
+                QMessageBox.information(self.ui, "Success", "Node data exported as JSON successfully")
+            except Exception as e:
+                self.handle_error(f"Error exporting node data as JSON: {str(e)}")
+
+    def export_node_data_as_txt(self):
+        """
+        Export node data as plain text file.
+        """
+        node_data = self._collect_node_data()
+        if not node_data:
+            return
+
+        file_name, _ = QFileDialog.getSaveFileName(
+            self.ui, "Export as TXT", "", "Text Files (*.txt)"
+        )
+        if file_name:
+            try:
+                with open(file_name, "w") as file:
+                    file.write(f"Name: {node_data['name']}\n")
+                    file.write(f"Description: {node_data['description']}\n")
+                    file.write(f"Tags: {', '.join(node_data['tags'])}\n")
+                    file.write(f"Labels: {', '.join(node_data['labels'])}\n")
+                    file.write("Relationships:\n")
+                    for rel in node_data["relationships"]:
+                        file.write(f"  - Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}\n")
+                    file.write("Additional Properties:\n")
+                    for key, value in node_data["additional_properties"].items():
+                        file.write(f"  - {key}: {value}\n")
+                QMessageBox.information(self.ui, "Success", "Node data exported as TXT successfully")
+            except Exception as e:
+                self.handle_error(f"Error exporting node data as TXT: {str(e)}")
+
 
 @dataclass
 class AppComponents:
@@ -2341,6 +2390,9 @@ class WorldBuildingApp(QMainWindow):
                 self.components.config.UI_WINDOW_HEIGHT,
             )
 
+            # Add Export menu to the main menu bar
+            self._add_export_menu()
+
             logging.info(
                 f"Window configured with size "
                 f"{self.components.config.UI_WINDOW_WIDTH}x"
@@ -2348,6 +2400,21 @@ class WorldBuildingApp(QMainWindow):
             )
         except Exception as e:
             raise RuntimeError(f"Failed to configure main window: {str(e)}")
+
+    def _add_export_menu(self):
+        """
+        Add Export menu to the main menu bar.
+        """
+        menu_bar = self.menuBar()
+        export_menu = menu_bar.addMenu("Export")
+
+        export_json_action = QAction("Export as JSON", self)
+        export_json_action.triggered.connect(self.components.controller.export_node_data_as_json)
+        export_menu.addAction(export_json_action)
+
+        export_txt_action = QAction("Export as TXT", self)
+        export_txt_action.triggered.connect(self.components.controller.export_node_data_as_txt)
+        export_menu.addAction(export_txt_action)
 
     def _handle_initialization_error(self, error: Exception) -> None:
         """
