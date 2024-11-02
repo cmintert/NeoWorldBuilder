@@ -24,7 +24,8 @@ from PyQt6.QtGui import (
     QPalette,
     QBrush,
     QPixmap,
-    QStandardItem, QIcon,
+    QStandardItem,
+    QIcon,
 )
 from PyQt6.QtWidgets import (
     QApplication,
@@ -49,7 +50,8 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QTabWidget,
     QProgressBar,
-    QMenu, QSpinBox,
+    QMenu,
+    QSpinBox,
 )
 from neo4j import GraphDatabase
 
@@ -1273,8 +1275,6 @@ class WorldBuildingController(QObject):
         self.current_search_worker = None
         self.current_delete_worker = None
 
-
-
     #############################################
     # 1. Initialization Methods
     #############################################
@@ -1409,11 +1409,17 @@ class WorldBuildingController(QObject):
 
         # Check for unsaved changes
         self.ui.name_input.textChanged.connect(self.update_unsaved_changes_indicator)
-        self.ui.description_input.textChanged.connect(self.update_unsaved_changes_indicator)
+        self.ui.description_input.textChanged.connect(
+            self.update_unsaved_changes_indicator
+        )
         self.ui.labels_input.textChanged.connect(self.update_unsaved_changes_indicator)
         self.ui.tags_input.textChanged.connect(self.update_unsaved_changes_indicator)
-        self.ui.properties_table.itemChanged.connect(self.update_unsaved_changes_indicator)
-        self.ui.relationships_table.itemChanged.connect(self.update_unsaved_changes_indicator)
+        self.ui.properties_table.itemChanged.connect(
+            self.update_unsaved_changes_indicator
+        )
+        self.ui.relationships_table.itemChanged.connect(
+            self.update_unsaved_changes_indicator
+        )
 
         # Depth spinbox change
         self.ui.depth_spinbox.valueChanged.connect(self.on_depth_changed)
@@ -1543,7 +1549,7 @@ class WorldBuildingController(QObject):
             self.current_relationship_worker.wait()
 
         self.current_relationship_worker = self.model.get_node_relationships(
-            node_name, depth,self._populate_relationship_tree
+            node_name, depth, self._populate_relationship_tree
         )
         self.current_relationship_worker.error_occurred.connect(self.handle_error)
         self.current_relationship_worker.start()
@@ -1888,7 +1894,9 @@ class WorldBuildingController(QObject):
 
             if not records:
                 logging.info("No relationship records found.")
-                self.components.ui.status_bar.showMessage("No relationships to display.")
+                self.components.ui.status_bar.showMessage(
+                    "No relationships to display."
+                )
                 return
 
             root_node_name = self.ui.name_input.text().strip()
@@ -1899,7 +1907,9 @@ class WorldBuildingController(QObject):
 
             root_item = QStandardItem(f"🔵 {root_node_name}")
             root_item.setData(root_node_name, Qt.ItemDataRole.UserRole)
-            root_item.setIcon(QIcon("path/to/node_icon.png"))  # Replace with actual path
+            root_item.setIcon(
+                QIcon("path/to/node_icon.png")
+            )  # Replace with actual path
 
             # Dictionary to map parent names to their child nodes with relationship details
             # Now maps to a list of tuples: (child_name, child_labels)
@@ -1912,11 +1922,12 @@ class WorldBuildingController(QObject):
                 parent_name = record.get("parent_name")
                 rel_type = record.get("rel_type")
                 direction = record.get("direction")
-                depth = record.get("depth")
 
                 # Validate essential fields
                 if not node_name or not parent_name or not rel_type or not direction:
-                    logging.warning(f"Incomplete record encountered and skipped: {record}")
+                    logging.warning(
+                        f"Incomplete record encountered and skipped: {record}"
+                    )
                     self.components.ui.status_bar.showMessage(
                         f"Incomplete relationship data skipped for parent '{parent_name}'. Check logs for details."
                     )
@@ -1932,27 +1943,33 @@ class WorldBuildingController(QObject):
                 key = (parent_name, rel_type, direction)
                 if key not in parent_child_map:
                     parent_child_map[key] = []
-                parent_child_map[key].append((node_name, labels))  # Store labels with node name
+                parent_child_map[key].append(
+                    (node_name, labels)
+                )  # Store labels with node name
 
             # Recursive function to build the tree
             def add_children(parent_name, parent_item, path):
                 for (p_name, rel_type, direction), children in parent_child_map.items():
                     if p_name != parent_name:
                         continue
-                    for (child_name, child_labels) in children:
+                    for child_name, child_labels in children:
                         # Detect cycles by checking if child is already in the current path
                         if child_name in path:
-                            logging.debug(f"Cycle detected: {child_name} already in path {path}")
+                            logging.debug(
+                                f"Cycle detected: {child_name} already in path {path}"
+                            )
                             # Create relationship item with cycle icon
                             rel_item = QStandardItem(f"🔄 [{rel_type}] ({direction})")
                             rel_item.setIcon(
-                                QIcon("path/to/relationship_icon.png"))  # Replace with actual path
+                                QIcon("path/to/relationship_icon.png")
+                            )  # Replace with actual path
 
                             # Create cycle node item with cycle icon
                             cycle_item = QStandardItem(f"🔁 {child_name} (Cycle)")
                             cycle_item.setData(child_name, Qt.ItemDataRole.UserRole)
                             cycle_item.setIcon(
-                                QIcon("path/to/cycle_icon.png"))  # Replace with actual path
+                                QIcon("path/to/cycle_icon.png")
+                            )  # Replace with actual path
 
                             # Append cycle node to relationship
                             rel_item.appendRow(cycle_item)
@@ -1962,18 +1979,22 @@ class WorldBuildingController(QObject):
                             continue
 
                         # Get the relationship direction arrow
-                        arrow = "➡️" if direction == '>' else "⬅️"
+                        arrow = "➡️" if direction == ">" else "⬅️"
 
                         # Create relationship item with arrow and type
                         rel_item = QStandardItem(f"{arrow} [{rel_type}]")
                         rel_item.setIcon(
-                            QIcon("path/to/relationship_icon.png"))  # Replace with actual path
+                            QIcon("path/to/relationship_icon.png")
+                        )  # Replace with actual path
 
                         # Create a new child item for the node with correct labels
-                        child_item = QStandardItem(f"🔹 {child_name} [{', '.join(child_labels)}]")
+                        child_item = QStandardItem(
+                            f"🔹 {child_name} [{', '.join(child_labels)}]"
+                        )
                         child_item.setData(child_name, Qt.ItemDataRole.UserRole)
                         child_item.setIcon(
-                            QIcon("path/to/node_icon.png"))  # Replace with actual path
+                            QIcon("path/to/node_icon.png")
+                        )  # Replace with actual path
 
                         # Append the child to the relationship
                         rel_item.appendRow(child_item)
