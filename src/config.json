@@ -31,7 +31,7 @@
         "URI": "bolt://192.168.178.84:7687",
         "USERNAME": "neo4j",
         "PASSWORD": "Godfather666",
-        "MATCH_NODE_LIMIT": 50
+        "MATCH_NODE_LIMIT": 200
     },
     "RESERVED_PROPERTY_KEYS": ["name","description", "tags", "image_path"],
     "VERSION": "0.1.0",

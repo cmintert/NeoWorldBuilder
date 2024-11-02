@@ -24,7 +24,7 @@ from PyQt6.QtGui import (
     QPalette,
     QBrush,
     QPixmap,
-    QStandardItem,
+    QStandardItem, QIcon,
 )
 from PyQt6.QtWidgets import (
     QApplication,
@@ -49,7 +49,7 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QTabWidget,
     QProgressBar,
-    QMenu,
+    QMenu, QSpinBox,
 )
 from neo4j import GraphDatabase
 
@@ -601,24 +601,38 @@ class Neo4jModel:
     # 3. Node Query Operations
     #############################################
 
-    def get_node_relationships(self, node_name, callback):
+    def get_node_relationships(self, node_name: str, depth: int, callback: callable):
         """
-        Get the relationships of a node by name using a worker.
+        Get the relationships of a node by name up to a specified depth using a worker.
 
         Args:
             node_name (str): Name of the node.
+            depth (int): The depth of relationships to retrieve.
             callback (function): Function to call with the result.
 
         Returns:
             QueryWorker: A worker that will execute the query.
         """
-        query = """
-            MATCH (n {name: $name})
-            OPTIONAL MATCH (n)-[r]->(m)
-            WITH n, collect({end: m.name, type: type(r), dir: '>'}) as outRels
-            OPTIONAL MATCH (n)<-[r2]-(o)
-            WITH n, outRels, collect({end: o.name, type: type(r2), dir: '<'}) as inRels
-            RETURN outRels + inRels as relationships
+        query = f"""
+            MATCH path = (n {{name: $name}})-[*1..{depth}]-()
+            WHERE ALL(r IN relationships(path) WHERE startNode(r) IS NOT NULL AND endNode(r) IS NOT NULL)
+              AND ALL(node IN nodes(path) WHERE node IS NOT NULL)
+            WITH path, length(path) AS path_length
+            UNWIND range(1, path_length - 1) AS idx
+            WITH
+                nodes(path)[idx] AS current_node,
+                relationships(path)[idx - 1] AS current_rel,
+                nodes(path)[idx - 1] AS parent_node,
+                idx AS depth
+            RETURN DISTINCT
+                current_node.name AS node_name,
+                labels(current_node) AS labels,
+                parent_node.name AS parent_name,
+                type(current_rel) AS rel_type,
+                CASE
+                    WHEN startNode(current_rel) = parent_node THEN '>' ELSE '<' END AS direction,
+                depth
+            ORDER BY depth ASC
         """
         params = {"name": node_name}
         worker = QueryWorker(self._uri, self._auth, query, params)
@@ -743,6 +757,21 @@ class WorldBuildingUI(QWidget):
         self.tree_view.customContextMenuRequested.connect(self._show_tree_context_menu)
 
         layout.addWidget(self.tree_view)
+
+        # Depth selector
+
+        depth_layout = QHBoxLayout()
+        depth_label = QLabel("Relationship Depth:")
+        self.depth_spinbox = QSpinBox()
+        self.depth_spinbox.setMinimum(1)
+        self.depth_spinbox.setMaximum(10)
+        self.depth_spinbox.setValue(2)  # Default value; can be loaded from config
+
+        depth_layout.addWidget(depth_label)
+        depth_layout.addWidget(self.depth_spinbox)
+        depth_layout.addStretch()
+
+        layout.addLayout(depth_layout)
 
         return panel
 
@@ -877,9 +906,9 @@ class WorldBuildingUI(QWidget):
         # Image buttons
         button_layout = QHBoxLayout()
         button_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.change_image_button = QPushButton("📷 Change")
+        self.change_image_button = QPushButton("Change")
         self.change_image_button.setObjectName("changeImageButton")
-        self.delete_image_button = QPushButton("🗑️ Remove")
+        self.delete_image_button = QPushButton("Remove")
         self.delete_image_button.setObjectName("deleteImageButton")
 
         for button in [self.change_image_button, self.delete_image_button]:
@@ -1386,6 +1415,9 @@ class WorldBuildingController(QObject):
         self.ui.properties_table.itemChanged.connect(self.update_unsaved_changes_indicator)
         self.ui.relationships_table.itemChanged.connect(self.update_unsaved_changes_indicator)
 
+        # Depth spinbox change
+        self.ui.depth_spinbox.valueChanged.connect(self.on_depth_changed)
+
     def _load_default_state(self):
         """
         Initialize default UI state.
@@ -1480,6 +1512,17 @@ class WorldBuildingController(QObject):
     # 3. Tree and Relationship Management
     #############################################
 
+    def on_depth_changed(self, value: int):
+        """
+        Handle changes in relationship depth.
+
+        Args:
+            value (int): The new depth value.
+        """
+        node_name = self.ui.name_input.text().strip()
+        if node_name:
+            self.update_relationship_tree(node_name)
+
     def update_relationship_tree(self, node_name: str):
         """
         Update tree view with node relationships.
@@ -1492,13 +1535,15 @@ class WorldBuildingController(QObject):
             self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
             return
 
+        depth = self.ui.depth_spinbox.value()  # Get depth from UI
+
         # Cancel any existing relationship worker
         if self.current_relationship_worker:
             self.current_relationship_worker.cancel()
             self.current_relationship_worker.wait()
 
         self.current_relationship_worker = self.model.get_node_relationships(
-            node_name, self._populate_relationship_tree
+            node_name, depth,self._populate_relationship_tree
         )
         self.current_relationship_worker.error_occurred.connect(self.handle_error)
         self.current_relationship_worker.start()
@@ -1830,71 +1875,127 @@ class WorldBuildingController(QObject):
     @pyqtSlot(list)
     def _populate_relationship_tree(self, records: List[Any]):
         """
-        Populate the tree view with relationships.
+        Populate the tree view with relationships up to the specified depth.
 
         Args:
             records (List[Any]): The list of relationship records.
         """
         logging.debug(f"Populating relationship tree with records: {records}")
+        skipped_records = 0
         try:
             self.tree_model.clear()
             self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
 
             if not records:
                 logging.info("No relationship records found.")
+                self.components.ui.status_bar.showMessage("No relationships to display.")
                 return
 
-            record = records[0]
-            relationships = record["relationships"]
-            logging.debug(f"Relationships: {relationships}")
+            root_node_name = self.ui.name_input.text().strip()
+            if not root_node_name:
+                logging.warning("Root node name is empty.")
+                self.components.ui.status_bar.showMessage("Root node name is empty.")
+                return
 
-            root_item = self.tree_model.invisibleRootItem()
-            node_name = self.ui.name_input.text().strip()
-            node_item = QStandardItem(f"🔵 {self.ui.name_input.text()}")
-            node_item.setData(node_name, Qt.ItemDataRole.UserRole)
+            root_item = QStandardItem(f"🔵 {root_node_name}")
+            root_item.setData(root_node_name, Qt.ItemDataRole.UserRole)
+            root_item.setIcon(QIcon("path/to/node_icon.png"))  # Replace with actual path
 
-            # Create folders for Active and Passive Relationships
-            active_rels_item = QStandardItem("➡️ Active Relationships")
-            passive_rels_item = QStandardItem("⬅️ Passive Relationships")
+            # Dictionary to map parent names to their child nodes with relationship details
+            # Now maps to a list of tuples: (child_name, child_labels)
+            parent_child_map = {}
 
-            # Initialize counters to check if folders have any relationships
-            active_count = 0
-            passive_count = 0
+            for record in records:
+                # Extract fields with validation
+                node_name = record.get("node_name")
+                labels = record.get("labels", [])
+                parent_name = record.get("parent_name")
+                rel_type = record.get("rel_type")
+                direction = record.get("direction")
+                depth = record.get("depth")
 
-            for rel in relationships:
-                direction = rel["dir"]
-                rel_type = rel["type"]
-                end_node = rel["end"]
+                # Validate essential fields
+                if not node_name or not parent_name or not rel_type or not direction:
+                    logging.warning(f"Incomplete record encountered and skipped: {record}")
+                    self.components.ui.status_bar.showMessage(
+                        f"Incomplete relationship data skipped for parent '{parent_name}'. Check logs for details."
+                    )
+                    skipped_records += 1
+                    continue  # Skip incomplete records
 
-                # Format Relationship Text
-                item_text = f"{direction} [{rel_type}] 🔹 {end_node}"
-                child_item = QStandardItem(item_text)
-                child_item.setData(end_node, Qt.ItemDataRole.UserRole)
+                logging.debug(
+                    f"Processing record: Node='{node_name}', Parent='{parent_name}', "
+                    f"Relationship='{rel_type}', Direction='{direction}'"
+                )
 
-                if direction == ">":
-                    active_rels_item.appendRow(child_item)
-                    active_count += 1
-                elif direction == "<":
-                    passive_rels_item.appendRow(child_item)
-                    passive_count += 1
-                else:
-                    logging.warning(f"Unknown relationship direction: {direction}")
+                # Add to parent_child_map with detailed key to handle multiple relationships
+                key = (parent_name, rel_type, direction)
+                if key not in parent_child_map:
+                    parent_child_map[key] = []
+                parent_child_map[key].append((node_name, labels))  # Store labels with node name
 
-            # Only add folders if they contain relationships
-            if active_count > 0:
-                node_item.appendRow(active_rels_item)
+            # Recursive function to build the tree
+            def add_children(parent_name, parent_item, path):
+                for (p_name, rel_type, direction), children in parent_child_map.items():
+                    if p_name != parent_name:
+                        continue
+                    for (child_name, child_labels) in children:
+                        # Detect cycles by checking if child is already in the current path
+                        if child_name in path:
+                            logging.debug(f"Cycle detected: {child_name} already in path {path}")
+                            # Create relationship item with cycle icon
+                            rel_item = QStandardItem(f"🔄 [{rel_type}] ({direction})")
+                            rel_item.setIcon(
+                                QIcon("path/to/relationship_icon.png"))  # Replace with actual path
 
-            if passive_count > 0:
-                node_item.appendRow(passive_rels_item)
+                            # Create cycle node item with cycle icon
+                            cycle_item = QStandardItem(f"🔁 {child_name} (Cycle)")
+                            cycle_item.setData(child_name, Qt.ItemDataRole.UserRole)
+                            cycle_item.setIcon(
+                                QIcon("path/to/cycle_icon.png"))  # Replace with actual path
 
-            self.tree_model.appendRow(node_item)
+                            # Append cycle node to relationship
+                            rel_item.appendRow(cycle_item)
 
-            tree_view = self.ui.tree_view
-            tree_view.expandAll()
+                            # Append relationship to parent
+                            parent_item.appendRow(rel_item)
+                            continue
 
-            root_item.appendRow(node_item)
+                        # Get the relationship direction arrow
+                        arrow = "➡️" if direction == '>' else "⬅️"
 
+                        # Create relationship item with arrow and type
+                        rel_item = QStandardItem(f"{arrow} [{rel_type}]")
+                        rel_item.setIcon(
+                            QIcon("path/to/relationship_icon.png"))  # Replace with actual path
+
+                        # Create a new child item for the node with correct labels
+                        child_item = QStandardItem(f"🔹 {child_name} [{', '.join(child_labels)}]")
+                        child_item.setData(child_name, Qt.ItemDataRole.UserRole)
+                        child_item.setIcon(
+                            QIcon("path/to/node_icon.png"))  # Replace with actual path
+
+                        # Append the child to the relationship
+                        rel_item.appendRow(child_item)
+
+                        # Append the relationship to the parent in the tree
+                        parent_item.appendRow(rel_item)
+
+                        # Recursively add children, updating the path
+                        add_children(child_name, child_item, path + [child_name])
+
+            # Start building from root node with initial path
+            add_children(root_node_name, root_item, [root_node_name])
+
+            self.tree_model.appendRow(root_item)
+            self.ui.tree_view.expandAll()
             logging.info("Relationship tree populated successfully.")
+
+            if skipped_records > 0:
+                self.components.ui.status_bar.showMessage(
+                    f"Populated tree with {len(records) - skipped_records} relationships. "
+                    f"{skipped_records} incomplete relationships were skipped."
+                )
 
         except Exception as e:
             self.handle_error(f"Error populating relationship tree: {str(e)}")
