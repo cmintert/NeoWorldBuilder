@@ -239,3 +239,15 @@ QToolTip {
     padding: 5px;
     background: #A00E0E;
 }
+
+/* Style for the depth spinbox */
+#depth_spinbox {
+    border: 1px solid #ccc;       /* Light gray border */
+    border-radius: 4px;           /* Rounded corners */
+    padding: 5px;                 /* Padding inside the spinbox */
+    background: white;            /* Spinbox background color */
+}
+
+#depth_spinbox:focus {
+    border-color: #007bff;        /* Blue border when focused */
+}
