@@ -25,7 +25,7 @@ from PyQt6.QtGui import (
     QBrush,
     QPixmap,
     QStandardItem,
-    QIcon,
+    QIcon, QAction,
 )
 from PyQt6.QtWidgets import (
     QApplication,
@@ -52,7 +52,6 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QMenu,
     QSpinBox,
-    QAction,
     QMenuBar,
 )
 from neo4j import GraphDatabase
