@@ -57,7 +57,7 @@ from neo4j import GraphDatabase
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.DEBUG, format="%(asctime)s - %(levellevelname)s - %(message)s"
 )
 
 faulthandler.enable()
@@ -1878,6 +1878,89 @@ class WorldBuildingController(QObject):
         except Exception as e:
             self.handle_error(f"Error populating node fields: {str(e)}")
 
+    def process_relationship_records(self, records):
+        """
+        Process relationship records and build parent-child map.
+
+        Args:
+            records (List[Any]): The list of relationship records.
+
+        Returns:
+            dict: A dictionary mapping parent names to their child nodes with relationship details.
+        """
+        parent_child_map = {}
+        skipped_records = 0
+
+        for record in records:
+            node_name = record.get("node_name")
+            labels = record.get("labels", [])
+            parent_name = record.get("parent_name")
+            rel_type = record.get("rel_type")
+            direction = record.get("direction")
+
+            if not node_name or not parent_name or not rel_type or not direction:
+                logging.warning(f"Incomplete record encountered and skipped: {record}")
+                skipped_records += 1
+                continue
+
+            key = (parent_name, rel_type, direction)
+            if key not in parent_child_map:
+                parent_child_map[key] = []
+            parent_child_map[key].append((node_name, labels))
+
+        return parent_child_map, skipped_records
+
+    def add_children(self, parent_name, parent_item, path, parent_child_map):
+        """
+        Recursively add child nodes to the parent item in the tree.
+
+        Args:
+            parent_name (str): The name of the parent node.
+            parent_item (QStandardItem): The parent item in the tree.
+            path (List[str]): The current path of node names.
+            parent_child_map (dict): The dictionary mapping parent names to their child nodes with relationship details.
+        """
+        for (p_name, rel_type, direction), children in parent_child_map.items():
+            if p_name != parent_name:
+                continue
+            for child_name, child_labels in children:
+                if child_name in path:
+                    self.handle_cycles(parent_item, rel_type, direction, child_name)
+                    continue
+
+                arrow = "➡️" if direction == ">" else "⬅️"
+                rel_item = QStandardItem(f"{arrow} [{rel_type}]")
+                rel_item.setIcon(QIcon("path/to/relationship_icon.png"))
+
+                child_item = QStandardItem(f"🔹 {child_name} [{', '.join(child_labels)}]")
+                child_item.setData(child_name, Qt.ItemDataRole.UserRole)
+                child_item.setIcon(QIcon("path/to/node_icon.png"))
+
+                rel_item.appendRow(child_item)
+                parent_item.appendRow(rel_item)
+
+                self.add_children(child_name, child_item, path + [child_name], parent_child_map)
+
+    def handle_cycles(self, parent_item, rel_type, direction, child_name):
+        """
+        Handle cycles in the relationship data to avoid infinite loops.
+
+        Args:
+            parent_item (QStandardItem): The parent item in the tree.
+            rel_type (str): The type of the relationship.
+            direction (str): The direction of the relationship.
+            child_name (str): The name of the child node.
+        """
+        rel_item = QStandardItem(f"🔄 [{rel_type}] ({direction})")
+        rel_item.setIcon(QIcon("path/to/relationship_icon.png"))
+
+        cycle_item = QStandardItem(f"🔁 {child_name} (Cycle)")
+        cycle_item.setData(child_name, Qt.ItemDataRole.UserRole)
+        cycle_item.setIcon(QIcon("path/to/cycle_icon.png"))
+
+        rel_item.appendRow(cycle_item)
+        parent_item.appendRow(rel_item)
+
     @pyqtSlot(list)
     def _populate_relationship_tree(self, records: List[Any]):
         """
@@ -1887,136 +1970,33 @@ class WorldBuildingController(QObject):
             records (List[Any]): The list of relationship records.
         """
         logging.debug(f"Populating relationship tree with records: {records}")
-        skipped_records = 0
         try:
             self.tree_model.clear()
             self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
 
             if not records:
                 logging.info("No relationship records found.")
-                self.components.ui.status_bar.showMessage(
-                    "No relationships to display."
-                )
                 return
 
             root_node_name = self.ui.name_input.text().strip()
             if not root_node_name:
                 logging.warning("Root node name is empty.")
-                self.components.ui.status_bar.showMessage("Root node name is empty.")
                 return
 
             root_item = QStandardItem(f"🔵 {root_node_name}")
             root_item.setData(root_node_name, Qt.ItemDataRole.UserRole)
-            root_item.setIcon(
-                QIcon("path/to/node_icon.png")
-            )  # Replace with actual path
+            root_item.setIcon(QIcon("path/to/node_icon.png"))
 
-            # Dictionary to map parent names to their child nodes with relationship details
-            # Now maps to a list of tuples: (child_name, child_labels)
-            parent_child_map = {}
+            parent_child_map, skipped_records = self.process_relationship_records(records)
 
-            for record in records:
-                # Extract fields with validation
-                node_name = record.get("node_name")
-                labels = record.get("labels", [])
-                parent_name = record.get("parent_name")
-                rel_type = record.get("rel_type")
-                direction = record.get("direction")
-
-                # Validate essential fields
-                if not node_name or not parent_name or not rel_type or not direction:
-                    logging.warning(
-                        f"Incomplete record encountered and skipped: {record}"
-                    )
-                    self.components.ui.status_bar.showMessage(
-                        f"Incomplete relationship data skipped for parent '{parent_name}'. Check logs for details."
-                    )
-                    skipped_records += 1
-                    continue  # Skip incomplete records
-
-                logging.debug(
-                    f"Processing record: Node='{node_name}', Parent='{parent_name}', "
-                    f"Relationship='{rel_type}', Direction='{direction}'"
-                )
-
-                # Add to parent_child_map with detailed key to handle multiple relationships
-                key = (parent_name, rel_type, direction)
-                if key not in parent_child_map:
-                    parent_child_map[key] = []
-                parent_child_map[key].append(
-                    (node_name, labels)
-                )  # Store labels with node name
-
-            # Recursive function to build the tree
-            def add_children(parent_name, parent_item, path):
-                for (p_name, rel_type, direction), children in parent_child_map.items():
-                    if p_name != parent_name:
-                        continue
-                    for child_name, child_labels in children:
-                        # Detect cycles by checking if child is already in the current path
-                        if child_name in path:
-                            logging.debug(
-                                f"Cycle detected: {child_name} already in path {path}"
-                            )
-                            # Create relationship item with cycle icon
-                            rel_item = QStandardItem(f"🔄 [{rel_type}] ({direction})")
-                            rel_item.setIcon(
-                                QIcon("path/to/relationship_icon.png")
-                            )  # Replace with actual path
-
-                            # Create cycle node item with cycle icon
-                            cycle_item = QStandardItem(f"🔁 {child_name} (Cycle)")
-                            cycle_item.setData(child_name, Qt.ItemDataRole.UserRole)
-                            cycle_item.setIcon(
-                                QIcon("path/to/cycle_icon.png")
-                            )  # Replace with actual path
-
-                            # Append cycle node to relationship
-                            rel_item.appendRow(cycle_item)
-
-                            # Append relationship to parent
-                            parent_item.appendRow(rel_item)
-                            continue
-
-                        # Get the relationship direction arrow
-                        arrow = "➡️" if direction == ">" else "⬅️"
-
-                        # Create relationship item with arrow and type
-                        rel_item = QStandardItem(f"{arrow} [{rel_type}]")
-                        rel_item.setIcon(
-                            QIcon("path/to/relationship_icon.png")
-                        )  # Replace with actual path
-
-                        # Create a new child item for the node with correct labels
-                        child_item = QStandardItem(
-                            f"🔹 {child_name} [{', '.join(child_labels)}]"
-                        )
-                        child_item.setData(child_name, Qt.ItemDataRole.UserRole)
-                        child_item.setIcon(
-                            QIcon("path/to/node_icon.png")
-                        )  # Replace with actual path
-
-                        # Append the child to the relationship
-                        rel_item.appendRow(child_item)
-
-                        # Append the relationship to the parent in the tree
-                        parent_item.appendRow(rel_item)
-
-                        # Recursively add children, updating the path
-                        add_children(child_name, child_item, path + [child_name])
-
-            # Start building from root node with initial path
-            add_children(root_node_name, root_item, [root_node_name])
+            self.add_children(root_node_name, root_item, [root_node_name], parent_child_map)
 
             self.tree_model.appendRow(root_item)
             self.ui.tree_view.expandAll()
             logging.info("Relationship tree populated successfully.")
 
             if skipped_records > 0:
-                self.components.ui.status_bar.showMessage(
-                    f"Populated tree with {len(records) - skipped_records} relationships. "
-                    f"{skipped_records} incomplete relationships were skipped."
-                )
+                logging.warning(f"Skipped {skipped_records} incomplete relationship records.")
 
         except Exception as e:
             self.handle_error(f"Error populating relationship tree: {str(e)}")
