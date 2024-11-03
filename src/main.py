@@ -53,7 +53,7 @@ from PyQt6.QtWidgets import (
     QMenu,
     QSpinBox,
     QMenuBar,
-    QCheckBox,
+    QCheckBox, QAbstractItemView,
 )
 from neo4j import GraphDatabase
 
@@ -1291,9 +1291,15 @@ class WorldBuildingController(QObject):
         self.tree_model = QStandardItemModel()
         self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
         self.ui.tree_view.setModel(self.tree_model)
+
+        self.ui.tree_view.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.ui.tree_view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
+
+        # connect selction signals
         self.ui.tree_view.selectionModel().selectionChanged.connect(
             self.on_tree_selection_changed
         )
+
         self.ui.tree_view.setUniformRowHeights(True)
         self.ui.tree_view.setItemsExpandable(True)
         self.ui.tree_view.setAllColumnsShowFocus(True)
@@ -1921,30 +1927,32 @@ class WorldBuildingController(QObject):
 
     def add_children(self, parent_name, parent_item, path, parent_child_map):
         """
-        Recursively add child nodes to the parent item in the tree.
-
-        Args:
-            parent_name (str): The name of the parent node.
-            parent_item (QStandardItem): The parent item in the tree.
-            path (List[str]): The current path of node names.
-            parent_child_map (dict): The dictionary mapping parent names to their child nodes with relationship details.
+        Add child nodes to the relationship tree with checkboxes.
         """
         for (p_name, rel_type, direction), children in parent_child_map.items():
             if p_name != parent_name:
                 continue
+
             for child_name, child_labels in children:
                 if child_name in path:
                     self.handle_cycles(parent_item, rel_type, direction, child_name)
                     continue
 
                 arrow = "➡️" if direction == ">" else "⬅️"
-                rel_item = QStandardItem(f"{arrow} [{rel_type}]")
-                rel_item.setIcon(QIcon("path/to/relationship_icon.png"))
 
+                # Create relationship item (non-checkable separator)
+                rel_item = QStandardItem(f"{arrow} [{rel_type}]")
+                rel_item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+
+                # Create node item (checkable)
                 child_item = QStandardItem(f"🔹 {child_name} [{', '.join(child_labels)}]")
                 child_item.setData(child_name, Qt.ItemDataRole.UserRole)
-                child_item.setIcon(QIcon("path/to/node_icon.png"))
-                child_item.setCheckable(True)
+                child_item.setFlags(
+                    Qt.ItemFlag.ItemIsEnabled |
+                    Qt.ItemFlag.ItemIsSelectable |
+                    Qt.ItemFlag.ItemIsUserCheckable
+                )
+                child_item.setCheckState(Qt.CheckState.Unchecked)
 
                 rel_item.appendRow(child_item)
                 parent_item.appendRow(rel_item)
@@ -1993,10 +2001,17 @@ class WorldBuildingController(QObject):
                 logging.warning("Root node name is empty.")
                 return
 
+            # Create root item with checkbox
             root_item = QStandardItem(f"🔵 {root_node_name}")
             root_item.setData(root_node_name, Qt.ItemDataRole.UserRole)
+            root_item.setFlags(
+                Qt.ItemFlag.ItemIsEnabled |
+                Qt.ItemFlag.ItemIsSelectable |
+                Qt.ItemFlag.ItemIsUserCheckable
+            )
+            root_item.setCheckState(Qt.CheckState.Unchecked)
             root_item.setIcon(QIcon("path/to/node_icon.png"))
-            root_item.setCheckable(True)
+
 
             parent_child_map, skipped_records = self.process_relationship_records(records)
 
@@ -2340,19 +2355,39 @@ class WorldBuildingController(QObject):
 
     def get_selected_nodes(self) -> List[str]:
         """
-        Get the names of the selected nodes in the tree view.
-
-        Returns:
-            List[str]: The list of selected node names.
+        Get the names of checked nodes in the tree view.
         """
         selected_nodes = []
-        for index in self.ui.tree_view.selectedIndexes():
-            item = self.tree_model.itemFromIndex(index)
-            if item and item.checkState() == Qt.CheckState.Checked:
-                node_name = item.data(Qt.ItemDataRole.UserRole)
-                if node_name:
-                    selected_nodes.append(node_name)
-        return selected_nodes
+        logging.debug("Starting to gather selected nodes.")
+
+        def traverse_tree(parent_item):
+            """Recursively traverse tree to find checked items"""
+            if parent_item.hasChildren():
+                for row in range(parent_item.rowCount()):
+                    child = parent_item.child(row)
+                    if child.hasChildren():
+                        # If this is a relationship item, check its children
+                        for childRow in range(child.rowCount()):
+                            node_item = child.child(childRow)
+                            if (node_item and
+                                    node_item.checkState() == Qt.CheckState.Checked and
+                                    node_item.data(Qt.ItemDataRole.UserRole)):
+                                selected_nodes.append(node_item.data(Qt.ItemDataRole.UserRole))
+                        traverse_tree(child)
+                    else:
+                        # If this is a node item directly
+                        if (child.checkState() == Qt.CheckState.Checked and
+                                child.data(Qt.ItemDataRole.UserRole)):
+                            selected_nodes.append(child.data(Qt.ItemDataRole.UserRole))
+
+        # Start traversal from root
+        root_item = self.tree_model.invisibleRootItem()
+        traverse_tree(root_item)
+
+        # Remove duplicates while preserving order
+        unique_nodes = list(dict.fromkeys(selected_nodes))
+        logging.debug(f"Found checked nodes: {unique_nodes}")
+        return unique_nodes
 
     def _collect_node_data_for_export(self, node_name: str) -> Optional[Dict[str, Any]]:
         """
