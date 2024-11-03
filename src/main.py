@@ -2123,112 +2123,7 @@ class WorldBuildingController(QObject):
         self.current_image_path = None
         self.ui.set_image(None)
 
-    def export_node_data_as_json(self):
-        """
-        Export node data as JSON file.
-        """
-        node_data = self._collect_node_data()
-        if not node_data:
-            return
-
-        file_name, _ = QFileDialog.getSaveFileName(
-            self.ui, "Export as JSON", "", "JSON Files (*.json)"
-        )
-        if file_name:
-            try:
-                with open(file_name, "w") as file:
-                    json.dump(node_data, file, indent=4)
-                QMessageBox.information(self.ui, "Success", "Node data exported as JSON successfully")
-            except Exception as e:
-                self.handle_error(f"Error exporting node data as JSON: {str(e)}")
-
-    def export_node_data_as_txt(self):
-        """
-        Export node data as plain text file.
-        """
-        node_data = self._collect_node_data()
-        if not node_data:
-            return
-
-        file_name, _ = QFileDialog.getSaveFileName(
-            self.ui, "Export as TXT", "", "Text Files (*.txt)"
-        )
-        if file_name:
-            try:
-                with open(file_name, "w") as file:
-                    file.write(f"Name: {node_data['name']}\n")
-                    file.write(f"Description: {node_data['description']}\n")
-                    file.write(f"Tags: {', '.join(node_data['tags'])}\n")
-                    file.write(f"Labels: {', '.join(node_data['labels'])}\n")
-                    file.write("Relationships:\n")
-                    for rel in node_data["relationships"]:
-                        file.write(f"  - Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}\n")
-                    file.write("Additional Properties:\n")
-                    for key, value in node_data["additional_properties"].items():
-                        file.write(f"  - {key}: {value}\n")
-                QMessageBox.information(self.ui, "Success", "Node data exported as TXT successfully")
-            except Exception as e:
-                self.handle_error(f"Error exporting node data as TXT: {str(e)}")
-
-    def export_node_data_as_csv(self):
-        """
-        Export node data as CSV file.
-        """
-        node_data = self._collect_node_data()
-        if not node_data:
-            return
-
-        file_name, _ = QFileDialog.getSaveFileName(
-            self.ui, "Export as CSV", "", "CSV Files (*.csv)"
-        )
-        if file_name:
-            try:
-                with open(file_name, "w") as file:
-                    file.write("Name,Description,Tags,Labels,Relationships,Additional Properties\n")
-                    file.write(f"{node_data['name']},{node_data['description']},{', '.join(node_data['tags'])},{', '.join(node_data['labels'])},")
-                    relationships = "; ".join([f"Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}" for rel in node_data["relationships"]])
-                    additional_properties = "; ".join([f"{key}: {value}" for key, value in node_data["additional_properties"].items()])
-                    file.write(f"{relationships},{additional_properties}\n")
-                QMessageBox.information(self.ui, "Success", "Node data exported as CSV successfully")
-            except Exception as e:
-                self.handle_error(f"Error exporting node data as CSV: {str(e)}")
-
-    def export_node_data_as_pdf(self):
-        """
-        Export node data as PDF file.
-        """
-        from fpdf import FPDF
-
-        node_data = self._collect_node_data()
-        if not node_data:
-            return
-
-        file_name, _ = QFileDialog.getSaveFileName(
-            self.ui, "Export as PDF", "", "PDF Files (*.pdf)"
-        )
-        if file_name:
-            try:
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", size=12)
-
-                pdf.cell(200, 10, txt=f"Name: {node_data['name']}", ln=True)
-                pdf.cell(200, 10, txt=f"Description: {node_data['description']}", ln=True)
-                pdf.cell(200, 10, txt=f"Tags: {', '.join(node_data['tags'])}", ln=True)
-                pdf.cell(200, 10, txt=f"Labels: {', '.join(node_data['labels'])}", ln=True)
-                pdf.cell(200, 10, txt="Relationships:", ln=True)
-                for rel in node_data["relationships"]:
-                    pdf.cell(200, 10, txt=f"  - Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}", ln=True)
-                pdf.cell(200, 10, txt="Additional Properties:", ln=True)
-                for key, value in node_data["additional_properties"].items():
-                    pdf.cell(200, 10, txt=f"  - {key}: {value}", ln=True)
-
-                pdf.output(file_name)
-                QMessageBox.information(self.ui, "Success", "Node data exported as PDF successfully")
-            except Exception as e:
-                self.handle_error(f"Error exporting node data as PDF: {str(e)}")
-
-    def export_selected_nodes_as_json(self):
+    def export_as_json(self):
         """
         Export selected nodes data as JSON file.
         """
@@ -2254,7 +2149,7 @@ class WorldBuildingController(QObject):
             except Exception as e:
                 self.handle_error(f"Error exporting selected nodes data as JSON: {str(e)}")
 
-    def export_selected_nodes_as_txt(self):
+    def export_as_txt(self):
         """
         Export selected nodes data as plain text file.
         """
@@ -2287,7 +2182,7 @@ class WorldBuildingController(QObject):
             except Exception as e:
                 self.handle_error(f"Error exporting selected nodes data as TXT: {str(e)}")
 
-    def export_selected_nodes_as_csv(self):
+    def export_as_csv(self):
         """
         Export selected nodes data as CSV file.
         """
@@ -2314,7 +2209,7 @@ class WorldBuildingController(QObject):
             except Exception as e:
                 self.handle_error(f"Error exporting selected nodes data as CSV: {str(e)}")
 
-    def export_selected_nodes_as_pdf(self):
+    def export_as_pdf(self):
         """
         Export selected nodes data as PDF file.
         """
@@ -2367,8 +2262,8 @@ class WorldBuildingController(QObject):
                     child = parent_item.child(row)
                     if child.hasChildren():
                         # If this is a relationship item, check its children
-                        for childRow in range(child.rowCount()):
-                            node_item = child.child(childRow)
+                        for child_row in range(child.rowCount()):
+                            node_item = child.child(child_row)
                             if (node_item and
                                     node_item.checkState() == Qt.CheckState.Checked and
                                     node_item.data(Qt.ItemDataRole.UserRole)):
@@ -2686,39 +2581,26 @@ class WorldBuildingApp(QMainWindow):
         Add Export menu to the main menu bar.
         """
         menu_bar = self.menuBar()
+        menu_bar.setObjectName("menuBar")
+
         export_menu = menu_bar.addMenu("Export")
 
         export_json_action = QAction("Export as JSON", self)
-        export_json_action.triggered.connect(self.components.controller.export_node_data_as_json)
+        export_json_action.triggered.connect(self.components.controller.export_as_json)
         export_menu.addAction(export_json_action)
 
         export_txt_action = QAction("Export as TXT", self)
-        export_txt_action.triggered.connect(self.components.controller.export_node_data_as_txt)
+        export_txt_action.triggered.connect(self.components.controller.export_as_txt)
         export_menu.addAction(export_txt_action)
 
         export_csv_action = QAction("Export as CSV", self)
-        export_csv_action.triggered.connect(self.components.controller.export_node_data_as_csv)
+        export_csv_action.triggered.connect(self.components.controller.export_as_csv)
         export_menu.addAction(export_csv_action)
 
         export_pdf_action = QAction("Export as PDF", self)
-        export_pdf_action.triggered.connect(self.components.controller.export_node_data_as_pdf)
+        export_pdf_action.triggered.connect(self.components.controller.export_as_pdf)
         export_menu.addAction(export_pdf_action)
 
-        export_selected_json_action = QAction("Export Selected as JSON", self)
-        export_selected_json_action.triggered.connect(self.components.controller.export_selected_nodes_as_json)
-        export_menu.addAction(export_selected_json_action)
-
-        export_selected_txt_action = QAction("Export Selected as TXT", self)
-        export_selected_txt_action.triggered.connect(self.components.controller.export_selected_nodes_as_txt)
-        export_menu.addAction(export_selected_txt_action)
-
-        export_selected_csv_action = QAction("Export Selected as CSV", self)
-        export_selected_csv_action.triggered.connect(self.components.controller.export_selected_nodes_as_csv)
-        export_menu.addAction(export_selected_csv_action)
-
-        export_selected_pdf_action = QAction("Export Selected as PDF", self)
-        export_selected_pdf_action.triggered.connect(self.components.controller.export_selected_nodes_as_pdf)
-        export_menu.addAction(export_selected_pdf_action)
 
     def _handle_initialization_error(self, error: Exception) -> None:
         """
