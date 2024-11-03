@@ -25,7 +25,8 @@ from PyQt6.QtGui import (
     QBrush,
     QPixmap,
     QStandardItem,
-    QIcon, QAction,
+    QIcon,
+    QAction,
 )
 from PyQt6.QtWidgets import (
     QApplication,
@@ -53,7 +54,8 @@ from PyQt6.QtWidgets import (
     QMenu,
     QSpinBox,
     QMenuBar,
-    QCheckBox, QAbstractItemView,
+    QCheckBox,
+    QAbstractItemView,
 )
 from neo4j import GraphDatabase
 
@@ -617,6 +619,7 @@ class Neo4jModel:
         Returns:
             QueryWorker: A worker that will execute the query.
         """
+        depth += 1  # Adjust depth for query
         query = f"""
             MATCH path = (n {{name: $name}})-[*1..{depth}]-()
             WHERE ALL(r IN relationships(path) WHERE startNode(r) IS NOT NULL AND endNode(r) IS NOT NULL)
@@ -772,7 +775,7 @@ class WorldBuildingUI(QWidget):
         self.depth_spinbox.setFixedHeight(40)
         self.depth_spinbox.setMinimum(0)
         self.depth_spinbox.setMaximum(3)
-        self.depth_spinbox.setValue(2)  # Default value; can be loaded from config
+        self.depth_spinbox.setValue(1)  # Default value; can be loaded from config
 
         depth_layout.addWidget(depth_label)
         depth_layout.addWidget(self.depth_spinbox)
@@ -1292,8 +1295,12 @@ class WorldBuildingController(QObject):
         self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
         self.ui.tree_view.setModel(self.tree_model)
 
-        self.ui.tree_view.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.ui.tree_view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
+        self.ui.tree_view.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection
+        )
+        self.ui.tree_view.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectItems
+        )
 
         # connect selction signals
         self.ui.tree_view.selectionModel().selectionChanged.connect(
@@ -1942,22 +1949,28 @@ class WorldBuildingController(QObject):
 
                 # Create relationship item (non-checkable separator)
                 rel_item = QStandardItem(f"{arrow} [{rel_type}]")
-                rel_item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+                rel_item.setFlags(
+                    Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
+                )
 
                 # Create node item (checkable)
-                child_item = QStandardItem(f"🔹 {child_name} [{', '.join(child_labels)}]")
+                child_item = QStandardItem(
+                    f"🔹 {child_name} [{', '.join(child_labels)}]"
+                )
                 child_item.setData(child_name, Qt.ItemDataRole.UserRole)
                 child_item.setFlags(
-                    Qt.ItemFlag.ItemIsEnabled |
-                    Qt.ItemFlag.ItemIsSelectable |
-                    Qt.ItemFlag.ItemIsUserCheckable
+                    Qt.ItemFlag.ItemIsEnabled
+                    | Qt.ItemFlag.ItemIsSelectable
+                    | Qt.ItemFlag.ItemIsUserCheckable
                 )
                 child_item.setCheckState(Qt.CheckState.Unchecked)
 
                 rel_item.appendRow(child_item)
                 parent_item.appendRow(rel_item)
 
-                self.add_children(child_name, child_item, path + [child_name], parent_child_map)
+                self.add_children(
+                    child_name, child_item, path + [child_name], parent_child_map
+                )
 
     def handle_cycles(self, parent_item, rel_type, direction, child_name):
         """
@@ -2005,24 +2018,29 @@ class WorldBuildingController(QObject):
             root_item = QStandardItem(f"🔵 {root_node_name}")
             root_item.setData(root_node_name, Qt.ItemDataRole.UserRole)
             root_item.setFlags(
-                Qt.ItemFlag.ItemIsEnabled |
-                Qt.ItemFlag.ItemIsSelectable |
-                Qt.ItemFlag.ItemIsUserCheckable
+                Qt.ItemFlag.ItemIsEnabled
+                | Qt.ItemFlag.ItemIsSelectable
+                | Qt.ItemFlag.ItemIsUserCheckable
             )
             root_item.setCheckState(Qt.CheckState.Unchecked)
             root_item.setIcon(QIcon("path/to/node_icon.png"))
 
+            parent_child_map, skipped_records = self.process_relationship_records(
+                records
+            )
 
-            parent_child_map, skipped_records = self.process_relationship_records(records)
-
-            self.add_children(root_node_name, root_item, [root_node_name], parent_child_map)
+            self.add_children(
+                root_node_name, root_item, [root_node_name], parent_child_map
+            )
 
             self.tree_model.appendRow(root_item)
             self.ui.tree_view.expandAll()
             logging.info("Relationship tree populated successfully.")
 
             if skipped_records > 0:
-                logging.warning(f"Skipped {skipped_records} incomplete relationship records.")
+                logging.warning(
+                    f"Skipped {skipped_records} incomplete relationship records."
+                )
 
         except Exception as e:
             self.handle_error(f"Error populating relationship tree: {str(e)}")
@@ -2145,9 +2163,15 @@ class WorldBuildingController(QObject):
 
                 with open(file_name, "w") as file:
                     json.dump(all_node_data, file, indent=4)
-                QMessageBox.information(self.ui, "Success", "Selected nodes data exported as JSON successfully")
+                QMessageBox.information(
+                    self.ui,
+                    "Success",
+                    "Selected nodes data exported as JSON successfully",
+                )
             except Exception as e:
-                self.handle_error(f"Error exporting selected nodes data as JSON: {str(e)}")
+                self.handle_error(
+                    f"Error exporting selected nodes data as JSON: {str(e)}"
+                )
 
     def export_as_txt(self):
         """
@@ -2173,14 +2197,24 @@ class WorldBuildingController(QObject):
                             file.write(f"Labels: {', '.join(node_data['labels'])}\n")
                             file.write("Relationships:\n")
                             for rel in node_data["relationships"]:
-                                file.write(f"  - Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}\n")
+                                file.write(
+                                    f"  - Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}\n"
+                                )
                             file.write("Additional Properties:\n")
-                            for key, value in node_data["additional_properties"].items():
+                            for key, value in node_data[
+                                "additional_properties"
+                            ].items():
                                 file.write(f"  - {key}: {value}\n")
                             file.write("\n")
-                QMessageBox.information(self.ui, "Success", "Selected nodes data exported as TXT successfully")
+                QMessageBox.information(
+                    self.ui,
+                    "Success",
+                    "Selected nodes data exported as TXT successfully",
+                )
             except Exception as e:
-                self.handle_error(f"Error exporting selected nodes data as TXT: {str(e)}")
+                self.handle_error(
+                    f"Error exporting selected nodes data as TXT: {str(e)}"
+                )
 
     def export_as_csv(self):
         """
@@ -2197,17 +2231,39 @@ class WorldBuildingController(QObject):
         if file_name:
             try:
                 with open(file_name, "w") as file:
-                    file.write("Name,Description,Tags,Labels,Relationships,Additional Properties\n")
+                    file.write(
+                        "Name,Description,Tags,Labels,Relationships,Additional Properties\n"
+                    )
                     for node_name in selected_nodes:
                         node_data = self._collect_node_data_for_export(node_name)
                         if node_data:
-                            file.write(f"{node_data['name']},{node_data['description']},{', '.join(node_data['tags'])},{', '.join(node_data['labels'])},")
-                            relationships = "; ".join([f"Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}" for rel in node_data["relationships"]])
-                            additional_properties = "; ".join([f"{key}: {value}" for key, value in node_data["additional_properties"].items()])
+                            file.write(
+                                f"{node_data['name']},{node_data['description']},{', '.join(node_data['tags'])},{', '.join(node_data['labels'])},"
+                            )
+                            relationships = "; ".join(
+                                [
+                                    f"Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}"
+                                    for rel in node_data["relationships"]
+                                ]
+                            )
+                            additional_properties = "; ".join(
+                                [
+                                    f"{key}: {value}"
+                                    for key, value in node_data[
+                                        "additional_properties"
+                                    ].items()
+                                ]
+                            )
                             file.write(f"{relationships},{additional_properties}\n")
-                QMessageBox.information(self.ui, "Success", "Selected nodes data exported as CSV successfully")
+                QMessageBox.information(
+                    self.ui,
+                    "Success",
+                    "Selected nodes data exported as CSV successfully",
+                )
             except Exception as e:
-                self.handle_error(f"Error exporting selected nodes data as CSV: {str(e)}")
+                self.handle_error(
+                    f"Error exporting selected nodes data as CSV: {str(e)}"
+                )
 
     def export_as_pdf(self):
         """
@@ -2233,20 +2289,46 @@ class WorldBuildingController(QObject):
                     if node_data:
                         pdf.add_page()
                         pdf.cell(200, 10, txt=f"Name: {node_data['name']}", ln=True)
-                        pdf.cell(200, 10, txt=f"Description: {node_data['description']}", ln=True)
-                        pdf.cell(200, 10, txt=f"Tags: {', '.join(node_data['tags'])}", ln=True)
-                        pdf.cell(200, 10, txt=f"Labels: {', '.join(node_data['labels'])}", ln=True)
+                        pdf.cell(
+                            200,
+                            10,
+                            txt=f"Description: {node_data['description']}",
+                            ln=True,
+                        )
+                        pdf.cell(
+                            200,
+                            10,
+                            txt=f"Tags: {', '.join(node_data['tags'])}",
+                            ln=True,
+                        )
+                        pdf.cell(
+                            200,
+                            10,
+                            txt=f"Labels: {', '.join(node_data['labels'])}",
+                            ln=True,
+                        )
                         pdf.cell(200, 10, txt="Relationships:", ln=True)
                         for rel in node_data["relationships"]:
-                            pdf.cell(200, 10, txt=f"  - Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}", ln=True)
+                            pdf.cell(
+                                200,
+                                10,
+                                txt=f"  - Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}",
+                                ln=True,
+                            )
                         pdf.cell(200, 10, txt="Additional Properties:", ln=True)
                         for key, value in node_data["additional_properties"].items():
                             pdf.cell(200, 10, txt=f"  - {key}: {value}", ln=True)
 
                 pdf.output(file_name)
-                QMessageBox.information(self.ui, "Success", "Selected nodes data exported as PDF successfully")
+                QMessageBox.information(
+                    self.ui,
+                    "Success",
+                    "Selected nodes data exported as PDF successfully",
+                )
             except Exception as e:
-                self.handle_error(f"Error exporting selected nodes data as PDF: {str(e)}")
+                self.handle_error(
+                    f"Error exporting selected nodes data as PDF: {str(e)}"
+                )
 
     def get_selected_nodes(self) -> List[str]:
         """
@@ -2264,15 +2346,20 @@ class WorldBuildingController(QObject):
                         # If this is a relationship item, check its children
                         for child_row in range(child.rowCount()):
                             node_item = child.child(child_row)
-                            if (node_item and
-                                    node_item.checkState() == Qt.CheckState.Checked and
-                                    node_item.data(Qt.ItemDataRole.UserRole)):
-                                selected_nodes.append(node_item.data(Qt.ItemDataRole.UserRole))
+                            if (
+                                node_item
+                                and node_item.checkState() == Qt.CheckState.Checked
+                                and node_item.data(Qt.ItemDataRole.UserRole)
+                            ):
+                                selected_nodes.append(
+                                    node_item.data(Qt.ItemDataRole.UserRole)
+                                )
                         traverse_tree(child)
                     else:
                         # If this is a node item directly
-                        if (child.checkState() == Qt.CheckState.Checked and
-                                child.data(Qt.ItemDataRole.UserRole)):
+                        if child.checkState() == Qt.CheckState.Checked and child.data(
+                            Qt.ItemDataRole.UserRole
+                        ):
                             selected_nodes.append(child.data(Qt.ItemDataRole.UserRole))
 
         # Start traversal from root
@@ -2600,7 +2687,6 @@ class WorldBuildingApp(QMainWindow):
         export_pdf_action = QAction("Export as PDF", self)
         export_pdf_action.triggered.connect(self.components.controller.export_as_pdf)
         export_menu.addAction(export_pdf_action)
-
 
     def _handle_initialization_error(self, error: Exception) -> None:
         """
