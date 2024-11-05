@@ -502,11 +502,7 @@ class Neo4jModel:
     def _save_node_transaction(tx, node_data):
         """
         Private transaction handler for save_node.
-        Handles the complex transaction of saving a node and its relationships.
-
-        Args:
-            tx: The transaction object.
-            node_data (dict): Node data including properties and relationships.
+        Preserves system properties (starting with '_') while replacing all others.
         """
         # Extract data from node_data
         name = node_data["name"]
@@ -516,23 +512,45 @@ class Neo4jModel:
         relationships = node_data["relationships"]
         labels = node_data["labels"]
 
-        # Merge with 'Node' label
-        query_merge = (
-            "MERGE (n {name: $name}) "
-            "SET n.description = $description, n.tags = $tags"
-        )
-        tx.run(query_merge, name=name, description=description, tags=tags)
+        # 1. Get existing system properties
+        query_get_system = """
+        MATCH (n {name: $name})
+        WITH n, keys(n) as props
+        UNWIND props as k
+        WITH n, k WHERE k STARTS WITH '_'
+        RETURN collect({key: k, value: n[k]}) as system_props
+        """
+        result = tx.run(query_get_system, name=name)
+        record = result.single()
+        system_props = {}
+        if record and record["system_props"]:
+            system_props = {
+                item["key"]: item["value"] for item in record["system_props"]
+            }
 
-        # Retrieve existing labels excluding 'Node'
+        # 2. Reset node with core properties while preserving system properties
+        base_props = {
+            "name": name,
+            "description": description,
+            "tags": tags,
+            **system_props,  # Include system properties in base set
+        }
+
+        query_reset = """
+        MATCH (n {name: $name})
+        SET n = $base_props
+        """
+        tx.run(query_reset, name=name, base_props=base_props)
+
+        # 3. Handle labels
         result = tx.run("MATCH (n {name: $name}) RETURN labels(n) AS labels", name=name)
         record = result.single()
         existing_labels = record["labels"] if record else []
         existing_labels = [label for label in existing_labels if label != "Node"]
 
-        # Determine labels to add and remove, excluding 'Node'
+        # Determine labels to add and remove
         input_labels_set = set(labels) - {"Node"}
         existing_labels_set = set(existing_labels)
-
         labels_to_add = input_labels_set - existing_labels_set
         labels_to_remove = existing_labels_set - input_labels_set
 
@@ -542,17 +560,23 @@ class Neo4jModel:
             query_add = f"MATCH (n {{name: $name}}) SET n:{labels_str}"
             tx.run(query_add, name=name)
 
-        # Remove labels that are no longer needed
+        # Remove old labels
         if labels_to_remove:
             labels_str = ", ".join([f"n:`{label}`" for label in labels_to_remove])
             query_remove = f"MATCH (n {{name: $name}}) REMOVE {labels_str}"
             tx.run(query_remove, name=name)
 
-        # Set additional properties if any
-        if additional_properties:
+        # 4. Add non-system additional properties (if any)
+        filtered_additional_props = {
+            k: v for k, v in additional_properties.items() if not k.startswith("_")
+        }
+        if filtered_additional_props:
             query_props = "MATCH (n {name: $name}) SET n += $additional_properties"
-            tx.run(query_props, name=name, additional_properties=additional_properties)
+            tx.run(
+                query_props, name=name, additional_properties=filtered_additional_props
+            )
 
+        # 5. Handle relationships
         # Remove existing relationships
         query_remove_rels = "MATCH (n {name: $name})-[r]-() DELETE r"
         tx.run(query_remove_rels, name=name)
@@ -1700,8 +1724,14 @@ class WorldBuildingController(QObject):
                 continue
 
             key_text = key.text().strip()
+
             if key_text.lower() in self.config.RESERVED_PROPERTY_KEYS:
                 raise ValueError(f"Property key '{key_text}' is reserved")
+
+            if key_text.startswith("_"):
+                raise ValueError(
+                    f"Property key '{key_text}' cannot start with an underscore"
+                )
 
             try:
                 value_text = value.text().strip() if value else ""
@@ -1869,7 +1899,12 @@ class WorldBuildingController(QObject):
             # Update properties table
             self.ui.properties_table.setRowCount(0)
             for key, value in properties.items():
+
+                if key.startswith("_"):
+                    continue
+
                 if key not in ["name", "description", "tags", "image_path"]:
+
                     row = self.ui.properties_table.rowCount()
                     self.ui.properties_table.insertRow(row)
                     self.ui.properties_table.setItem(row, 0, QTableWidgetItem(key))
