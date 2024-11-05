@@ -6,7 +6,7 @@ import os
 import sys
 import traceback
 from dataclasses import dataclass
-from datetime import time
+from datetime import time, datetime
 from logging.handlers import RotatingFileHandler
 from typing import Optional, Dict, Any, List
 
@@ -502,7 +502,7 @@ class Neo4jModel:
     def _save_node_transaction(tx, node_data):
         """
         Private transaction handler for save_node.
-        Preserves system properties (starting with '_') while replacing all others.
+        Preserves and updates system properties (_created, _modified, _author) while replacing all others.
         """
         # Extract data from node_data
         name = node_data["name"]
@@ -513,22 +513,27 @@ class Neo4jModel:
         labels = node_data["labels"]
 
         # 1. Get existing system properties
+        # Updated to specifically check for _created timestamp
         query_get_system = """
         MATCH (n {name: $name})
-        WITH n, keys(n) as props
-        UNWIND props as k
-        WITH n, k WHERE k STARTS WITH '_'
-        RETURN collect({key: k, value: n[k]}) as system_props
+        RETURN n._created as created
         """
         result = tx.run(query_get_system, name=name)
         record = result.single()
-        system_props = {}
-        if record and record["system_props"]:
-            system_props = {
-                item["key"]: item["value"] for item in record["system_props"]
-            }
 
-        # 2. Reset node with core properties while preserving system properties
+        # 2. Prepare system properties
+        system_props = {
+            "_author": "System",  # Always set author
+            "_modified": datetime.now().isoformat(),  # Always update modified time
+        }
+
+        # Only set _created if it doesn't exist
+        if not record or record["created"] is None:
+            system_props["_created"] = datetime.now().isoformat()
+        else:
+            system_props["_created"] = record["created"]  # Preserve existing creation time
+
+        # 3. Reset node with core properties and system properties
         base_props = {
             "name": name,
             "description": description,
@@ -542,7 +547,7 @@ class Neo4jModel:
         """
         tx.run(query_reset, name=name, base_props=base_props)
 
-        # 3. Handle labels
+        # 4. Handle labels
         result = tx.run("MATCH (n {name: $name}) RETURN labels(n) AS labels", name=name)
         record = result.single()
         existing_labels = record["labels"] if record else []
@@ -566,7 +571,7 @@ class Neo4jModel:
             query_remove = f"MATCH (n {{name: $name}}) REMOVE {labels_str}"
             tx.run(query_remove, name=name)
 
-        # 4. Add non-system additional properties (if any)
+        # 5. Add non-system additional properties (if any)
         filtered_additional_props = {
             k: v for k, v in additional_properties.items() if not k.startswith("_")
         }
@@ -576,7 +581,7 @@ class Neo4jModel:
                 query_props, name=name, additional_properties=filtered_additional_props
             )
 
-        # 5. Handle relationships
+        # 6. Handle relationships
         # Remove existing relationships
         query_remove_rels = "MATCH (n {name: $name})-[r]-() DELETE r"
         tx.run(query_remove_rels, name=name)
