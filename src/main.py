@@ -1078,7 +1078,7 @@ class WorldBuildingUI(QWidget):
         """
         Set up relationships table columns with proper sizing.
         """
-        self.relationships_table.setColumnCount(5)
+        self.relationships_table.setColumnCount(6)
         self.relationships_table.setHorizontalHeaderLabels(
             ["Type", "Related Node", "Direction", "Properties", ""]
         )
@@ -1092,10 +1092,13 @@ class WorldBuildingUI(QWidget):
         header.setSectionResizeMode(
             4, QHeaderView.ResizeMode.Fixed
         )  # Delete button column
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)  # Edit button column
+
 
         # Set fixed widths for specific columns
         self.relationships_table.setColumnWidth(2, 80)  # Direction column
         self.relationships_table.setColumnWidth(4, 38)  # Delete button column
+        self.relationships_table.setColumnWidth(5, 100)  # Edit button column
 
     def _setup_properties_table_columns(self):
         """
