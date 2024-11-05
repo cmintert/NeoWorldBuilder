@@ -56,6 +56,8 @@ from PyQt6.QtWidgets import (
     QMenuBar,
     QCheckBox,
     QAbstractItemView,
+    QDialog,
+    QDialogButtonBox,
 )
 from neo4j import GraphDatabase
 
@@ -1237,6 +1239,11 @@ class WorldBuildingUI(QWidget):
         delete_button = self.create_delete_button(self.relationships_table, row)
         self.relationships_table.setCellWidget(row, 4, delete_button)
 
+        # Add 'Edit Properties' button
+        edit_properties_button = QPushButton("Edit Properties")
+        edit_properties_button.clicked.connect(lambda: self.open_properties_dialog(row))
+        self.relationships_table.setCellWidget(row, 5, edit_properties_button)
+
     def add_property_row(self):
         """
         Add property row with centered delete button.
@@ -1272,6 +1279,63 @@ class WorldBuildingUI(QWidget):
             QMessageBox.warning(self, "Stylesheet Error", error_message)
         logging.debug("Completed apply_styles method")
 
+    def open_properties_dialog(self, row):
+        """
+        Open a dialog to edit relationship properties.
+
+        Args:
+            row (int): The row number of the relationship.
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Edit Relationship Properties")
+        dialog.setModal(True)
+
+        layout = QVBoxLayout(dialog)
+
+        # Create properties table
+        properties_table = QTableWidget(0, 2)
+        properties_table.setHorizontalHeaderLabels(["Key", "Value"])
+        properties_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        layout.addWidget(properties_table)
+
+        # Populate properties table with existing properties
+        properties_json = self.relationships_table.item(row, 3).text()
+        if properties_json:
+            properties = json.loads(properties_json)
+            for key, value in properties.items():
+                properties_table.insertRow(properties_table.rowCount())
+                properties_table.setItem(properties_table.rowCount() - 1, 0, QTableWidgetItem(key))
+                properties_table.setItem(properties_table.rowCount() - 1, 1, QTableWidgetItem(value))
+
+        # Add buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        button_box.accepted.connect(lambda: self.set_relationship_properties(row, properties_table, dialog))
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+
+        dialog.exec()
+
+    def set_relationship_properties(self, row, properties_table, dialog):
+        """
+        Set relationship properties from the dialog.
+
+        Args:
+            row (int): The row number of the relationship.
+            properties_table (QTableWidget): The properties table widget.
+            dialog (QDialog): The dialog widget.
+        """
+        properties = {}
+        for i in range(properties_table.rowCount()):
+            key = properties_table.item(i, 0).text()
+            value = properties_table.item(i, 1).text()
+            if key in properties:
+                QMessageBox.warning(self, "Duplicate Key", f"Duplicate key '{key}' found. Please ensure all keys are unique.")
+                return
+            properties[key] = value
+
+        properties_json = json.dumps(properties)
+        self.relationships_table.item(row, 3).setText(properties_json)
+        dialog.accept()
 
 class WorldBuildingController(QObject):
     """
