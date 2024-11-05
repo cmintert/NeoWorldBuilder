@@ -1233,6 +1233,8 @@ class WorldBuildingUI(QWidget):
 
         # Properties with validation
         props_item = QTableWidgetItem(properties)
+        props_item.setBackground(Qt.GlobalColor.lightGray)
+        props_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.relationships_table.setItem(row, 3, props_item)
 
         # Add a centered delete button
@@ -1304,8 +1306,14 @@ class WorldBuildingUI(QWidget):
             properties = json.loads(properties_json)
             for key, value in properties.items():
                 properties_table.insertRow(properties_table.rowCount())
-                properties_table.setItem(properties_table.rowCount() - 1, 0, QTableWidgetItem(key))
-                properties_table.setItem(properties_table.rowCount() - 1, 1, QTableWidgetItem(value))
+                key_item = QTableWidgetItem(key)
+                key_item.setBackground(Qt.GlobalColor.lightGray)
+                key_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                value_item = QTableWidgetItem(value)
+                value_item.setBackground(Qt.GlobalColor.lightGray)
+                value_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                properties_table.setItem(properties_table.rowCount() - 1, 0, key_item)
+                properties_table.setItem(properties_table.rowCount() - 1, 1, value_item)
 
         # Add buttons
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)

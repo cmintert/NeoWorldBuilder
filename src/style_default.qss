@@ -261,3 +261,11 @@ QToolTip {
 #depthSpinBox:focus {
     border-color: #007bff;        /* Blue border when focused */
 }
+
+/* Style for relationship properties */
+.relationship-property {
+    background-color: #f0f0f0;    /* Light gray background */
+    border-radius: 4px;           /* Rounded corners */
+    padding: 5px;                 /* Padding inside the property */
+    margin: 2px;                  /* Margin around the property */
+}
