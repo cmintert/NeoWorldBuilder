@@ -1334,6 +1334,11 @@ class WorldBuildingUI(QWidget):
         button_box.rejected.connect(dialog.reject)
         layout.addWidget(button_box)
 
+        # Add property button
+        add_property_button = QPushButton("Add Property")
+        add_property_button.clicked.connect(lambda: self.add_property_row(rel_properties_table))
+        layout.addWidget(add_property_button)
+
         dialog.exec()
 
     def set_relationship_properties(self, row, properties_table, dialog):
