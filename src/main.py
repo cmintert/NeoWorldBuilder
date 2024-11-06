@@ -533,7 +533,9 @@ class Neo4jModel:
         if not record or record["created"] is None:
             system_props["_created"] = datetime.now().isoformat()
         else:
-            system_props["_created"] = record["created"]  # Preserve existing creation time
+            system_props["_created"] = record[
+                "created"
+            ]  # Preserve existing creation time
 
         # 3. Reset node with core properties and system properties
         base_props = {
@@ -1006,6 +1008,9 @@ class WorldBuildingUI(QWidget):
         # Add property button
         self.add_prop_button = QPushButton("➕ Add Property")
         self.add_prop_button.setObjectName("addPropertyButton")
+        self.add_prop_button.clicked.connect(
+            lambda checked=False: self.add_property_row(self.properties_table)
+        )
         self.add_prop_button.setFixedWidth(150)
         self.add_prop_button.setMinimumHeight(30)
 
@@ -1092,8 +1097,9 @@ class WorldBuildingUI(QWidget):
         header.setSectionResizeMode(
             4, QHeaderView.ResizeMode.Fixed
         )  # Delete button column
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)  # Edit button column
-
+        header.setSectionResizeMode(
+            5, QHeaderView.ResizeMode.Fixed
+        )  # Edit button column
 
         # Set fixed widths for specific columns
         self.relationships_table.setColumnWidth(2, 80)  # Direction column
@@ -1246,20 +1252,22 @@ class WorldBuildingUI(QWidget):
 
         # Add 'Edit Properties' button
         edit_properties_button = QPushButton("Edit Properties")
-        edit_properties_button.clicked.connect(lambda: self.open_relation_properties_dialog(row))
+        edit_properties_button.clicked.connect(
+            lambda: self.open_relation_properties_dialog(row)
+        )
         self.relationships_table.setCellWidget(row, 5, edit_properties_button)
 
-    def add_property_row(self, table=None):
+    def add_property_row(self, table):
         """
         Add property row with centered delete button.
         """
 
-        row = self.properties_table.rowCount()
-        self.properties_table.insertRow(row)
+        row = table.rowCount()
+        table.insertRow(row)
 
         # Add a centered delete button
-        delete_button = self.create_delete_button(self.properties_table, row)
-        self.properties_table.setCellWidget(row, 2, delete_button)
+        delete_button = self.create_delete_button(table, row)
+        table.setCellWidget(row, 2, delete_button)
 
     def apply_styles(self):
         """
@@ -1298,10 +1306,24 @@ class WorldBuildingUI(QWidget):
 
         layout = QVBoxLayout(dialog)
 
+        # Add property button
+        add_prop_button = QPushButton("➕ Add Property")
+        add_prop_button.setObjectName("addRelPropertyButton")
+        add_prop_button.clicked.connect(
+            lambda checked=False: self.add_property_row(rel_properties_table)
+        )
+        add_prop_button.setFixedWidth(150)
+        add_prop_button.setMinimumHeight(30)
+
+        layout.addWidget(add_prop_button)
+
         # Create properties table
         rel_properties_table = QTableWidget(0, 3)
+        rel_properties_table.setObjectName("relPropertiesTable")
         rel_properties_table.setHorizontalHeaderLabels(["Key", "Value", ""])
-        rel_properties_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        rel_properties_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
         layout.addWidget(rel_properties_table)
         rel_properties_table.verticalHeader().setVisible(False)
 
@@ -1317,27 +1339,30 @@ class WorldBuildingUI(QWidget):
                 value_item = QTableWidgetItem(value)
                 value_item.setBackground(Qt.GlobalColor.lightGray)
                 value_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                rel_properties_table.setItem(rel_properties_table.rowCount() - 1, 0, key_item)
-                rel_properties_table.setItem(rel_properties_table.rowCount() - 1, 1, value_item)
-
+                rel_properties_table.setItem(
+                    rel_properties_table.rowCount() - 1, 0, key_item
+                )
+                rel_properties_table.setItem(
+                    rel_properties_table.rowCount() - 1, 1, value_item
+                )
 
                 # Add a delete button
-                delete_button = self.create_delete_button(rel_properties_table,
-                                                          rel_properties_table.rowCount() - 1)
-                rel_properties_table.setCellWidget(rel_properties_table.rowCount() - 1, 2,
-                                                   delete_button)
+                delete_button = self.create_delete_button(
+                    rel_properties_table, rel_properties_table.rowCount() - 1
+                )
+                rel_properties_table.setCellWidget(
+                    rel_properties_table.rowCount() - 1, 2, delete_button
+                )
 
         # Add buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok |
-                                      QDialogButtonBox.StandardButton.Cancel)
-        button_box.accepted.connect(lambda: self.set_relationship_properties(row, rel_properties_table, dialog))
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(
+            lambda: self.set_relationship_properties(row, rel_properties_table, dialog)
+        )
         button_box.rejected.connect(dialog.reject)
         layout.addWidget(button_box)
-
-        # Add property button
-        add_property_button = QPushButton("Add Property")
-        add_property_button.clicked.connect(lambda: self.add_property_row(rel_properties_table))
-        layout.addWidget(add_property_button)
 
         dialog.exec()
 
@@ -1355,13 +1380,18 @@ class WorldBuildingUI(QWidget):
             key = properties_table.item(i, 0).text()
             value = properties_table.item(i, 1).text()
             if key in properties:
-                QMessageBox.warning(self, "Duplicate Key", f"Duplicate key '{key}' found. Please ensure all keys are unique.")
+                QMessageBox.warning(
+                    self,
+                    "Duplicate Key",
+                    f"Duplicate key '{key}' found. Please ensure all keys are unique.",
+                )
                 return
             properties[key] = value
 
         properties_json = json.dumps(properties)
         self.relationships_table.item(row, 3).setText(properties_json)
         dialog.accept()
+
 
 class WorldBuildingController(QObject):
     """
@@ -1545,7 +1575,6 @@ class WorldBuildingController(QObject):
         self.ui.name_input.editingFinished.connect(self.load_node_data)
 
         # Table buttons
-        self.ui.add_prop_button.clicked.connect(self.ui.add_property_row)
         self.ui.add_rel_button.clicked.connect(self.ui.add_relationship_row)
 
         # Check for unsaved changes
