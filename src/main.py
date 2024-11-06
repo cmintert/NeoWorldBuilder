@@ -1021,7 +1021,7 @@ class WorldBuildingUI(QWidget):
         self.properties_table.verticalHeader().setVisible(False)
 
         # Set up columns
-        self._setup_properties_table_columns()
+        self._setup_properties_table_columns(self.properties_table)
 
         layout.addWidget(self.add_prop_button)
         layout.addWidget(self.properties_table)
@@ -1106,21 +1106,23 @@ class WorldBuildingUI(QWidget):
         self.relationships_table.setColumnWidth(4, 38)  # Delete button column
         self.relationships_table.setColumnWidth(5, 100)  # Edit button column
 
-    def _setup_properties_table_columns(self):
+    def _setup_properties_table_columns(self, table):
         """
         Set up properties table columns with proper sizing.
         """
-        self.properties_table.setColumnCount(3)
-        self.properties_table.setHorizontalHeaderLabels(["Key", "Value", ""])
+        table.setColumnCount(3)
+        table.setHorizontalHeaderLabels(["Key", "Value", ""])
+
+        table.verticalHeader().setVisible(False)
 
         # Set properties table column behaviors
-        header = self.properties_table.horizontalHeader()
+        header = table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # Key
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Value
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)  # Delete button
 
         # Set fixed width for delete button column
-        self.properties_table.setColumnWidth(2, 38)  # Delete button column
+        table.setColumnWidth(2, 38)  # Delete button column
 
     #############################################
     # Progress and Status Methods
@@ -1303,8 +1305,10 @@ class WorldBuildingUI(QWidget):
         dialog = QDialog(self)
         dialog.setWindowTitle("Edit Relationship Properties")
         dialog.setModal(True)
+        dialog.setMinimumWidth(600)
 
         layout = QVBoxLayout(dialog)
+        layout.ObjectName = "RelPropLayout"
 
         # Add property button
         add_prop_button = QPushButton("➕ Add Property")
@@ -1325,7 +1329,8 @@ class WorldBuildingUI(QWidget):
             QHeaderView.ResizeMode.Stretch
         )
         layout.addWidget(rel_properties_table)
-        rel_properties_table.verticalHeader().setVisible(False)
+
+        self._setup_properties_table_columns(rel_properties_table)
 
         # Populate properties table with existing properties
         properties_json = self.relationships_table.item(row, 3).text()
