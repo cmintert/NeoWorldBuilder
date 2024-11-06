@@ -9,6 +9,17 @@ from dataclasses import dataclass
 from datetime import time, datetime
 from logging.handlers import RotatingFileHandler
 from typing import Optional, Dict, Any, List
+from collections import Counter
+
+import pandas as pd
+from mlxtend.preprocessing import TransactionEncoder
+from mlxtend.frequent_patterns import apriori, association_rules
+from mlxtend.preprocessing import TransactionEncoder
+from mlxtend.frequent_patterns import apriori, association_rules
+from collections import Counter
+
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import LabelEncoder
 
 from PyQt6.QtCore import (
     QThread,
@@ -91,6 +102,7 @@ class Config:
                     setattr(self, f"{category}_{key}", value)
             else:
                 setattr(self, category, values)
+
 
 
 class BaseNeo4jWorker(QThread):
@@ -315,6 +327,156 @@ class BatchWorker(BaseNeo4jWorker):
             self.batch_finished.emit(results)
 
 
+class SuggestionWorker(BaseNeo4jWorker):
+    suggestions_ready = pyqtSignal(dict)
+
+    def __init__(self, uri, auth, node_data):
+        super().__init__(uri, auth)
+        self.node_data = node_data
+        logging.basicConfig(level=logging.DEBUG)
+
+    def _find_similar_nodes(self, session, node_data):
+        """Simple node finder based on labels."""
+        try:
+            logging.debug("Finding similar nodes")
+            labels = node_data.get('labels', [])
+            name = node_data.get('name', '')
+
+            # Just get nodes with same label, excluding self
+            query = """
+            MATCH (n)
+            WHERE any(label IN $labels WHERE label IN labels(n))
+            AND n.name <> $name
+            RETURN n
+            LIMIT 5
+            """
+            result = session.run(query, labels=labels, name=name)
+            similar_nodes = [record['n'] for record in result]
+            logging.debug(f"Found similar nodes: {similar_nodes}")
+            return similar_nodes
+
+        except Exception as e:
+            logging.error(f"Error finding similar nodes: {str(e)}", exc_info=True)
+            return []
+
+    def _get_tag_suggestions(self, df):
+        """Simple tag frequency-based suggestions."""
+        try:
+            all_tags = []
+            current_tags = set(self.node_data.get('tags', []))
+
+            # Collect all tags from similar nodes
+            for tags in df['tags']:
+                if isinstance(tags, list):
+                    all_tags.extend(tags)
+
+            # Count tag frequencies
+            tag_counts = Counter(all_tags)
+
+            # Convert to suggestions with confidence scores
+            suggestions = []
+            total_occurrences = sum(tag_counts.values())
+
+            for tag, count in tag_counts.most_common():
+                # Skip if tag is already in current node
+                if tag in current_tags:
+                    continue
+
+                # Simple confidence calculation: (count / total) * 100
+                confidence = (count / total_occurrences) * 100
+                suggestions.append((tag, confidence))
+
+                if len(suggestions) >= 5:  # Limit to top 5 suggestions
+                    break
+
+            logging.debug(f"Tag suggestions: {suggestions}")
+            return suggestions
+
+        except Exception as e:
+            logging.error(f"Error generating tag suggestions: {str(e)}", exc_info=True)
+            return []
+
+    def _get_property_suggestions(self, df):
+        """Simple property value frequency-based suggestions."""
+        try:
+            suggestions = {}
+            exclude_props = {'name', 'description', 'tags', '_created', '_modified', '_author'}
+
+            # Look at each column (property)
+            for column in df.columns:
+                if column in exclude_props or column.startswith('_'):
+                    continue
+
+                # Get value counts for this property
+                value_counts = df[column].value_counts()
+                total = len(df[column])
+
+                # Convert to suggestions with confidence
+                prop_suggestions = []
+                for value, count in value_counts.items():
+                    confidence = (count / total) * 100
+                    prop_suggestions.append((str(value), confidence))
+
+                if prop_suggestions:
+                    suggestions[column] = prop_suggestions[:3]  # Top 3 values per property
+
+            logging.debug(f"Property suggestions: {suggestions}")
+            return suggestions
+
+        except Exception as e:
+            logging.error(f"Error generating property suggestions: {str(e)}", exc_info=True)
+            return {}
+
+    def execute_operation(self):
+        """Execute the simplified suggestion generation."""
+        try:
+            logging.info("Starting suggestion generation process")
+
+            with self._driver.session() as session:
+                similar_nodes = self._find_similar_nodes(session, self.node_data)
+
+                if not similar_nodes:
+                    logging.info("No similar nodes found")
+                    suggestions = {'tags': [], 'properties': {}, 'relationships': []}
+                    if not self._is_cancelled:
+                        self.suggestions_ready.emit(suggestions)
+                    return
+
+                # Create DataFrame from similar nodes
+                node_data_list = []
+                for node in similar_nodes:
+                    properties = dict(node)
+                    if 'tags' in properties:
+                        properties['tags'] = list(properties['tags'])
+                    node_data_list.append(properties)
+
+                df = pd.DataFrame(node_data_list)
+                logging.debug(f"Created DataFrame with columns: {df.columns.tolist()}")
+
+                # Generate suggestions
+                suggestions = {
+                    'tags': self._get_tag_suggestions(df),
+                    'properties': self._get_property_suggestions(df),
+                    'relationships': []  # Simplified version skips relationships
+                }
+
+                logging.debug(f"Generated suggestions: {json.dumps(suggestions, indent=2)}")
+
+                if not self._is_cancelled:
+                    self.suggestions_ready.emit(suggestions)
+                    logging.info("Suggestion generation completed successfully")
+
+        except Exception as e:
+            error_message = f"Error generating suggestions: {str(e)}"
+            logging.error(error_message, exc_info=True)
+            self.error_occurred.emit(error_message)
+
+
+
+
+
+
+
 class Neo4jWorkerManager:
     """Manages Neo4j worker threads"""
 
@@ -366,9 +528,7 @@ class Neo4jWorkerManager:
 
 
 class Neo4jModel:
-    #############################################
-    # 1. Connection Management
-    #############################################
+    """Gateway to the Neo4j database"""
 
     def __init__(self, uri, username, password):
         """
@@ -386,16 +546,12 @@ class Neo4jModel:
         logging.info("Neo4jModel initialized and connected to the database.")
 
     def connect(self):
-        """
-        Establish connection to Neo4j.
-        """
+
         if not self._driver:
             self._driver = GraphDatabase.driver(self._uri, auth=self._auth)
 
     def ensure_connection(self):
-        """
-        Ensure we have a valid connection, reconnect if necessary.
-        """
+
         try:
             if self._driver:
                 self._driver.verify_connectivity()
@@ -720,6 +876,32 @@ class Neo4jModel:
         worker.query_finished.connect(callback)
         return worker
 
+    def generate_suggestions(
+            self, node_data: Dict[str, Any], suggestions_callback: callable,
+            error_callback: callable
+    ):
+        """
+        Generate suggestions for a given node using SuggestionWorker.
+
+        Args:
+            node_data (Dict[str, Any]): The data of the node for which to generate suggestions.
+            suggestions_callback (callable): The function to call with the suggestions when ready.
+            error_callback (callable): The function to call in case of errors.
+        """
+        worker = SuggestionWorker(self._uri, self._auth, node_data)
+        worker.suggestions_ready.connect(suggestions_callback)
+        worker.error_occurred.connect(error_callback)
+
+        # Ensure the worker is removed from active_workers when finished
+        worker.finished.connect(lambda: self.active_workers.discard(worker))
+
+        # Add the worker to the active_workers set to keep a reference
+        self.active_workers.add(worker)
+
+        # Start the worker thread
+        worker.start()
+
+
 
 class WorldBuildingUI(QWidget):
     """Enhanced UI class with thread-aware components and better feedback"""
@@ -745,6 +927,8 @@ class WorldBuildingUI(QWidget):
             Qt.WidgetAttribute.WA_TranslucentBackground, True
         )  # Allow transparency
         self.init_ui()
+
+
 
     def init_ui(self):
         """
@@ -774,6 +958,18 @@ class WorldBuildingUI(QWidget):
 
         # Apply styles
         self.apply_styles()
+
+    def show_loading(self, is_loading: bool):
+        self.save_button.setEnabled(not is_loading)
+        self.delete_button.setEnabled(not is_loading)
+        self.cancel_button.setVisible(is_loading)
+        self.name_input.setReadOnly(is_loading)
+        self.suggest_button.setEnabled(not is_loading)
+        if is_loading:
+            self.progress_bar.setVisible(True)
+            self.progress_bar.setRange(0, 0)  # Indeterminate progress
+        else:
+            self.progress_bar.setVisible(False)
 
     def _create_left_panel(self):
         """
@@ -923,8 +1119,15 @@ class WorldBuildingUI(QWidget):
         layout.addRow("Description:", self.description_input)
         layout.addRow("Labels:", self.labels_input)
         layout.addRow("Tags:", self.tags_input)
-        layout.addRow(image_group)
 
+        # Suggest button
+        self.suggest_button = QPushButton("Suggest additional Node Data")
+        self.suggest_button.setObjectName("suggestButton")
+        self.suggest_button.setFixedWidth(250)
+        self.suggest_button.setMinimumHeight(30)
+
+        layout.addRow(image_group)
+        layout.addRow(self.suggest_button)
         return tab
 
     def _create_image_group(self):
@@ -1436,6 +1639,7 @@ class WorldBuildingController(QObject):
         self.current_relationship_worker = None
         self.current_search_worker = None
         self.current_delete_worker = None
+        self.current_suggestion_worker = None
 
     #############################################
     # 1. Initialization Methods
@@ -1582,6 +1786,9 @@ class WorldBuildingController(QObject):
         # Table buttons
         self.ui.add_rel_button.clicked.connect(self.ui.add_relationship_row)
 
+        #connect the suggest button
+        self.ui.suggest_button.clicked.connect(self.show_suggestions_modal)
+
         # Check for unsaved changes
         self.ui.name_input.textChanged.connect(self.update_unsaved_changes_indicator)
         self.ui.description_input.textChanged.connect(
@@ -1595,6 +1802,8 @@ class WorldBuildingController(QObject):
         self.ui.relationships_table.itemChanged.connect(
             self.update_unsaved_changes_indicator
         )
+
+
 
         # Depth spinbox change
         self.ui.depth_spinbox.valueChanged.connect(self.on_depth_changed)
@@ -1758,6 +1967,101 @@ class WorldBuildingController(QObject):
     # 4. Auto-completion and Search
     #############################################
 
+    def show_suggestions_modal(self):
+        node_data = self._collect_node_data()
+        if not node_data:
+            return
+
+        # Show loading indicator
+        self.ui.show_loading(True)
+
+        # Cancel any existing SuggestionWorker
+        if self.current_suggestion_worker:
+            self.current_suggestion_worker.cancel()
+            self.current_suggestion_worker.wait()
+            self.current_suggestion_worker = None
+            logging.debug("Existing SuggestionWorker canceled and cleaned up.")
+
+        # Create and start the SuggestionWorker
+        self.current_suggestion_worker = SuggestionWorker(self.model._uri, self.model._auth,
+                                                          node_data)
+        self.current_suggestion_worker.suggestions_ready.connect(self.handle_suggestions)
+        self.current_suggestion_worker.error_occurred.connect(self.handle_error)
+        self.current_suggestion_worker.finished.connect(self.on_suggestion_worker_finished)
+        self.current_suggestion_worker.start()
+
+        logging.debug("SuggestionWorker started successfully.")
+
+    def on_suggestion_worker_finished(self):
+        """
+        Cleanup after SuggestionWorker has finished.
+        """
+        self.current_suggestion_worker = None
+        self.ui.show_loading(False)
+        logging.debug("SuggestionWorker has finished and cleaned up.")
+
+    def handle_suggestions(self, suggestions):
+        """
+        Handle the suggestions received from the SuggestionWorker.
+
+        Args:
+            suggestions (dict): The suggestions dictionary containing tags, properties, and relationships.
+        """
+        logging.debug(f"handle_suggestions called with suggestions: {suggestions}")
+        # Hide loading indicator
+        self.ui.show_loading(False)
+        logging.debug("Loading indicator hidden.")
+
+        if not suggestions or all(not suggestions[key] for key in suggestions):
+            logging.debug("No suggestions found.")
+            QMessageBox.information(self.ui, "No Suggestions",
+                                    "No suggestions were found for this node.")
+            return
+
+        dialog = SuggestionDialog(suggestions, self.ui)
+        if dialog.exec():
+            selected = dialog.selected_suggestions
+            logging.debug(f"User selected suggestions: {selected}")
+
+            # Update tags
+            existing_tags = self._parse_comma_separated(self.ui.tags_input.text())
+            new_tags = list(set(existing_tags + selected['tags']))
+            self.ui.tags_input.setText(', '.join(new_tags))
+            logging.debug(f"Updated tags: {new_tags}")
+
+            # Update properties
+            for key, value in selected['properties'].items():
+                self.add_or_update_property(key, value)
+                logging.debug(f"Updated property - Key: {key}, Value: {value}")
+
+            # Update relationships
+            for rel in selected['relationships']:
+                rel_type, target, direction, props = rel
+                self.ui.add_relationship_row(rel_type, target, direction, json.dumps(props))
+                logging.debug(
+                    f"Added relationship - Type: {rel_type}, Target: {target}, Direction: {direction}, Properties: {props}")
+
+            QMessageBox.information(self.ui, "Suggestions Applied",
+                                    "Selected suggestions have been applied to the node.")
+        else:
+            logging.debug("Suggestion dialog was canceled by the user.")
+
+    def add_or_update_property(self, key, value):
+        found = False
+        for row in range(self.ui.properties_table.rowCount()):
+            item_key = self.ui.properties_table.item(row, 0)
+            if item_key and item_key.text() == key:
+                self.ui.properties_table.item(row, 1).setText(str(value))
+                found = True
+                break
+        if not found:
+            row = self.ui.properties_table.rowCount()
+            self.ui.properties_table.insertRow(row)
+            self.ui.properties_table.setItem(row, 0, QTableWidgetItem(key))
+            self.ui.properties_table.setItem(row, 1, QTableWidgetItem(str(value)))
+            delete_button = self.ui.create_delete_button(self.ui.properties_table, row)
+            self.ui.properties_table.setCellWidget(row, 2, delete_button)
+
     def debounce_name_input(self, text: str):
         """
         Debounce name input for search.
@@ -1831,6 +2135,8 @@ class WorldBuildingController(QObject):
                 ] = self.current_image_path
             else:
                 node_data["additional_properties"]["image_path"] = None
+
+            logging.debug(f"Collected Node Data: {node_data}")
 
             return node_data
         except ValueError as e:
@@ -2912,6 +3218,111 @@ class WorldBuildingApp(QMainWindow):
         except Exception as e:
             logging.error(f"Error during application shutdown: {e}")
             event.accept()  # Still close the application
+
+class SuggestionDialog(QDialog):
+    def __init__(self, suggestions, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Suggested Node Information")
+        self.setModal(True)
+        self.suggestions = suggestions
+        self.selected_suggestions = {
+            'tags': [],
+            'properties': {},
+            'relationships': []
+        }
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+
+        # Tabs for Tags, Properties, Relationships
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self._create_tags_tab(), "Tags")
+        self.tabs.addTab(self._create_properties_tab(), "Properties")
+        self.tabs.addTab(self._create_relationships_tab(), "Relationships")
+
+        # Action buttons
+        button_box = button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+
+        layout.addWidget(self.tabs)
+        layout.addWidget(button_box)
+
+    def _create_tags_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        self.tags_checkboxes = []
+        for tag, confidence in self.suggestions.get('tags', []):
+            checkbox = QCheckBox(f"{tag}")
+            confidence_label = QLabel(f"Confidence: {confidence:.2f}%")
+            h_layout = QHBoxLayout()
+            h_layout.addWidget(checkbox)
+            h_layout.addWidget(confidence_label)
+            self.tags_checkboxes.append((checkbox, tag))
+            layout.addLayout(h_layout)
+
+        return widget
+
+    def _create_properties_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        self.properties_checkboxes = []
+        for key, values in self.suggestions.get('properties', {}).items():
+            group_box = QGroupBox(f"Property: {key}")
+            v_layout = QVBoxLayout()
+            for value, confidence in values:
+                checkbox = QCheckBox(f"Value: {value}")
+                confidence_label = QLabel(f"Confidence: {confidence:.2f}%")
+                h_layout = QHBoxLayout()
+                h_layout.addWidget(checkbox)
+                h_layout.addWidget(confidence_label)
+                v_layout.addLayout(h_layout)
+                self.properties_checkboxes.append((checkbox, key, value))
+            group_box.setLayout(v_layout)
+            layout.addWidget(group_box)
+
+        return widget
+
+    def _create_relationships_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        self.relationships_checkboxes = []
+        for rel_type, target, direction, props, confidence in self.suggestions.get('relationships', []):
+            checkbox = QCheckBox(f"{direction} {rel_type} -> {target}")
+            confidence_label = QLabel(f"Confidence: {confidence:.2f}%")
+            h_layout = QHBoxLayout()
+            h_layout.addWidget(checkbox)
+            h_layout.addWidget(confidence_label)
+            self.relationships_checkboxes.append((checkbox, rel_type, target, direction, props))
+            layout.addLayout(h_layout)
+
+        return widget
+
+    def accept(self):
+        # Collect selected tags
+        for checkbox, tag in self.tags_checkboxes:
+            if checkbox.isChecked():
+                self.selected_suggestions['tags'].append(tag)
+
+        # Collect selected properties
+        for checkbox, key, value in self.properties_checkboxes:
+            if checkbox.isChecked():
+                self.selected_suggestions['properties'][key] = value
+
+        # Collect selected relationships
+        for checkbox, rel_type, target, direction, props in self.relationships_checkboxes:
+            if checkbox.isChecked():
+                self.selected_suggestions['relationships'].append(
+                    (rel_type, target, direction, props)
+                )
+
+        super().accept()
+
 
 
 if __name__ == "__main__":

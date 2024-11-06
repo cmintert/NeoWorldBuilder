@@ -36,5 +36,10 @@
     "RESERVED_PROPERTY_KEYS": ["name","description", "tags", "image_path"],
     "VERSION": "0.1.0",
     "LOGGING_FILE": "logs.log",
-    "LOGGING_LEVEL": "DEBUG"
+    "LOGGING_LEVEL": "DEBUG",
+    "SUGGESTION_MIN_SUPPORT" : 0.1,
+    "SUGGESTION_MIN_CONFIDENCE" : 0.5,
+    "CLUSTERING_NUM_CLUSTERS" : 3,
+    "SUGGESTION_CONFIDENCE_THRESHOLD" : 20.0
+
 }
