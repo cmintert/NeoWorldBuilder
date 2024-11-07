@@ -348,7 +348,6 @@ class SuggestionWorker(BaseNeo4jWorker):
             WHERE any(label IN $labels WHERE label IN labels(n))
             AND n.name <> $name
             RETURN n
-            LIMIT 5
             """
             result = session.run(query, labels=labels, name=name)
             similar_nodes = [record['n'] for record in result]
