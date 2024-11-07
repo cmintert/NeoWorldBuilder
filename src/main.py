@@ -351,7 +351,9 @@ class SuggestionWorker(BaseNeo4jWorker):
             """
             result = session.run(query, labels=labels, name=name)
             similar_nodes = [record['n'] for record in result]
-            logging.debug(f"Found similar nodes: {similar_nodes}")
+            logging.debug(f"Found similar nodes with full properties:")
+            for node in similar_nodes:
+                logging.debug(f"Node Properties: {dict(node)}")
             return similar_nodes
 
         except Exception as e:
@@ -360,6 +362,7 @@ class SuggestionWorker(BaseNeo4jWorker):
 
     def _get_tag_suggestions(self, df):
         """Simple tag frequency-based suggestions."""
+        logging.debug("Generating tag suggestions")
         try:
             all_tags = []
             current_tags = set(self.node_data.get('tags', []))
@@ -396,30 +399,36 @@ class SuggestionWorker(BaseNeo4jWorker):
             return []
 
     def _get_property_suggestions(self, df):
-        """Simple property value frequency-based suggestions."""
+        """Property value frequency-based suggestions."""
         try:
             suggestions = {}
             exclude_props = {'name', 'description', 'tags', '_created', '_modified', '_author'}
 
-            # Look at each column (property)
+            logging.debug(f"DataFrame raw content before property suggestions:\n{df}")
+
+            # Get properties directly from the Neo4j node data
             for column in df.columns:
                 if column in exclude_props or column.startswith('_'):
                     continue
 
-                # Get value counts for this property
                 value_counts = df[column].value_counts()
-                total = len(df[column])
+                total = len(df[column].dropna())  # Only count non-null values
 
-                # Convert to suggestions with confidence
+                if total == 0:
+                    continue
+
                 prop_suggestions = []
                 for value, count in value_counts.items():
+                    if pd.isna(value):  # Skip null values
+                        continue
                     confidence = (count / total) * 100
                     prop_suggestions.append((str(value), confidence))
 
                 if prop_suggestions:
-                    suggestions[column] = prop_suggestions[:3]  # Top 3 values per property
+                    suggestions[column] = prop_suggestions
+                    logging.debug(f"Found suggestions for property {column}: {prop_suggestions}")
 
-            logging.debug(f"Property suggestions: {suggestions}")
+            logging.debug(f"Final property suggestions: {suggestions}")
             return suggestions
 
         except Exception as e:
@@ -437,20 +446,24 @@ class SuggestionWorker(BaseNeo4jWorker):
                 if not similar_nodes:
                     logging.info("No similar nodes found")
                     suggestions = {'tags': [], 'properties': {}, 'relationships': []}
-                    if not self._is_cancelled:
-                        self.suggestions_ready.emit(suggestions)
+                    self.suggestions_ready.emit(suggestions)
                     return
 
-                # Create DataFrame from similar nodes
+                # Convert Neo4j nodes to dictionaries
                 node_data_list = []
                 for node in similar_nodes:
+                    # Get all properties as a dict using Neo4j's dict() conversion
+                    # This ensures we get ALL properties, not just the standard ones
                     properties = dict(node)
-                    if 'tags' in properties:
-                        properties['tags'] = list(properties['tags'])
+                    # Convert Neo4j types to Python native types where needed
+                    properties['tags'] = list(properties.get('tags', []))
                     node_data_list.append(properties)
 
-                df = pd.DataFrame(node_data_list)
+                # Create DataFrame from full property dictionaries
+                df = pd.DataFrame.from_records(node_data_list)
+
                 logging.debug(f"Created DataFrame with columns: {df.columns.tolist()}")
+                logging.debug(f"DataFrame content:\n{df}")
 
                 # Generate suggestions
                 suggestions = {
@@ -460,10 +473,8 @@ class SuggestionWorker(BaseNeo4jWorker):
                 }
 
                 logging.debug(f"Generated suggestions: {json.dumps(suggestions, indent=2)}")
-
-                if not self._is_cancelled:
-                    self.suggestions_ready.emit(suggestions)
-                    logging.info("Suggestion generation completed successfully")
+                self.suggestions_ready.emit(suggestions)
+                logging.info("Suggestion generation completed successfully")
 
         except Exception as e:
             error_message = f"Error generating suggestions: {str(e)}"
