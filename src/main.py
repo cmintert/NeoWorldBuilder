@@ -17,6 +17,7 @@ from mlxtend.frequent_patterns import apriori, association_rules
 from mlxtend.preprocessing import TransactionEncoder
 from mlxtend.frequent_patterns import apriori, association_rules
 from collections import Counter
+from converters import NamingConventionConverter as ncc
 
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import LabelEncoder
@@ -672,6 +673,27 @@ class Neo4jModel:
         Private transaction handler for save_node.
         Preserves and updates system properties (_created, _modified, _author) while replacing all others.
         """
+        logging.debug("+++++++++++++++++ Starting Save Node Transaction +++++++++++++++++++++++")
+
+        # Enforce naming style conventions
+
+        logging.debug(f"Node data to save: {node_data}")
+        logging.debug(f"Node data is of type: {type(node_data)}")
+        original_node_data=node_data
+        node_data=ncc.convert_node_data(node_data)
+
+        # Compare the original and converted data and give feedback on automatic conversion
+        # Feedback is in form of an info message popup
+
+        if original_node_data != node_data:
+            logging.info("Node data was automatically converted to adhere to naming conventions.")
+            logging.info(f"Original data: {original_node_data}")
+            logging.info(f"Converted data: {node_data}")
+            QMessageBox.information(None, "Naming Convention Conversion",
+                                    "Node data was automatically converted to adhere to naming conventions.\n"
+                                    f"Original data: {original_node_data}\n"
+                                    f"Converted data: {node_data}")
+
         # Extract data from node_data
         name = node_data["name"]
         description = node_data["description"]
@@ -702,6 +724,13 @@ class Neo4jModel:
             system_props["_created"] = record[
                 "created"
             ]  # Preserve existing creation time
+
+        # Create a new node if it doesn't exist
+        if not record:
+            query_create = """
+            CREATE (n {name: $name, description: $description, tags: $tags})
+            """
+            tx.run(query_create, name=name, description=description, tags=tags)
 
         # 3. Reset node with core properties and system properties
         base_props = {
@@ -772,6 +801,8 @@ class Neo4jModel:
                     "SET r = $properties"
                 )
             tx.run(query_rel, name=name, rel_name=rel_name, properties=properties)
+
+        logging.debug("+++++++++++++++++ Finished Save Node Transaction +++++++++++++++++++++++")
 
     def delete_node(self, name, callback):
         """
