@@ -3316,13 +3316,16 @@ class SuggestionDialog(QDialog):
             group_box = QGroupBox(f"Property: {key}")
             v_layout = QVBoxLayout()
             for value, confidence in values:
-                checkbox = QCheckBox(f"Value: {value}")
+                checkbox = QCheckBox(f"Value:")
+                value_edit = QLineEdit(value)
                 confidence_label = QLabel(f"Confidence: {confidence:.2f}%")
                 h_layout = QHBoxLayout()
                 h_layout.addWidget(checkbox)
+                h_layout.addWidget(value_edit)
                 h_layout.addWidget(confidence_label)
                 v_layout.addLayout(h_layout)
-                self.properties_checkboxes.append((checkbox, key, value))
+                # Store the QLineEdit widget instead of its value
+                self.properties_checkboxes.append((checkbox, key, value_edit))
             group_box.setLayout(v_layout)
             layout.addWidget(group_box)
 
@@ -3351,9 +3354,10 @@ class SuggestionDialog(QDialog):
                 self.selected_suggestions['tags'].append(tag)
 
         # Collect selected properties
-        for checkbox, key, value in self.properties_checkboxes:
+        for checkbox, key, value_edit in self.properties_checkboxes:
             if checkbox.isChecked():
-                self.selected_suggestions['properties'][key] = value
+                # Get the current text from the QLineEdit when accepting
+                self.selected_suggestions['properties'][key] = value_edit.text()
 
         # Collect selected relationships
         for checkbox, rel_type, target, direction, props in self.relationships_checkboxes:
