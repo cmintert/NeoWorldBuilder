@@ -27,13 +27,11 @@ The magic that ties everything together. Characters interact with each other, pl
 What makes it special is how naturally you can organize and explore your world:
 
 * See your world as an interactive map of connections
-* Find anything instantly through smart search
+* Find anything instantly through autocompletion
 * Add images to visualize your creations
 * Group related elements with tags
 * Create rich, meaningful relationships between elements
-
+* Emergent pattern and schema. Working on a suggestion system to add meaningfull and consistent tags, relationships, and properties to your realm
 ---
 
-It's like having a magical notebook that not only stores your ideas but helps you see how everything connects. Whether you're crafting a fantasy realm or designing a sci-fi universe, NeoWorldBuilder handles the organization so you can focus on what matters - creating amazing worlds.
 
-I'd love to hear how you might use something like this in your creative process!
