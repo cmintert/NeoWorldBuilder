@@ -45,12 +45,7 @@ def exception_hook(exctype, value, tb):
         None, "Unhandled Exception", f"An unhandled exception occurred:\n{value}"
     )
 
-
 sys.excepthook = exception_hook
-
-
-
-
 
 @dataclass
 class AppComponents:
@@ -211,15 +206,14 @@ class WorldBuildingApp(QMainWindow):
                 logging.info("Database connection established")
                 return model
             except Exception as e:
-                if attempt < max_retries - 1:
-                    logging.warning(
-                        f"Database connection attempt {attempt + 1} failed: {e}"
-                    )
-                    time.sleep(retry_delay)
-                else:
+                if attempt >= max_retries - 1:
                     raise RuntimeError(
                         f"Failed to connect to database after {max_retries} attempts: {str(e)}"
                     )
+                logging.warning(
+                    f"Database connection attempt {attempt + 1} failed: {e}"
+                )
+                time.sleep(retry_delay)
 
     def _setup_ui(self, controller) -> "WorldBuildingUI":
         """

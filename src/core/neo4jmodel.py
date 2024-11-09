@@ -5,8 +5,8 @@ from typing import Dict, Any
 from PyQt6.QtWidgets import QMessageBox
 from neo4j import GraphDatabase
 
-from converters import NamingConventionConverter as ncc
 from core.neo4jworkers import QueryWorker, WriteWorker, DeleteWorker, SuggestionWorker
+from utils.converters import NamingConventionConverter as ncc
 
 
 class Neo4jModel:

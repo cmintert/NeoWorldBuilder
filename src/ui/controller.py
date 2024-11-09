@@ -1037,8 +1037,7 @@ class WorldBuildingController(QObject):
             try:
                 all_node_data = []
                 for node_name in selected_nodes:
-                    node_data = self._collect_node_data_for_export(node_name)
-                    if node_data:
+                    if node_data := self._collect_node_data_for_export(node_name):
                         all_node_data.append(node_data)
 
                 with open(file_name, "w") as file:
@@ -1069,8 +1068,9 @@ class WorldBuildingController(QObject):
             try:
                 with open(file_name, "w") as file:
                     for node_name in selected_nodes:
-                        node_data = self._collect_node_data_for_export(node_name)
-                        if node_data:
+                        if node_data := self._collect_node_data_for_export(
+                            node_name
+                        ):
                             file.write(f"Name: {node_data['name']}\n")
                             file.write(f"Description: {node_data['description']}\n")
                             file.write(f"Tags: {', '.join(node_data['tags'])}\n")
@@ -1115,8 +1115,9 @@ class WorldBuildingController(QObject):
                         "Name,Description,Tags,Labels,Relationships,Additional Properties\n"
                     )
                     for node_name in selected_nodes:
-                        node_data = self._collect_node_data_for_export(node_name)
-                        if node_data:
+                        if node_data := self._collect_node_data_for_export(
+                            node_name
+                        ):
                             file.write(
                                 f"{node_data['name']},{node_data['description']},{', '.join(node_data['tags'])},{', '.join(node_data['labels'])},"
                             )
@@ -1165,8 +1166,7 @@ class WorldBuildingController(QObject):
                 pdf.set_font("Arial", size=12)
 
                 for node_name in selected_nodes:
-                    node_data = self._collect_node_data_for_export(node_name)
-                    if node_data:
+                    if node_data := self._collect_node_data_for_export(node_name):
                         pdf.add_page()
                         pdf.cell(200, 10, txt=f"Name: {node_data['name']}", ln=True)
                         pdf.cell(
