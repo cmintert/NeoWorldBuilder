@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c1c1f3df-892c-4735-83ba-216f6077e36f" name="Changes" comment="Done reordering code for the time.">
+    <list default="true" id="c1c1f3df-892c-4735-83ba-216f6077e36f" name="Changes" comment="changed position of suggest button to make it accessible in all tabs.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -302,15 +301,7 @@
       <workItem from="1731172351803" duration="1279000" />
       <workItem from="1731173681546" duration="34000" />
       <workItem from="1731173953640" duration="2939000" />
-      <workItem from="1731228712531" duration="6060000" />
-    </task>
-    <task id="LOCAL-00017" summary="Reordered classes for better readability">
-      <option name="closed" value="true" />
-      <created>1729894884708</created>
-      <option name="number" value="00017" />
-      <option name="presentableId" value="LOCAL-00017" />
-      <option name="project" value="LOCAL" />
-      <updated>1729894884708</updated>
+      <workItem from="1731228712531" duration="7126000" />
     </task>
     <task id="LOCAL-00018" summary="Still dealing with a nasty buffer overflow. I hope I can find it somewhere in the worker jungle.">
       <option name="closed" value="true" />
@@ -696,7 +687,15 @@
       <option name="project" value="LOCAL" />
       <updated>1731236494666</updated>
     </task>
-    <option name="localTasksCounter" value="66" />
+    <task id="LOCAL-00066" summary="changed position of suggest button to make it accessible in all tabs.">
+      <option name="closed" value="true" />
+      <created>1731237677352</created>
+      <option name="number" value="00066" />
+      <option name="presentableId" value="LOCAL-00066" />
+      <option name="project" value="LOCAL" />
+      <updated>1731237677352</updated>
+    </task>
+    <option name="localTasksCounter" value="67" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -744,7 +743,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Reworked the relationship tree to facilitate changing dephts of representations.&#10;-&#10;Included a cypher command to populate a neo4j database quickly for playing around in a standardised environment." />
     <MESSAGE value="Removed unused variable." />
     <MESSAGE value="Small logging error" />
     <MESSAGE value="Corrected the import for QAction" />
@@ -769,7 +767,8 @@
     <MESSAGE value="Simplified exporter class" />
     <MESSAGE value="Switched to named expressions in many places" />
     <MESSAGE value="Done reordering code for the time." />
-    <option name="LAST_COMMIT_MESSAGE" value="Done reordering code for the time." />
+    <MESSAGE value="changed position of suggest button to make it accessible in all tabs." />
+    <option name="LAST_COMMIT_MESSAGE" value="changed position of suggest button to make it accessible in all tabs." />
     <option name="OPTIMIZE_IMPORTS_BEFORE_PROJECT_COMMIT" value="true" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
@@ -781,6 +780,6 @@
     <SUITE FILE_PATH="coverage/NeoRealmBuilder$scratch_1.coverage" NAME="scratch_1 Coverage Results" MODIFIED="1729632936135" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
     <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_in_main_test_py.coverage" NAME="pytest in main_test.py Coverage Results" MODIFIED="1731085976144" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
     <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_in_test_neo4j_model_py.coverage" NAME="pytest in test_neo4j_model.py Coverage Results" MODIFIED="1730666202332" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
-    <SUITE FILE_PATH="coverage/NeoRealmBuilder$main.coverage" NAME="main Coverage Results" MODIFIED="1731237189161" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/NeoRealmBuilder$main.coverage" NAME="main Coverage Results" MODIFIED="1731237611271" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

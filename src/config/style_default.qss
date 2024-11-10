@@ -1,294 +1,200 @@
-/* General Styles */
-/* Set the default font family and size for all widgets */
+/* Base Styles */
 QWidget {
-    font-family: 'Segoe UI';  /* Default font family */
-    font-size: 13px;          /* Default font size */
+    font-family: 'Segoe UI';
+    font-size: 13px;
 }
 
-/* Specific Widget Styles */
+/* Common Input Styles */
+QLineEdit,
+#nameInput,
+#descriptionInput,
+#labelsInput,
+#tagsInput,
+#depthSpinBox {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px;
+    background: white;
+}
 
-/* Style for the main action buttons */
+QLineEdit:focus,
+#nameInput:focus,
+#descriptionInput:focus,
+#labelsInput:focus,
+#tagsInput:focus,
+#depthSpinBox:focus {
+    border-color: #007bff;
+}
+
+/* Button Base Styles */
+QPushButton,
 #saveButton,
-#deleteButton,
 #cancelButton,
 #changeImageButton,
 #deleteImageButton,
 #addRelationshipButton,
 #suggestButton,
 #addPropertyButton {
-    background-color: white;      /* Button background color */
-    border: 1px solid #ddd;       /* Light gray border */
-    border-radius: 4px;           /* Rounded corners */
-    padding: 5px 15px;            /* Padding inside the button */
-    color: black;                 /* Text color */
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 5px 15px;
+    color: black;
 }
 
-
-#deleteButton {
-    background-color: #A00E0E;    /* Red color for delete button */
-}
-
-/* Hover effect for the action buttons */
+QPushButton:hover,
 #saveButton:hover,
-#deleteButton:hover,
 #cancelButton:hover,
 #changeImageButton:hover,
 #deleteImageButton:hover,
 #addRelationshipButton:hover,
 #suggestButton:hover,
 #addPropertyButton:hover {
-    background-color: #e9ecef;    /* Slightly darker background on hover */
+    background-color: #e9ecef;
 }
 
-/* Pressed state for the action buttons */
+QPushButton:pressed,
 #saveButton:pressed,
-#deleteButton:pressed,
 #cancelButton:pressed,
 #changeImageButton:pressed,
 #deleteImageButton:pressed,
 #addRelationshipButton:pressed,
 #suggestButton:pressed,
 #addPropertyButton:pressed {
-    background-color: #dee2e6;    /* Even darker background when pressed */
+    background-color: #dee2e6;
 }
 
-/* Disabled state for specific buttons */
+QPushButton:disabled,
 #saveButton:disabled,
-#deleteButton:disabled,
 #cancelButton:disabled {
-    background-color: #e9ecef;    /* Background color when disabled */
-    color: #6c757d;               /* Text color when disabled */
-    /* You can add more styles for disabled state here */
+    background-color: #e9ecef;
+    color: #6c757d;
 }
 
-/* Styles for input fields */
-#nameInput,
-#descriptionInput,
-#labelsInput,
-#tagsInput {
-    border: 1px solid #ccc;       /* Light gray border */
-    border-radius: 4px;           /* Rounded corners */
-    padding: 5px;                 /* Padding inside the input */
-    background: white;            /* Input background color */
+/* Delete Button Specific Styles */
+#deleteButton,
+#relationshipsTable QPushButton#rowDeleteButton,
+#propertiesTable QPushButton#rowDeleteButton {
+    background-color: #A00E0E;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px;
 }
 
-/* Focus state for input fields */
-#nameInput:focus,
-#descriptionInput:focus,
-#labelsInput:focus,
-#tagsInput:focus {
-    border-color: #007bff;        /* Blue border when focused */
-    /* You can modify the focus border color here */
-}
-
-/* Style for the progress bar */
+/* Progress Bar */
 #progressBar {
-    border: 1px solid #ccc;       /* Border around the progress bar */
-    border-radius: 4px;           /* Rounded corners */
-    text-align: center;           /* Center the text inside the progress bar */
-    background: white;            /* Background color */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    text-align: center;
+    background: white;
 }
 
-/* Style for the progress bar chunk (the filled part) */
 #progressBar::chunk {
-    background-color: #007bff;    /* Blue color for the progress */
-    /* You can change the progress color here */
+    background-color: #007bff;
 }
 
-/* Style for the status label */
-#statusLabel {
-    color: #212529;               /* Text color */
-    background: transparent;      /* Transparent background */
-    /* You can adjust the font style or size here */
+/* Container Styles */
+#imageGroupBox,
+#treeView,
+QGroupBox {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    margin-top: 10px;
 }
 
-/* Group box styling for the image section */
 #imageGroupBox {
-    border: 1px solid #ccc;       /* Border around the group box */
-    border-radius: 4px;           /* Rounded corners */
-    margin-top: 1em;              /* Top margin */
-    padding-top: 10px;            /* Top padding inside the group box */
-    background: white;            /* Background color */
+    padding-top: 10px;
 }
 
-/* Style for the image label inside the group box */
-#imageLabel {
-    border: 1px solid #ccc;       /* Border around the image label */
-    border-radius: 4px;           /* Rounded corners */
-    background: white;            /* Background color */
-    /* You can adjust the size or alignment of the image here */
-}
-
-/* Styles for the relationships and properties tables */
+/* Table Styles */
 #relationshipsTable,
 #propertiesTable {
-    background: white;            /* Table background color */
-    /* You can add more styles for table headers, cells, etc. */
+    background: white;
 }
 
-/* Style for the tree view */
-#treeView {
-    background: white;            /* Background color */
-    border: 1px solid #ccc;       /* Border around the tree view */
-    border-radius: 4px;           /* Rounded corners */
-    /* You can customize item selection, text color, etc., here */
-}
-
-/* Styles for the main tabs */
-#mainTabs::pane {
-    background: white;            /* Background color of the tab pane */
-    border: 1px solid #ccc;       /* Border around the tab pane */
-    border-radius: 4px;           /* Rounded corners */
-}
-
-/* Style for each tab in the tab bar */
-#mainTabs QTabBar::tab {
-    background-color: white;          /* Background color of the tab */
-    border: 1px solid #ccc;           /* Border around the tab */
-    border-bottom-color: white;       /* Hide the bottom border to blend with the pane */
-    border-top-left-radius: 4px;      /* Rounded top-left corner */
-    border-top-right-radius: 4px;     /* Rounded top-right corner */
-    padding: 5px 10px;                /* Padding inside the tab */
-    margin-right: 2px;                /* Space between tabs */
-}
-
-/* Style for the selected tab */
-#mainTabs QTabBar::tab:selected {
-    background-color: white;          /* Background color for the selected tab */
-    border-bottom-color: transparent; /* Remove bottom border to connect with the tab pane */
-}
-
-/* Style for unselected tabs */
-#mainTabs QTabBar::tab:!selected {
-    background-color: #f0f0f0;        /* Slightly darker background for unselected tabs */
-    margin-top: 2px;                  /* Push unselected tabs down to create a visual hierarchy */
-}
-
-/* Hover effect for unselected tabs */
-#mainTabs QTabBar::tab:!selected:hover {
-    background-color: #e9ecef;        /* Change background color on hover */
-}
-
-/* Central widget background */
-#CentralWidget {
-    background-color: transparent;    /* Make central widget transparent */
-    /* This allows any background image or color of the main window to show through */
-}
-
-/* Additional Styles That Can Be Modified */
-
-/* Example: Style for scroll bars (unmodified) */
-/* Uncomment and customize if needed */
-/*
-QScrollBar:vertical {
-    background-color: #f0f0f0;
-    width: 15px;
-    margin: 15px 3px 15px 3px;
-    border: 1px solid #ccc;
-}
-
-QScrollBar::handle:vertical {
-    background-color: #ccc;
-    min-height: 20px;
-    border-radius: 7px;
-}
-
-QScrollBar::add-line:vertical,
-QScrollBar::sub-line:vertical {
-    background: none;
-}
-*/
-
-/* Example: Style for table headers (unmodified) */
-/* Uncomment and customize if needed */
-/*
-QHeaderView::section {
-    background-color: #e9ecef;
-    padding: 4px;
-    border: 1px solid #ccc;
-    font-weight: bold;
-}
-*/
-
-/* Example: Style for tooltips (unmodified) */
-/* Uncomment and customize if needed */
-/*
-QToolTip {
-    background-color: #f0f0f0;
-    color: #000;
-    border: 1px solid #ccc;
-}
-*/
-
-/* You can add more custom styles below as needed */
-
-/* Remove border and padding for the delete button column */
-#relationshipsTable QTableWidget::item {
-    border: none;
-    padding: 0;
-}
-
+#relationshipsTable QTableWidget::item,
 #propertiesTable QTableWidget::item {
     border: none;
     padding: 0;
 }
 
-/* Remove border and padding for the delete button itself */
-#relationshipsTable QPushButton#rowDeleteButton,
-#propertiesTable QPushButton#rowDeleteButton {
-    color: white;
-    border: none;
+/* Tab Styles */
+#mainTabs::pane {
+    background: white;
+    border: 1px solid #ccc;
     border-radius: 4px;
-    padding: 5px;
-    background: #A00E0E;
 }
 
-/* Style for the depth spinbox */
-#depthSpinBox {
-    border: 1px solid #ccc;       /* Light gray border */
-    border-radius: 4px;           /* Rounded corners */
-    padding: 5px;                 /* Padding inside the spinbox */
-    background: white;            /* Spinbox background color */
+#mainTabs QTabBar::tab {
+    background-color: white;
+    border: 1px solid #ccc;
+    border-bottom-color: white;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    padding: 5px 10px;
+    margin-right: 2px;
 }
 
-#depthSpinBox::up-button {
-    width: 30px;
-    height: 20px;
+#mainTabs QTabBar::tab:selected {
+    background-color: white;
+    border-bottom-color: transparent;
 }
 
+#mainTabs QTabBar::tab:!selected {
+    background-color: #f0f0f0;
+    margin-top: 2px;
+}
+
+#mainTabs QTabBar::tab:!selected:hover {
+    background-color: #e9ecef;
+}
+
+/* Misc Elements */
+#statusLabel {
+    color: #212529;
+    background: transparent;
+}
+
+#imageLabel {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+}
+
+#CentralWidget {
+    background-color: transparent;
+}
+
+/* Depth SpinBox Specific */
+#depthSpinBox::up-button,
 #depthSpinBox::down-button {
     width: 30px;
     height: 20px;
 }
 
-#depthSpinBox:focus {
-    border-color: #007bff;        /* Blue border when focused */
-}
-
-/* Style for relationship properties */
+/* Relationship Property */
 .relationship-property {
-    background-color: #f0f0f0;    /* Light gray background */
-    border-radius: 4px;           /* Rounded corners */
-    padding: 5px;                 /* Padding inside the property */
-    margin: 2px;                  /* Margin around the property */
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    padding: 5px;
+    margin: 2px;
 }
 
-/* Style for QGroupBox in SuggestionDialog */
-QGroupBox {
-    font-weight: bold;
-    margin-top: 10px;
-}
-
+/* Group Box Title */
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
     padding: 0 3px;
 }
 
+/* Checkbox */
 QCheckBox {
     spacing: 5px;
 }
 
+/* Labels */
 QLabel {
     color: gray;
     font-size: 11px;
