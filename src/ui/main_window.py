@@ -112,7 +112,7 @@ class WorldBuildingUI(QWidget):
         """
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(10)
 
         # Enhanced tree view
@@ -156,7 +156,7 @@ class WorldBuildingUI(QWidget):
         panel = QWidget()
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(15)
 
         # Header with node name and actions
@@ -427,7 +427,7 @@ class WorldBuildingUI(QWidget):
         """
         self.relationships_table.setColumnCount(6)
         self.relationships_table.setHorizontalHeaderLabels(
-            ["Type", "Related Node", "Direction", "Properties", ""]
+            ["Type", "Related Node", "Direction", "Properties", " ", " "]
         )
 
         # Set relationships table column behaviors
@@ -444,9 +444,9 @@ class WorldBuildingUI(QWidget):
         )  # Edit button column
 
         # Set fixed widths for specific columns
-        self.relationships_table.setColumnWidth(2, 80)  # Direction column
+        self.relationships_table.setColumnWidth(2, 60)  # Direction column
         self.relationships_table.setColumnWidth(4, 38)  # Delete button column
-        self.relationships_table.setColumnWidth(5, 100)  # Edit button column
+        self.relationships_table.setColumnWidth(5, 120)  # Edit button column
 
     def _setup_properties_table_columns(self, table: QTableWidget) -> None:
         """
