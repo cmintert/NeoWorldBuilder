@@ -1,5 +1,5 @@
 import json
-from typing import List, Dict, Callable, Tuple
+from typing import List, Dict, Callable, Tuple, Any
 
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
 from fpdf import FPDF
@@ -14,7 +14,7 @@ class Exporter:
         config: The configuration instance.
     """
 
-    def __init__(self, ui, config):
+    def __init__(self, ui: Any, config: Any) -> None:
         """
         Initialize the Exporter with UI and configuration.
 
@@ -38,7 +38,7 @@ class Exporter:
         }
 
     def export(
-        self, format_type: str, selected_nodes: List[str], collect_node_data: Callable
+        self, format_type: str, selected_nodes: List[str], collect_node_data: Callable[[str], Dict[str, Any]]
     ) -> None:
         """
         Main export method that handles all export formats.
@@ -46,7 +46,7 @@ class Exporter:
         Args:
             format_type (str): The type of export format (e.g., 'json', 'txt', 'csv', 'pdf').
             selected_nodes (List[str]): The list of selected node names.
-            collect_node_data (Callable): The function to collect node data.
+            collect_node_data (Callable[[str], Dict[str, Any]]): The function to collect node data.
 
         Raises:
             ValueError: If the format type is unsupported.
@@ -87,75 +87,75 @@ class Exporter:
         return file_name
 
     def _collect_nodes_data(
-        self, selected_nodes: List[str], collect_node_data: Callable
-    ) -> List[Dict]:
+        self, selected_nodes: List[str], collect_node_data: Callable[[str], Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """
         Collect data for all selected nodes.
 
         Args:
             selected_nodes (List[str]): The list of selected node names.
-            collect_node_data (Callable): The function to collect node data.
+            collect_node_data (Callable[[str], Dict[str, Any]]): The function to collect node data.
 
         Returns:
-            List[Dict]: The list of collected node data.
+            List[Dict[str, Any]]: The list of collected node data.
         """
         return [data for node in selected_nodes if (data := collect_node_data(node))]
 
-    def _format_relationship(self, rel: Tuple) -> str:
+    def _format_relationship(self, rel: Tuple[str, str, str, Dict[str, Any]]) -> str:
         """
         Format a single relationship.
 
         Args:
-            rel (Tuple): The relationship tuple containing type, target, direction, and properties.
+            rel (Tuple[str, str, str, Dict[str, Any]]): The relationship tuple containing type, target, direction, and properties.
 
         Returns:
             str: The formatted relationship string.
         """
         return f"Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}"
 
-    def _format_properties(self, properties: Dict) -> str:
+    def _format_properties(self, properties: Dict[str, Any]) -> str:
         """
         Format additional properties.
 
         Args:
-            properties (Dict): The dictionary of additional properties.
+            properties (Dict[str, Any]): The dictionary of additional properties.
 
         Returns:
             str: The formatted properties string.
         """
         return "; ".join(f"{key}: {value}" for key, value in properties.items())
 
-    def _handle_json(self, file_name: str, nodes_data: List[Dict]) -> None:
+    def _handle_json(self, file_name: str, nodes_data: List[Dict[str, Any]]) -> None:
         """
         Handle JSON export.
 
         Args:
             file_name (str): The name of the file to save.
-            nodes_data (List[Dict]): The list of node data to export.
+            nodes_data (List[Dict[str, Any]]): The list of node data to export.
         """
         with open(file_name, "w") as file:
             json.dump(nodes_data, file, indent=4)
 
-    def _handle_txt(self, file_name: str, nodes_data: List[Dict]) -> None:
+    def _handle_txt(self, file_name: str, nodes_data: List[Dict[str, Any]]) -> None:
         """
         Handle TXT export.
 
         Args:
             file_name (str): The name of the file to save.
-            nodes_data (List[Dict]): The list of node data to export.
+            nodes_data (List[Dict[str, Any]]): The list of node data to export.
         """
         with open(file_name, "w") as file:
             for node_data in nodes_data:
                 self._write_txt_node(file, node_data)
                 file.write("\n")
 
-    def _write_txt_node(self, file, node_data: Dict) -> None:
+    def _write_txt_node(self, file: Any, node_data: Dict[str, Any]) -> None:
         """
         Write a single node's data in TXT format.
 
         Args:
             file: The file object to write to.
-            node_data (Dict): The node data to write.
+            node_data (Dict[str, Any]): The node data to write.
         """
         file.write(f"Name: {node_data['name']}\n")
         file.write(f"Description: {node_data['description']}\n")
@@ -168,13 +168,13 @@ class Exporter:
         for key, value in node_data["additional_properties"].items():
             file.write(f"  - {key}: {value}\n")
 
-    def _handle_csv(self, file_name: str, nodes_data: List[Dict]) -> None:
+    def _handle_csv(self, file_name: str, nodes_data: List[Dict[str, Any]]) -> None:
         """
         Handle CSV export.
 
         Args:
             file_name (str): The name of the file to save.
-            nodes_data (List[Dict]): The list of node data to export.
+            nodes_data (List[Dict[str, Any]]): The list of node data to export.
         """
         with open(file_name, "w") as file:
             file.write(
@@ -192,13 +192,13 @@ class Exporter:
                     f"{relationships},{properties}\n"
                 )
 
-    def _handle_pdf(self, file_name: str, nodes_data: List[Dict]) -> None:
+    def _handle_pdf(self, file_name: str, nodes_data: List[Dict[str, Any]]) -> None:
         """
         Handle PDF export.
 
         Args:
             file_name (str): The name of the file to save.
-            nodes_data (List[Dict]): The list of node data to export.
+            nodes_data (List[Dict[str, Any]]): The list of node data to export.
         """
         pdf = FPDF()
         pdf.set_font("Arial", size=12)
@@ -209,13 +209,13 @@ class Exporter:
 
         pdf.output(file_name)
 
-    def _write_pdf_node(self, pdf: FPDF, node_data: Dict) -> None:
+    def _write_pdf_node(self, pdf: FPDF, node_data: Dict[str, Any]) -> None:
         """
         Write a single node's data in PDF format.
 
         Args:
             pdf (FPDF): The PDF object to write to.
-            node_data (Dict): The node data to write.
+            node_data (Dict[str, Any]): The node data to write.
         """
         pdf.cell(200, 10, txt=f"Name: {node_data['name']}", ln=True)
         pdf.cell(200, 10, txt=f"Description: {node_data['description']}", ln=True)

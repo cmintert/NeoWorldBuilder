@@ -51,7 +51,7 @@ logging.basicConfig(
 faulthandler.enable()
 
 
-def exception_hook(exctype, value, tb):
+def exception_hook(exctype: type, value: Exception, tb: traceback) -> None:
     """
     Custom exception hook for logging unhandled exceptions.
 
@@ -82,10 +82,10 @@ class AppComponents:
         controller (WorldBuildingController): The controller instance.
         config (Config): The configuration instance.
     """
-    ui: "WorldBuildingUI"
-    model: "Neo4jModel"
-    controller: "WorldBuildingController"
-    config: "Config"
+    ui: WorldBuildingUI
+    model: Neo4jModel
+    controller: WorldBuildingController
+    config: Config
 
 
 class WorldBuildingApp(QMainWindow):
@@ -96,7 +96,7 @@ class WorldBuildingApp(QMainWindow):
         components (Optional[AppComponents]): The main application components.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize the main application window.
         """
@@ -163,7 +163,7 @@ class WorldBuildingApp(QMainWindow):
         except Exception as e:
             logging.error(f"Failed to set background image: {e}")
 
-    def _load_configuration(self) -> "Config":
+    def _load_configuration(self) -> Config:
         """
         Load application configuration with error handling.
 
@@ -184,7 +184,7 @@ class WorldBuildingApp(QMainWindow):
         except Exception as e:
             raise RuntimeError(f"Error loading configuration: {str(e)}")
 
-    def _setup_logging(self, config: "Config") -> None:
+    def _setup_logging(self, config: Config) -> None:
         """
         Configure logging with rotation and formatting.
 
@@ -218,7 +218,7 @@ class WorldBuildingApp(QMainWindow):
         except Exception as e:
             raise RuntimeError(f"Failed to setup logging: {str(e)}")
 
-    def _initialize_database(self, config: "Config") -> "Neo4jModel":
+    def _initialize_database(self, config: Config) -> Neo4jModel:
         """
         Initialize database connection with retry logic.
 
@@ -251,7 +251,7 @@ class WorldBuildingApp(QMainWindow):
                 )
                 time.sleep(retry_delay)
 
-    def _setup_ui(self, controller) -> "WorldBuildingUI":
+    def _setup_ui(self, controller: Optional[WorldBuildingController]) -> WorldBuildingUI:
         """
         Initialize user interface with error handling.
 
@@ -272,8 +272,8 @@ class WorldBuildingApp(QMainWindow):
             raise RuntimeError(f"Failed to initialize UI: {str(e)}")
 
     def _initialize_controller(
-        self, ui: "WorldBuildingUI", model: "Neo4jModel", config: "Config"
-    ) -> "WorldBuildingController":
+        self, ui: WorldBuildingUI, model: Neo4jModel, config: Config
+    ) -> WorldBuildingController:
         """
         Initialize application controller with error handling.
 
@@ -336,7 +336,7 @@ class WorldBuildingApp(QMainWindow):
         except Exception as e:
             raise RuntimeError(f"Failed to configure main window: {str(e)}")
 
-    def _add_export_menu(self):
+    def _add_export_menu(self) -> None:
         """
         Add Export menu to the main menu bar.
         """
@@ -395,7 +395,7 @@ class WorldBuildingApp(QMainWindow):
                 except Exception as e:
                     logging.error(f"Error during model cleanup: {e}")
 
-    def closeEvent(self, event) -> None:
+    def closeEvent(self, event: QCloseEvent) -> None:
         """
         Handle application shutdown with proper cleanup.
 

@@ -1,9 +1,9 @@
 import json
 import logging
 import os
-from typing import Optional
+from typing import Optional, Dict, Any
 
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import pyqtSignal, Qt, QPoint
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QWidget,
@@ -38,7 +38,7 @@ class WorldBuildingUI(QWidget):
     name_selected = pyqtSignal(str)
     refresh_requested = pyqtSignal()
 
-    def __init__(self, controller):
+    def __init__(self, controller: "WorldBuildingController") -> None:
         """
         Initialize the UI with the given controller.
 
@@ -56,7 +56,7 @@ class WorldBuildingUI(QWidget):
         )  # Allow transparency
         self.init_ui()
 
-    def init_ui(self):
+    def init_ui(self) -> None:
         """
         Initialize the main UI layout with enhanced components.
         """
@@ -85,25 +85,25 @@ class WorldBuildingUI(QWidget):
         # Apply styles
         self.apply_styles()
 
-    def show_loading(self, is_loading: bool):
+    def show_loading(self, is_loading: bool) -> None:
         """
         Show or hide loading state for the UI.
 
         Args:
             is_loading (bool): Whether the UI is in loading state.
         """
-        self.save_button.setEnabled(not is_loading)
-        self.delete_button.setEnabled(not is_loading)
+        self.save_button.setEnabled(!is_loading)
+        self.delete_button.setEnabled(!is_loading)
         self.cancel_button.setVisible(is_loading)
         self.name_input.setReadOnly(is_loading)
-        self.suggest_button.setEnabled(not is_loading)
+        self.suggest_button.setEnabled(!is_loading)
         if is_loading:
             self.progress_bar.setVisible(True)
             self.progress_bar.setRange(0, 0)  # Indeterminate progress
         else:
             self.progress_bar.setVisible(False)
 
-    def _create_left_panel(self):
+    def _create_left_panel(self) -> QWidget:
         """
         Create improved left panel with tree view and search.
 
@@ -146,7 +146,7 @@ class WorldBuildingUI(QWidget):
 
         return panel
 
-    def _create_right_panel(self):
+    def _create_right_panel(self) -> QWidget:
         """
         Create improved right panel with proper spacing and opacity.
 
@@ -194,7 +194,7 @@ class WorldBuildingUI(QWidget):
 
         return panel
 
-    def _create_header_layout(self):
+    def _create_header_layout(self) -> QHBoxLayout:
         """
         Create enhanced header with loading indication.
 
@@ -231,7 +231,7 @@ class WorldBuildingUI(QWidget):
 
         return layout
 
-    def _create_basic_info_tab(self):
+    def _create_basic_info_tab(self) -> QWidget:
         """
         Create the basic info tab with input fields and image handling.
 
@@ -269,7 +269,7 @@ class WorldBuildingUI(QWidget):
 
         return tab
 
-    def _create_image_group(self):
+    def _create_image_group(self) -> QGroupBox:
         """
         Create the image display group.
 
@@ -308,7 +308,7 @@ class WorldBuildingUI(QWidget):
         group.setLayout(layout)
         return group
 
-    def _create_relationships_tab(self):
+    def _create_relationships_tab(self) -> QWidget:
         """
         Create relationships tab with table.
 
@@ -337,7 +337,7 @@ class WorldBuildingUI(QWidget):
         layout.addWidget(self.relationships_table)
         return tab
 
-    def _create_properties_tab(self):
+    def _create_properties_tab(self) -> QWidget:
         """
         Create properties tab with table.
 
@@ -369,7 +369,7 @@ class WorldBuildingUI(QWidget):
         layout.addWidget(self.properties_table)
         return tab
 
-    def _show_tree_context_menu(self, position):
+    def _show_tree_context_menu(self, position: QPoint) -> None:
         """
         Show context menu for tree items.
 
@@ -392,7 +392,7 @@ class WorldBuildingUI(QWidget):
         elif action == refresh_action:
             self.refresh_requested.emit()
 
-    def create_delete_button(self, table, row):
+    def create_delete_button(self, table: QTableWidget, row: int) -> QWidget:
         """
         Create a centered delete button for table rows.
 
@@ -421,7 +421,7 @@ class WorldBuildingUI(QWidget):
 
         return container
 
-    def _setup_relationships_table_columns(self):
+    def _setup_relationships_table_columns(self) -> None:
         """
         Set up relationships table columns with proper sizing.
         """
@@ -448,7 +448,7 @@ class WorldBuildingUI(QWidget):
         self.relationships_table.setColumnWidth(4, 38)  # Delete button column
         self.relationships_table.setColumnWidth(5, 100)  # Edit button column
 
-    def _setup_properties_table_columns(self, table):
+    def _setup_properties_table_columns(self, table: QTableWidget) -> None:
         """
         Set up properties table columns with proper sizing.
 
@@ -473,7 +473,7 @@ class WorldBuildingUI(QWidget):
     # Progress and Status Methods
     #############################################
 
-    def show_progress(self, visible: bool = True):
+    def show_progress(self, visible: bool = True) -> None:
         """
         Show or hide progress bar.
 
@@ -484,7 +484,7 @@ class WorldBuildingUI(QWidget):
         if visible:
             self.progress_bar.setValue(0)
 
-    def set_progress(self, value: int, maximum: int = 100):
+    def set_progress(self, value: int, maximum: int = 100) -> None:
         """
         Update progress bar.
 
@@ -495,7 +495,7 @@ class WorldBuildingUI(QWidget):
         self.progress_bar.setMaximum(maximum)
         self.progress_bar.setValue(value)
 
-    def set_status(self, message: str):
+    def set_status(self, message: str) -> None:
         """
         Update status message.
 
@@ -508,7 +508,7 @@ class WorldBuildingUI(QWidget):
     # UI Update Methods
     #############################################
 
-    def clear_all_fields(self):
+    def clear_all_fields(self) -> None:
         """
         Clear all input fields except the name_input.
         """
@@ -519,7 +519,7 @@ class WorldBuildingUI(QWidget):
         self.relationships_table.setRowCount(0)
         self.image_label.clear()
 
-    def set_image(self, image_path: Optional[str]):
+    def set_image(self, image_path: Optional[str]) -> None:
         """
         Set image with proper scaling and error handling.
 
@@ -545,8 +545,8 @@ class WorldBuildingUI(QWidget):
             QMessageBox.warning(self, "Image Error", f"Failed to load image: {str(e)}")
 
     def add_relationship_row(
-        self, rel_type="", target="", direction=">", properties=""
-    ):
+        self, rel_type: str = "", target: str = "", direction: str = ">", properties: str = ""
+    ) -> None:
         """
         Add relationship row with improved validation.
 
@@ -591,7 +591,7 @@ class WorldBuildingUI(QWidget):
         )
         self.relationships_table.setCellWidget(row, 5, edit_properties_button)
 
-    def add_property_row(self, table):
+    def add_property_row(self, table: QTableWidget) -> None:
         """
         Add property row with centered delete button.
 
@@ -605,7 +605,7 @@ class WorldBuildingUI(QWidget):
         delete_button = self.create_delete_button(table, row)
         table.setCellWidget(row, 2, delete_button)
 
-    def apply_styles(self):
+    def apply_styles(self) -> None:
         """
         Apply styles to the UI components.
         """
@@ -628,7 +628,7 @@ class WorldBuildingUI(QWidget):
             QMessageBox.warning(self, "Stylesheet Error", error_message)
         logging.debug("Completed apply_styles method")
 
-    def open_relation_properties_dialog(self, row):
+    def open_relation_properties_dialog(self, row: int) -> None:
         """
         Open a dialog to edit relationship properties.
 
@@ -702,7 +702,7 @@ class WorldBuildingUI(QWidget):
 
         dialog.exec()
 
-    def set_relationship_properties(self, row, properties_table, dialog):
+    def set_relationship_properties(self, row: int, properties_table: QTableWidget, dialog: QDialog) -> None:
         """
         Set relationship properties from the dialog.
 

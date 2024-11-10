@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 
 class Config:
@@ -9,7 +10,7 @@ class Config:
         json_file (str): Path to the JSON configuration file.
     """
 
-    def __init__(self, json_file):
+    def __init__(self, json_file: str) -> None:
         """
         Initialize the Config class by loading the JSON file and setting attributes.
 

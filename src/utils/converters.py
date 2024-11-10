@@ -3,6 +3,7 @@ This module provides the NamingConventionConverter class, which handles conversi
 """
 
 import re
+from typing import Dict, List, Tuple
 
 class NamingConventionConverter:
     """
@@ -10,7 +11,7 @@ class NamingConventionConverter:
     """
 
     @staticmethod
-    def to_camel_case(label):
+    def to_camel_case(label: str) -> str:
         """
         Convert a label to CamelCase, treating special characters as blanks and removing leading numbers.
 
@@ -27,7 +28,7 @@ class NamingConventionConverter:
         return ''.join(word.capitalize() for word in parts)
 
     @staticmethod
-    def to_upper_underscore(relationship_type):
+    def to_upper_underscore(relationship_type: str) -> str:
         """
         Convert a relationship type to UPPERCASE_WITH_UNDERSCORES, treating special characters as blanks and removing leading numbers.
 
@@ -43,7 +44,7 @@ class NamingConventionConverter:
         return relationship_type.upper().replace(' ', '_')
 
     @staticmethod
-    def to_camel_case_key(key):
+    def to_camel_case_key(key: str) -> str:
         """
         Convert a property key to camelCase, treating special characters as blanks and removing leading numbers.
 
@@ -60,7 +61,7 @@ class NamingConventionConverter:
         return parts[0].lower() + ''.join(word.capitalize() for word in parts[1:])
 
     @staticmethod
-    def is_camel_case(label):
+    def is_camel_case(label: str) -> bool:
         """
         Check if a label is in CamelCase format, treating special characters as blanks and removing leading numbers.
 
@@ -76,7 +77,7 @@ class NamingConventionConverter:
         return label == ''.join(word.capitalize() for word in label.split())
 
     @staticmethod
-    def is_upper_underscore(relationship_type):
+    def is_upper_underscore(relationship_type: str) -> bool:
         """
         Check if a relationship type is in UPPERCASE_WITH_UNDERSCORES format, treating special characters as blanks and removing leading numbers.
 
@@ -92,7 +93,7 @@ class NamingConventionConverter:
         return relationship_type == relationship_type.upper().replace(' ', '_')
 
     @staticmethod
-    def is_camel_case_key(key):
+    def is_camel_case_key(key: str) -> bool:
         """
         Check if a property key is in camelCase format, treating special characters as blanks and removing leading numbers.
 
@@ -110,7 +111,7 @@ class NamingConventionConverter:
         return key == formatted_key
 
     @staticmethod
-    def convert_node_data(node_data):
+    def convert_node_data(node_data: Dict[str, any]) -> Dict[str, any]:
         """
         Convert labels, property keys, and relationships in node data to enforce naming conventions.
 
@@ -130,7 +131,7 @@ class NamingConventionConverter:
                                    node_data.get('additional_properties', {}).items()}
 
         # Convert relationships
-        updated_realationships = []
+        updated_realationships: List[Tuple[str, str, str, Dict[str, any]]] = []
         for rel in node_data.get('relationships', []):
             relationship_type, target, direction, properties = rel
             converted_relationship_type = NamingConventionConverter.to_upper_underscore(

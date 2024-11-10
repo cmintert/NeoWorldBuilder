@@ -7,6 +7,7 @@ import json
 import logging
 import traceback
 from collections import Counter
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 from PyQt6.QtCore import QThread, pyqtSignal
@@ -25,7 +26,7 @@ class BaseNeo4jWorker(QThread):
     error_occurred = pyqtSignal(str)
     progress_updated = pyqtSignal(int)
 
-    def __init__(self, uri, auth):
+    def __init__(self, uri: str, auth: Tuple[str, str]) -> None:
         """
         Initialize the worker with Neo4j connection parameters.
 
@@ -36,17 +37,17 @@ class BaseNeo4jWorker(QThread):
         super().__init__()
         self._uri = uri
         self._auth = auth
-        self._driver = None
+        self._driver: Optional[GraphDatabase.driver] = None
         self._is_cancelled = False
 
-    def connect(self):
+    def connect(self) -> None:
         """
         Create Neo4j driver connection.
         """
         if not self._driver:
             self._driver = GraphDatabase.driver(self._uri, auth=self._auth)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """
         Clean up resources.
         """
@@ -54,7 +55,7 @@ class BaseNeo4jWorker(QThread):
             self._driver.close()
             self._driver = None
 
-    def cancel(self):
+    def cancel(self) -> None:
         """
         Cancel current operation.
         """
@@ -62,7 +63,7 @@ class BaseNeo4jWorker(QThread):
         self.quit()  # Tell thread to quit
         self.wait()
 
-    def run(self):
+    def run(self) -> None:
         """
         Base run implementation.
         """
@@ -74,7 +75,7 @@ class BaseNeo4jWorker(QThread):
         finally:
             self.cleanup()
 
-    def execute_operation(self):
+    def execute_operation(self) -> None:
         """
         Override in subclasses to execute specific operations.
         """
@@ -94,7 +95,7 @@ class QueryWorker(BaseNeo4jWorker):
 
     query_finished = pyqtSignal(list)
 
-    def __init__(self, uri, auth, query, params=None):
+    def __init__(self, uri: str, auth: Tuple[str, str], query: str, params: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize the worker with query parameters.
 
@@ -108,7 +109,7 @@ class QueryWorker(BaseNeo4jWorker):
         self.query = query
         self.params = params or {}
 
-    def execute_operation(self):
+    def execute_operation(self) -> None:
         """
         Execute the read operation.
         """
@@ -137,7 +138,7 @@ class WriteWorker(BaseNeo4jWorker):
 
     write_finished = pyqtSignal(bool)
 
-    def __init__(self, uri, auth, func, *args):
+    def __init__(self, uri: str, auth: Tuple[str, str], func: Callable[..., Any], *args: Any) -> None:
         """
         Initialize the worker with write function and arguments.
 
@@ -151,7 +152,7 @@ class WriteWorker(BaseNeo4jWorker):
         self.func = func
         self.args = args
 
-    def execute_operation(self):
+    def execute_operation(self) -> None:
         """
         Execute the write operation.
         """
@@ -161,7 +162,7 @@ class WriteWorker(BaseNeo4jWorker):
                 self.write_finished.emit(True)
 
     @staticmethod
-    def _run_transaction(tx, query, params):
+    def _run_transaction(tx: Any, query: str, params: Dict[str, Any]) -> Any:
         """
         Run a transaction with the given query and parameters.
 
@@ -189,7 +190,7 @@ class DeleteWorker(BaseNeo4jWorker):
 
     delete_finished = pyqtSignal(bool)
 
-    def __init__(self, uri, auth, func, *args):
+    def __init__(self, uri: str, auth: Tuple[str, str], func: Callable[..., Any], *args: Any) -> None:
         """
         Initialize the worker with delete function and arguments.
 
@@ -203,7 +204,7 @@ class DeleteWorker(BaseNeo4jWorker):
         self.func = func
         self.args = args
 
-    def execute_operation(self):
+    def execute_operation(self) -> None:
         """
         Execute the delete operation.
         """
@@ -213,7 +214,7 @@ class DeleteWorker(BaseNeo4jWorker):
                 self.delete_finished.emit(True)
 
     @staticmethod
-    def _run_transaction(tx, query, params):
+    def _run_transaction(tx: Any, query: str, params: Dict[str, Any]) -> Any:
         """
         Run a transaction with the given query and parameters.
 
@@ -240,7 +241,7 @@ class BatchWorker(BaseNeo4jWorker):
     batch_progress = pyqtSignal(int, int)  # current, total
     batch_finished = pyqtSignal(list)
 
-    def __init__(self, driver_config, operations):
+    def __init__(self, driver_config: Dict[str, Any], operations: List[Tuple[str, Optional[Dict[str, Any]]]]) -> None:
         """
         Initialize the worker with batch operations.
 
@@ -251,7 +252,7 @@ class BatchWorker(BaseNeo4jWorker):
         super().__init__(driver_config)
         self.operations = operations
 
-    def execute_operation(self):
+    def execute_operation(self) -> None:
         """
         Execute the batch operations.
         """
@@ -283,7 +284,7 @@ class SuggestionWorker(BaseNeo4jWorker):
 
     suggestions_ready = pyqtSignal(dict)
 
-    def __init__(self, uri, auth, node_data):
+    def __init__(self, uri: str, auth: Tuple[str, str], node_data: Dict[str, Any]) -> None:
         """
         Initialize the worker with node data.
 
@@ -296,7 +297,7 @@ class SuggestionWorker(BaseNeo4jWorker):
         self.node_data = node_data
         logging.basicConfig(level=logging.DEBUG)
 
-    def _find_similar_nodes(self, session, node_data):
+    def _find_similar_nodes(self, session: Any, node_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
         Find similar nodes based on labels.
 
@@ -330,7 +331,7 @@ class SuggestionWorker(BaseNeo4jWorker):
             logging.error(f"Error finding similar nodes: {str(e)}", exc_info=True)
             return []
 
-    def _get_tag_suggestions(self, df):
+    def _get_tag_suggestions(self, df: pd.DataFrame) -> List[Tuple[str, float]]:
         """
         Generate tag suggestions based on frequency.
 
@@ -376,7 +377,7 @@ class SuggestionWorker(BaseNeo4jWorker):
             logging.error(f"Error generating tag suggestions: {str(e)}", exc_info=True)
             return []
 
-    def _get_property_suggestions(self, df):
+    def _get_property_suggestions(self, df: pd.DataFrame) -> Dict[str, List[Tuple[str, float]]]:
         """
         Generate property suggestions based on frequency.
 
@@ -432,7 +433,7 @@ class SuggestionWorker(BaseNeo4jWorker):
             )
             return {}
 
-    def execute_operation(self):
+    def execute_operation(self) -> None:
         """
         Execute the suggestion generation operation.
         """
