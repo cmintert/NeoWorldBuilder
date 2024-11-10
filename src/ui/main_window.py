@@ -5,10 +5,30 @@ from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QSplitter, QVBoxLayout, QTreeView, QLabel, \
-    QSpinBox, QProgressBar, QTabWidget, QLineEdit, QPushButton, QFormLayout, QTextEdit, QGroupBox, \
-    QTableWidget, QMenu, QHeaderView, QMessageBox, QTableWidgetItem, QComboBox, QDialog, \
-    QDialogButtonBox
+from PyQt6.QtWidgets import (
+    QWidget,
+    QHBoxLayout,
+    QSplitter,
+    QVBoxLayout,
+    QTreeView,
+    QLabel,
+    QSpinBox,
+    QProgressBar,
+    QTabWidget,
+    QLineEdit,
+    QPushButton,
+    QFormLayout,
+    QTextEdit,
+    QGroupBox,
+    QTableWidget,
+    QMenu,
+    QHeaderView,
+    QMessageBox,
+    QTableWidgetItem,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+)
 
 
 class WorldBuildingUI(QWidget):
@@ -35,8 +55,6 @@ class WorldBuildingUI(QWidget):
             Qt.WidgetAttribute.WA_TranslucentBackground, True
         )  # Allow transparency
         self.init_ui()
-
-
 
     def init_ui(self):
         """
@@ -155,6 +173,19 @@ class WorldBuildingUI(QWidget):
         self.tabs.addTab(self._create_properties_tab(), "Properties")
 
         layout.addWidget(self.tabs)
+
+        # Suggest button
+        self.suggest_button = QPushButton("Suggest additional Node Data")
+        self.suggest_button.setObjectName("suggestButton")
+        self.suggest_button.setFixedWidth(250)
+        self.suggest_button.setMinimumHeight(30)
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        button_layout.addWidget(self.suggest_button)
+        button_layout.addStretch()
+
+        layout.addLayout(button_layout)
+
         return panel
 
     def _create_header_layout(self):
@@ -228,14 +259,8 @@ class WorldBuildingUI(QWidget):
         layout.addRow("Labels:", self.labels_input)
         layout.addRow("Tags:", self.tags_input)
 
-        # Suggest button
-        self.suggest_button = QPushButton("Suggest additional Node Data")
-        self.suggest_button.setObjectName("suggestButton")
-        self.suggest_button.setFixedWidth(250)
-        self.suggest_button.setMinimumHeight(30)
-
         layout.addRow(image_group)
-        layout.addRow(self.suggest_button)
+
         return tab
 
     def _create_image_group(self):
