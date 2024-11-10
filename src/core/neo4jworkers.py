@@ -317,95 +317,70 @@ class SuggestionWorker(BaseNeo4jWorker):
         self, session: Any, node_data: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
         """
-        Find similar nodes based on labels.
+        Find similar nodes based on labels, including their relationships.
 
         Args:
-            session: The Neo4j session.
-            node_data (dict): The data of the node for which to find similar nodes.
+            session: The Neo4j session
+            node_data (dict): The data of the node to find similar nodes for
 
         Returns:
-            list: A list of similar nodes.
+            list: A list of similar nodes with structured properties and relationships
         """
         try:
             logging.debug("Finding similar nodes")
             labels = node_data.get("labels", [])
             name = node_data.get("name", "")
 
-            # Just get nodes with same label, excluding self
+            logging.debug(f"Labels: {labels}, Name: {name}")
+
             query = """
             MATCH (n)
             WHERE any(label IN $labels WHERE label IN labels(n))
-            AND n.name <> $name
-            RETURN n
+              AND n.name <> $name
+            WITH n, labels(n) as node_labels
+            OPTIONAL MATCH (n)-[r]->(target)
+            WITH n, node_labels,
+                 collect({
+                    type: type(r),
+                    source: n.name,
+                    target: target.name,
+                    direction: 'outgoing',
+                    properties: properties(r)
+                 }) as outRels
+            OPTIONAL MATCH (n)<-[r2]-(source)
+            WITH n, node_labels, outRels,
+                 collect({
+                    type: type(r2),
+                    source: source.name,
+                    target: n.name,
+                    direction: 'incoming',
+                    properties: properties(r2)
+                 }) as inRels
+            RETURN {
+                properties: properties(n),
+                labels: node_labels,
+                relationships: outRels + inRels
+            } as node_data
             """
+
             result = session.run(query, labels=labels, name=name)
-            similar_nodes = [record["n"] for record in result]
-            logging.debug("Found similar nodes with full properties:")
-            for node in similar_nodes:
-                logging.debug(f"Node Properties: {dict(node)}")
+            similar_nodes = []
+
+            for record in result:
+                similar_nodes.append(record["node_data"])
+
+            logging.debug(f"Similar nodes: {similar_nodes}")
             return similar_nodes
 
         except Exception as e:
             logging.error(f"Error finding similar nodes: {str(e)}", exc_info=True)
             return []
 
-    def _get_tag_suggestions(self, df: pd.DataFrame) -> List[Tuple[str, float]]:
-        """
-        Generate tag suggestions based on frequency.
-
-        Args:
-            df (pd.DataFrame): The DataFrame containing node data.
-
-        Returns:
-            list: A list of tag suggestions with confidence scores.
-        """
-        logging.debug("Generating tag suggestions")
-        try:
-            all_tags = []
-            current_tags = set(self.node_data.get("tags", []))
-
-            # Collect all tags from similar nodes
-            for tags in df["tags"]:
-                if isinstance(tags, list):
-                    all_tags.extend(tags)
-
-            # Count tag frequencies
-            tag_counts = Counter(all_tags)
-
-            # Convert to suggestions with confidence scores
-            suggestions = []
-            total_occurrences = sum(tag_counts.values())
-
-            for tag, count in tag_counts.most_common():
-                # Skip if tag is already in current node
-                if tag in current_tags:
-                    continue
-
-                # Simple confidence calculation: (count / total) * 100
-                confidence = (count / total_occurrences) * 100
-                suggestions.append((tag, confidence))
-
-                if len(suggestions) >= 5:  # Limit to top 5 suggestions
-                    break
-
-            logging.debug(f"Tag suggestions: {suggestions}")
-            return suggestions
-
-        except Exception as e:
-            logging.error(f"Error generating tag suggestions: {str(e)}", exc_info=True)
-            return []
-
     def _get_property_suggestions(
         self, df: pd.DataFrame
     ) -> Dict[str, List[Tuple[str, float]]]:
         """
-        Generate property suggestions based on frequency.
-
-        Args:
-            df (pd.DataFrame): The DataFrame containing node data.
-
-        Returns:
-            dict: A dictionary of property suggestions with confidence scores.
+        Generate property suggestions based on frequency from a DataFrame.
         """
         try:
             suggestions = {}
@@ -418,33 +393,21 @@ class SuggestionWorker(BaseNeo4jWorker):
                 "_author",
             }
 
-            logging.debug(f"DataFrame raw content before property suggestions:\n{df}")
-
-            # Get properties directly from the Neo4j node data
-            for column in df.columns:
-                if column in exclude_props or column.startswith("_"):
+            # Extract all properties from DataFrame
+            properties_df = pd.json_normalize(df["properties"])
+            for column in properties_df.columns:
+                if column in exclude_props:
                     continue
 
-                value_counts = df[column].value_counts()
-                total = len(df[column].dropna())  # Only count non-null values
+                # Count occurrences of each unique value in the property column
+                value_counts = properties_df[column].value_counts(dropna=True)
+                total = value_counts.sum() or 1  # Avoid division by zero
 
-                if total == 0:
-                    continue
+                # Convert to list of tuples (value, confidence)
+                suggestions[column] = [
+                    (val, (count / total) * 100) for val, count in value_counts.items()
+                ]
 
-                prop_suggestions = []
-                for value, count in value_counts.items():
-                    if pd.isna(value):  # Skip null values
-                        continue
-                    confidence = (count / total) * 100
-                    prop_suggestions.append((str(value), confidence))
-
-                if prop_suggestions:
-                    suggestions[column] = prop_suggestions
-                    logging.debug(
-                        f"Found suggestions for property {column}: {prop_suggestions}"
-                    )
-
-            logging.debug(f"Final property suggestions: {suggestions}")
             return suggestions
 
         except Exception as e:
@@ -453,15 +416,95 @@ class SuggestionWorker(BaseNeo4jWorker):
             )
             return {}
 
+    def _get_tag_suggestions(self, df: pd.DataFrame) -> List[Tuple[str, float]]:
+        """
+        Generate tag suggestions based on frequency from a DataFrame.
+        """
+        try:
+            all_tags = []
+            current_tags = set(self.node_data.get("properties", {}).get("tags", []))
+
+            # Flatten list of tags for all rows
+            all_tags = [tag for tags_list in df["tags"].dropna() for tag in tags_list]
+
+            # Count tag occurrences and calculate confidence
+            tag_counts = Counter(all_tags)
+            total = sum(tag_counts.values()) or 1  # Avoid division by zero
+
+            suggestions = [
+                (tag, (count / total) * 100)
+                for tag, count in tag_counts.items()
+                if tag not in current_tags
+            ]
+            return suggestions[:5]  # Limit to top 5 suggestions
+
+        except Exception as e:
+            logging.error(f"Error generating tag suggestions: {str(e)}", exc_info=True)
+            return []
+
     def _get_relationship_suggestions(
         self, df: pd.DataFrame
     ) -> List[Tuple[str, str, str, Dict[str, Any], float]]:
-        pass
+        """
+        Generate relationship suggestions, including relationship properties, based on a DataFrame.
+        """
+        try:
+            outgoing_rels = []
+            incoming_rels = []
+
+            # Flatten and classify relationships by direction
+            for rel_list in df["relationships"].dropna():
+                for rel in rel_list:
+                    rel_type = rel["type"]
+                    target = rel["target"]
+                    direction = rel["direction"]
+                    properties = rel.get("properties", {})
+
+                    if direction == "outgoing":
+                        outgoing_rels.append(
+                            (rel_type, target, direction, frozenset(properties.items()))
+                        )
+                    elif direction == "incoming":
+                        incoming_rels.append(
+                            (rel_type, target, direction, frozenset(properties.items()))
+                        )
+
+            # Count and calculate confidence scores
+            out_counts = Counter(outgoing_rels)
+            in_counts = Counter(incoming_rels)
+
+            total_out = sum(out_counts.values()) or 1
+            total_in = sum(in_counts.values()) or 1
+
+            # Generate top 3 suggestions per direction with confidence scores
+            suggestions = [
+                (rel_type, target, direction, dict(props), (count / total_out) * 100)
+                for (
+                    rel_type,
+                    target,
+                    direction,
+                    props,
+                ), count in out_counts.most_common(3)
+            ] + [
+                (rel_type, target, direction, dict(props), (count / total_in) * 100)
+                for (
+                    rel_type,
+                    target,
+                    direction,
+                    props,
+                ), count in in_counts.most_common(3)
+            ]
+
+            suggestions.sort(key=lambda x: x[4], reverse=True)
+            return suggestions[:5]  # Limit to top 5 suggestions
+
+        except Exception as e:
+            logging.error(
+                f"Error generating relationship suggestions: {str(e)}", exc_info=True
+            )
+            return []
 
     def execute_operation(self) -> None:
-        """
-        Execute the suggestion generation operation.
-        """
         try:
             logging.info("Starting suggestion generation process")
 
@@ -474,27 +517,40 @@ class SuggestionWorker(BaseNeo4jWorker):
                     self.suggestions_ready.emit(suggestions)
                     return
 
-                # Convert Neo4j nodes to dictionaries
-                node_data_list = []
-                for node in similar_nodes:
-                    # Get all properties as a dict using Neo4j's dict() conversion
-                    # This ensures we get ALL properties, not just the standard ones
-                    properties = dict(node)
-                    # Convert Neo4j types to Python native types where needed
-                    properties["tags"] = list(properties.get("tags", []))
-                    node_data_list.append(properties)
-
-                # Create DataFrame from full property dictionaries
-                df = pd.DataFrame.from_records(node_data_list)
+                # Create structured DataFrame
+                df = pd.DataFrame(
+                    {
+                        "node_id": [i for i, _ in enumerate(similar_nodes)],
+                        "properties": [node["properties"] for node in similar_nodes],
+                        "labels": [node["labels"] for node in similar_nodes],
+                        "relationships": [
+                            node["relationships"] for node in similar_nodes
+                        ],
+                        # Extract common properties for direct access if needed
+                        "name": [
+                            node["properties"].get("name") for node in similar_nodes
+                        ],
+                        "tags": [
+                            node["properties"].get("tags", []) for node in similar_nodes
+                        ],
+                    }
+                )
 
                 logging.debug(f"Created DataFrame with columns: {df.columns.tolist()}")
                 logging.debug(f"DataFrame content:\n{df}")
+
+                # Example of the DataFrame:
+                """
+                   node_id  properties                  labels        relationships     name     tags
+                0  0       {'name': 'Saruman', ...}    [Character]   [{type: ...}]    Saruman  [wizard, ...]
+                1  1       {'name': 'Gandalf', ...}    [Character]   [{type: ...}]    Gandalf  [wizard, ...]
+                """
 
                 # Generate suggestions
                 suggestions = {
                     "tags": self._get_tag_suggestions(df),
                     "properties": self._get_property_suggestions(df),
-                    "relationships": [],  # Simplified version skips relationships
+                    "relationships": self._get_relationship_suggestions(df),
                 }
 
                 logging.debug(

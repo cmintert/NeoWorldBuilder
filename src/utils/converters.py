@@ -126,7 +126,7 @@ class NamingConventionConverter:
         """
         # Convert labels to CamelCase
         node_data["labels"] = [
-            NamingConventionConverter.to_camel_case(label)
+            NamingConventionConverter.to_upper_underscore(label)
             for label in node_data.get("labels", [])
         ]
 

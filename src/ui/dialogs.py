@@ -1,6 +1,17 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTabWidget, QDialogButtonBox, QWidget, QCheckBox, \
-    QLabel, QHBoxLayout, QGroupBox, QLineEdit
 from typing import Dict, List, Tuple, Any
+
+from PyQt6.QtWidgets import (
+    QDialog,
+    QVBoxLayout,
+    QTabWidget,
+    QDialogButtonBox,
+    QWidget,
+    QCheckBox,
+    QLabel,
+    QHBoxLayout,
+    QGroupBox,
+    QLineEdit,
+)
 
 
 class SuggestionDialog(QDialog):
@@ -10,9 +21,9 @@ class SuggestionDialog(QDialog):
         self.setModal(True)
         self.suggestions = suggestions
         self.selected_suggestions: Dict[str, Any] = {
-            'tags': [],
-            'properties': {},
-            'relationships': []
+            "tags": [],
+            "properties": {},
+            "relationships": [],
         }
         self.init_ui()
 
@@ -27,7 +38,8 @@ class SuggestionDialog(QDialog):
 
         # Action buttons
         button_box = button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
 
@@ -39,7 +51,7 @@ class SuggestionDialog(QDialog):
         layout = QVBoxLayout(widget)
 
         self.tags_checkboxes: List[Tuple[QCheckBox, str]] = []
-        for tag, confidence in self.suggestions.get('tags', []):
+        for tag, confidence in self.suggestions.get("tags", []):
             checkbox = QCheckBox(f"{tag}")
             confidence_label = QLabel(f"Confidence: {confidence:.2f}%")
             h_layout = QHBoxLayout()
@@ -55,12 +67,12 @@ class SuggestionDialog(QDialog):
         layout = QVBoxLayout(widget)
 
         self.properties_checkboxes: List[Tuple[QCheckBox, str, QLineEdit]] = []
-        for key, values in self.suggestions.get('properties', {}).items():
+        for key, values in self.suggestions.get("properties", {}).items():
             group_box = QGroupBox(f"Property: {key}")
             v_layout = QVBoxLayout()
             for value, confidence in values:
                 checkbox = QCheckBox("Value:")
-                value_edit = QLineEdit(value)
+                value_edit = QLineEdit(str(value))
                 confidence_label = QLabel(f"Confidence: {confidence:.2f}%")
                 h_layout = QHBoxLayout()
                 h_layout.addWidget(checkbox)
@@ -78,14 +90,20 @@ class SuggestionDialog(QDialog):
         widget = QWidget()
         layout = QVBoxLayout(widget)
 
-        self.relationships_checkboxes: List[Tuple[QCheckBox, str, str, str, Dict[str, Any]]] = []
-        for rel_type, target, direction, props, confidence in self.suggestions.get('relationships', []):
+        self.relationships_checkboxes: List[
+            Tuple[QCheckBox, str, str, str, Dict[str, Any]]
+        ] = []
+        for rel_type, target, direction, props, confidence in self.suggestions.get(
+            "relationships", []
+        ):
             checkbox = QCheckBox(f"{direction} {rel_type} -> {target}")
             confidence_label = QLabel(f"Confidence: {confidence:.2f}%")
             h_layout = QHBoxLayout()
             h_layout.addWidget(checkbox)
             h_layout.addWidget(confidence_label)
-            self.relationships_checkboxes.append((checkbox, rel_type, target, direction, props))
+            self.relationships_checkboxes.append(
+                (checkbox, rel_type, target, direction, props)
+            )
             layout.addLayout(h_layout)
 
         return widget
@@ -94,18 +112,24 @@ class SuggestionDialog(QDialog):
         # Collect selected tags
         for checkbox, tag in self.tags_checkboxes:
             if checkbox.isChecked():
-                self.selected_suggestions['tags'].append(tag)
+                self.selected_suggestions["tags"].append(tag)
 
         # Collect selected properties
         for checkbox, key, value_edit in self.properties_checkboxes:
             if checkbox.isChecked():
                 # Get the current text from the QLineEdit when accepting
-                self.selected_suggestions['properties'][key] = value_edit.text()
+                self.selected_suggestions["properties"][key] = value_edit.text()
 
         # Collect selected relationships
-        for checkbox, rel_type, target, direction, props in self.relationships_checkboxes:
+        for (
+            checkbox,
+            rel_type,
+            target,
+            direction,
+            props,
+        ) in self.relationships_checkboxes:
             if checkbox.isChecked():
-                self.selected_suggestions['relationships'].append(
+                self.selected_suggestions["relationships"].append(
                     (rel_type, target, direction, props)
                 )
 

@@ -4,8 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c1c1f3df-892c-4735-83ba-216f6077e36f" name="Changes" comment="import bug squashed...">
-      <change beforePath="$PROJECT_DIR$/src/config.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/config.json" afterDir="false" />
+    <list default="true" id="c1c1f3df-892c-4735-83ba-216f6077e36f" name="Changes" comment="import bug squashed and corrected config.json...">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/neo4jworkers.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/neo4jworkers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/converters.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/converters.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -297,15 +299,7 @@
       <workItem from="1731173681546" duration="34000" />
       <workItem from="1731173953640" duration="2939000" />
       <workItem from="1731228712531" duration="7823000" />
-      <workItem from="1731249489525" duration="4372000" />
-    </task>
-    <task id="LOCAL-00021" summary="Works.">
-      <option name="closed" value="true" />
-      <created>1730045591742</created>
-      <option name="number" value="00021" />
-      <option name="presentableId" value="LOCAL-00021" />
-      <option name="project" value="LOCAL" />
-      <updated>1730045591742</updated>
+      <workItem from="1731249489525" duration="7978000" />
     </task>
     <task id="LOCAL-00022" summary="Stylesheet advances.">
       <option name="closed" value="true" />
@@ -691,7 +685,15 @@
       <option name="project" value="LOCAL" />
       <updated>1731253938861</updated>
     </task>
-    <option name="localTasksCounter" value="70" />
+    <task id="LOCAL-00070" summary="import bug squashed and corrected config.json...">
+      <option name="closed" value="true" />
+      <created>1731254119225</created>
+      <option name="number" value="00070" />
+      <option name="presentableId" value="LOCAL-00070" />
+      <option name="project" value="LOCAL" />
+      <updated>1731254119225</updated>
+    </task>
+    <option name="localTasksCounter" value="71" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -739,7 +741,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Corrected styling for the depth spin box" />
     <MESSAGE value="Added selection boxes to all tree items, connection does not work yet" />
     <MESSAGE value="Selection and multi node export now seems to work in a basic way." />
     <MESSAGE value="Reduced clutter in the export menu" />
@@ -764,7 +765,8 @@
     <MESSAGE value="reduced clutter in qss" />
     <MESSAGE value="more cleanup" />
     <MESSAGE value="import bug squashed..." />
-    <option name="LAST_COMMIT_MESSAGE" value="import bug squashed..." />
+    <MESSAGE value="import bug squashed and corrected config.json..." />
+    <option name="LAST_COMMIT_MESSAGE" value="import bug squashed and corrected config.json..." />
     <option name="OPTIMIZE_IMPORTS_BEFORE_PROJECT_COMMIT" value="true" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
@@ -776,6 +778,6 @@
     <SUITE FILE_PATH="coverage/NeoRealmBuilder$scratch_1.coverage" NAME="scratch_1 Coverage Results" MODIFIED="1729632936135" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
     <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_in_main_test_py.coverage" NAME="pytest in main_test.py Coverage Results" MODIFIED="1731085976144" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
     <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_in_test_neo4j_model_py.coverage" NAME="pytest in test_neo4j_model.py Coverage Results" MODIFIED="1730666202332" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
-    <SUITE FILE_PATH="coverage/NeoRealmBuilder$main.coverage" NAME="main Coverage Results" MODIFIED="1731239005565" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/NeoRealmBuilder$main.coverage" NAME="main Coverage Results" MODIFIED="1731257759735" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
