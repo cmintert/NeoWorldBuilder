@@ -498,15 +498,14 @@ class WorldBuildingUI(QWidget):
 
         try:
             pixmap = QPixmap(image_path)
-            if not pixmap.isNull():
-                scaled_pixmap = pixmap.scaled(
-                    self.image_label.size(),
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-                self.image_label.setPixmap(scaled_pixmap)
-            else:
+            if pixmap.isNull():
                 raise ValueError("Failed to load image")
+            scaled_pixmap = pixmap.scaled(
+                self.image_label.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self.image_label.setPixmap(scaled_pixmap)
         except Exception as e:
             self.image_label.clear()
             QMessageBox.warning(self, "Image Error", f"Failed to load image: {str(e)}")
@@ -630,9 +629,7 @@ class WorldBuildingUI(QWidget):
 
         self._setup_properties_table_columns(rel_properties_table)
 
-        # Populate properties table with existing properties
-        properties_json = self.relationships_table.item(row, 3).text()
-        if properties_json:
+        if properties_json := self.relationships_table.item(row, 3).text():
             properties = json.loads(properties_json)
             for key, value in properties.items():
                 rel_properties_table.insertRow(rel_properties_table.rowCount())

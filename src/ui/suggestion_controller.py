@@ -1,4 +1,4 @@
-from PyQt6.QtCore import QObject, pyqtSlot
+from PyQt6.QtCore import QObject
 from PyQt6.QtWidgets import QMessageBox
 
 from core.neo4jworkers import SuggestionWorker
@@ -234,7 +234,7 @@ class SuggestionController(QObject):
                     )
                 )
             except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON in relationship properties: {e}")
+                raise ValueError(f"Invalid JSON in relationship properties: {e}") from e
 
         logging.debug(f"Collected the following Relationships: {relationships}")
         return relationships

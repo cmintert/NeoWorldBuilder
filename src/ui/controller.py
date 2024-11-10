@@ -116,8 +116,7 @@ class WorldBuildingController(QObject):
         Args:
             row (int): The row number where the completer will be added.
         """
-        target_item = self.ui.relationships_table.item(row, 1)
-        if target_item:
+        if target_item := self.ui.relationships_table.item(row, 1):
             target_text = target_item.text()
             line_edit = QLineEdit(target_text)
             line_edit.setCompleter(self.target_completer)
@@ -325,8 +324,7 @@ class WorldBuildingController(QObject):
         Args:
             value (int): The new depth value.
         """
-        node_name = self.ui.name_input.text().strip()
-        if node_name:
+        if node_name := self.ui.name_input.text().strip():
             self.update_relationship_tree(node_name)
 
     def update_relationship_tree(self, node_name: str):
@@ -358,8 +356,7 @@ class WorldBuildingController(QObject):
         """
         Refresh the entire tree view.
         """
-        name = self.ui.name_input.text().strip()
-        if name:
+        if name := self.ui.name_input.text().strip():
             self.update_relationship_tree(name)
 
     def on_tree_selection_changed(self, selected, deselected):
@@ -370,10 +367,8 @@ class WorldBuildingController(QObject):
             selected: The selected indexes.
             deselected: The deselected indexes.
         """
-        indexes = selected.indexes()
-        if indexes:
-            selected_item = self.tree_model.itemFromIndex(indexes[0])
-            if selected_item:
+        if indexes := selected.indexes():
+            if selected_item := self.tree_model.itemFromIndex(indexes[0]):
                 node_name = selected_item.data(Qt.ItemDataRole.UserRole)
                 if node_name and node_name != self.ui.name_input.text():
                     self.ui.name_input.setText(node_name)
@@ -640,7 +635,7 @@ class WorldBuildingController(QObject):
                     )
                 )
             except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON in relationship properties: {e}")
+                raise ValueError(f"Invalid JSON in relationship properties: {e}") from e
 
         logging.debug(f"Collected the following Relationships: {relationships}")
         return relationships

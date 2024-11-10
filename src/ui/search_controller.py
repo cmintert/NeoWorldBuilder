@@ -54,8 +54,7 @@ class SearchController(QObject):
         Args:
             row (int): The row number where the completer will be added.
         """
-        target_item = self.ui.relationships_table.item(row, 1)
-        if target_item:
+        if target_item := self.ui.relationships_table.item(row, 1):
             target_text = target_item.text()
             line_edit = QLineEdit(target_text)
             line_edit.setCompleter(self.target_completer)

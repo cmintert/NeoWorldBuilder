@@ -58,7 +58,7 @@ class SuggestionDialog(QDialog):
             group_box = QGroupBox(f"Property: {key}")
             v_layout = QVBoxLayout()
             for value, confidence in values:
-                checkbox = QCheckBox(f"Value:")
+                checkbox = QCheckBox("Value:")
                 value_edit = QLineEdit(value)
                 confidence_label = QLabel(f"Confidence: {confidence:.2f}%")
                 h_layout = QHBoxLayout()

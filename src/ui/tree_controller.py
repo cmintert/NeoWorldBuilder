@@ -57,8 +57,7 @@ class TreeController(QObject):
         """
         Refresh the entire tree view.
         """
-        name = self.ui.name_input.text().strip()
-        if name:
+        if name := self.ui.name_input.text().strip():
             self.update_relationship_tree(name)
 
     def on_tree_selection_changed(self, selected, deselected):
@@ -69,10 +68,8 @@ class TreeController(QObject):
             selected: The selected indexes.
             deselected: The deselected indexes.
         """
-        indexes = selected.indexes()
-        if indexes:
-            selected_item = self.tree_model.itemFromIndex(indexes[0])
-            if selected_item:
+        if indexes := selected.indexes():
+            if selected_item := self.tree_model.itemFromIndex(indexes[0]):
                 node_name = selected_item.data(Qt.ItemDataRole.UserRole)
                 if node_name and node_name != self.ui.name_input.text():
                     self.ui.name_input.setText(node_name)
