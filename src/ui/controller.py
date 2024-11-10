@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 
 from core.neo4jworkers import SuggestionWorker
 from ui.dialogs import SuggestionDialog
+from utils.exporters import Exporter
 
 
 class WorldBuildingController(QObject):
@@ -37,6 +38,7 @@ class WorldBuildingController(QObject):
         self.ui = ui
         self.model = model
         self.config = config
+        self.exporter = Exporter(self.ui, self.config)
         self.current_image_path: Optional[str] = None
         self.original_node_data: Optional[Dict[str, Any]] = None
         self.ui.controller = self
@@ -1037,194 +1039,28 @@ class WorldBuildingController(QObject):
         self.current_image_path = None
         self.ui.set_image(None)
 
-    def export_as_json(self):
-        """
-        Export selected nodes data as JSON file.
-        """
+    def _export(self, export_method: callable):
         selected_nodes = self.get_selected_nodes()
         if not selected_nodes:
             QMessageBox.warning(self.ui, "Warning", "No nodes selected for export.")
             return
+        export_method(selected_nodes, self._collect_node_data_for_export)
 
-        file_name, _ = QFileDialog.getSaveFileName(
-            self.ui, "Export as JSON", "", "JSON Files (*.json)"
-        )
-        if file_name:
-            try:
-                all_node_data = []
-                for node_name in selected_nodes:
-                    if node_data := self._collect_node_data_for_export(node_name):
-                        all_node_data.append(node_data)
-
-                with open(file_name, "w") as file:
-                    json.dump(all_node_data, file, indent=4)
-                QMessageBox.information(
-                    self.ui,
-                    "Success",
-                    "Selected nodes data exported as JSON successfully",
-                )
-            except Exception as e:
-                self.handle_error(
-                    f"Error exporting selected nodes data as JSON: {str(e)}"
-                )
+    def export_as_json(self):
+        self._export(self.exporter.export_as_json)
 
     def export_as_txt(self):
-        """
-        Export selected nodes data as plain text file.
-        """
-        selected_nodes = self.get_selected_nodes()
-        if not selected_nodes:
-            QMessageBox.warning(self.ui, "Warning", "No nodes selected for export.")
-            return
-
-        file_name, _ = QFileDialog.getSaveFileName(
-            self.ui, "Export as TXT", "", "Text Files (*.txt)"
-        )
-        if file_name:
-            try:
-                with open(file_name, "w") as file:
-                    for node_name in selected_nodes:
-                        if node_data := self._collect_node_data_for_export(node_name):
-                            file.write(f"Name: {node_data['name']}\n")
-                            file.write(f"Description: {node_data['description']}\n")
-                            file.write(f"Tags: {', '.join(node_data['tags'])}\n")
-                            file.write(f"Labels: {', '.join(node_data['labels'])}\n")
-                            file.write("Relationships:\n")
-                            for rel in node_data["relationships"]:
-                                file.write(
-                                    f"  - Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}\n"
-                                )
-                            file.write("Additional Properties:\n")
-                            for key, value in node_data[
-                                "additional_properties"
-                            ].items():
-                                file.write(f"  - {key}: {value}\n")
-                            file.write("\n")
-                QMessageBox.information(
-                    self.ui,
-                    "Success",
-                    "Selected nodes data exported as TXT successfully",
-                )
-            except Exception as e:
-                self.handle_error(
-                    f"Error exporting selected nodes data as TXT: {str(e)}"
-                )
+        self._export(self.exporter.export_as_txt)
 
     def export_as_csv(self):
-        """
-        Export selected nodes data as CSV file.
-        """
-        selected_nodes = self.get_selected_nodes()
-        if not selected_nodes:
-            QMessageBox.warning(self.ui, "Warning", "No nodes selected for export.")
-            return
-
-        file_name, _ = QFileDialog.getSaveFileName(
-            self.ui, "Export as CSV", "", "CSV Files (*.csv)"
-        )
-        if file_name:
-            try:
-                with open(file_name, "w") as file:
-                    file.write(
-                        "Name,Description,Tags,Labels,Relationships,Additional Properties\n"
-                    )
-                    for node_name in selected_nodes:
-                        if node_data := self._collect_node_data_for_export(node_name):
-                            file.write(
-                                f"{node_data['name']},{node_data['description']},{', '.join(node_data['tags'])},{', '.join(node_data['labels'])},"
-                            )
-                            relationships = "; ".join(
-                                [
-                                    f"Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}"
-                                    for rel in node_data["relationships"]
-                                ]
-                            )
-                            additional_properties = "; ".join(
-                                [
-                                    f"{key}: {value}"
-                                    for key, value in node_data[
-                                        "additional_properties"
-                                    ].items()
-                                ]
-                            )
-                            file.write(f"{relationships},{additional_properties}\n")
-                QMessageBox.information(
-                    self.ui,
-                    "Success",
-                    "Selected nodes data exported as CSV successfully",
-                )
-            except Exception as e:
-                self.handle_error(
-                    f"Error exporting selected nodes data as CSV: {str(e)}"
-                )
+        self._export(self.exporter.export_as_csv)
 
     def export_as_pdf(self):
-        """
-        Export selected nodes data as PDF file.
-        """
-        from fpdf import FPDF
-
-        selected_nodes = self.get_selected_nodes()
-        if not selected_nodes:
-            QMessageBox.warning(self.ui, "Warning", "No nodes selected for export.")
-            return
-
-        file_name, _ = QFileDialog.getSaveFileName(
-            self.ui, "Export as PDF", "", "PDF Files (*.pdf)"
-        )
-        if file_name:
-            try:
-                pdf = FPDF()
-                pdf.set_font("Arial", size=12)
-
-                for node_name in selected_nodes:
-                    if node_data := self._collect_node_data_for_export(node_name):
-                        pdf.add_page()
-                        pdf.cell(200, 10, txt=f"Name: {node_data['name']}", ln=True)
-                        pdf.cell(
-                            200,
-                            10,
-                            txt=f"Description: {node_data['description']}",
-                            ln=True,
-                        )
-                        pdf.cell(
-                            200,
-                            10,
-                            txt=f"Tags: {', '.join(node_data['tags'])}",
-                            ln=True,
-                        )
-                        pdf.cell(
-                            200,
-                            10,
-                            txt=f"Labels: {', '.join(node_data['labels'])}",
-                            ln=True,
-                        )
-                        pdf.cell(200, 10, txt="Relationships:", ln=True)
-                        for rel in node_data["relationships"]:
-                            pdf.cell(
-                                200,
-                                10,
-                                txt=f"  - Type: {rel[0]}, Target: {rel[1]}, Direction: {rel[2]}, Properties: {json.dumps(rel[3])}",
-                                ln=True,
-                            )
-                        pdf.cell(200, 10, txt="Additional Properties:", ln=True)
-                        for key, value in node_data["additional_properties"].items():
-                            pdf.cell(200, 10, txt=f"  - {key}: {value}", ln=True)
-
-                pdf.output(file_name)
-                QMessageBox.information(
-                    self.ui,
-                    "Success",
-                    "Selected nodes data exported as PDF successfully",
-                )
-            except Exception as e:
-                self.handle_error(
-                    f"Error exporting selected nodes data as PDF: {str(e)}"
-                )
+        self._export(self.exporter.export_as_pdf)
 
     def get_selected_nodes(self) -> List[str]:
         """
-        Get the names of checked nodes in the tree view.
+        Get the names of checked nodes in the tree view, including the root node.
         """
         selected_nodes = []
         logging.debug("Starting to gather selected nodes.")
@@ -1256,7 +1092,13 @@ class WorldBuildingController(QObject):
 
         # Start traversal from root
         root_item = self.tree_model.invisibleRootItem()
-        traverse_tree(root_item)
+        for row in range(root_item.rowCount()):
+            child = root_item.child(row)
+            if child.checkState() == Qt.CheckState.Checked and child.data(
+                Qt.ItemDataRole.UserRole
+            ):
+                selected_nodes.append(child.data(Qt.ItemDataRole.UserRole))
+            traverse_tree(child)
 
         # Remove duplicates while preserving order
         unique_nodes = list(dict.fromkeys(selected_nodes))
