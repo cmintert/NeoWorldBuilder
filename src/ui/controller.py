@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 
 from PyQt6.QtCore import QObject, QStringListModel, Qt, pyqtSlot, QTimer
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QIcon
@@ -30,7 +30,7 @@ class WorldBuildingController(QObject):
 
     NODE_RELATIONSHIPS_HEADER = "Node Relationships"
 
-    def __init__(self, ui: "WorldBuildingUI", model: "Neo4jModel", config: "Config"):
+    def __init__(self, ui: "WorldBuildingUI", model: "Neo4jModel", config: "Config") -> None:
         """
         Initialize the controller with UI, model, and configuration.
 
@@ -68,7 +68,7 @@ class WorldBuildingController(QObject):
     # 1. Initialization Methods
     #############################################
 
-    def _initialize_tree_view(self):
+    def _initialize_tree_view(self) -> None:
         """
         Initialize the tree view model.
         """
@@ -93,7 +93,7 @@ class WorldBuildingController(QObject):
         self.ui.tree_view.setAllColumnsShowFocus(True)
         self.ui.tree_view.setHeaderHidden(False)
 
-    def _initialize_completer(self):
+    def _initialize_completer(self) -> None:
         """
         Initialize name auto-completion.
         """
@@ -104,7 +104,7 @@ class WorldBuildingController(QObject):
         self.ui.name_input.setCompleter(self.completer)
         self.completer.activated.connect(self.on_completer_activated)
 
-    def _initialize_target_completer(self):
+    def _initialize_target_completer(self) -> None:
         """
         Initialize target auto-completion for relationship table.
         """
@@ -114,7 +114,7 @@ class WorldBuildingController(QObject):
         self.target_completer.setFilterMode(Qt.MatchFlag.MatchContains)
         self.target_completer.activated.connect(self.on_target_completer_activated)
 
-    def _add_target_completer_to_row(self, row):
+    def _add_target_completer_to_row(self, row: int) -> None:
         """
         Add target completer to the target input field in the relationship table.
 
@@ -130,7 +130,7 @@ class WorldBuildingController(QObject):
             )
             self.ui.relationships_table.setCellWidget(row, 1, line_edit)
 
-    def on_target_completer_activated(self, text: str):
+    def on_target_completer_activated(self, text: str) -> None:
         """
         Handle target completer selection.
 
@@ -141,7 +141,7 @@ class WorldBuildingController(QObject):
         if current_row >= 0:
             self.ui.relationships_table.item(current_row, 1).setText(text)
 
-    def _fetch_matching_target_nodes(self, text: str):
+    def _fetch_matching_target_nodes(self, text: str) -> None:
         """
         Fetch matching target nodes for auto-completion.
 
@@ -165,7 +165,7 @@ class WorldBuildingController(QObject):
         self.current_search_worker.start()
 
     @pyqtSlot(list)
-    def _handle_target_autocomplete_results(self, records: List[Any]):
+    def _handle_target_autocomplete_results(self, records: List[Any]) -> None:
         """
         Handle target autocomplete results.
 
@@ -178,7 +178,7 @@ class WorldBuildingController(QObject):
         except Exception as e:
             self.handle_error(f"Error processing target autocomplete results: {str(e)}")
 
-    def _setup_debounce_timer(self):
+    def _setup_debounce_timer(self) -> None:
         """
         Setup debounce timer for search.
         """
@@ -189,7 +189,7 @@ class WorldBuildingController(QObject):
             self.config.TIMING_NAME_INPUT_DEBOUNCE_TIME_MS
         )
 
-    def _connect_signals(self):
+    def _connect_signals(self) -> None:
         """
         Connect all UI signals to handlers.
         """
@@ -228,7 +228,7 @@ class WorldBuildingController(QObject):
         # Depth spinbox change
         self.ui.depth_spinbox.valueChanged.connect(self.on_depth_changed)
 
-    def _load_default_state(self):
+    def _load_default_state(self) -> None:
         """
         Initialize default UI state.
         """
@@ -244,7 +244,7 @@ class WorldBuildingController(QObject):
     # 2. Node Operations
     #############################################
 
-    def load_node_data(self):
+    def load_node_data(self) -> None:
         """
         Load node data using worker thread.
         """
@@ -268,7 +268,7 @@ class WorldBuildingController(QObject):
         # Update relationship tree
         self.update_relationship_tree(name)
 
-    def save_node(self):
+    def save_node(self) -> None:
         """
         Save node data using worker thread.
         """
@@ -289,7 +289,7 @@ class WorldBuildingController(QObject):
         self.current_save_worker.error_occurred.connect(self.handle_error)
         self.current_save_worker.start()
 
-    def delete_node(self):
+    def delete_node(self) -> None:
         """
         Delete node using worker thread.
         """
@@ -322,7 +322,7 @@ class WorldBuildingController(QObject):
     # 3. Tree and Relationship Management
     #############################################
 
-    def on_depth_changed(self, value: int):
+    def on_depth_changed(self, value: int) -> None:
         """
         Handle changes in relationship depth.
 
@@ -332,7 +332,7 @@ class WorldBuildingController(QObject):
         if node_name := self.ui.name_input.text().strip():
             self.update_relationship_tree(node_name)
 
-    def update_relationship_tree(self, node_name: str):
+    def update_relationship_tree(self, node_name: str) -> None:
         """
         Update tree view with node relationships.
 
@@ -357,14 +357,14 @@ class WorldBuildingController(QObject):
         self.current_relationship_worker.error_occurred.connect(self.handle_error)
         self.current_relationship_worker.start()
 
-    def refresh_tree_view(self):
+    def refresh_tree_view(self) -> None:
         """
         Refresh the entire tree view.
         """
         if name := self.ui.name_input.text().strip():
             self.update_relationship_tree(name)
 
-    def on_tree_selection_changed(self, selected, deselected):
+    def on_tree_selection_changed(self, selected: Any, deselected: Any) -> None:
         """
         Handle tree view selection changes.
 
@@ -383,7 +383,7 @@ class WorldBuildingController(QObject):
     # 4. Auto-completion and Search
     #############################################
 
-    def show_suggestions_modal(self):
+    def show_suggestions_modal(self) -> None:
         """
         Show the suggestions modal dialog.
         """
@@ -416,7 +416,7 @@ class WorldBuildingController(QObject):
 
         logging.debug("SuggestionWorker started successfully.")
 
-    def on_suggestion_worker_finished(self):
+    def on_suggestion_worker_finished(self) -> None:
         """
         Cleanup after SuggestionWorker has finished.
         """
@@ -424,7 +424,7 @@ class WorldBuildingController(QObject):
         self.ui.show_loading(False)
         logging.debug("SuggestionWorker has finished and cleaned up.")
 
-    def handle_suggestions(self, suggestions):
+    def handle_suggestions(self, suggestions: Dict[str, Any]) -> None:
         """
         Handle the suggestions received from the SuggestionWorker.
 
@@ -477,7 +477,7 @@ class WorldBuildingController(QObject):
         else:
             logging.debug("Suggestion dialog was canceled by the user.")
 
-    def add_or_update_property(self, key, value):
+    def add_or_update_property(self, key: str, value: Any) -> None:
         """
         Add or update a property in the properties table.
 
@@ -500,7 +500,7 @@ class WorldBuildingController(QObject):
             delete_button = self.ui.create_delete_button(self.ui.properties_table, row)
             self.ui.properties_table.setCellWidget(row, 2, delete_button)
 
-    def debounce_name_input(self, text: str):
+    def debounce_name_input(self, text: str) -> None:
         """
         Debounce name input for search.
 
@@ -511,7 +511,7 @@ class WorldBuildingController(QObject):
         if text.strip():
             self.name_input_timer.start()
 
-    def _fetch_matching_nodes(self):
+    def _fetch_matching_nodes(self) -> None:
         """
         Fetch matching nodes for auto-completion.
         """
@@ -530,7 +530,7 @@ class WorldBuildingController(QObject):
         self.current_search_worker.error_occurred.connect(self.handle_error)
         self.current_search_worker.start()
 
-    def on_completer_activated(self, text: str):
+    def on_completer_activated(self, text: str) -> None:
         """
         Handle completer selection.
 
@@ -616,12 +616,12 @@ class WorldBuildingController(QObject):
 
         return properties
 
-    def _collect_relationships(self) -> List[tuple]:
+    def _collect_relationships(self) -> List[Tuple[str, str, str, Dict[str, Any]]]:
         """
         Collect relationships from table.
 
         Returns:
-            List[tuple]: The collected relationships.
+            List[Tuple[str, str, str, Dict[str, Any]]]: The collected relationships.
         """
         relationships = []
         for row in range(self.ui.relationships_table.rowCount()):
@@ -660,7 +660,7 @@ class WorldBuildingController(QObject):
     #############################################
 
     @pyqtSlot(list)
-    def _handle_node_data(self, data: List[Any]):
+    def _handle_node_data(self, data: List[Any]) -> None:
         """
         Handle node data fetched by the worker.
 
@@ -688,7 +688,7 @@ class WorldBuildingController(QObject):
         current_data = self._collect_node_data()
         return current_data != self.original_node_data
 
-    def update_unsaved_changes_indicator(self):
+    def update_unsaved_changes_indicator(self) -> None:
         """
         Update the unsaved changes indicator.
         """
@@ -697,7 +697,7 @@ class WorldBuildingController(QObject):
         else:
             self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
 
-    def _handle_delete_success(self, _):
+    def _handle_delete_success(self, _: Any) -> None:
         """
         Handle successful node deletion.
 
@@ -707,7 +707,7 @@ class WorldBuildingController(QObject):
         QMessageBox.information(self.ui, "Success", "Node deleted successfully")
         self._load_default_state()
 
-    def on_save_success(self, _):
+    def on_save_success(self, _: Any) -> None:
         """
         Handle successful node save.
 
@@ -719,7 +719,7 @@ class WorldBuildingController(QObject):
         self.load_node_data()
 
     @pyqtSlot(list)
-    def _handle_autocomplete_results(self, records: List[Any]):
+    def _handle_autocomplete_results(self, records: List[Any]) -> None:
         """
         Handle autocomplete results.
 
@@ -732,7 +732,7 @@ class WorldBuildingController(QObject):
         except Exception as e:
             self.handle_error(f"Error processing autocomplete results: {str(e)}")
 
-    def _update_save_progress(self, current: int, total: int):
+    def _update_save_progress(self, current: int, total: int) -> None:
         """
         Update progress during save operation.
 
@@ -744,7 +744,7 @@ class WorldBuildingController(QObject):
         logging.info(f"Save progress: {current}/{total}")
 
     @pyqtSlot(object)
-    def _populate_node_fields(self, record):
+    def _populate_node_fields(self, record: Any) -> None:
         """
         Populate UI fields with node data.
 
@@ -811,7 +811,7 @@ class WorldBuildingController(QObject):
         except Exception as e:
             self.handle_error(f"Error populating node fields: {str(e)}")
 
-    def process_relationship_records(self, records):
+    def process_relationship_records(self, records: List[Any]) -> Tuple[Dict[Tuple[str, str, str], List[Tuple[str, List[str]]]], int]:
         """
         Process relationship records and build parent-child map.
 
@@ -843,7 +843,7 @@ class WorldBuildingController(QObject):
 
         return parent_child_map, skipped_records
 
-    def add_children(self, parent_name, parent_item, path, parent_child_map):
+    def add_children(self, parent_name: str, parent_item: QStandardItem, path: List[str], parent_child_map: Dict[Tuple[str, str, str], List[Tuple[str, List[str]]]]) -> None:
         """
         Add child nodes to the relationship tree with checkboxes.
 
@@ -889,7 +889,7 @@ class WorldBuildingController(QObject):
                     child_name, child_item, path + [child_name], parent_child_map
                 )
 
-    def handle_cycles(self, parent_item, rel_type, direction, child_name):
+    def handle_cycles(self, parent_item: QStandardItem, rel_type: str, direction: str, child_name: str) -> None:
         """
         Handle cycles in the relationship data to avoid infinite loops.
 
@@ -910,7 +910,7 @@ class WorldBuildingController(QObject):
         parent_item.appendRow(rel_item)
 
     @pyqtSlot(list)
-    def _populate_relationship_tree(self, records: List[Any]):
+    def _populate_relationship_tree(self, records: List[Any]) -> None:
         """
         Populate the tree view with relationships up to the specified depth.
 
@@ -966,7 +966,7 @@ class WorldBuildingController(QObject):
     # 7. Cleanup and Error Handling
     #############################################
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """
         Clean up resources.
         """
@@ -983,7 +983,7 @@ class WorldBuildingController(QObject):
                 worker.wait()
         self.model.close()
 
-    def handle_error(self, error_message: str):
+    def handle_error(self, error_message: str) -> None:
         """
         Handle any errors.
 
@@ -1033,7 +1033,7 @@ class WorldBuildingController(QObject):
 
         return True
 
-    def change_image(self):
+    def change_image(self) -> None:
         """
         Handle changing the image.
         """
@@ -1051,14 +1051,14 @@ class WorldBuildingController(QObject):
         except Exception as e:
             self.handle_error(f"Error changing image: {str(e)}")
 
-    def delete_image(self):
+    def delete_image(self) -> None:
         """
         Handle deleting the image.
         """
         self.current_image_path = None
         self.ui.set_image(None)
 
-    def _export(self, format_type: str):
+    def _export(self, format_type: str) -> None:
         """
         Generic export method that handles all export formats.
 
@@ -1077,25 +1077,25 @@ class WorldBuildingController(QObject):
         except ValueError as e:
             self.handle_error(f"Export error: {str(e)}")
 
-    def export_as_json(self):
+    def export_as_json(self) -> None:
         """
         Export selected nodes as JSON.
         """
         self._export("json")
 
-    def export_as_txt(self):
+    def export_as_txt(self) -> None:
         """
         Export selected nodes as TXT.
         """
         self._export("txt")
 
-    def export_as_csv(self):
+    def export_as_csv(self) -> None:
         """
         Export selected nodes as CSV.
         """
         self._export("csv")
 
-    def export_as_pdf(self):
+    def export_as_pdf(self) -> None:
         """
         Export selected nodes as PDF.
         """
@@ -1111,11 +1111,11 @@ class WorldBuildingController(QObject):
         logging.debug("Starting to gather selected nodes.")
         selected_nodes = []
 
-        def get_children(item):
+        def get_children(item: QStandardItem) -> List[QStandardItem]:
             """Get all children of an item"""
             return [item.child(row) for row in range(item.rowCount())]
 
-        def process_node(item):
+        def process_node(item: QStandardItem) -> None:
             """Process a single node"""
             if not item:
                 return
@@ -1124,7 +1124,7 @@ class WorldBuildingController(QObject):
             ):
                 selected_nodes.append(item.data(Qt.ItemDataRole.UserRole))
 
-        def process_tree():
+        def process_tree() -> None:
             queue = []
             root = self.tree_model.invisibleRootItem()
 

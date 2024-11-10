@@ -6,7 +6,7 @@ It includes methods for connecting to the database, performing CRUD operations o
 import datetime
 import logging
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Callable
 
 from PyQt6.QtWidgets import QMessageBox
 from neo4j import GraphDatabase
@@ -25,7 +25,7 @@ class Neo4jModel:
         password (str): The password for authentication.
     """
 
-    def __init__(self, uri, username, password):
+    def __init__(self, uri: str, username: str, password: str) -> None:
         """
         Initialize Neo4j connection parameters and establish connection.
 
@@ -40,14 +40,14 @@ class Neo4jModel:
         self.connect()
         logging.info("Neo4jModel initialized and connected to the database.")
 
-    def connect(self):
+    def connect(self) -> None:
         """
         Establish a connection to the Neo4j database.
         """
         if not self._driver:
             self._driver = GraphDatabase.driver(self._uri, auth=self._auth)
 
-    def ensure_connection(self):
+    def ensure_connection(self) -> None:
         """
         Ensure that the connection to the Neo4j database is valid.
         Reconnect if the connection is not valid.
@@ -61,7 +61,7 @@ class Neo4jModel:
             logging.warning(f"Connection verification failed: {e}")
             self.connect()
 
-    def get_session(self):
+    def get_session(self) -> Any:
         """
         Get a database session, ensuring connection is valid.
 
@@ -71,7 +71,7 @@ class Neo4jModel:
         self.ensure_connection()
         return self._driver.session()
 
-    def close(self):
+    def close(self) -> None:
         """
         Safely close the driver.
         """
@@ -86,7 +86,7 @@ class Neo4jModel:
     # 2. Node CRUD Operations
     #############################################
 
-    def validate_node_data(self, node_data):
+    def validate_node_data(self, node_data: Dict[str, Any]) -> bool:
         """
         Validate node data before performing any operations.
 
@@ -110,7 +110,7 @@ class Neo4jModel:
 
         return True
 
-    def load_node(self, name, callback):
+    def load_node(self, name: str, callback: Callable) -> QueryWorker:
         """
         Load a node and its relationships by name using a worker.
 
@@ -138,7 +138,7 @@ class Neo4jModel:
         worker.query_finished.connect(callback)
         return worker
 
-    def save_node(self, node_data, callback):
+    def save_node(self, node_data: Dict[str, Any], callback: Callable) -> WriteWorker:
         """
         Save or update a node and its relationships using a worker.
 
@@ -157,7 +157,7 @@ class Neo4jModel:
         return worker
 
     @staticmethod
-    def _save_node_transaction(tx, node_data):
+    def _save_node_transaction(tx: Any, node_data: Dict[str, Any]) -> None:
         """
         Private transaction handler for save_node.
         Preserves and updates system properties (_created, _modified, _author) while replacing all others.
@@ -306,7 +306,7 @@ class Neo4jModel:
             "+++++++++++++++++ Finished Save Node Transaction +++++++++++++++++++++++"
         )
 
-    def delete_node(self, name, callback):
+    def delete_node(self, name: str, callback: Callable) -> DeleteWorker:
         """
         Delete a node and all its relationships using a worker.
 
@@ -324,7 +324,7 @@ class Neo4jModel:
         return worker
 
     @staticmethod
-    def _delete_node_transaction(tx, name):
+    def _delete_node_transaction(tx: Any, name: str) -> None:
         """
         Private transaction handler for delete_node.
 
@@ -339,7 +339,7 @@ class Neo4jModel:
     # 3. Node Query Operations
     #############################################
 
-    def get_node_relationships(self, node_name: str, depth: int, callback: callable):
+    def get_node_relationships(self, node_name: str, depth: int, callback: Callable) -> QueryWorker:
         """
         Get the relationships of a node by name up to a specified depth using a worker.
 
@@ -378,7 +378,7 @@ class Neo4jModel:
         worker.query_finished.connect(callback)
         return worker
 
-    def get_node_hierarchy(self):
+    def get_node_hierarchy(self) -> Dict[str, Any]:
         """
         Get the hierarchy of nodes grouped by their primary label.
 
@@ -398,7 +398,7 @@ class Neo4jModel:
             )
             return {record["category"]: record["nodes"] for record in result}
 
-    def fetch_matching_node_names(self, prefix, limit, callback):
+    def fetch_matching_node_names(self, prefix: str, limit: int, callback: Callable) -> QueryWorker:
         """
         Search for nodes whose names match a given prefix using a worker.
 
@@ -422,9 +422,9 @@ class Neo4jModel:
     def generate_suggestions(
         self,
         node_data: Dict[str, Any],
-        suggestions_callback: callable,
-        error_callback: callable,
-    ):
+        suggestions_callback: Callable,
+        error_callback: Callable,
+    ) -> None:
         """
         Generate suggestions for a given node using SuggestionWorker.
 

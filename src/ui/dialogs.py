@@ -1,21 +1,22 @@
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTabWidget, QDialogButtonBox, QWidget, QCheckBox, \
     QLabel, QHBoxLayout, QGroupBox, QLineEdit
+from typing import Dict, List, Tuple, Any
 
 
 class SuggestionDialog(QDialog):
-    def __init__(self, suggestions, parent=None):
+    def __init__(self, suggestions: Dict[str, Any], parent: QWidget = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Suggested Node Information")
         self.setModal(True)
         self.suggestions = suggestions
-        self.selected_suggestions = {
+        self.selected_suggestions: Dict[str, Any] = {
             'tags': [],
             'properties': {},
             'relationships': []
         }
         self.init_ui()
 
-    def init_ui(self):
+    def init_ui(self) -> None:
         layout = QVBoxLayout(self)
 
         # Tabs for Tags, Properties, Relationships
@@ -33,11 +34,11 @@ class SuggestionDialog(QDialog):
         layout.addWidget(self.tabs)
         layout.addWidget(button_box)
 
-    def _create_tags_tab(self):
+    def _create_tags_tab(self) -> QWidget:
         widget = QWidget()
         layout = QVBoxLayout(widget)
 
-        self.tags_checkboxes = []
+        self.tags_checkboxes: List[Tuple[QCheckBox, str]] = []
         for tag, confidence in self.suggestions.get('tags', []):
             checkbox = QCheckBox(f"{tag}")
             confidence_label = QLabel(f"Confidence: {confidence:.2f}%")
@@ -49,11 +50,11 @@ class SuggestionDialog(QDialog):
 
         return widget
 
-    def _create_properties_tab(self):
+    def _create_properties_tab(self) -> QWidget:
         widget = QWidget()
         layout = QVBoxLayout(widget)
 
-        self.properties_checkboxes = []
+        self.properties_checkboxes: List[Tuple[QCheckBox, str, QLineEdit]] = []
         for key, values in self.suggestions.get('properties', {}).items():
             group_box = QGroupBox(f"Property: {key}")
             v_layout = QVBoxLayout()
@@ -73,11 +74,11 @@ class SuggestionDialog(QDialog):
 
         return widget
 
-    def _create_relationships_tab(self):
+    def _create_relationships_tab(self) -> QWidget:
         widget = QWidget()
         layout = QVBoxLayout(widget)
 
-        self.relationships_checkboxes = []
+        self.relationships_checkboxes: List[Tuple[QCheckBox, str, str, str, Dict[str, Any]]] = []
         for rel_type, target, direction, props, confidence in self.suggestions.get('relationships', []):
             checkbox = QCheckBox(f"{direction} {rel_type} -> {target}")
             confidence_label = QLabel(f"Confidence: {confidence:.2f}%")
@@ -89,7 +90,7 @@ class SuggestionDialog(QDialog):
 
         return widget
 
-    def accept(self):
+    def accept(self) -> None:
         # Collect selected tags
         for checkbox, tag in self.tags_checkboxes:
             if checkbox.isChecked():
