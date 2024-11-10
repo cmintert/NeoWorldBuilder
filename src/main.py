@@ -31,6 +31,7 @@ from PyQt6.QtGui import (
     QBrush,
     QPixmap,
     QAction,
+    QCloseEvent,
 )
 from PyQt6.QtWidgets import (
     QApplication,
@@ -82,6 +83,7 @@ class AppComponents:
         controller (WorldBuildingController): The controller instance.
         config (Config): The configuration instance.
     """
+
     ui: WorldBuildingUI
     model: Neo4jModel
     controller: WorldBuildingController
@@ -251,7 +253,9 @@ class WorldBuildingApp(QMainWindow):
                 )
                 time.sleep(retry_delay)
 
-    def _setup_ui(self, controller: Optional[WorldBuildingController]) -> WorldBuildingUI:
+    def _setup_ui(
+        self, controller: Optional[WorldBuildingController]
+    ) -> WorldBuildingUI:
         """
         Initialize user interface with error handling.
 
