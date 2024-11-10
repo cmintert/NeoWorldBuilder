@@ -1,3 +1,8 @@
+"""
+This module provides the Neo4jModel class, which serves as a gateway to the Neo4j database.
+It includes methods for connecting to the database, performing CRUD operations on nodes, and querying node relationships.
+"""
+
 import datetime
 import logging
 from datetime import datetime
@@ -11,7 +16,14 @@ from utils.converters import NamingConventionConverter as ncc
 
 
 class Neo4jModel:
-    """Gateway to the Neo4j database"""
+    """
+    Gateway to the Neo4j database.
+
+    Args:
+        uri (str): The URI of the Neo4j database.
+        username (str): The username for authentication.
+        password (str): The password for authentication.
+    """
 
     def __init__(self, uri, username, password):
         """
@@ -29,12 +41,17 @@ class Neo4jModel:
         logging.info("Neo4jModel initialized and connected to the database.")
 
     def connect(self):
-
+        """
+        Establish a connection to the Neo4j database.
+        """
         if not self._driver:
             self._driver = GraphDatabase.driver(self._uri, auth=self._auth)
 
     def ensure_connection(self):
-
+        """
+        Ensure that the connection to the Neo4j database is valid.
+        Reconnect if the connection is not valid.
+        """
         try:
             if self._driver:
                 self._driver.verify_connectivity()
@@ -144,6 +161,10 @@ class Neo4jModel:
         """
         Private transaction handler for save_node.
         Preserves and updates system properties (_created, _modified, _author) while replacing all others.
+
+        Args:
+            tx: The transaction object.
+            node_data (dict): Node data including properties and relationships.
         """
         logging.debug(
             "+++++++++++++++++ Starting Save Node Transaction +++++++++++++++++++++++"

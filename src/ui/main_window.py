@@ -86,6 +86,12 @@ class WorldBuildingUI(QWidget):
         self.apply_styles()
 
     def show_loading(self, is_loading: bool):
+        """
+        Show or hide loading state for the UI.
+
+        Args:
+            is_loading (bool): Whether the UI is in loading state.
+        """
         self.save_button.setEnabled(not is_loading)
         self.delete_button.setEnabled(not is_loading)
         self.cancel_button.setVisible(is_loading)
@@ -445,6 +451,9 @@ class WorldBuildingUI(QWidget):
     def _setup_properties_table_columns(self, table):
         """
         Set up properties table columns with proper sizing.
+
+        Args:
+            table (QTableWidget): The properties table widget.
         """
         table.setColumnCount(3)
         table.setHorizontalHeaderLabels(["Key", "Value", ""])
@@ -585,8 +594,10 @@ class WorldBuildingUI(QWidget):
     def add_property_row(self, table):
         """
         Add property row with centered delete button.
-        """
 
+        Args:
+            table (QTableWidget): The properties table widget.
+        """
         row = table.rowCount()
         table.insertRow(row)
 

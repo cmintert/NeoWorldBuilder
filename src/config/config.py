@@ -2,7 +2,20 @@ import json
 
 
 class Config:
+    """
+    Configuration class to load and access settings from a JSON file.
+
+    Args:
+        json_file (str): Path to the JSON configuration file.
+    """
+
     def __init__(self, json_file):
+        """
+        Initialize the Config class by loading the JSON file and setting attributes.
+
+        Args:
+            json_file (str): Path to the JSON configuration file.
+        """
         with open(json_file, "r") as f:
             constants = json.load(f)
         for category, values in constants.items():

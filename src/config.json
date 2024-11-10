@@ -1,45 +1,44 @@
 {
     "UI": {
-        "WINDOW_WIDTH": 1000,
-        "WINDOW_HEIGHT": 800,
-        "BACKGROUND_IMAGE_PATH": "src/background.png",
-        "DEFAULT_IMAGE_PATH": "default.png",
-        "DEFAULT_IMAGE_SIZE": [200, 200],
-        "DEFAULT_IMAGE_LABEL_SIZE": [300, 300],
-        "DEFAULT_IMAGE_BORDER_WIDTH": 1,
-        "HEADER_COLOR_STYLE": "QHeaderView::section { background-color: #E0E0E0; padding: 4px; border: 1px solid #D0D0D0; }",
-        "MAIN_SPLITTER_LEFT_SIZE": 200,
-        "MAIN_SPLITTER_CENTER": 500,
-        "MAIN_SPLITTER_RIGHT_SIZE": 300
+        "WINDOW_WIDTH": 1000,  // Width of the main application window
+        "WINDOW_HEIGHT": 800,  // Height of the main application window
+        "BACKGROUND_IMAGE_PATH": "src/background.png",  // Path to the background image
+        "DEFAULT_IMAGE_PATH": "default.png",  // Path to the default image
+        "DEFAULT_IMAGE_SIZE": [200, 200],  // Default size of images
+        "DEFAULT_IMAGE_LABEL_SIZE": [300, 300],  // Default size of image labels
+        "DEFAULT_IMAGE_BORDER_WIDTH": 1,  // Default border width for images
+        "HEADER_COLOR_STYLE": "QHeaderView::section { background-color: #E0E0E0; padding: 4px; border: 1px solid #D0D0D0; }",  // Style for header color
+        "MAIN_SPLITTER_LEFT_SIZE": 200,  // Size of the left pane in the main splitter
+        "MAIN_SPLITTER_CENTER": 500,  // Size of the center pane in the main splitter
+        "MAIN_SPLITTER_RIGHT_SIZE": 300  // Size of the right pane in the main splitter
     },
     "LIMITS": {
-        "MAX_NODE_NAME_LENGTH": 100,
-        "MAX_DESCRIPTION_LENGTH": 10000,
-        "MAX_LABELS_LENGTH": 500,
-        "MAX_TAGS_LENGTH": 500,
-        "MAX_PROPERTY_KEY_LENGTH": 1000,
-        "MAX_PROPERTY_VALUE_LENGTH": 1000,
-        "MAX_RELATIONSHIP_NAME_LENGTH": 100,
-        "MAX_RELATIONSHIP_TYPE_LENGTH": 50,
-        "MAX_RELATIONSHIP_PROPERTIES_LENGTH": 1000,
-        "MAX_RELATIONSHIPS_COUNT": 100
+        "MAX_NODE_NAME_LENGTH": 100,  // Maximum length for node names
+        "MAX_DESCRIPTION_LENGTH": 10000,  // Maximum length for descriptions
+        "MAX_LABELS_LENGTH": 500,  // Maximum length for labels
+        "MAX_TAGS_LENGTH": 500,  // Maximum length for tags
+        "MAX_PROPERTY_KEY_LENGTH": 1000,  // Maximum length for property keys
+        "MAX_PROPERTY_VALUE_LENGTH": 1000,  // Maximum length for property values
+        "MAX_RELATIONSHIP_NAME_LENGTH": 100,  // Maximum length for relationship names
+        "MAX_RELATIONSHIP_TYPE_LENGTH": 50,  // Maximum length for relationship types
+        "MAX_RELATIONSHIP_PROPERTIES_LENGTH": 1000,  // Maximum length for relationship properties
+        "MAX_RELATIONSHIPS_COUNT": 100  // Maximum number of relationships
     },
     "TIMING": {
-        "NAME_INPUT_DEBOUNCE_TIME_MS": 100
+        "NAME_INPUT_DEBOUNCE_TIME_MS": 100  // Debounce time for name input in milliseconds
     },
     "NEO4J": {
-        "URI": "bolt://192.168.178.84:7687",
-        "USERNAME": "neo4j",
-        "PASSWORD": "Godfather666",
-        "MATCH_NODE_LIMIT": 200
+        "URI": "bolt://192.168.178.84:7687",  // URI for the Neo4j database
+        "USERNAME": "neo4j",  // Username for the Neo4j database
+        "PASSWORD": "Godfather666",  // Password for the Neo4j database
+        "MATCH_NODE_LIMIT": 200  // Limit for matching nodes
     },
-    "RESERVED_PROPERTY_KEYS": ["name","description", "tags", "image_path"],
-    "VERSION": "0.1.0",
-    "LOGGING_FILE": "logs.log",
-    "LOGGING_LEVEL": "DEBUG",
-    "SUGGESTION_MIN_SUPPORT" : 0.1,
-    "SUGGESTION_MIN_CONFIDENCE" : 0.5,
-    "CLUSTERING_NUM_CLUSTERS" : 3,
-    "SUGGESTION_CONFIDENCE_THRESHOLD" : 20.0
-
+    "RESERVED_PROPERTY_KEYS": ["name","description", "tags", "image_path"],  // Reserved property keys
+    "VERSION": "0.1.0",  // Version of the application
+    "LOGGING_FILE": "logs.log",  // File for logging
+    "LOGGING_LEVEL": "DEBUG",  // Logging level
+    "SUGGESTION_MIN_SUPPORT" : 0.1,  // Minimum support for suggestions
+    "SUGGESTION_MIN_CONFIDENCE" : 0.5,  // Minimum confidence for suggestions
+    "CLUSTERING_NUM_CLUSTERS" : 3,  // Number of clusters for clustering
+    "SUGGESTION_CONFIDENCE_THRESHOLD" : 20.0  // Confidence threshold for suggestions
 }

@@ -20,7 +20,12 @@ from utils.exporters import Exporter
 
 class WorldBuildingController(QObject):
     """
-    Controller class managing interaction between UI and Neo4j model using QThread workers
+    Controller class managing interaction between UI and Neo4j model using QThread workers.
+
+    Args:
+        ui (WorldBuildingUI): The UI instance.
+        model (Neo4jModel): The Neo4j model instance.
+        config (Config): The configuration instance.
     """
 
     NODE_RELATIONSHIPS_HEADER = "Node Relationships"
@@ -30,9 +35,9 @@ class WorldBuildingController(QObject):
         Initialize the controller with UI, model, and configuration.
 
         Args:
-            ui (ui.main_window.WorldBuildingUI): The UI instance.
+            ui (WorldBuildingUI): The UI instance.
             model (Neo4jModel): The Neo4j model instance.
-            config (config.config.Config): The configuration instance.
+            config (Config): The configuration instance.
         """
         super().__init__()
         self.ui = ui
@@ -379,6 +384,9 @@ class WorldBuildingController(QObject):
     #############################################
 
     def show_suggestions_modal(self):
+        """
+        Show the suggestions modal dialog.
+        """
         node_data = self._collect_node_data()
         if not node_data:
             return
@@ -470,6 +478,13 @@ class WorldBuildingController(QObject):
             logging.debug("Suggestion dialog was canceled by the user.")
 
     def add_or_update_property(self, key, value):
+        """
+        Add or update a property in the properties table.
+
+        Args:
+            key (str): The property key.
+            value (Any): The property value.
+        """
         found = False
         for row in range(self.ui.properties_table.rowCount()):
             item_key = self.ui.properties_table.item(row, 0)
@@ -674,6 +689,9 @@ class WorldBuildingController(QObject):
         return current_data != self.original_node_data
 
     def update_unsaved_changes_indicator(self):
+        """
+        Update the unsaved changes indicator.
+        """
         if self.is_node_changed():
             self.ui.save_button.setStyleSheet("background-color: #83A00E;")
         else:
@@ -828,6 +846,12 @@ class WorldBuildingController(QObject):
     def add_children(self, parent_name, parent_item, path, parent_child_map):
         """
         Add child nodes to the relationship tree with checkboxes.
+
+        Args:
+            parent_name (str): The name of the parent node.
+            parent_item (QStandardItem): The parent item in the tree.
+            path (List[str]): The path of node names to avoid cycles.
+            parent_child_map (dict): The parent-child map of relationships.
         """
         for (p_name, rel_type, direction), children in parent_child_map.items():
             if p_name != parent_name:
@@ -1054,24 +1078,35 @@ class WorldBuildingController(QObject):
             self.handle_error(f"Export error: {str(e)}")
 
     def export_as_json(self):
-        """Export selected nodes as JSON."""
+        """
+        Export selected nodes as JSON.
+        """
         self._export("json")
 
     def export_as_txt(self):
-        """Export selected nodes as TXT."""
+        """
+        Export selected nodes as TXT.
+        """
         self._export("txt")
 
     def export_as_csv(self):
-        """Export selected nodes as CSV."""
+        """
+        Export selected nodes as CSV.
+        """
         self._export("csv")
 
     def export_as_pdf(self):
-        """Export selected nodes as PDF."""
+        """
+        Export selected nodes as PDF.
+        """
         self._export("pdf")
 
     def get_selected_nodes(self) -> List[str]:
         """
         Get the names of checked nodes in the tree view, including the root node.
+
+        Returns:
+            List[str]: The list of selected node names.
         """
         logging.debug("Starting to gather selected nodes.")
         selected_nodes = []

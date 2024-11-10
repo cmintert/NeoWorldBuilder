@@ -1,15 +1,22 @@
+"""
+This module provides the NamingConventionConverter class, which handles conversions and validations for labels, properties, tags, relationships, and relationship properties.
+"""
+
 import re
 
 class NamingConventionConverter:
     """
     Class to handle conversions and validations for labels, properties, tags, relationships, and relationship properties.
     """
+
     @staticmethod
     def to_camel_case(label):
         """
         Convert a label to CamelCase, treating special characters as blanks and removing leading numbers.
+
         Args:
             label (str): The label to convert.
+
         Returns:
             str: The label in CamelCase format.
         """
@@ -23,8 +30,10 @@ class NamingConventionConverter:
     def to_upper_underscore(relationship_type):
         """
         Convert a relationship type to UPPERCASE_WITH_UNDERSCORES, treating special characters as blanks and removing leading numbers.
+
         Args:
             relationship_type (str): The relationship type to convert.
+
         Returns:
             str: The relationship type in UPPERCASE_WITH_UNDERSCORES format.
         """
@@ -37,8 +46,10 @@ class NamingConventionConverter:
     def to_camel_case_key(key):
         """
         Convert a property key to camelCase, treating special characters as blanks and removing leading numbers.
+
         Args:
             key (str): The key to convert.
+
         Returns:
             str: The key in camelCase format.
         """
@@ -52,8 +63,10 @@ class NamingConventionConverter:
     def is_camel_case(label):
         """
         Check if a label is in CamelCase format, treating special characters as blanks and removing leading numbers.
+
         Args:
             label (str): The label to check.
+
         Returns:
             bool: True if the label is in CamelCase format, False otherwise.
         """
@@ -66,8 +79,10 @@ class NamingConventionConverter:
     def is_upper_underscore(relationship_type):
         """
         Check if a relationship type is in UPPERCASE_WITH_UNDERSCORES format, treating special characters as blanks and removing leading numbers.
+
         Args:
             relationship_type (str): The relationship type to check.
+
         Returns:
             bool: True if the relationship type is in UPPERCASE_WITH_UNDERSCORES format, False otherwise.
         """
@@ -80,8 +95,10 @@ class NamingConventionConverter:
     def is_camel_case_key(key):
         """
         Check if a property key is in camelCase format, treating special characters as blanks and removing leading numbers.
+
         Args:
             key (str): The key to check.
+
         Returns:
             bool: True if the key is in camelCase format, False otherwise.
         """
@@ -96,8 +113,10 @@ class NamingConventionConverter:
     def convert_node_data(node_data):
         """
         Convert labels, property keys, and relationships in node data to enforce naming conventions.
+
         Args:
             node_data (dict): The node data including labels, properties, and relationships.
+
         Returns:
             dict: The converted node data.
         """

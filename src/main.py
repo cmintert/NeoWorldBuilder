@@ -1,3 +1,17 @@
+"""
+Main module for the NeoRealmBuilder application.
+
+This module initializes and runs the main application, including setting up the UI, 
+loading configuration, establishing database connections, and handling exceptions.
+
+Classes:
+    AppComponents: Container for main application components.
+    WorldBuildingApp: Main application class with improved initialization and error handling.
+
+Functions:
+    exception_hook(exctype, value, tb): Custom exception hook for logging unhandled exceptions.
+"""
+
 # Imports
 import faulthandler
 import json
@@ -38,6 +52,14 @@ faulthandler.enable()
 
 
 def exception_hook(exctype, value, tb):
+    """
+    Custom exception hook for logging unhandled exceptions.
+
+    Args:
+        exctype (type): The exception type.
+        value (Exception): The exception instance.
+        tb (traceback): The traceback object.
+    """
     logging.critical("Unhandled exception", exc_info=(exctype, value, tb))
     traceback.print_exception(exctype, value, tb)
     sys.__excepthook__(exctype, value, tb)
@@ -51,8 +73,15 @@ sys.excepthook = exception_hook
 
 @dataclass
 class AppComponents:
-    """Container for main application components"""
+    """
+    Container for main application components.
 
+    Attributes:
+        ui (WorldBuildingUI): The UI instance.
+        model (Neo4jModel): The Neo4j model instance.
+        controller (WorldBuildingController): The controller instance.
+        config (Config): The configuration instance.
+    """
     ui: "WorldBuildingUI"
     model: "Neo4jModel"
     controller: "WorldBuildingController"
@@ -60,7 +89,12 @@ class AppComponents:
 
 
 class WorldBuildingApp(QMainWindow):
-    """Main application class with improved initialization and error handling"""
+    """
+    Main application class with improved initialization and error handling.
+
+    Attributes:
+        components (Optional[AppComponents]): The main application components.
+    """
 
     def __init__(self):
         """

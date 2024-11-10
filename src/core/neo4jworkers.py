@@ -1,3 +1,8 @@
+"""
+This module provides worker classes for performing Neo4j database operations in separate threads.
+It includes classes for querying, writing, deleting, and generating suggestions for nodes.
+"""
+
 import json
 import logging
 import traceback
@@ -9,7 +14,13 @@ from neo4j import GraphDatabase
 
 
 class BaseNeo4jWorker(QThread):
-    """Base class for Neo4j worker threads"""
+    """
+    Base class for Neo4j worker threads.
+
+    Args:
+        uri (str): The URI of the Neo4j database.
+        auth (tuple): A tuple containing the username and password for authentication.
+    """
 
     error_occurred = pyqtSignal(str)
     progress_updated = pyqtSignal(int)
@@ -71,7 +82,15 @@ class BaseNeo4jWorker(QThread):
 
 
 class QueryWorker(BaseNeo4jWorker):
-    """Worker for read operations"""
+    """
+    Worker for read operations.
+
+    Args:
+        uri (str): The URI of the Neo4j database.
+        auth (tuple): A tuple containing the username and password for authentication.
+        query (str): The Cypher query to execute.
+        params (dict, optional): Parameters for the query. Defaults to None.
+    """
 
     query_finished = pyqtSignal(list)
 
@@ -106,7 +125,15 @@ class QueryWorker(BaseNeo4jWorker):
 
 
 class WriteWorker(BaseNeo4jWorker):
-    """Worker for write operations"""
+    """
+    Worker for write operations.
+
+    Args:
+        uri (str): The URI of the Neo4j database.
+        auth (tuple): A tuple containing the username and password for authentication.
+        func (callable): The function to execute in the write transaction.
+        *args: Arguments for the function.
+    """
 
     write_finished = pyqtSignal(bool)
 
@@ -150,7 +177,15 @@ class WriteWorker(BaseNeo4jWorker):
 
 
 class DeleteWorker(BaseNeo4jWorker):
-    """Worker for delete operations"""
+    """
+    Worker for delete operations.
+
+    Args:
+        uri (str): The URI of the Neo4j database.
+        auth (tuple): A tuple containing the username and password for authentication.
+        func (callable): The function to execute in the delete transaction.
+        *args: Arguments for the function.
+    """
 
     delete_finished = pyqtSignal(bool)
 
@@ -194,7 +229,13 @@ class DeleteWorker(BaseNeo4jWorker):
 
 
 class BatchWorker(BaseNeo4jWorker):
-    """Worker for batch operations"""
+    """
+    Worker for batch operations.
+
+    Args:
+        driver_config (dict): Configuration for the Neo4j driver.
+        operations (list): List of operations to execute.
+    """
 
     batch_progress = pyqtSignal(int, int)  # current, total
     batch_finished = pyqtSignal(list)
@@ -231,15 +272,41 @@ class BatchWorker(BaseNeo4jWorker):
 
 
 class SuggestionWorker(BaseNeo4jWorker):
+    """
+    Worker for generating suggestions based on node data.
+
+    Args:
+        uri (str): The URI of the Neo4j database.
+        auth (tuple): A tuple containing the username and password for authentication.
+        node_data (dict): The data of the node for which to generate suggestions.
+    """
+
     suggestions_ready = pyqtSignal(dict)
 
     def __init__(self, uri, auth, node_data):
+        """
+        Initialize the worker with node data.
+
+        Args:
+            uri (str): The URI of the Neo4j database.
+            auth (tuple): A tuple containing the username and password for authentication.
+            node_data (dict): The data of the node for which to generate suggestions.
+        """
         super().__init__(uri, auth)
         self.node_data = node_data
         logging.basicConfig(level=logging.DEBUG)
 
     def _find_similar_nodes(self, session, node_data):
-        """Simple node finder based on labels."""
+        """
+        Find similar nodes based on labels.
+
+        Args:
+            session: The Neo4j session.
+            node_data (dict): The data of the node for which to find similar nodes.
+
+        Returns:
+            list: A list of similar nodes.
+        """
         try:
             logging.debug("Finding similar nodes")
             labels = node_data.get("labels", [])
@@ -264,7 +331,15 @@ class SuggestionWorker(BaseNeo4jWorker):
             return []
 
     def _get_tag_suggestions(self, df):
-        """Simple tag frequency-based suggestions."""
+        """
+        Generate tag suggestions based on frequency.
+
+        Args:
+            df (pd.DataFrame): The DataFrame containing node data.
+
+        Returns:
+            list: A list of tag suggestions with confidence scores.
+        """
         logging.debug("Generating tag suggestions")
         try:
             all_tags = []
@@ -302,7 +377,15 @@ class SuggestionWorker(BaseNeo4jWorker):
             return []
 
     def _get_property_suggestions(self, df):
-        """Property value frequency-based suggestions."""
+        """
+        Generate property suggestions based on frequency.
+
+        Args:
+            df (pd.DataFrame): The DataFrame containing node data.
+
+        Returns:
+            dict: A dictionary of property suggestions with confidence scores.
+        """
         try:
             suggestions = {}
             exclude_props = {
@@ -350,7 +433,9 @@ class SuggestionWorker(BaseNeo4jWorker):
             return {}
 
     def execute_operation(self):
-        """Execute the simplified suggestion generation."""
+        """
+        Execute the suggestion generation operation.
+        """
         try:
             logging.info("Starting suggestion generation process")
 
