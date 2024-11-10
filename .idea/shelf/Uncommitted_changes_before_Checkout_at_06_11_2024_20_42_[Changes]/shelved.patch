@@ -1,0 +1,878 @@
+Index: src/style_default_old.qss
+===================================================================
+diff --git a/src/style_default_old.qss b/src/style_default_old.qss
+deleted file mode 100644
+--- a/src/style_default_old.qss	(revision f55ae05db75f8e0d7fe44e3b01560768246aca3e)
++++ /dev/null	(revision f55ae05db75f8e0d7fe44e3b01560768246aca3e)
+@@ -1,271 +0,0 @@
+-/* General Styles */
+-/* Set the default font family and size for all widgets */
+-QWidget {
+-    font-family: 'Segoe UI';  /* Default font family */
+-    font-size: 13px;          /* Default font size */
+-}
+-
+-/* Specific Widget Styles */
+-
+-/* Style for the main action buttons */
+-#saveButton,
+-#deleteButton,
+-#cancelButton,
+-#changeImageButton,
+-#deleteImageButton,
+-#addRelationshipButton,
+-#addPropertyButton {
+-    background-color: white;      /* Button background color */
+-    border: 1px solid #ddd;       /* Light gray border */
+-    border-radius: 4px;           /* Rounded corners */
+-    padding: 5px 15px;            /* Padding inside the button */
+-    color: black;                 /* Text color */
+-}
+-
+-
+-#deleteButton {
+-    background-color: #A00E0E;    /* Red color for delete button */
+-}
+-
+-/* Hover effect for the action buttons */
+-#saveButton:hover,
+-#deleteButton:hover,
+-#cancelButton:hover,
+-#changeImageButton:hover,
+-#deleteImageButton:hover,
+-#addRelationshipButton:hover,
+-#addPropertyButton:hover {
+-    background-color: #e9ecef;    /* Slightly darker background on hover */
+-}
+-
+-/* Pressed state for the action buttons */
+-#saveButton:pressed,
+-#deleteButton:pressed,
+-#cancelButton:pressed,
+-#changeImageButton:pressed,
+-#deleteImageButton:pressed,
+-#addRelationshipButton:pressed,
+-#addPropertyButton:pressed {
+-    background-color: #dee2e6;    /* Even darker background when pressed */
+-}
+-
+-/* Disabled state for specific buttons */
+-#saveButton:disabled,
+-#deleteButton:disabled,
+-#cancelButton:disabled {
+-    background-color: #e9ecef;    /* Background color when disabled */
+-    color: #6c757d;               /* Text color when disabled */
+-    /* You can add more styles for disabled state here */
+-}
+-
+-/* Styles for input fields */
+-#nameInput,
+-#descriptionInput,
+-#labelsInput,
+-#tagsInput {
+-    border: 1px solid #ccc;       /* Light gray border */
+-    border-radius: 4px;           /* Rounded corners */
+-    padding: 5px;                 /* Padding inside the input */
+-    background: white;            /* Input background color */
+-}
+-
+-/* Focus state for input fields */
+-#nameInput:focus,
+-#descriptionInput:focus,
+-#labelsInput:focus,
+-#tagsInput:focus {
+-    border-color: #007bff;        /* Blue border when focused */
+-    /* You can modify the focus border color here */
+-}
+-
+-/* Style for the progress bar */
+-#progressBar {
+-    border: 1px solid #ccc;       /* Border around the progress bar */
+-    border-radius: 4px;           /* Rounded corners */
+-    text-align: center;           /* Center the text inside the progress bar */
+-    background: white;            /* Background color */
+-}
+-
+-/* Style for the progress bar chunk (the filled part) */
+-#progressBar::chunk {
+-    background-color: #007bff;    /* Blue color for the progress */
+-    /* You can change the progress color here */
+-}
+-
+-/* Style for the status label */
+-#statusLabel {
+-    color: #212529;               /* Text color */
+-    background: transparent;      /* Transparent background */
+-    /* You can adjust the font style or size here */
+-}
+-
+-/* Group box styling for the image section */
+-#imageGroupBox {
+-    border: 1px solid #ccc;       /* Border around the group box */
+-    border-radius: 4px;           /* Rounded corners */
+-    margin-top: 1em;              /* Top margin */
+-    padding-top: 10px;            /* Top padding inside the group box */
+-    background: white;            /* Background color */
+-}
+-
+-/* Style for the image label inside the group box */
+-#imageLabel {
+-    border: 1px solid #ccc;       /* Border around the image label */
+-    border-radius: 4px;           /* Rounded corners */
+-    background: white;            /* Background color */
+-    /* You can adjust the size or alignment of the image here */
+-}
+-
+-/* Styles for the relationships and properties tables */
+-#relationshipsTable,
+-#propertiesTable {
+-    background: white;            /* Table background color */
+-    /* You can add more styles for table headers, cells, etc. */
+-}
+-
+-/* Style for the tree view */
+-#treeView {
+-    background: white;            /* Background color */
+-    border: 1px solid #ccc;       /* Border around the tree view */
+-    border-radius: 4px;           /* Rounded corners */
+-    /* You can customize item selection, text color, etc., here */
+-}
+-
+-/* Styles for the main tabs */
+-#mainTabs::pane {
+-    background: white;            /* Background color of the tab pane */
+-    border: 1px solid #ccc;       /* Border around the tab pane */
+-    border-radius: 4px;           /* Rounded corners */
+-}
+-
+-/* Style for each tab in the tab bar */
+-#mainTabs QTabBar::tab {
+-    background-color: white;          /* Background color of the tab */
+-    border: 1px solid #ccc;           /* Border around the tab */
+-    border-bottom-color: white;       /* Hide the bottom border to blend with the pane */
+-    border-top-left-radius: 4px;      /* Rounded top-left corner */
+-    border-top-right-radius: 4px;     /* Rounded top-right corner */
+-    padding: 5px 10px;                /* Padding inside the tab */
+-    margin-right: 2px;                /* Space between tabs */
+-}
+-
+-/* Style for the selected tab */
+-#mainTabs QTabBar::tab:selected {
+-    background-color: white;          /* Background color for the selected tab */
+-    border-bottom-color: transparent; /* Remove bottom border to connect with the tab pane */
+-}
+-
+-/* Style for unselected tabs */
+-#mainTabs QTabBar::tab:!selected {
+-    background-color: #f0f0f0;        /* Slightly darker background for unselected tabs */
+-    margin-top: 2px;                  /* Push unselected tabs down to create a visual hierarchy */
+-}
+-
+-/* Hover effect for unselected tabs */
+-#mainTabs QTabBar::tab:!selected:hover {
+-    background-color: #e9ecef;        /* Change background color on hover */
+-}
+-
+-/* Central widget background */
+-#CentralWidget {
+-    background-color: transparent;    /* Make central widget transparent */
+-    /* This allows any background image or color of the main window to show through */
+-}
+-
+-/* Additional Styles That Can Be Modified */
+-
+-/* Example: Style for scroll bars (unmodified) */
+-/* Uncomment and customize if needed */
+-/*
+-QScrollBar:vertical {
+-    background-color: #f0f0f0;
+-    width: 15px;
+-    margin: 15px 3px 15px 3px;
+-    border: 1px solid #ccc;
+-}
+-
+-QScrollBar::handle:vertical {
+-    background-color: #ccc;
+-    min-height: 20px;
+-    border-radius: 7px;
+-}
+-
+-QScrollBar::add-line:vertical,
+-QScrollBar::sub-line:vertical {
+-    background: none;
+-}
+-*/
+-
+-/* Example: Style for table headers (unmodified) */
+-/* Uncomment and customize if needed */
+-/*
+-QHeaderView::section {
+-    background-color: #e9ecef;
+-    padding: 4px;
+-    border: 1px solid #ccc;
+-    font-weight: bold;
+-}
+-*/
+-
+-/* Example: Style for tooltips (unmodified) */
+-/* Uncomment and customize if needed */
+-/*
+-QToolTip {
+-    background-color: #f0f0f0;
+-    color: #000;
+-    border: 1px solid #ccc;
+-}
+-*/
+-
+-/* You can add more custom styles below as needed */
+-
+-/* Remove border and padding for the delete button column */
+-#relationshipsTable QTableWidget::item {
+-    border: none;
+-    padding: 0;
+-}
+-
+-#propertiesTable QTableWidget::item {
+-    border: none;
+-    padding: 0;
+-}
+-
+-/* Remove border and padding for the delete button itself */
+-#relationshipsTable QPushButton#rowDeleteButton,
+-#propertiesTable QPushButton#rowDeleteButton {
+-    color: white;
+-    border: none;
+-    border-radius: 4px;
+-    padding: 5px;
+-    background: #A00E0E;
+-}
+-
+-/* Style for the depth spinbox */
+-#depthSpinBox {
+-    border: 1px solid #ccc;       /* Light gray border */
+-    border-radius: 4px;           /* Rounded corners */
+-    padding: 5px;                 /* Padding inside the spinbox */
+-    background: white;            /* Spinbox background color */
+-}
+-
+-#depthSpinBox::up-button {
+-    width: 30px;
+-    height: 20px;
+-}
+-
+-#depthSpinBox::down-button {
+-    width: 30px;
+-    height: 20px;
+-}
+-
+-#depthSpinBox:focus {
+-    border-color: #007bff;        /* Blue border when focused */
+-}
+-
+-/* Style for relationship properties */
+-.relationship-property {
+-    background-color: #f0f0f0;    /* Light gray background */
+-    border-radius: 4px;           /* Rounded corners */
+-    padding: 5px;                 /* Padding inside the property */
+-    margin: 2px;                  /* Margin around the property */
+-}
+Index: src/style_default.qss
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/* General Styles */\r\n/* Set the default font family and size for all widgets */\r\nQWidget {\r\n    font-family: 'Segoe UI';  /* Default font family */\r\n    font-size: 13px;          /* Default font size */\r\n    color: #4A4A4A;           /* Text color */\r\n}\r\n\r\n/* Main Action Buttons */\r\nQPushButton#saveButton,\r\nQPushButton#deleteButton,\r\nQPushButton#cancelButton,\r\nQPushButton#changeImageButton,\r\nQPushButton#deleteImageButton,\r\nQPushButton#addRelationshipButton,\r\nQPushButton#addPropertyButton {\r\n    background-color: white;\r\n    border: 1px solid #cccccc;    /* Border color */\r\n    border-radius: 4px;\r\n    padding: 5px 15px;\r\n    color: #4A4A4A;           /* Text color */\r\n    font-weight: bold;\r\n}\r\n\r\n/* Specific Button Styles */\r\n#saveButton {\r\n    background-color: #438557;  /* Primary color */\r\n    color: white;\r\n}\r\n\r\n#deleteButton {\r\n    background-color: #ce1d11;  /* Error color */\r\n    color: white;\r\n}\r\n\r\n/* Hover Effects */\r\nQPushButton:hover {\r\n    background-color: #e9ecef;  /* Hover background color */\r\n}\r\n\r\n/* Pressed State */\r\nQPushButton:pressed {\r\n    background-color: #dee2e6;  /* Pressed background color */\r\n}\r\n\r\n/* Disabled State */\r\nQPushButton:disabled {\r\n    background-color: #e9ecef;  /* Hover background color */\r\n    color: #6c757d;             /* Disabled text color */\r\n}\r\n\r\n/* Input Fields */\r\nQLineEdit,\r\nQTextEdit,\r\nQComboBox,\r\nQSpinBox {\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    border-radius: 4px;\r\n    padding: 5px;\r\n    background-color: white;\r\n    color: #4A4A4A;             /* Text color */\r\n}\r\n\r\n/* Focus State */\r\nQLineEdit:focus,\r\nQTextEdit:focus,\r\nQComboBox:focus,\r\nQSpinBox:focus {\r\n    border-color: #4A90E2;      /* Primary color */\r\n}\r\n\r\n/* Error State */\r\nQLineEdit[error=\"true\"],\r\nQTextEdit[error=\"true\"],\r\nQComboBox[error=\"true\"],\r\nQSpinBox[error=\"true\"] {\r\n    border-color: #D0021B;      /* Error color */\r\n}\r\n\r\n/* Table Headers */\r\nQHeaderView::section {\r\n    background-color: #e9ecef;  /* Hover background color */\r\n    padding: 4px;\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    font-weight: bold;\r\n    color: #4A4A4A;             /* Text color */\r\n}\r\n\r\n/* Table Cells */\r\nQTableWidget {\r\n    gridline-color: #cccccc;       /* Border color */\r\n}\r\n\r\nQTableWidget::item {\r\n    padding: 5px;\r\n}\r\n\r\nQTableWidget::item:selected {\r\n    background-color: #4A90E2;  /* Primary color */\r\n    color: white;\r\n}\r\n\r\n/* Vertical Scrollbar */\r\nQScrollBar:vertical {\r\n    background-color: #F5F7FA;   /* Background color */\r\n    width: 15px;\r\n    margin: 15px 3px 15px 3px;\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    border-radius: 4px;\r\n}\r\n\r\nQScrollBar::handle:vertical {\r\n    background-color: #cccccc;     /* Border color */\r\n    min-height: 20px;\r\n    border-radius: 7px;\r\n}\r\n\r\nQScrollBar::handle:vertical:hover {\r\n    background-color: #e9ecef;  /* Hover background color */\r\n}\r\n\r\nQScrollBar::add-line:vertical,\r\nQScrollBar::sub-line:vertical {\r\n    background: none;\r\n}\r\n\r\n/* Tooltips */\r\nQToolTip {\r\n    background-color: #4A90E2;  /* Primary color */\r\n    color: white;\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    padding: 4px;\r\n    border-radius: 4px;\r\n}\r\n\r\n/* Tree View */\r\nQTreeView {\r\n    background-color: white;\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    border-radius: 4px;\r\n}\r\n\r\nQTreeView::item {\r\n    padding: 5px;\r\n}\r\n\r\nQTreeView::item:selected {\r\n    background-color: #4A90E2;  /* Primary color */\r\n    color: white;\r\n}\r\n\r\n/* Tab Widget */\r\nQTabWidget::pane {\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    border-radius: 4px;\r\n    background-color: white;\r\n}\r\n\r\nQTabBar::tab {\r\n    background-color: #F5F7FA;   /* Background color */\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    padding: 5px 10px;\r\n    margin-right: 2px;\r\n    border-top-left-radius: 4px;\r\n    border-top-right-radius: 4px;\r\n    color: #4A4A4A;             /* Text color */\r\n}\r\n\r\nQTabBar::tab:selected {\r\n    background-color: white;\r\n    border-bottom-color: transparent;\r\n    color: #4A4A4A;             /* Text color */\r\n}\r\n\r\nQTabBar::tab:!selected:hover {\r\n    background-color: #e9ecef;  /* Hover background color */\r\n}\r\n\r\n/* Menu Bar */\r\nQMenuBar {\r\n    background-color: #F5F7FA;   /* Background color */\r\n    color: #4A4A4A;             /* Text color */\r\n}\r\n\r\nQMenuBar::item {\r\n    background: transparent;\r\n    padding: 5px 10px;\r\n}\r\n\r\nQMenuBar::item:selected {\r\n    background-color: #e9ecef;  /* Hover background color */\r\n}\r\n\r\n/* Status Bar */\r\nQStatusBar {\r\n    background-color: #F5F7FA;   /* Background color */\r\n    border-top: 1px solid #cccccc; /* Border color */\r\n    color: #4A4A4A;             /* Text color */\r\n}\r\n\r\n/* Dialogs */\r\nQDialog {\r\n    background-color: white;\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    border-radius: 8px;\r\n}\r\n\r\n/* Message Boxes */\r\nQMessageBox {\r\n    background-color: white;\r\n    border: 1px solid #cccccc;     /* Border color */\r\n}\r\n\r\nQMessageBox QLabel {\r\n    color: #4A4A4A;             /* Text color */\r\n}\r\n\r\nQMessageBox QPushButton {\r\n    background-color: #4A90E2;  /* Primary color */\r\n    color: white;\r\n    border: none;\r\n    border-radius: 4px;\r\n    padding: 5px 15px;\r\n}\r\n\r\nQMessageBox QPushButton:hover {\r\n    background-color: #e9ecef;  /* Hover background color */\r\n}\r\n\r\nQMessageBox QPushButton:pressed {\r\n    background-color: #dee2e6;  /* Pressed background color */\r\n}\r\n\r\n/* Delete Buttons in Tables */\r\nQPushButton#rowDeleteButton {\r\n    background-color: #D0021B;  /* Error color */\r\n    color: white;\r\n    border: none;\r\n    border-radius: 4px;\r\n    padding: 5px;\r\n    min-width: 20px;\r\n    min-height: 20px;\r\n}\r\n\r\nQPushButton#rowDeleteButton:hover {\r\n    background-color: #C00000;  /* Slightly darker red on hover */\r\n}\r\n\r\nQPushButton#rowDeleteButton:pressed {\r\n    background-color: #A00000;  /* Even darker red when pressed */\r\n}\r\n\r\n/* Spin Box */\r\nQSpinBox {\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    border-radius: 4px;\r\n    padding: 5px;\r\n    background-color: white;\r\n    color: #4A4A4A;             /* Text color */\r\n}\r\n\r\n/* Spin Box Buttons */\r\nQSpinBox::up-button,\r\nQSpinBox::down-button {\r\n    subcontrol-origin: border;\r\n    subcontrol-position: top right;\r\n    width: 16px;\r\n    border: none;\r\n    background-color: transparent;\r\n}\r\n\r\nQSpinBox::up-button:hover,\r\nQSpinBox::down-button:hover {\r\n    background-color: #e9ecef;  /* Hover background color */\r\n}\r\n\r\nQSpinBox::up-arrow,\r\nQSpinBox::down-arrow {\r\n    image: none;  /* Remove default arrows */\r\n    width: 7px;\r\n    height: 7px;\r\n    border: solid #4A4A4A;      /* Text color */\r\n    border-width: 0 2px 2px 0;\r\n}\r\n\r\nQSpinBox::up-arrow {\r\n    transform: rotate(-45deg);\r\n    margin: 2px;\r\n}\r\n\r\nQSpinBox::down-arrow {\r\n    transform: rotate(135deg);\r\n    margin: 2px;\r\n}\r\n\r\n/* Checkboxes */\r\nQCheckBox::indicator {\r\n    width: 16px;\r\n    height: 16px;\r\n}\r\n\r\n/* Assuming you have custom icons for checkboxes */\r\nQCheckBox::indicator:unchecked {\r\n    image: url('icons/checkbox_unchecked.png');  /* Provide your own icons */\r\n}\r\n\r\nQCheckBox::indicator:checked {\r\n    image: url('icons/checkbox_checked.png');\r\n}\r\n\r\n/* Validation Error Styles */\r\nQWidget[valid=\"false\"] {\r\n    border: 1px solid #D0021B;  /* Error color */\r\n}\r\n\r\nQWidget[valid=\"false\"]::placeholder {\r\n    color: #D0021B;             /* Error color */\r\n}\r\n\r\n/* Progress Bar */\r\nQProgressBar {\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    border-radius: 4px;\r\n    background-color: white;\r\n    text-align: center;\r\n    color: #4A4A4A;             /* Text color */\r\n}\r\n\r\nQProgressBar::chunk {\r\n    background-color: #4A90E2;  /* Primary color */\r\n    width: 20px;\r\n}\r\n\r\n/* Additional Styles */\r\n\r\n/* List Widgets */\r\nQListWidget, QListView {\r\n    background-color: white;\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    border-radius: 4px;\r\n}\r\n\r\nQListWidget::item, QListView::item {\r\n    padding: 5px;\r\n    color: #4A4A4A;             /* Text color */\r\n}\r\n\r\nQListWidget::item:selected, QListView::item:selected {\r\n    background-color: #4A90E2;  /* Primary color */\r\n    color: white;\r\n}\r\n\r\n/* Combo Boxes */\r\nQComboBox QAbstractItemView {\r\n    background-color: white;\r\n    selection-background-color: #4A90E2;  /* Primary color */\r\n    selection-color: white;\r\n}\r\n\r\n/* Group Boxes */\r\nQGroupBox {\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    border-radius: 4px;\r\n    margin-top: 10px;\r\n    background-color: white;\r\n}\r\n\r\nQGroupBox::title {\r\n    subcontrol-origin: margin;\r\n    subcontrol-position: top left;\r\n    padding: 0 3px;\r\n    background-color: white;\r\n    color: #4A4A4A;             /* Text color */\r\n}\r\n\r\n/* Sliders */\r\nQSlider::groove:horizontal {\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    height: 6px;\r\n    background: #e9ecef;      /* Hover background color */\r\n    margin: 0px;\r\n    border-radius: 3px;\r\n}\r\n\r\nQSlider::handle:horizontal {\r\n    background: #4A90E2;  /* Primary color */\r\n    border: 1px solid #cccccc;     /* Border color */\r\n    width: 14px;\r\n    height: 14px;\r\n    margin: -5px 0; /* Center the handle */\r\n    border-radius: 7px;\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/style_default.qss b/src/style_default.qss
+--- a/src/style_default.qss	(revision f55ae05db75f8e0d7fe44e3b01560768246aca3e)
++++ b/src/style_default.qss	(date 1730921534841)
+@@ -3,390 +3,269 @@
+ QWidget {
+     font-family: 'Segoe UI';  /* Default font family */
+     font-size: 13px;          /* Default font size */
+-    color: #4A4A4A;           /* Text color */
+ }
+ 
+-/* Main Action Buttons */
+-QPushButton#saveButton,
+-QPushButton#deleteButton,
+-QPushButton#cancelButton,
+-QPushButton#changeImageButton,
+-QPushButton#deleteImageButton,
+-QPushButton#addRelationshipButton,
+-QPushButton#addPropertyButton {
+-    background-color: white;
+-    border: 1px solid #cccccc;    /* Border color */
+-    border-radius: 4px;
+-    padding: 5px 15px;
+-    color: #4A4A4A;           /* Text color */
+-    font-weight: bold;
+-}
++/* Specific Widget Styles */
+ 
+-/* Specific Button Styles */
+-#saveButton {
+-    background-color: #438557;  /* Primary color */
+-    color: white;
++/* Style for the main action buttons */
++#saveButton,
++#deleteButton,
++#cancelButton,
++#changeImageButton,
++#deleteImageButton,
++#addRelationshipButton,
++#addPropertyButton {
++    background-color: white;      /* Button background color */
++    border: 1px solid #ddd;       /* Light gray border */
++    border-radius: 4px;           /* Rounded corners */
++    padding: 5px 15px;            /* Padding inside the button */
++    color: black;                 /* Text color */
+ }
++
+ 
+ #deleteButton {
+-    background-color: #ce1d11;  /* Error color */
+-    color: white;
++    background-color: #A00E0E;    /* Red color for delete button */
++}
++
++/* Hover effect for the action buttons */
++#saveButton:hover,
++#deleteButton:hover,
++#cancelButton:hover,
++#changeImageButton:hover,
++#deleteImageButton:hover,
++#addRelationshipButton:hover,
++#addPropertyButton:hover {
++    background-color: #e9ecef;    /* Slightly darker background on hover */
+ }
+ 
+-/* Hover Effects */
+-QPushButton:hover {
+-    background-color: #e9ecef;  /* Hover background color */
++/* Pressed state for the action buttons */
++#saveButton:pressed,
++#deleteButton:pressed,
++#cancelButton:pressed,
++#changeImageButton:pressed,
++#deleteImageButton:pressed,
++#addRelationshipButton:pressed,
++#addPropertyButton:pressed {
++    background-color: #dee2e6;    /* Even darker background when pressed */
+ }
+ 
+-/* Pressed State */
+-QPushButton:pressed {
+-    background-color: #dee2e6;  /* Pressed background color */
++/* Disabled state for specific buttons */
++#saveButton:disabled,
++#deleteButton:disabled,
++#cancelButton:disabled {
++    background-color: #e9ecef;    /* Background color when disabled */
++    color: #6c757d;               /* Text color when disabled */
++    /* You can add more styles for disabled state here */
+ }
+ 
+-/* Disabled State */
+-QPushButton:disabled {
+-    background-color: #e9ecef;  /* Hover background color */
+-    color: #6c757d;             /* Disabled text color */
++/* Styles for input fields */
++#nameInput,
++#descriptionInput,
++#labelsInput,
++#tagsInput {
++    border: 1px solid #ccc;       /* Light gray border */
++    border-radius: 4px;           /* Rounded corners */
++    padding: 5px;                 /* Padding inside the input */
++    background: white;            /* Input background color */
+ }
+ 
+-/* Input Fields */
+-QLineEdit,
+-QTextEdit,
+-QComboBox,
+-QSpinBox {
+-    border: 1px solid #cccccc;     /* Border color */
+-    border-radius: 4px;
+-    padding: 5px;
+-    background-color: white;
+-    color: #4A4A4A;             /* Text color */
++/* Focus state for input fields */
++#nameInput:focus,
++#descriptionInput:focus,
++#labelsInput:focus,
++#tagsInput:focus {
++    border-color: #007bff;        /* Blue border when focused */
++    /* You can modify the focus border color here */
+ }
+ 
+-/* Focus State */
+-QLineEdit:focus,
+-QTextEdit:focus,
+-QComboBox:focus,
+-QSpinBox:focus {
+-    border-color: #4A90E2;      /* Primary color */
++/* Style for the progress bar */
++#progressBar {
++    border: 1px solid #ccc;       /* Border around the progress bar */
++    border-radius: 4px;           /* Rounded corners */
++    text-align: center;           /* Center the text inside the progress bar */
++    background: white;            /* Background color */
+ }
+ 
+-/* Error State */
+-QLineEdit[error="true"],
+-QTextEdit[error="true"],
+-QComboBox[error="true"],
+-QSpinBox[error="true"] {
+-    border-color: #D0021B;      /* Error color */
++/* Style for the progress bar chunk (the filled part) */
++#progressBar::chunk {
++    background-color: #007bff;    /* Blue color for the progress */
++    /* You can change the progress color here */
+ }
+ 
+-/* Table Headers */
+-QHeaderView::section {
+-    background-color: #e9ecef;  /* Hover background color */
+-    padding: 4px;
+-    border: 1px solid #cccccc;     /* Border color */
+-    font-weight: bold;
+-    color: #4A4A4A;             /* Text color */
++/* Style for the status label */
++#statusLabel {
++    color: #212529;               /* Text color */
++    background: transparent;      /* Transparent background */
++    /* You can adjust the font style or size here */
+ }
+ 
+-/* Table Cells */
+-QTableWidget {
+-    gridline-color: #cccccc;       /* Border color */
++/* Group box styling for the image section */
++#imageGroupBox {
++    border: 1px solid #ccc;       /* Border around the group box */
++    border-radius: 4px;           /* Rounded corners */
++    margin-top: 1em;              /* Top margin */
++    padding-top: 10px;            /* Top padding inside the group box */
++    background: white;            /* Background color */
+ }
+ 
+-QTableWidget::item {
+-    padding: 5px;
++/* Style for the image label inside the group box */
++#imageLabel {
++    border: 1px solid #ccc;       /* Border around the image label */
++    border-radius: 4px;           /* Rounded corners */
++    background: white;            /* Background color */
++    /* You can adjust the size or alignment of the image here */
+ }
+ 
+-QTableWidget::item:selected {
+-    background-color: #4A90E2;  /* Primary color */
+-    color: white;
++/* Styles for the relationships and properties tables */
++#relationshipsTable,
++#propertiesTable {
++    background: white;            /* Table background color */
++    /* You can add more styles for table headers, cells, etc. */
+ }
+ 
+-/* Vertical Scrollbar */
++/* Style for the tree view */
++#treeView {
++    background: white;            /* Background color */
++    border: 1px solid #ccc;       /* Border around the tree view */
++    border-radius: 4px;           /* Rounded corners */
++    /* You can customize item selection, text color, etc., here */
++}
++
++/* Styles for the main tabs */
++#mainTabs::pane {
++    background: white;            /* Background color of the tab pane */
++    border: 1px solid #ccc;       /* Border around the tab pane */
++    border-radius: 4px;           /* Rounded corners */
++}
++
++/* Style for each tab in the tab bar */
++#mainTabs QTabBar::tab {
++    background-color: white;          /* Background color of the tab */
++    border: 1px solid #ccc;           /* Border around the tab */
++    border-bottom-color: white;       /* Hide the bottom border to blend with the pane */
++    border-top-left-radius: 4px;      /* Rounded top-left corner */
++    border-top-right-radius: 4px;     /* Rounded top-right corner */
++    padding: 5px 10px;                /* Padding inside the tab */
++    margin-right: 2px;                /* Space between tabs */
++}
++
++/* Style for the selected tab */
++#mainTabs QTabBar::tab:selected {
++    background-color: white;          /* Background color for the selected tab */
++    border-bottom-color: transparent; /* Remove bottom border to connect with the tab pane */
++}
++
++/* Style for unselected tabs */
++#mainTabs QTabBar::tab:!selected {
++    background-color: #f0f0f0;        /* Slightly darker background for unselected tabs */
++    margin-top: 2px;                  /* Push unselected tabs down to create a visual hierarchy */
++}
++
++/* Hover effect for unselected tabs */
++#mainTabs QTabBar::tab:!selected:hover {
++    background-color: #e9ecef;        /* Change background color on hover */
++}
++
++/* Central widget background */
++#CentralWidget {
++    background-color: transparent;    /* Make central widget transparent */
++    /* This allows any background image or color of the main window to show through */
++}
++
++/* Additional Styles That Can Be Modified */
++
++/* Example: Style for scroll bars (unmodified) */
++/* Uncomment and customize if needed */
++/*
+ QScrollBar:vertical {
+-    background-color: #F5F7FA;   /* Background color */
++    background-color: #f0f0f0;
+     width: 15px;
+     margin: 15px 3px 15px 3px;
+-    border: 1px solid #cccccc;     /* Border color */
+-    border-radius: 4px;
++    border: 1px solid #ccc;
+ }
+ 
+ QScrollBar::handle:vertical {
+-    background-color: #cccccc;     /* Border color */
++    background-color: #ccc;
+     min-height: 20px;
+     border-radius: 7px;
+ }
+ 
+-QScrollBar::handle:vertical:hover {
+-    background-color: #e9ecef;  /* Hover background color */
+-}
+-
+ QScrollBar::add-line:vertical,
+ QScrollBar::sub-line:vertical {
+     background: none;
+ }
++*/
+ 
+-/* Tooltips */
++/* Example: Style for table headers (unmodified) */
++/* Uncomment and customize if needed */
++/*
++QHeaderView::section {
++    background-color: #e9ecef;
++    padding: 4px;
++    border: 1px solid #ccc;
++    font-weight: bold;
++}
++*/
++
++/* Example: Style for tooltips (unmodified) */
++/* Uncomment and customize if needed */
++/*
+ QToolTip {
+-    background-color: #4A90E2;  /* Primary color */
+-    color: white;
+-    border: 1px solid #cccccc;     /* Border color */
+-    padding: 4px;
+-    border-radius: 4px;
+-}
+-
+-/* Tree View */
+-QTreeView {
+-    background-color: white;
+-    border: 1px solid #cccccc;     /* Border color */
+-    border-radius: 4px;
++    background-color: #f0f0f0;
++    color: #000;
++    border: 1px solid #ccc;
+ }
++*/
+ 
+-QTreeView::item {
+-    padding: 5px;
+-}
++/* You can add more custom styles below as needed */
+ 
+-QTreeView::item:selected {
+-    background-color: #4A90E2;  /* Primary color */
+-    color: white;
++/* Remove border and padding for the delete button column */
++#relationshipsTable QTableWidget::item {
++    border: none;
++    padding: 0;
+ }
+ 
+-/* Tab Widget */
+-QTabWidget::pane {
+-    border: 1px solid #cccccc;     /* Border color */
+-    border-radius: 4px;
+-    background-color: white;
+-}
+-
+-QTabBar::tab {
+-    background-color: #F5F7FA;   /* Background color */
+-    border: 1px solid #cccccc;     /* Border color */
+-    padding: 5px 10px;
+-    margin-right: 2px;
+-    border-top-left-radius: 4px;
+-    border-top-right-radius: 4px;
+-    color: #4A4A4A;             /* Text color */
+-}
+-
+-QTabBar::tab:selected {
+-    background-color: white;
+-    border-bottom-color: transparent;
+-    color: #4A4A4A;             /* Text color */
+-}
+-
+-QTabBar::tab:!selected:hover {
+-    background-color: #e9ecef;  /* Hover background color */
+-}
+-
+-/* Menu Bar */
+-QMenuBar {
+-    background-color: #F5F7FA;   /* Background color */
+-    color: #4A4A4A;             /* Text color */
+-}
+-
+-QMenuBar::item {
+-    background: transparent;
+-    padding: 5px 10px;
+-}
+-
+-QMenuBar::item:selected {
+-    background-color: #e9ecef;  /* Hover background color */
+-}
+-
+-/* Status Bar */
+-QStatusBar {
+-    background-color: #F5F7FA;   /* Background color */
+-    border-top: 1px solid #cccccc; /* Border color */
+-    color: #4A4A4A;             /* Text color */
+-}
+-
+-/* Dialogs */
+-QDialog {
+-    background-color: white;
+-    border: 1px solid #cccccc;     /* Border color */
+-    border-radius: 8px;
+-}
+-
+-/* Message Boxes */
+-QMessageBox {
+-    background-color: white;
+-    border: 1px solid #cccccc;     /* Border color */
+-}
+-
+-QMessageBox QLabel {
+-    color: #4A4A4A;             /* Text color */
+-}
+-
+-QMessageBox QPushButton {
+-    background-color: #4A90E2;  /* Primary color */
+-    color: white;
++#propertiesTable QTableWidget::item {
+     border: none;
+-    border-radius: 4px;
+-    padding: 5px 15px;
+-}
+-
+-QMessageBox QPushButton:hover {
+-    background-color: #e9ecef;  /* Hover background color */
+-}
+-
+-QMessageBox QPushButton:pressed {
+-    background-color: #dee2e6;  /* Pressed background color */
++    padding: 0;
+ }
+ 
+-/* Delete Buttons in Tables */
+-QPushButton#rowDeleteButton {
+-    background-color: #D0021B;  /* Error color */
++/* Remove border and padding for the delete button itself */
++#relationshipsTable QPushButton#rowDeleteButton,
++#propertiesTable QPushButton#rowDeleteButton {
+     color: white;
+     border: none;
+     border-radius: 4px;
+     padding: 5px;
+-    min-width: 20px;
+-    min-height: 20px;
+-}
+-
+-QPushButton#rowDeleteButton:hover {
+-    background-color: #C00000;  /* Slightly darker red on hover */
+-}
+-
+-QPushButton#rowDeleteButton:pressed {
+-    background-color: #A00000;  /* Even darker red when pressed */
+-}
+-
+-/* Spin Box */
+-QSpinBox {
+-    border: 1px solid #cccccc;     /* Border color */
+-    border-radius: 4px;
+-    padding: 5px;
+-    background-color: white;
+-    color: #4A4A4A;             /* Text color */
++    background: #A00E0E;
+ }
+ 
+-/* Spin Box Buttons */
+-QSpinBox::up-button,
+-QSpinBox::down-button {
+-    subcontrol-origin: border;
+-    subcontrol-position: top right;
+-    width: 16px;
+-    border: none;
+-    background-color: transparent;
++/* Style for the depth spinbox */
++#depthSpinBox {
++    border: 1px solid #ccc;       /* Light gray border */
++    border-radius: 4px;           /* Rounded corners */
++    padding: 5px;                 /* Padding inside the spinbox */
++    background: white;            /* Spinbox background color */
+ }
+ 
+-QSpinBox::up-button:hover,
+-QSpinBox::down-button:hover {
+-    background-color: #e9ecef;  /* Hover background color */
++#depthSpinBox::up-button {
++    width: 30px;
++    height: 20px;
+ }
+ 
+-QSpinBox::up-arrow,
+-QSpinBox::down-arrow {
+-    image: none;  /* Remove default arrows */
+-    width: 7px;
+-    height: 7px;
+-    border: solid #4A4A4A;      /* Text color */
+-    border-width: 0 2px 2px 0;
++#depthSpinBox::down-button {
++    width: 30px;
++    height: 20px;
+ }
+ 
+-QSpinBox::up-arrow {
+-    transform: rotate(-45deg);
+-    margin: 2px;
++#depthSpinBox:focus {
++    border-color: #007bff;        /* Blue border when focused */
+ }
+ 
+-QSpinBox::down-arrow {
+-    transform: rotate(135deg);
+-    margin: 2px;
+-}
+-
+-/* Checkboxes */
+-QCheckBox::indicator {
+-    width: 16px;
+-    height: 16px;
+-}
+-
+-/* Assuming you have custom icons for checkboxes */
+-QCheckBox::indicator:unchecked {
+-    image: url('icons/checkbox_unchecked.png');  /* Provide your own icons */
+-}
+-
+-QCheckBox::indicator:checked {
+-    image: url('icons/checkbox_checked.png');
+-}
+-
+-/* Validation Error Styles */
+-QWidget[valid="false"] {
+-    border: 1px solid #D0021B;  /* Error color */
+-}
+-
+-QWidget[valid="false"]::placeholder {
+-    color: #D0021B;             /* Error color */
+-}
+-
+-/* Progress Bar */
+-QProgressBar {
+-    border: 1px solid #cccccc;     /* Border color */
+-    border-radius: 4px;
+-    background-color: white;
+-    text-align: center;
+-    color: #4A4A4A;             /* Text color */
+-}
+-
+-QProgressBar::chunk {
+-    background-color: #4A90E2;  /* Primary color */
+-    width: 20px;
+-}
+-
+-/* Additional Styles */
+-
+-/* List Widgets */
+-QListWidget, QListView {
+-    background-color: white;
+-    border: 1px solid #cccccc;     /* Border color */
+-    border-radius: 4px;
+-}
+-
+-QListWidget::item, QListView::item {
+-    padding: 5px;
+-    color: #4A4A4A;             /* Text color */
+-}
+-
+-QListWidget::item:selected, QListView::item:selected {
+-    background-color: #4A90E2;  /* Primary color */
+-    color: white;
+-}
+-
+-/* Combo Boxes */
+-QComboBox QAbstractItemView {
+-    background-color: white;
+-    selection-background-color: #4A90E2;  /* Primary color */
+-    selection-color: white;
+-}
+-
+-/* Group Boxes */
+-QGroupBox {
+-    border: 1px solid #cccccc;     /* Border color */
+-    border-radius: 4px;
+-    margin-top: 10px;
+-    background-color: white;
+-}
+-
+-QGroupBox::title {
+-    subcontrol-origin: margin;
+-    subcontrol-position: top left;
+-    padding: 0 3px;
+-    background-color: white;
+-    color: #4A4A4A;             /* Text color */
+-}
+-
+-/* Sliders */
+-QSlider::groove:horizontal {
+-    border: 1px solid #cccccc;     /* Border color */
+-    height: 6px;
+-    background: #e9ecef;      /* Hover background color */
+-    margin: 0px;
+-    border-radius: 3px;
+-}
+-
+-QSlider::handle:horizontal {
+-    background: #4A90E2;  /* Primary color */
+-    border: 1px solid #cccccc;     /* Border color */
+-    width: 14px;
+-    height: 14px;
+-    margin: -5px 0; /* Center the handle */
+-    border-radius: 7px;
++/* Style for relationship properties */
++.relationship-property {
++    background-color: #f0f0f0;    /* Light gray background */
++    border-radius: 4px;           /* Rounded corners */
++    padding: 5px;                 /* Padding inside the property */
++    margin: 2px;                  /* Margin around the property */
+ }

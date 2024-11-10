@@ -1,0 +1,804 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="c1c1f3df-892c-4735-83ba-216f6077e36f" name="Changes" comment="Switched to named expressions in many places">
+      <change afterPath="$PROJECT_DIR$/.idea/NeoRealmBuilder.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Checkout_at_03_11_2024_21_39_[Changes]/shelved.patch" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Checkout_at_03_11_2024_21_39__Changes_.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Checkout_at_06_11_2024_20_42_[Changes]/shelved.patch" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Checkout_at_06_11_2024_20_42__Changes_.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Merge_at_06_11_2024_20_44_[Changes]/shelved.patch" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Merge_at_06_11_2024_20_44__Changes_.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_09_11_2024_23_00_[Changes]/shelved.patch" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_09_11_2024_23_00__Changes_.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/sonarlint.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app.log" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs.log" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/qodana.yaml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/.sourcery.yaml" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Unit Test" />
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="code-organisation" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RESET_MODE" value="HARD" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;cmintert&quot;
+  }
+}</component>
+  <component name="GithubDefaultAccount">
+    <option name="defaultAccountId" value="267dbafe-fda8-447e-b479-8f44b4efbd46" />
+  </component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/cmintert/NeoRealmBuilder&quot;,
+    &quot;accountId&quot;: &quot;267dbafe-fda8-447e-b479-8f44b4efbd46&quot;
+  }
+}</component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+    <option name="showPreview" value="true" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 0
+}</component>
+  <component name="ProjectId" id="2ncUCWsJEyCsrQkJEgOPkYz6ZJv" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "Python tests.pytest for test_neo4j_workers.test_base_worker_signals.executor": "Run",
+    "Python tests.pytest for test_neo4j_workers.test_query_worker_execution.executor": "Run",
+    "Python tests.pytest in main_test.py.executor": "Run",
+    "Python tests.pytest in test_neo4j_model.py.executor": "Run",
+    "Python tests.pytest in test_neo4j_workers.py.executor": "Run",
+    "Python tests.pytest in test_worldbuilding_controller.py.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.scratch_1.executor": "Run",
+    "Python.world_building_app.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "SONARLINT_PRECOMMIT_ANALYSIS": "true",
+    "git-widget-placeholder": "master",
+    "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "C:/Users/chris/PycharmProjects/NeoRealmBuilder/src/utils",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.standard": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.standard": "",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "settings.editor.selected.configurable": "com.jetbrains.python.black.configuration.BlackFormatterConfigurable",
+    "vue.rearranger.settings.migration": "true"
+  },
+  "keyToStringList": {
+    "com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File": [
+      "Python",
+      "PLAIN_TEXT"
+    ]
+  }
+}]]></component>
+  <component name="QodanaReportsService">
+    <option name="descriptions">
+      <ReportDescription localRun="true" path="C:\Users\chris\AppData\Local\Temp\qodana_output\qodana.sarif.json" reportGuid="62585527-ff38-47ab-8e70-a6676944cd5b" reportId="NeoRealmBuilder/qodana/2024-11-09" />
+    </option>
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\chris\PycharmProjects\NeoRealmBuilder" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\chris\PycharmProjects\NeoRealmBuilder\src\utils" />
+      <recent name="C:\Users\chris\PycharmProjects\NeoRealmBuilder\src\config" />
+      <recent name="C:\Users\chris\PycharmProjects\NeoRealmBuilder\src" />
+      <recent name="C:\Users\chris\PycharmProjects\NeoRealmBuilder" />
+      <recent name="C:\Users\chris\PycharmProjects\NeoRealmBuilder\Old_Code" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Python.main">
+    <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="NeoRealmBuilder" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="SDK_NAME" value="Python 3.12 (NeoRealmBuilder)" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/main.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="true" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest for test_neo4j_workers.test_base_worker_signals" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="NeoRealmBuilder" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;test_neo4j_workers.test_base_worker_signals&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest for test_neo4j_workers.test_query_worker_execution" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="NeoRealmBuilder" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;test_neo4j_workers.test_query_worker_execution&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest in C:/Users/chris/PycharmProjects/NeoRealmBuilder/tests/test_neo4j_model.py" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="NeoRealmBuilder" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/test_neo4j_model.py&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest in C:/Users/chris/PycharmProjects/NeoRealmBuilder/tests/test_neo4j_workers.py" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="NeoRealmBuilder" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/test_neo4j_workers.py&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest in C:/Users/chris/PycharmProjects/NeoRealmBuilder/tests/test_worldbuilding_controller.py" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="NeoRealmBuilder" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/test_worldbuilding_controller.py&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Python.main" />
+      <item itemvalue="Python tests.pytest for test_neo4j_workers.test_base_worker_signals" />
+      <item itemvalue="Python tests.pytest for test_neo4j_workers.test_query_worker_execution" />
+      <item itemvalue="Python tests.pytest in C:/Users/chris/PycharmProjects/NeoRealmBuilder/tests/test_neo4j_model.py" />
+      <item itemvalue="Python tests.pytest in C:/Users/chris/PycharmProjects/NeoRealmBuilder/tests/test_neo4j_workers.py" />
+      <item itemvalue="Python tests.pytest in C:/Users/chris/PycharmProjects/NeoRealmBuilder/tests/test_worldbuilding_controller.py" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python tests.pytest for test_neo4j_workers.test_query_worker_execution" />
+        <item itemvalue="Python tests.pytest for test_neo4j_workers.test_base_worker_signals" />
+        <item itemvalue="Python tests.pytest in C:/Users/chris/PycharmProjects/NeoRealmBuilder/tests/test_worldbuilding_controller.py" />
+        <item itemvalue="Python tests.pytest in C:/Users/chris/PycharmProjects/NeoRealmBuilder/tests/test_neo4j_workers.py" />
+        <item itemvalue="Python tests.pytest in C:/Users/chris/PycharmProjects/NeoRealmBuilder/tests/test_neo4j_model.py" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-5c90d61e3bab-JavaScript-PY-242.23726.102" />
+        <option value="bundled-python-sdk-5e1850174b45-399fe30bd8c1-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-242.23726.102" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="c1c1f3df-892c-4735-83ba-216f6077e36f" name="Changes" comment="" />
+      <created>1729271731139</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1729271731139</updated>
+      <workItem from="1729271745019" duration="5969000" />
+      <workItem from="1729278070035" duration="11474000" />
+      <workItem from="1729317255402" duration="1873000" />
+      <workItem from="1729319199132" duration="2584000" />
+      <workItem from="1729326037949" duration="13073000" />
+      <workItem from="1729582707109" duration="9148000" />
+      <workItem from="1729621346144" duration="3090000" />
+      <workItem from="1729624514200" duration="8265000" />
+      <workItem from="1729663015781" duration="4939000" />
+      <workItem from="1729671596374" duration="6324000" />
+      <workItem from="1729706424762" duration="8552000" />
+      <workItem from="1729797498169" duration="7238000" />
+      <workItem from="1729871309800" duration="1681000" />
+      <workItem from="1729873760096" duration="6324000" />
+      <workItem from="1729895034639" duration="201000" />
+      <workItem from="1729928582039" duration="9815000" />
+      <workItem from="1730017923119" duration="18465000" />
+      <workItem from="1730056374900" duration="12029000" />
+      <workItem from="1730189919854" duration="4258000" />
+      <workItem from="1730223319214" duration="11624000" />
+      <workItem from="1730275734695" duration="8069000" />
+      <workItem from="1730315010650" duration="7361000" />
+      <workItem from="1730456075650" duration="12145000" />
+      <workItem from="1730532246311" duration="27610000" />
+      <workItem from="1730582692022" duration="2662000" />
+      <workItem from="1730630480715" duration="10239000" />
+      <workItem from="1730792275298" duration="9714000" />
+      <workItem from="1730805304213" duration="1078000" />
+      <workItem from="1730827307922" duration="389000" />
+      <workItem from="1730845286409" duration="126000" />
+      <workItem from="1730845824715" duration="312000" />
+      <workItem from="1730880628389" duration="7856000" />
+      <workItem from="1730921473959" duration="8920000" />
+      <workItem from="1731007810340" duration="5641000" />
+      <workItem from="1731051137188" duration="8666000" />
+      <workItem from="1731085522757" duration="4364000" />
+      <workItem from="1731108628971" duration="81000" />
+      <workItem from="1731108747133" duration="635000" />
+      <workItem from="1731143691882" duration="6482000" />
+      <workItem from="1731172351803" duration="1279000" />
+      <workItem from="1731173681546" duration="34000" />
+      <workItem from="1731173953640" duration="2939000" />
+      <workItem from="1731228712531" duration="5107000" />
+    </task>
+    <task id="LOCAL-00016" summary="UI Update. does not belong here, happend anyway.">
+      <option name="closed" value="true" />
+      <created>1729807149909</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1729807149909</updated>
+    </task>
+    <task id="LOCAL-00017" summary="Reordered classes for better readability">
+      <option name="closed" value="true" />
+      <created>1729894884708</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1729894884708</updated>
+    </task>
+    <task id="LOCAL-00018" summary="Still dealing with a nasty buffer overflow. I hope I can find it somewhere in the worker jungle.">
+      <option name="closed" value="true" />
+      <created>1729980206262</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1729980206262</updated>
+    </task>
+    <task id="LOCAL-00019" summary="Autocompleter works, populate_node_fields is still corrupted/missing.">
+      <option name="closed" value="true" />
+      <created>1730025819563</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1730025819563</updated>
+    </task>
+    <task id="LOCAL-00020" summary="It works kind of now...">
+      <option name="closed" value="true" />
+      <created>1730028543632</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1730028543632</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Works.">
+      <option name="closed" value="true" />
+      <created>1730045591742</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1730045591742</updated>
+    </task>
+    <task id="LOCAL-00022" summary="Stylesheet advances.">
+      <option name="closed" value="true" />
+      <created>1730057046611</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1730057046611</updated>
+    </task>
+    <task id="LOCAL-00023" summary="Stylesheet advances.">
+      <option name="closed" value="true" />
+      <created>1730061119987</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1730061119987</updated>
+    </task>
+    <task id="LOCAL-00024" summary="Background image loads via QPalette now... more of a workaround">
+      <option name="closed" value="true" />
+      <created>1730063798697</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1730063798697</updated>
+    </task>
+    <task id="LOCAL-00025" summary="Reworked tree view">
+      <option name="closed" value="true" />
+      <created>1730067075223</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1730067075223</updated>
+    </task>
+    <task id="LOCAL-00026" summary="Made nodes in tree view clickable.">
+      <option name="closed" value="true" />
+      <created>1730067983443</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1730067983443</updated>
+    </task>
+    <task id="LOCAL-00027" summary="Started validation of relations implementation">
+      <option name="closed" value="true" />
+      <created>1730069542392</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1730069542392</updated>
+    </task>
+    <task id="LOCAL-00028" summary="Made the UI a bit less quirky">
+      <option name="closed" value="true" />
+      <created>1730224667551</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1730224667551</updated>
+    </task>
+    <task id="LOCAL-00029" summary="Adde enforcement of upper case and underscore for blanks in Relationships.">
+      <option name="closed" value="true" />
+      <created>1730225339811</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1730225339811</updated>
+    </task>
+    <task id="LOCAL-00030" summary="Completer works now. Enforcement on Lables Uppercase + Underscore is in place.">
+      <option name="closed" value="true" />
+      <created>1730238372203</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1730238372203</updated>
+    </task>
+    <task id="LOCAL-00031" summary="New QSS Sheet">
+      <option name="closed" value="true" />
+      <created>1730239177911</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1730239177911</updated>
+    </task>
+    <task id="LOCAL-00032" summary="Added buttons to delete relationship and properties rows.">
+      <option name="closed" value="true" />
+      <created>1730283771877</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1730283771877</updated>
+    </task>
+    <task id="LOCAL-00033" summary="Fixed a deleteRowButton bug. Button vanished after saving the node -&gt; fixed">
+      <option name="closed" value="true" />
+      <created>1730318806564</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1730318806564</updated>
+    </task>
+    <task id="LOCAL-00034" summary="Deleting nodes now works">
+      <option name="closed" value="true" />
+      <created>1730456668096</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1730456668097</updated>
+    </task>
+    <task id="LOCAL-00035" summary="Removed labeling all nodes with &quot;node&quot;">
+      <option name="closed" value="true" />
+      <created>1730464861735</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1730464861735</updated>
+    </task>
+    <task id="LOCAL-00036" summary="Removed filtering of &quot;node&quot; Label. Nodes should now have no default &quot;node&quot; label anymore, having it will show it in the UI">
+      <option name="closed" value="true" />
+      <created>1730481908769</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1730481908769</updated>
+    </task>
+    <task id="LOCAL-00037" summary="Fixed some small typos, more concise cypher querries and addition of a constant.">
+      <option name="closed" value="true" />
+      <created>1730483172433</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1730483172433</updated>
+    </task>
+    <task id="LOCAL-00038" summary="Reworked the relationship tree to facilitate changing dephts of representations.&#10;-&#10;Included a cypher command to populate a neo4j database quickly for playing around in a standardised environment.">
+      <option name="closed" value="true" />
+      <created>1730572282049</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1730572282049</updated>
+    </task>
+    <task id="LOCAL-00039" summary="Removed unused variable.">
+      <option name="closed" value="true" />
+      <created>1730574356527</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1730574356527</updated>
+    </task>
+    <task id="LOCAL-00040" summary="Small logging error">
+      <option name="closed" value="true" />
+      <created>1730575022380</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1730575022380</updated>
+    </task>
+    <task id="LOCAL-00041" summary="Corrected the import for QAction">
+      <option name="closed" value="true" />
+      <created>1730575922536</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1730575922536</updated>
+    </task>
+    <task id="LOCAL-00042" summary="Corrected styling for the depth spin box">
+      <option name="closed" value="true" />
+      <created>1730584009280</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1730584009280</updated>
+    </task>
+    <task id="LOCAL-00043" summary="Added selection boxes to all tree items, connection does not work yet">
+      <option name="closed" value="true" />
+      <created>1730585567154</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1730585567154</updated>
+    </task>
+    <task id="LOCAL-00044" summary="Selection and multi node export now seems to work in a basic way.">
+      <option name="closed" value="true" />
+      <created>1730636648346</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1730636648346</updated>
+    </task>
+    <task id="LOCAL-00045" summary="Reduced clutter in the export menu">
+      <option name="closed" value="true" />
+      <created>1730637630809</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1730637630809</updated>
+    </task>
+    <task id="LOCAL-00046" summary="Reduced clutter in the export menu">
+      <option name="closed" value="true" />
+      <created>1730667446432</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1730667446432</updated>
+    </task>
+    <task id="LOCAL-00047" summary="Improved handling of system properties starting with underscore.">
+      <option name="closed" value="true" />
+      <created>1730801254558</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1730801254558</updated>
+    </task>
+    <task id="LOCAL-00048" summary="Added system properties author, created and modified to nodes. These do not show up in properties table. system properties can not be entered by the user.">
+      <option name="closed" value="true" />
+      <created>1730802639348</created>
+      <option name="number" value="00048" />
+      <option name="presentableId" value="LOCAL-00048" />
+      <option name="project" value="LOCAL" />
+      <updated>1730802639348</updated>
+    </task>
+    <task id="LOCAL-00049" summary="Started to improve the relationship properties entry tab. Got an edit button and a property table popup. Not sure I stay with the popup for this functionality.">
+      <option name="closed" value="true" />
+      <created>1730845394952</created>
+      <option name="number" value="00049" />
+      <option name="presentableId" value="LOCAL-00049" />
+      <option name="project" value="LOCAL" />
+      <updated>1730845394952</updated>
+    </task>
+    <task id="LOCAL-00050" summary="Delete button to open_relation_properties_dialog added">
+      <option name="closed" value="true" />
+      <created>1730883141826</created>
+      <option name="number" value="00050" />
+      <option name="presentableId" value="LOCAL-00050" />
+      <option name="project" value="LOCAL" />
+      <updated>1730883141827</updated>
+    </task>
+    <task id="LOCAL-00051" summary="Signals of the different buttons are now correctly connected, removing a redundant connection after substituting checked with a lambda function">
+      <option name="closed" value="true" />
+      <created>1730888366480</created>
+      <option name="number" value="00051" />
+      <option name="presentableId" value="LOCAL-00051" />
+      <option name="project" value="LOCAL" />
+      <updated>1730888366480</updated>
+    </task>
+    <task id="LOCAL-00052" summary="Small changes.">
+      <option name="closed" value="true" />
+      <created>1730889728769</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1730889728769</updated>
+    </task>
+    <task id="LOCAL-00053" summary="Started node data suggestion system.">
+      <option name="closed" value="true" />
+      <created>1730930658384</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1730930658385</updated>
+    </task>
+    <task id="LOCAL-00054" summary="Worked on suggestion system">
+      <option name="closed" value="true" />
+      <created>1731011962720</created>
+      <option name="number" value="00054" />
+      <option name="presentableId" value="LOCAL-00054" />
+      <option name="project" value="LOCAL" />
+      <updated>1731011962721</updated>
+    </task>
+    <task id="LOCAL-00055" summary="Enforced naming convention styles to make search and suggest routines easier. Found a nasty bug that prevented me from saving new nodes. squashed. Code becomes more and mor monolithic -&gt; not good.">
+      <option name="closed" value="true" />
+      <created>1731059457552</created>
+      <option name="number" value="00055" />
+      <option name="presentableId" value="LOCAL-00055" />
+      <option name="project" value="LOCAL" />
+      <updated>1731059457553</updated>
+    </task>
+    <task id="LOCAL-00056" summary="Enforced naming convention styles to make search and suggest routines easier. Found a nasty bug that prevented me from saving new nodes. squashed. Code becomes more and mor monolithic -&gt; not good.">
+      <option name="closed" value="true" />
+      <created>1731106673075</created>
+      <option name="number" value="00056" />
+      <option name="presentableId" value="LOCAL-00056" />
+      <option name="project" value="LOCAL" />
+      <updated>1731106673075</updated>
+    </task>
+    <task id="LOCAL-00057" summary="Made Property suggestion values editable.">
+      <option name="closed" value="true" />
+      <created>1731108428348</created>
+      <option name="number" value="00057" />
+      <option name="presentableId" value="LOCAL-00057" />
+      <option name="project" value="LOCAL" />
+      <updated>1731108428348</updated>
+    </task>
+    <task id="LOCAL-00058" summary="Reordered my code to make it more accesible and maintainable.&#10;&#10;The codebase has been refactored to improve modularity and maintainability by splitting the large main.py file into multiple smaller, focused modules.&#10;-Introduced new modules: config, core, ui, and converters to encapsulate specific functionalities.&#10;-Removed redundant code and reorganized imports to align with the new structure.&#10;-Enhanced the UI components by moving them to a dedicated ui module, improving separation of concerns.&#10;-Added a SuggestionDialog class in a new dialogs.py file to handle suggestion-related UI interactions.">
+      <option name="closed" value="true" />
+      <created>1731174158650</created>
+      <option name="number" value="00058" />
+      <option name="presentableId" value="LOCAL-00058" />
+      <option name="project" value="LOCAL" />
+      <updated>1731174158650</updated>
+    </task>
+    <task id="LOCAL-00059" summary="smaller reorders.">
+      <option name="closed" value="true" />
+      <created>1731176245750</created>
+      <option name="number" value="00059" />
+      <option name="presentableId" value="LOCAL-00059" />
+      <option name="project" value="LOCAL" />
+      <updated>1731176245750</updated>
+    </task>
+    <task id="LOCAL-00060" summary="smaller reorders.">
+      <option name="closed" value="true" />
+      <created>1731229146238</created>
+      <option name="number" value="00060" />
+      <option name="presentableId" value="LOCAL-00060" />
+      <option name="project" value="LOCAL" />
+      <updated>1731229146238</updated>
+    </task>
+    <task id="LOCAL-00061" summary="Small edits">
+      <option name="closed" value="true" />
+      <created>1731229831914</created>
+      <option name="number" value="00061" />
+      <option name="presentableId" value="LOCAL-00061" />
+      <option name="project" value="LOCAL" />
+      <updated>1731229831914</updated>
+    </task>
+    <task id="LOCAL-00062" summary="Moved export logic to exporters.py and removed a bug from get_selected_nodes that prevented exporting the root item.">
+      <option name="closed" value="true" />
+      <created>1731234050807</created>
+      <option name="number" value="00062" />
+      <option name="presentableId" value="LOCAL-00062" />
+      <option name="project" value="LOCAL" />
+      <updated>1731234050807</updated>
+    </task>
+    <task id="LOCAL-00063" summary="Simplified exporter class">
+      <option name="closed" value="true" />
+      <created>1731235804340</created>
+      <option name="number" value="00063" />
+      <option name="presentableId" value="LOCAL-00063" />
+      <option name="project" value="LOCAL" />
+      <updated>1731235804340</updated>
+    </task>
+    <task id="LOCAL-00064" summary="Switched to named expressions in many places">
+      <option name="closed" value="true" />
+      <created>1731236108776</created>
+      <option name="number" value="00064" />
+      <option name="presentableId" value="LOCAL-00064" />
+      <option name="project" value="LOCAL" />
+      <updated>1731236108776</updated>
+    </task>
+    <option name="localTasksCounter" value="65" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="OPEN_GENERIC_TABS">
+      <map>
+        <entry key="ffc21f8f-85d1-4315-a298-8f7bd0d8e750" value="TOOL_WINDOW" />
+      </map>
+    </option>
+    <option name="RECENT_FILTERS">
+      <map>
+        <entry key="Branch">
+          <value>
+            <list>
+              <RecentGroup>
+                <option name="FILTER_VALUES">
+                  <option value="master" />
+                </option>
+              </RecentGroup>
+              <RecentGroup>
+                <option name="FILTER_VALUES">
+                  <option value="HEAD" />
+                </option>
+              </RecentGroup>
+            </list>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+        <entry key="ffc21f8f-85d1-4315-a298-8f7bd0d8e750">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Fixed some small typos, more concise cypher querries and addition of a constant." />
+    <MESSAGE value="Reworked the relationship tree to facilitate changing dephts of representations.&#10;-&#10;Included a cypher command to populate a neo4j database quickly for playing around in a standardised environment." />
+    <MESSAGE value="Removed unused variable." />
+    <MESSAGE value="Small logging error" />
+    <MESSAGE value="Corrected the import for QAction" />
+    <MESSAGE value="Corrected styling for the depth spin box" />
+    <MESSAGE value="Added selection boxes to all tree items, connection does not work yet" />
+    <MESSAGE value="Selection and multi node export now seems to work in a basic way." />
+    <MESSAGE value="Reduced clutter in the export menu" />
+    <MESSAGE value="Improved handling of system properties starting with underscore." />
+    <MESSAGE value="Added system properties author, created and modified to nodes. These do not show up in properties table. system properties can not be entered by the user." />
+    <MESSAGE value="Started to improve the relationship properties entry tab. Got an edit button and a property table popup. Not sure I stay with the popup for this functionality." />
+    <MESSAGE value="Delete button to open_relation_properties_dialog added" />
+    <MESSAGE value="Signals of the different buttons are now correctly connected, removing a redundant connection after substituting checked with a lambda function" />
+    <MESSAGE value="Small changes." />
+    <MESSAGE value="Started node data suggestion system." />
+    <MESSAGE value="Worked on suggestion system" />
+    <MESSAGE value="Enforced naming convention styles to make search and suggest routines easier. Found a nasty bug that prevented me from saving new nodes. squashed. Code becomes more and mor monolithic -&gt; not good." />
+    <MESSAGE value="Made Property suggestion values editable." />
+    <MESSAGE value="Reordered my code to make it more accesible and maintainable.&#10;&#10;The codebase has been refactored to improve modularity and maintainability by splitting the large main.py file into multiple smaller, focused modules.&#10;-Introduced new modules: config, core, ui, and converters to encapsulate specific functionalities.&#10;-Removed redundant code and reorganized imports to align with the new structure.&#10;-Enhanced the UI components by moving them to a dedicated ui module, improving separation of concerns.&#10;-Added a SuggestionDialog class in a new dialogs.py file to handle suggestion-related UI interactions." />
+    <MESSAGE value="smaller reorders." />
+    <MESSAGE value="Small edits" />
+    <MESSAGE value="Moved export logic to exporters.py and removed a bug from get_selected_nodes that prevented exporting the root item." />
+    <MESSAGE value="Simplified exporter class" />
+    <MESSAGE value="Switched to named expressions in many places" />
+    <option name="LAST_COMMIT_MESSAGE" value="Switched to named expressions in many places" />
+    <option name="OPTIMIZE_IMPORTS_BEFORE_PROJECT_COMMIT" value="true" />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/NeoRealmBuilder$world_building_app.coverage" NAME="world_building_app Coverage Results" MODIFIED="1729627145146" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_for_test_neo4j_workers_test_base_worker_signals.coverage" NAME="pytest for test_neo4j_workers.test_base_worker_signals Coverage Results" MODIFIED="1729956900852" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_in_test_neo4j_workers_py.coverage" NAME="pytest in test_neo4j_workers.py Coverage Results" MODIFIED="1730666222485" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_for_test_neo4j_workers_test_query_worker_execution.coverage" NAME="pytest for test_neo4j_workers.test_query_worker_execution Coverage Results" MODIFIED="1729933755800" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_in_test_worldbuilding_controller_py.coverage" NAME="pytest in test_worldbuilding_controller.py Coverage Results" MODIFIED="1730666234854" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/NeoRealmBuilder$scratch_1.coverage" NAME="scratch_1 Coverage Results" MODIFIED="1729632936135" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
+    <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_in_main_test_py.coverage" NAME="pytest in main_test.py Coverage Results" MODIFIED="1731085976144" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_in_test_neo4j_model_py.coverage" NAME="pytest in test_neo4j_model.py Coverage Results" MODIFIED="1730666202332" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/NeoRealmBuilder$main.coverage" NAME="main Coverage Results" MODIFIED="1731236386292" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+  </component>
+</project>
