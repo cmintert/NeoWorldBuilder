@@ -1039,66 +1039,86 @@ class WorldBuildingController(QObject):
         self.current_image_path = None
         self.ui.set_image(None)
 
-    def _export(self, export_method: callable):
+    def _export(self, format_type: str):
+        """
+        Generic export method that handles all export formats.
+
+        Args:
+            format_type (str): The type of export format ('json', 'txt', 'csv', 'pdf')
+        """
         selected_nodes = self.get_selected_nodes()
         if not selected_nodes:
             QMessageBox.warning(self.ui, "Warning", "No nodes selected for export.")
             return
-        export_method(selected_nodes, self._collect_node_data_for_export)
+
+        try:
+            self.exporter.export(
+                format_type, selected_nodes, self._collect_node_data_for_export
+            )
+        except ValueError as e:
+            self.handle_error(f"Export error: {str(e)}")
 
     def export_as_json(self):
-        self._export(self.exporter.export_as_json)
+        """Export selected nodes as JSON."""
+        self._export("json")
 
     def export_as_txt(self):
-        self._export(self.exporter.export_as_txt)
+        """Export selected nodes as TXT."""
+        self._export("txt")
 
     def export_as_csv(self):
-        self._export(self.exporter.export_as_csv)
+        """Export selected nodes as CSV."""
+        self._export("csv")
 
     def export_as_pdf(self):
-        self._export(self.exporter.export_as_pdf)
+        """Export selected nodes as PDF."""
+        self._export("pdf")
 
     def get_selected_nodes(self) -> List[str]:
         """
         Get the names of checked nodes in the tree view, including the root node.
         """
-        selected_nodes = []
         logging.debug("Starting to gather selected nodes.")
+        selected_nodes = []
 
-        def traverse_tree(parent_item):
-            """Recursively traverse tree to find checked items"""
-            if parent_item.hasChildren():
-                for row in range(parent_item.rowCount()):
-                    child = parent_item.child(row)
-                    if child.hasChildren():
-                        # If this is a relationship item, check its children
-                        for child_row in range(child.rowCount()):
-                            node_item = child.child(child_row)
-                            if (
-                                node_item
-                                and node_item.checkState() == Qt.CheckState.Checked
-                                and node_item.data(Qt.ItemDataRole.UserRole)
-                            ):
-                                selected_nodes.append(
-                                    node_item.data(Qt.ItemDataRole.UserRole)
-                                )
-                        traverse_tree(child)
-                    else:
-                        # If this is a node item directly
-                        if child.checkState() == Qt.CheckState.Checked and child.data(
-                            Qt.ItemDataRole.UserRole
-                        ):
-                            selected_nodes.append(child.data(Qt.ItemDataRole.UserRole))
+        def get_children(item):
+            """Get all children of an item"""
+            return [item.child(row) for row in range(item.rowCount())]
 
-        # Start traversal from root
-        root_item = self.tree_model.invisibleRootItem()
-        for row in range(root_item.rowCount()):
-            child = root_item.child(row)
-            if child.checkState() == Qt.CheckState.Checked and child.data(
+        def process_node(item):
+            """Process a single node"""
+            if not item:
+                return
+            if item.checkState() == Qt.CheckState.Checked and item.data(
                 Qt.ItemDataRole.UserRole
             ):
-                selected_nodes.append(child.data(Qt.ItemDataRole.UserRole))
-            traverse_tree(child)
+                selected_nodes.append(item.data(Qt.ItemDataRole.UserRole))
+
+        def process_tree():
+            queue = []
+            root = self.tree_model.invisibleRootItem()
+
+            # Process root level
+            root_children = get_children(root)
+            for child in root_children:
+                process_node(child)
+                queue.append(child)
+
+            # Process remaining items
+            while queue:
+                item = queue.pop(0)
+                if not item.hasChildren():
+                    continue
+
+                # First pass: process all children immediately
+                children = get_children(item)
+                for child in children:
+                    process_node(child)
+
+                # Second pass: queue children for their own traversal
+                queue.extend(children)
+
+        process_tree()
 
         # Remove duplicates while preserving order
         unique_nodes = list(dict.fromkeys(selected_nodes))
