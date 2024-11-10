@@ -7,11 +7,19 @@ import json
 import logging
 import traceback
 from collections import Counter
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from datetime import timedelta, datetime
+from threading import Lock
+from typing import Any, Callable, Dict, List, Optional, Tuple, Set
 
 import pandas as pd
 from PyQt6.QtCore import QThread, pyqtSignal
 from neo4j import GraphDatabase
+
+from .neo4j_utils import (
+    validate_neo4j_result,
+    validate_dataframe,
+    ValidationError,
+)
 
 
 class BaseNeo4jWorker(QThread):
@@ -288,12 +296,9 @@ class BatchWorker(BaseNeo4jWorker):
 
 class SuggestionWorker(BaseNeo4jWorker):
     """
-    Worker for generating suggestions based on node data.
-
-    Args:
-        uri (str): The URI of the Neo4j database.
-        auth (tuple): A tuple containing the username and password for authentication.
-        node_data (dict): The data of the node for which to generate suggestions.
+    Enhanced suggestion worker that combines pattern analysis and creative suggestions.
+    All functionality is contained within this class for initial implementation,
+    structured for easy future refactoring.
     """
 
     suggestions_ready = pyqtSignal(dict)
@@ -301,87 +306,306 @@ class SuggestionWorker(BaseNeo4jWorker):
     def __init__(
         self, uri: str, auth: Tuple[str, str], node_data: Dict[str, Any]
     ) -> None:
-        """
-        Initialize the worker with node data.
-
-        Args:
-            uri (str): The URI of the Neo4j database.
-            auth (tuple): A tuple containing the username and password for authentication.
-            node_data (dict): The data of the node for which to generate suggestions.
-        """
         super().__init__(uri, auth)
         self.node_data = node_data
+        self._setup_logging()
+        self._init_cache()
+
+    # === Setup Methods ===
+
+    def _setup_logging(self) -> None:
         logging.basicConfig(level=logging.DEBUG)
+        self.logger = logging.getLogger(__name__)
 
-    def _find_similar_nodes(
-        self, session: Any, node_data: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
-        """
-        Find similar nodes based on labels, including their relationships.
+    def _init_cache(self) -> None:
+        self._cache = {}
+        self._cache_timestamps = {}
+        self._cache_ttl = timedelta(minutes=60)
+        self._cache_lock = Lock()
 
-        Args:
-            session: The Neo4j session
-            node_data (dict): The data of the node to find similar nodes for
+    # === Main Operation Flow ===
 
-        Returns:
-            list: A list of similar nodes with structured properties and relationships
-        """
+    def execute_operation(self) -> None:
+        """Main execution flow with improved error handling"""
         try:
-            logging.debug("Finding similar nodes")
-            labels = node_data.get("labels", [])
-            name = node_data.get("name", "")
+            with self._driver.session() as session:
+                # Fetch and validate data
+                similar_nodes = self._get_similar_nodes(session)
+                validate_neo4j_result(similar_nodes)
 
-            logging.debug(f"Labels: {labels}, Name: {name}")
+                # Convert similar nodes using node pattern
+                similar_df = pd.DataFrame(
+                    self._normalize_neo4j_results(similar_nodes, "node")
+                )
 
+                # Process global patterns
+                global_patterns = self._get_global_patterns(session)
+                validate_neo4j_result(global_patterns)
+
+                # Convert global patterns using pattern type
+                global_df = pd.DataFrame(
+                    self._normalize_neo4j_results(global_patterns, "pattern")
+                )
+
+                # Debug DataFrame contents
+                self.logger.debug(
+                    f"Similar nodes columns: {similar_df.columns.tolist()}"
+                )
+                self.logger.debug(
+                    f"Global patterns columns: {global_df.columns.tolist()}"
+                )
+
+                # Validate DataFrame structure
+                required_columns = {"properties", "labels", "relationships"}
+                validate_dataframe(similar_df, required_columns)
+                validate_dataframe(global_df, required_columns)
+
+                # Process suggestions
+                try:
+                    local_suggestions = self._analyze_local_patterns(similar_df)
+                except Exception as e:
+                    self.logger.error("Error in local pattern analysis", exc_info=True)
+                    local_suggestions = self._empty_suggestions()
+
+                try:
+                    creative_suggestions = self._analyze_global_patterns(
+                        global_df, local_suggestions
+                    )
+                except Exception as e:
+                    self.logger.error("Error in global pattern analysis", exc_info=True)
+                    creative_suggestions = self._empty_suggestions()
+
+                final_suggestions = self._merge_suggestions(
+                    local_suggestions, creative_suggestions
+                )
+                self.suggestions_ready.emit(final_suggestions)
+
+        except ValidationError as e:
+            self.logger.error(f"Validation error: {str(e)}", exc_info=True)
+            self.error_occurred.emit(f"Data validation failed: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+            self.error_occurred.emit(f"An unexpected error occurred: {str(e)}")
+
+    # === Data Gathering ===
+
+    def _get_similar_nodes(self, session: Any) -> List[Dict[str, Any]]:
+        """Get nodes with similar structure"""
+        try:
+            query = """
+                    MATCH (n)
+                    WHERE any(label IN $labels WHERE label IN labels(n)) 
+                    AND n.name <> $name
+                    WITH n, labels(n) as node_labels
+                    OPTIONAL MATCH (n)-[r]-()
+                    WITH n, node_labels, collect(r) as rels
+                    RETURN {
+                        node: n,
+                        labels: node_labels,
+                        relationships: [rel in rels | {
+                            type: type(rel),
+                            direction: CASE WHEN startNode(rel) = n THEN 'outgoing' ELSE 'incoming' END,
+                            properties: properties(rel)
+                        }]
+                    } as result
+                    LIMIT 200
+                    """
+
+            result = session.run(
+                query,
+                {
+                    "labels": self.node_data.get("labels", []),
+                    "name": self.node_data.get("name", ""),
+                },
+            )
+            nodes = list(result)
+            self.logger.debug(f"Found {len(nodes)} similar nodes")
+            return nodes
+
+        except Exception as e:
+            self.logger.error(f"Error in _get_similar_nodes: {str(e)}", exc_info=True)
+            return []
+
+    def _get_global_patterns(self, session: Any) -> List[Dict[str, Any]]:
+        """Get broader pattern data without label restrictions"""
+        try:
+            # Check cache first
+            cache_key = f"global_patterns_{self.node_data.get('labels', [''])[0]}"
+            cached_patterns = self._get_from_cache(cache_key)
+            if cached_patterns:
+                self.logger.debug("Using cached global patterns")
+                return cached_patterns
+
+            # Query for global patterns
             query = """
             MATCH (n)
-            WHERE any(label IN $labels WHERE label IN labels(n))
-              AND n.name <> $name
+            WHERE NOT n.name = $name  // Exclude current node
             WITH n, labels(n) as node_labels
             OPTIONAL MATCH (n)-[r]->(target)
             WITH n, node_labels,
                  collect({
                     type: type(r),
-                    source: n.name,
-                    target: target.name,
+                    target_labels: labels(target),
+                    target_name: target.name,
                     direction: 'outgoing',
                     properties: properties(r)
-                 }) as outRels
+                 }) as outgoing
             OPTIONAL MATCH (n)<-[r2]-(source)
-            WITH n, node_labels, outRels,
+            WITH n, node_labels, outgoing,
                  collect({
                     type: type(r2),
-                    source: source.name,
-                    target: n.name,
+                    source_labels: labels(source),
+                    source_name: source.name,
                     direction: 'incoming',
                     properties: properties(r2)
-                 }) as inRels
+                 }) as incoming
             RETURN {
+                name: n.name,
                 properties: properties(n),
                 labels: node_labels,
-                relationships: outRels + inRels
-            } as node_data
+                relationships: outgoing + incoming,
+                tags: n.tags
+            } as pattern
+            LIMIT 50
             """
 
-            result = session.run(query, labels=labels, name=name)
-            similar_nodes = []
+            self.logger.debug("Querying for global patterns")
+            result = session.run(query, {"name": self.node_data.get("name", "")})
+            patterns = list(result)
 
-            for record in result:
-                similar_nodes.append(record["node_data"])
+            # Store in cache
+            self._store_in_cache(cache_key, patterns)
 
-            logging.debug(f"Similar nodes: {similar_nodes}")
-            return similar_nodes
+            self.logger.debug(f"Found {len(patterns)} global patterns")
+            return patterns
 
         except Exception as e:
-            logging.error(f"Error finding similar nodes: {str(e)}", exc_info=True)
+            self.logger.error(f"Error in _get_global_patterns: {str(e)}", exc_info=True)
             return []
 
-    def _get_property_suggestions(
+    # === Pattern Analysis ===
+
+    def _analyze_local_patterns(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Analyze patterns from similar nodes with enhanced logging"""
+        try:
+            self.logger.debug(f"Starting local pattern analysis with {len(df)} records")
+            self.logger.debug(f"DataFrame columns: {df.columns.tolist()}")
+
+            if df.empty:
+                self.logger.debug("Empty DataFrame, returning empty suggestions")
+                return self._empty_suggestions()
+
+            # Extract patterns
+            patterns = {"tags": [], "properties": {}, "relationships": []}
+
+            # Process properties
+            all_property_keys = set()
+            property_values = {}
+
+            for _, row in df.iterrows():
+                props = row["properties"]
+                if not isinstance(props, dict):
+                    continue
+
+                # Collect property keys and values
+                for key, value in props.items():
+                    if key not in all_property_keys:
+                        all_property_keys.add(key)
+                        property_values[key] = []
+                    property_values[key].append(str(value))
+
+            # Process relationships
+            for _, row in df.iterrows():
+                rels = row.get("relationships", [])
+                if not isinstance(rels, list):
+                    continue
+
+                for rel in rels:
+                    if not isinstance(rel, dict):
+                        continue
+
+                    rel_type = rel.get("type")
+                    if rel_type:
+                        patterns["relationships"].append(rel_type)
+
+            # Calculate frequencies
+            for key, values in property_values.items():
+                if len(values) > 0:
+                    value_counts = Counter(values)
+                    top_values = value_counts.most_common(3)
+                    patterns["properties"][key] = [
+                        (value, count / len(df) * 100) for value, count in top_values
+                    ]
+
+            self.logger.debug(f"Found {len(patterns['properties'])} property patterns")
+            self.logger.debug(
+                f"Found {len(patterns['relationships'])} relationship patterns"
+            )
+
+            return patterns
+
+        except Exception as e:
+            self.logger.error(
+                f"Error in local pattern analysis: {str(e)}", exc_info=True
+            )
+            return self._empty_suggestions()
+
+    def _analyze_global_patterns(
+        self, df: pd.DataFrame, local_suggestions: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Find creative suggestions from global patterns"""
+        if df.empty:
+            return self._empty_suggestions()
+
+        try:
+            return {
+                "tags": self._find_creative_tags(df, local_suggestions),
+                "properties": self._find_creative_properties(df, local_suggestions),
+                "relationships": self._find_creative_relationships(
+                    df, local_suggestions
+                ),
+            }
+        except Exception as e:
+            self.logger.error(
+                f"Error in global pattern analysis: {str(e)}", exc_info=True
+            )
+            return self._empty_suggestions()
+
+    # === Pattern Extraction Methods ===
+
+    def _extract_tag_suggestions(self, df: pd.DataFrame) -> List[Tuple[str, float]]:
+        """Extract and score tag suggestions"""
+        try:
+            # Collect all tags from properties
+            all_tags = []
+            current_tags = set(self.node_data.get("properties", {}).get("tags", []))
+
+            # Flatten tags from all nodes
+            for tags in df["properties"].apply(lambda x: x.get("tags", [])):
+                all_tags.extend(tags)
+
+            # Count and calculate confidence
+            tag_counts = Counter(all_tags)
+            total_nodes = len(df)
+
+            # Calculate confidence and filter out current tags
+            suggestions = [
+                (tag, (count / total_nodes) * 100)
+                for tag, count in tag_counts.items()
+                if tag not in current_tags
+            ]
+
+            # Sort by confidence and return top 5
+            return sorted(suggestions, key=lambda x: x[1], reverse=True)[:5]
+
+        except Exception as e:
+            self.logger.error(f"Error extracting tags: {str(e)}", exc_info=True)
+            return []
+
+    def _extract_property_suggestions(
         self, df: pd.DataFrame
     ) -> Dict[str, List[Tuple[str, float]]]:
-        """
-        Generate property suggestions based on frequency from a DataFrame.
-        """
+        """Extract and score property suggestions"""
         try:
             suggestions = {}
             exclude_props = {
@@ -392,174 +616,444 @@ class SuggestionWorker(BaseNeo4jWorker):
                 "_modified",
                 "_author",
             }
+            current_props = self.node_data.get("properties", {})
 
-            # Extract all properties from DataFrame
-            properties_df = pd.json_normalize(df["properties"])
-            for column in properties_df.columns:
-                if column in exclude_props:
+            # Analyze properties across nodes
+            for _, row in df.iterrows():
+                props = row["properties"]
+                for key, value in props.items():
+                    if key in exclude_props:
+                        continue
+
+                    if key not in suggestions:
+                        suggestions[key] = []
+
+                    if isinstance(value, (list, dict)):
+                        value = json.dumps(value)
+
+                    suggestions[key].append(str(value))
+
+            # Calculate confidence scores
+            result = {}
+            for key, values in suggestions.items():
+                if key in current_props:
                     continue
 
-                # Count occurrences of each unique value in the property column
-                value_counts = properties_df[column].value_counts(dropna=True)
-                total = value_counts.sum() or 1  # Avoid division by zero
+                value_counts = Counter(values)
+                total = len(values)
 
-                # Convert to list of tuples (value, confidence)
-                suggestions[column] = [
-                    (val, (count / total) * 100) for val, count in value_counts.items()
+                # Get top 3 values with confidence scores
+                result[key] = [
+                    (value, (count / total) * 100)
+                    for value, count in value_counts.most_common(3)
                 ]
+
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Error extracting properties: {str(e)}", exc_info=True)
+            return {}
+
+    def _extract_relationship_suggestions(
+        self, df: pd.DataFrame
+    ) -> List[Tuple[str, str, str, Dict, float]]:
+        """Extract and score relationship suggestions with improved error handling"""
+        try:
+            relationship_patterns = []
+            current_rels = set()
+
+            # Get current relationships if they exist
+            if self.node_data and "relationships" in self.node_data:
+                current_rels = {
+                    (r.get("type"), r.get("target"))
+                    for r in self.node_data["relationships"]
+                    if isinstance(r, dict) and "type" in r and "target" in r
+                }
+
+            # Process relationships from DataFrame
+            for rel_data in df["relationships"].dropna():
+                if not isinstance(rel_data, list):
+                    continue
+
+                for rel in rel_data:
+                    if not isinstance(rel, dict):
+                        continue
+
+                    rel_key = (rel.get("type"), rel.get("target"))
+                    if None not in rel_key and rel_key not in current_rels:
+                        relationship_patterns.append(
+                            (
+                                rel.get("type", ""),
+                                rel.get("target", ""),
+                                rel.get("direction", "outgoing"),
+                                rel.get("properties", {}),
+                            )
+                        )
+
+            # Calculate confidence scores
+            pattern_counts = Counter(relationship_patterns)
+            total_nodes = len(df)
+
+            if total_nodes == 0:
+                return []
+
+            suggestions = [
+                (*pattern, (count / total_nodes) * 100)
+                for pattern, count in pattern_counts.most_common(5)
+            ]
 
             return suggestions
 
         except Exception as e:
-            logging.error(
-                f"Error generating property suggestions: {str(e)}", exc_info=True
+            self.logger.error(
+                f"Error extracting relationships: {str(e)}", exc_info=True
+            )
+            return []
+
+    # === Creative Pattern Finding ===
+
+    def _find_creative_tags(
+        self, df: pd.DataFrame, local_suggestions: Dict[str, Any]
+    ) -> List[Tuple[str, float]]:
+        """Find creative tag suggestions based on global patterns"""
+        try:
+            # Get tags from nodes with similar property patterns
+            property_signature = self._get_property_signature(
+                self.node_data.get("properties", {})
+            )
+
+            similar_property_nodes = df[
+                df["properties"].apply(
+                    lambda x: self._property_similarity(
+                        self._get_property_signature(x), property_signature
+                    )
+                    > 0.3
+                )
+            ]
+
+            # Get tags from these nodes
+            creative_tags = []
+            local_tags = {tag for tag, _ in local_suggestions["tags"]}
+
+            for props in similar_property_nodes["properties"]:
+                creative_tags.extend(props.get("tags", []))
+
+            # Calculate confidence based on structural similarity
+            tag_counts = Counter(creative_tags)
+            total = len(similar_property_nodes)
+
+            if total == 0:
+                return []
+
+            suggestions = [
+                (tag, (count / total) * 70)  # Lower confidence for creative suggestions
+                for tag, count in tag_counts.items()
+                if tag not in local_tags
+            ]
+
+            return sorted(suggestions, key=lambda x: x[1], reverse=True)[:3]
+
+        except Exception as e:
+            self.logger.error(f"Error finding creative tags: {str(e)}", exc_info=True)
+            return []
+
+    def _find_creative_properties(
+        self, df: pd.DataFrame, local_suggestions: Dict[str, Any]
+    ) -> Dict[str, List[Tuple[str, float]]]:
+        """Find creative property suggestions based on global patterns"""
+        try:
+            # Find nodes that share some but not all properties
+            current_props = set(self.node_data.get("properties", {}).keys())
+            local_suggestion_props = set(local_suggestions["properties"].keys())
+
+            creative_props = {}
+
+            for _, row in df.iterrows():
+                node_props = row["properties"]
+                shared_props = current_props.intersection(node_props.keys())
+
+                # If nodes share some properties, look at their unique properties
+                if shared_props and len(shared_props) >= 2:
+                    unique_props = (
+                        set(node_props.keys()) - current_props - local_suggestion_props
+                    )
+
+                    for prop in unique_props:
+                        if prop not in creative_props:
+                            creative_props[prop] = []
+                        creative_props[prop].append(str(node_props[prop]))
+
+            # Calculate confidence scores
+            result = {}
+            for prop, values in creative_props.items():
+                value_counts = Counter(values)
+                total = len(values)
+
+                result[prop] = [
+                    (
+                        value,
+                        (count / total) * 60,
+                    )  # Lower confidence for creative suggestions
+                    for value, count in value_counts.most_common(2)
+                ]
+
+            return result
+
+        except Exception as e:
+            self.logger.error(
+                f"Error finding creative properties: {str(e)}", exc_info=True
             )
             return {}
 
-    def _get_tag_suggestions(self, df: pd.DataFrame) -> List[Tuple[str, float]]:
-        """
-        Generate tag suggestions based on frequency from a DataFrame.
-        """
+    def _find_creative_relationships(
+        self, df: pd.DataFrame, local_suggestions: Dict[str, Any]
+    ) -> List[Tuple[str, str, str, Dict, float]]:
+        """Find creative relationship suggestions based on global patterns"""
         try:
-            all_tags = []
-            current_tags = set(self.node_data.get("properties", {}).get("tags", []))
+            # Look for bridge relationships (connections between different node types)
+            current_labels = set(self.node_data.get("labels", []))
+            local_rels = {(r[0], r[1]) for r in local_suggestions["relationships"]}
 
-            # Flatten list of tags for all rows
-            all_tags = [tag for tags_list in df["tags"].dropna() for tag in tags_list]
+            bridge_patterns = []
 
-            # Count tag occurrences and calculate confidence
-            tag_counts = Counter(all_tags)
-            total = sum(tag_counts.values()) or 1  # Avoid division by zero
+            for _, row in df.iterrows():
+                node_labels = set(row["labels"])
+
+                # If nodes share some labels, look at their unique relationships
+                if current_labels.intersection(node_labels):
+                    for rel in row["relationships"]:
+                        rel_key = (rel["type"], rel["target"])
+
+                        if rel_key not in local_rels:
+                            bridge_patterns.append(
+                                (
+                                    rel["type"],
+                                    rel["target"],
+                                    rel["direction"],
+                                    rel.get("properties", {}),
+                                )
+                            )
+
+            # Calculate confidence scores
+            pattern_counts = Counter(bridge_patterns)
+            total = sum(pattern_counts.values())
+
+            if total == 0:
+                return []
 
             suggestions = [
-                (tag, (count / total) * 100)
-                for tag, count in tag_counts.items()
-                if tag not in current_tags
-            ]
-            return suggestions[:5]  # Limit to top 5 suggestions
-
-        except Exception as e:
-            logging.error(f"Error generating tag suggestions: {str(e)}", exc_info=True)
-            return []
-
-    def _get_relationship_suggestions(
-        self, df: pd.DataFrame
-    ) -> List[Tuple[str, str, str, Dict[str, Any], float]]:
-        """
-        Generate relationship suggestions, including relationship properties, based on a DataFrame.
-        """
-        try:
-            outgoing_rels = []
-            incoming_rels = []
-
-            # Flatten and classify relationships by direction
-            for rel_list in df["relationships"].dropna():
-                for rel in rel_list:
-                    rel_type = rel["type"]
-                    target = rel["target"]
-                    direction = rel["direction"]
-                    properties = rel.get("properties", {})
-
-                    if direction == "outgoing":
-                        outgoing_rels.append(
-                            (rel_type, target, direction, frozenset(properties.items()))
-                        )
-                    elif direction == "incoming":
-                        incoming_rels.append(
-                            (rel_type, target, direction, frozenset(properties.items()))
-                        )
-
-            # Count and calculate confidence scores
-            out_counts = Counter(outgoing_rels)
-            in_counts = Counter(incoming_rels)
-
-            total_out = sum(out_counts.values()) or 1
-            total_in = sum(in_counts.values()) or 1
-
-            # Generate top 3 suggestions per direction with confidence scores
-            suggestions = [
-                (rel_type, target, direction, dict(props), (count / total_out) * 100)
-                for (
-                    rel_type,
-                    target,
-                    direction,
-                    props,
-                ), count in out_counts.most_common(3)
-            ] + [
-                (rel_type, target, direction, dict(props), (count / total_in) * 100)
-                for (
-                    rel_type,
-                    target,
-                    direction,
-                    props,
-                ), count in in_counts.most_common(3)
+                (
+                    *pattern,
+                    (count / total) * 50,
+                )  # Lower confidence for creative suggestions
+                for pattern, count in pattern_counts.most_common(3)
             ]
 
-            suggestions.sort(key=lambda x: x[4], reverse=True)
-            return suggestions[:5]  # Limit to top 5 suggestions
+            return suggestions
 
         except Exception as e:
-            logging.error(
-                f"Error generating relationship suggestions: {str(e)}", exc_info=True
+            self.logger.error(
+                f"Error finding creative relationships: {str(e)}", exc_info=True
             )
             return []
 
-    def execute_operation(self) -> None:
-        try:
-            logging.info("Starting suggestion generation process")
+    # === Cache Management ===
 
-            with self._driver.session() as session:
-                similar_nodes = self._find_similar_nodes(session, self.node_data)
+    def _get_from_cache(self, key: str) -> Optional[Any]:
+        """Thread-safe cache retrieval"""
+        with self._cache_lock:
+            if key not in self._cache:
+                return None
 
-                if not similar_nodes:
-                    logging.info("No similar nodes found")
-                    suggestions = {"tags": [], "properties": {}, "relationships": []}
-                    self.suggestions_ready.emit(suggestions)
-                    return
+            if datetime.now() - self._cache_timestamps[key] > self._cache_ttl:
+                self._remove_from_cache(key)
+                return None
 
-                # Create structured DataFrame
-                df = pd.DataFrame(
-                    {
-                        "node_id": [i for i, _ in enumerate(similar_nodes)],
-                        "properties": [node["properties"] for node in similar_nodes],
-                        "labels": [node["labels"] for node in similar_nodes],
-                        "relationships": [
-                            node["relationships"] for node in similar_nodes
-                        ],
-                        # Extract common properties for direct access if needed
-                        "name": [
-                            node["properties"].get("name") for node in similar_nodes
-                        ],
-                        "tags": [
-                            node["properties"].get("tags", []) for node in similar_nodes
-                        ],
+            return self._cache[key]
+
+    def _store_in_cache(self, key: str, value: Any) -> None:
+        """Thread-safe cache storage"""
+        with self._cache_lock:
+            self._cache[key] = value
+            self._cache_timestamps[key] = datetime.now()
+
+    def _remove_from_cache(self, key: str) -> None:
+        """Remove cache entry"""
+        self._cache.pop(key, None)
+        self._cache_timestamps.pop(key, None)
+
+    # === Utility Methods ===
+
+    def _normalize_neo4j_results(self, results, pattern_type="node"):
+        """Normalize Neo4j results for DataFrame conversion
+
+        Args:
+            results: Neo4j result records
+            pattern_type: Either 'node' or 'pattern' based on query type
+        """
+        normalized = []
+        for record in results:
+            try:
+                # Handle differently based on query type
+                if pattern_type == "node":
+                    data = record.get("result", {})
+                    if not isinstance(data, dict):
+                        continue
+
+                    node_data = data.get("node", {})
+                    if not isinstance(node_data, dict):
+                        continue
+
+                    # Extract properties from Neo4j node
+                    properties = {}
+                    if hasattr(node_data, "properties"):
+                        properties = dict(node_data.properties)
+                    else:
+                        properties = node_data.get("properties", {})
+
+                    row = {
+                        "properties": properties,
+                        "labels": data.get("labels", []),
+                        "relationships": data.get("relationships", []),
                     }
-                )
+                else:  # pattern type
+                    data = record.get("pattern", {})
+                    if not isinstance(data, dict):
+                        continue
 
-                logging.debug(f"Created DataFrame with columns: {df.columns.tolist()}")
-                logging.debug(f"DataFrame content:\n{df}")
+                    row = {
+                        "properties": data.get("properties", {}),
+                        "labels": data.get("labels", []),
+                        "relationships": data.get("relationships", []),
+                    }
 
-                # Example of the DataFrame:
-                """
-                   node_id  properties                  labels        relationships     name     tags
-                0  0       {'name': 'Saruman', ...}    [Character]   [{type: ...}]    Saruman  [wizard, ...]
-                1  1       {'name': 'Gandalf', ...}    [Character]   [{type: ...}]    Gandalf  [wizard, ...]
-                """
+                normalized.append(row)
+            except Exception as e:
+                self.logger.error(f"Error normalizing record: {str(e)}", exc_info=True)
+                continue
 
-                # Generate suggestions
-                suggestions = {
-                    "tags": self._get_tag_suggestions(df),
-                    "properties": self._get_property_suggestions(df),
-                    "relationships": self._get_relationship_suggestions(df),
-                }
+        self.logger.debug(f"Normalized {len(normalized)} records")
+        return normalized
 
-                logging.debug(
-                    f"Generated suggestions: {json.dumps(suggestions, indent=2)}"
-                )
-                self.suggestions_ready.emit(suggestions)
-                logging.info("Suggestion generation completed successfully")
+    def _empty_suggestions(self) -> Dict[str, Any]:
+        """Return empty suggestion structure"""
+        return {"tags": [], "properties": {}, "relationships": []}
+
+    def _get_property_signature(self, properties: Dict) -> Set[str]:
+        """Get a signature of property keys and types"""
+        return {f"{k}:{type(v).__name__}" for k, v in properties.items()}
+
+    def _property_similarity(self, sig1: Set[str], sig2: Set[str]) -> float:
+        """Calculate Jaccard similarity between property signatures"""
+        if not sig1 or not sig2:
+            return 0.0
+        return len(sig1.intersection(sig2)) / len(sig1.union(sig2))
+
+    def _merge_suggestions(
+        self, local: Dict[str, Any], creative: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Merge local and creative suggestions"""
+        try:
+            # Merge tags
+            all_tags = list(set(local.get("tags", []) + creative.get("tags", [])))
+
+            # Merge properties
+            all_properties = {
+                **local.get("properties", {}),
+                **creative.get("properties", {}),
+            }
+
+            # Merge relationships
+            all_relationships = list(
+                set(local.get("relationships", []) + creative.get("relationships", []))
+            )
+
+            return {
+                "tags": all_tags,
+                "properties": all_properties,
+                "relationships": all_relationships,
+            }
 
         except Exception as e:
-            error_message = f"Error generating suggestions: {str(e)}"
-            logging.error(error_message, exc_info=True)
-            self.error_occurred.emit(error_message)
+            self.logger.error(f"Error merging suggestions: {str(e)}", exc_info=True)
+            return self._empty_suggestions()
+
+    def _merge_tags(
+        self,
+        local_tags: List[Tuple[str, float]],
+        creative_tags: List[Tuple[str, float]],
+    ) -> List[Tuple[str, float]]:
+        """Merge and dedupe tags, keeping highest confidence score"""
+        tag_dict = {}
+
+        # Process all tags
+        for tag_list in [local_tags, creative_tags]:
+            for tag, confidence in tag_list:
+                # Keep highest confidence if tag appears multiple times
+                if tag not in tag_dict or confidence > tag_dict[tag]:
+                    tag_dict[tag] = confidence
+
+        # Convert back to list of tuples
+        return sorted(
+            [(tag, conf) for tag, conf in tag_dict.items()],
+            key=lambda x: x[1],
+            reverse=True,
+        )
+
+    def _merge_properties(
+        self,
+        local_props: Dict[str, List[Tuple[str, float]]],
+        creative_props: Dict[str, List[Tuple[str, float]]],
+    ) -> Dict[str, List[Tuple[str, float]]]:
+        """Merge property suggestions, combining values and keeping highest confidence scores"""
+        merged = {}
+
+        # Process all property keys
+        for props_dict in [local_props, creative_props]:
+            for key, values in props_dict.items():
+                if key not in merged:
+                    merged[key] = {}
+
+                # Merge values for this property
+                for value, confidence in values:
+                    if value not in merged[key] or confidence > merged[key][value]:
+                        merged[key][value] = confidence
+
+        # Convert back to expected format
+        return {
+            key: sorted(
+                [(val, conf) for val, conf in values.items()],
+                key=lambda x: x[1],
+                reverse=True,
+            )
+            for key, values in merged.items()
+        }
+
+    def _merge_relationships(
+        self,
+        local_rels: List[Tuple[str, str, str, Dict, float]],
+        creative_rels: List[Tuple[str, str, str, Dict, float]],
+    ) -> List[Tuple[str, str, str, Dict, float]]:
+        """Merge relationship suggestions, deduping and keeping highest confidence scores"""
+        rel_dict = {}
+
+        # Process all relationships
+        for rel_list in [local_rels, creative_rels]:
+            for rel_type, target, direction, props, confidence in rel_list:
+                key = (rel_type, target, direction)
+                # Keep highest confidence version if relationship appears multiple times
+                if key not in rel_dict or confidence > rel_dict[key][1]:
+                    rel_dict[key] = (props, confidence)
+
+        # Convert back to list of tuples
+        return sorted(
+            [
+                (rel_type, target, direction, props, confidence)
+                for (rel_type, target, direction), (
+                    props,
+                    confidence,
+                ) in rel_dict.items()
+            ],
+            key=lambda x: x[4],
+            reverse=True,
+        )
