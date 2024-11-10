@@ -242,8 +242,8 @@ class SuggestionWorker(BaseNeo4jWorker):
         """Simple node finder based on labels."""
         try:
             logging.debug("Finding similar nodes")
-            labels = node_data.get('labels', [])
-            name = node_data.get('name', '')
+            labels = node_data.get("labels", [])
+            name = node_data.get("name", "")
 
             # Just get nodes with same label, excluding self
             query = """
@@ -253,8 +253,8 @@ class SuggestionWorker(BaseNeo4jWorker):
             RETURN n
             """
             result = session.run(query, labels=labels, name=name)
-            similar_nodes = [record['n'] for record in result]
-            logging.debug(f"Found similar nodes with full properties:")
+            similar_nodes = [record["n"] for record in result]
+            logging.debug("Found similar nodes with full properties:")
             for node in similar_nodes:
                 logging.debug(f"Node Properties: {dict(node)}")
             return similar_nodes
@@ -268,10 +268,10 @@ class SuggestionWorker(BaseNeo4jWorker):
         logging.debug("Generating tag suggestions")
         try:
             all_tags = []
-            current_tags = set(self.node_data.get('tags', []))
+            current_tags = set(self.node_data.get("tags", []))
 
             # Collect all tags from similar nodes
-            for tags in df['tags']:
+            for tags in df["tags"]:
                 if isinstance(tags, list):
                     all_tags.extend(tags)
 
@@ -305,13 +305,20 @@ class SuggestionWorker(BaseNeo4jWorker):
         """Property value frequency-based suggestions."""
         try:
             suggestions = {}
-            exclude_props = {'name', 'description', 'tags', '_created', '_modified', '_author'}
+            exclude_props = {
+                "name",
+                "description",
+                "tags",
+                "_created",
+                "_modified",
+                "_author",
+            }
 
             logging.debug(f"DataFrame raw content before property suggestions:\n{df}")
 
             # Get properties directly from the Neo4j node data
             for column in df.columns:
-                if column in exclude_props or column.startswith('_'):
+                if column in exclude_props or column.startswith("_"):
                     continue
 
                 value_counts = df[column].value_counts()
@@ -329,13 +336,17 @@ class SuggestionWorker(BaseNeo4jWorker):
 
                 if prop_suggestions:
                     suggestions[column] = prop_suggestions
-                    logging.debug(f"Found suggestions for property {column}: {prop_suggestions}")
+                    logging.debug(
+                        f"Found suggestions for property {column}: {prop_suggestions}"
+                    )
 
             logging.debug(f"Final property suggestions: {suggestions}")
             return suggestions
 
         except Exception as e:
-            logging.error(f"Error generating property suggestions: {str(e)}", exc_info=True)
+            logging.error(
+                f"Error generating property suggestions: {str(e)}", exc_info=True
+            )
             return {}
 
     def execute_operation(self):
@@ -348,7 +359,7 @@ class SuggestionWorker(BaseNeo4jWorker):
 
                 if not similar_nodes:
                     logging.info("No similar nodes found")
-                    suggestions = {'tags': [], 'properties': {}, 'relationships': []}
+                    suggestions = {"tags": [], "properties": {}, "relationships": []}
                     self.suggestions_ready.emit(suggestions)
                     return
 
@@ -359,7 +370,7 @@ class SuggestionWorker(BaseNeo4jWorker):
                     # This ensures we get ALL properties, not just the standard ones
                     properties = dict(node)
                     # Convert Neo4j types to Python native types where needed
-                    properties['tags'] = list(properties.get('tags', []))
+                    properties["tags"] = list(properties.get("tags", []))
                     node_data_list.append(properties)
 
                 # Create DataFrame from full property dictionaries
@@ -370,12 +381,14 @@ class SuggestionWorker(BaseNeo4jWorker):
 
                 # Generate suggestions
                 suggestions = {
-                    'tags': self._get_tag_suggestions(df),
-                    'properties': self._get_property_suggestions(df),
-                    'relationships': []  # Simplified version skips relationships
+                    "tags": self._get_tag_suggestions(df),
+                    "properties": self._get_property_suggestions(df),
+                    "relationships": [],  # Simplified version skips relationships
                 }
 
-                logging.debug(f"Generated suggestions: {json.dumps(suggestions, indent=2)}")
+                logging.debug(
+                    f"Generated suggestions: {json.dumps(suggestions, indent=2)}"
+                )
                 self.suggestions_ready.emit(suggestions)
                 logging.info("Suggestion generation completed successfully")
 

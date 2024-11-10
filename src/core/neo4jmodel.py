@@ -249,11 +249,11 @@ class Neo4jModel:
             query_remove = f"MATCH (n {{name: $name}}) REMOVE {labels_str}"
             tx.run(query_remove, name=name)
 
-        # 5. Add non-system additional properties (if any)
-        filtered_additional_props = {
+        # Add non-system properties
+
+        if filtered_additional_props := {
             k: v for k, v in additional_properties.items() if not k.startswith("_")
-        }
-        if filtered_additional_props:
+        }:
             query_props = "MATCH (n {name: $name}) SET n += $additional_properties"
             tx.run(
                 query_props, name=name, additional_properties=filtered_additional_props
