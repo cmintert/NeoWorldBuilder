@@ -38,7 +38,10 @@ class Exporter:
         }
 
     def export(
-        self, format_type: str, selected_nodes: List[str], collect_node_data: Callable[[str], Dict[str, Any]]
+        self,
+        format_type: str,
+        selected_nodes: List[str],
+        collect_node_data: Callable[[str], Dict[str, Any]],
     ) -> None:
         """
         Main export method that handles all export formats.
@@ -87,7 +90,9 @@ class Exporter:
         return file_name
 
     def _collect_nodes_data(
-        self, selected_nodes: List[str], collect_node_data: Callable[[str], Dict[str, Any]]
+        self,
+        selected_nodes: List[str],
+        collect_node_data: Callable[[str], Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
         """
         Collect data for all selected nodes.
@@ -217,16 +222,16 @@ class Exporter:
             pdf (FPDF): The PDF object to write to.
             node_data (Dict[str, Any]): The node data to write.
         """
-        pdf.cell(200, 10, txt=f"Name: {node_data['name']}", ln=True)
-        pdf.cell(200, 10, txt=f"Description: {node_data['description']}", ln=True)
-        pdf.cell(200, 10, txt=f"Tags: {', '.join(node_data['tags'])}", ln=True)
-        pdf.cell(200, 10, txt=f"Labels: {', '.join(node_data['labels'])}", ln=True)
-        pdf.cell(200, 10, txt="Relationships:", ln=True)
+        pdf.cell(200, 10, text=f"Name: {node_data['name']}", ln=True)
+        pdf.cell(200, 10, text=f"Description: {node_data['description']}", ln=True)
+        pdf.cell(200, 10, text=f"Tags: {', '.join(node_data['tags'])}", ln=True)
+        pdf.cell(200, 10, text=f"Labels: {', '.join(node_data['labels'])}", ln=True)
+        pdf.cell(200, 10, text="Relationships:", ln=True)
         for rel in node_data["relationships"]:
-            pdf.cell(200, 10, txt=f"  - {self._format_relationship(rel)}", ln=True)
-        pdf.cell(200, 10, txt="Additional Properties:", ln=True)
+            pdf.cell(200, 10, text=f"  - {self._format_relationship(rel)}", ln=True)
+        pdf.cell(200, 10, text="Additional Properties:", ln=True)
         for key, value in node_data["additional_properties"].items():
-            pdf.cell(200, 10, txt=f"  - {key}: {value}", ln=True)
+            pdf.cell(200, 10, text=f"  - {key}: {value}", ln=True)
 
     def _show_success_message(self, format_type: str) -> None:
         """

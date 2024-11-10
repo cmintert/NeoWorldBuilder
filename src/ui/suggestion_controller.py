@@ -1,5 +1,9 @@
+import json
+import logging
+from typing import Optional, Dict, Any, List
+
 from PyQt6.QtCore import QObject
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QMessageBox, QTableWidgetItem
 
 from core.neo4jworkers import SuggestionWorker
 from ui.dialogs import SuggestionDialog
@@ -28,11 +32,16 @@ class SuggestionController(QObject):
             logging.debug("Existing SuggestionWorker canceled and cleaned up.")
 
         # Create and start the SuggestionWorker
-        self.current_suggestion_worker = SuggestionWorker(self.model._uri, self.model._auth,
-                                                          node_data)
-        self.current_suggestion_worker.suggestions_ready.connect(self.handle_suggestions)
+        self.current_suggestion_worker = SuggestionWorker(
+            self.model._uri, self.model._auth, node_data
+        )
+        self.current_suggestion_worker.suggestions_ready.connect(
+            self.handle_suggestions
+        )
         self.current_suggestion_worker.error_occurred.connect(self.handle_error)
-        self.current_suggestion_worker.finished.connect(self.on_suggestion_worker_finished)
+        self.current_suggestion_worker.finished.connect(
+            self.on_suggestion_worker_finished
+        )
         self.current_suggestion_worker.start()
 
         logging.debug("SuggestionWorker started successfully.")
@@ -59,8 +68,9 @@ class SuggestionController(QObject):
 
         if not suggestions or all(not suggestions[key] for key in suggestions):
             logging.debug("No suggestions found.")
-            QMessageBox.information(self.ui, "No Suggestions",
-                                    "No suggestions were found for this node.")
+            QMessageBox.information(
+                self.ui, "No Suggestions", "No suggestions were found for this node."
+            )
             return
 
         dialog = SuggestionDialog(suggestions, self.ui)
@@ -70,24 +80,30 @@ class SuggestionController(QObject):
 
             # Update tags
             existing_tags = self._parse_comma_separated(self.ui.tags_input.text())
-            new_tags = list(set(existing_tags + selected['tags']))
-            self.ui.tags_input.setText(', '.join(new_tags))
+            new_tags = list(set(existing_tags + selected["tags"]))
+            self.ui.tags_input.setText(", ".join(new_tags))
             logging.debug(f"Updated tags: {new_tags}")
 
             # Update properties
-            for key, value in selected['properties'].items():
+            for key, value in selected["properties"].items():
                 self.add_or_update_property(key, value)
                 logging.debug(f"Updated property - Key: {key}, Value: {value}")
 
             # Update relationships
-            for rel in selected['relationships']:
+            for rel in selected["relationships"]:
                 rel_type, target, direction, props = rel
-                self.ui.add_relationship_row(rel_type, target, direction, json.dumps(props))
+                self.ui.add_relationship_row(
+                    rel_type, target, direction, json.dumps(props)
+                )
                 logging.debug(
-                    f"Added relationship - Type: {rel_type}, Target: {target}, Direction: {direction}, Properties: {props}")
+                    f"Added relationship - Type: {rel_type}, Target: {target}, Direction: {direction}, Properties: {props}"
+                )
 
-            QMessageBox.information(self.ui, "Suggestions Applied",
-                                    "Selected suggestions have been applied to the node.")
+            QMessageBox.information(
+                self.ui,
+                "Suggestions Applied",
+                "Selected suggestions have been applied to the node.",
+            )
         else:
             logging.debug("Suggestion dialog was canceled by the user.")
 

@@ -3,7 +3,8 @@ This module provides the NamingConventionConverter class, which handles conversi
 """
 
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
+
 
 class NamingConventionConverter:
     """
@@ -22,10 +23,10 @@ class NamingConventionConverter:
             str: The label in CamelCase format.
         """
         # Replace special characters with spaces and remove leading numbers
-        label = re.sub(r'[^a-zA-Z0-9_ ]', ' ', label)
-        label = re.sub(r'^\d+', '', label)
+        label = re.sub(r"[^a-zA-Z0-9_ ]", " ", label)
+        label = re.sub(r"^\d+", "", label)
         parts = label.split()
-        return ''.join(word.capitalize() for word in parts)
+        return "".join(word.capitalize() for word in parts)
 
     @staticmethod
     def to_upper_underscore(relationship_type: str) -> str:
@@ -39,9 +40,9 @@ class NamingConventionConverter:
             str: The relationship type in UPPERCASE_WITH_UNDERSCORES format.
         """
         # Replace special characters with spaces and remove leading numbers
-        relationship_type = re.sub(r'[^a-zA-Z0-9_ ]', ' ', relationship_type)
-        relationship_type = re.sub(r'^\d+', '', relationship_type)
-        return relationship_type.upper().replace(' ', '_')
+        relationship_type = re.sub(r"[^a-zA-Z0-9_ ]", " ", relationship_type)
+        relationship_type = re.sub(r"^\d+", "", relationship_type)
+        return relationship_type.upper().replace(" ", "_")
 
     @staticmethod
     def to_camel_case_key(key: str) -> str:
@@ -55,10 +56,10 @@ class NamingConventionConverter:
             str: The key in camelCase format.
         """
         # Replace special characters with underscores and remove leading numbers
-        key = re.sub(r'[^a-zA-Z0-9_]', '_', key)
-        key = re.sub(r'^\d+', '', key)
-        parts = key.split('_')
-        return parts[0].lower() + ''.join(word.capitalize() for word in parts[1:])
+        key = re.sub(r"[^a-zA-Z0-9_]", "_", key)
+        key = re.sub(r"^\d+", "", key)
+        parts = key.split("_")
+        return parts[0].lower() + "".join(word.capitalize() for word in parts[1:])
 
     @staticmethod
     def is_camel_case(label: str) -> bool:
@@ -72,9 +73,9 @@ class NamingConventionConverter:
             bool: True if the label is in CamelCase format, False otherwise.
         """
         # Replace special characters with spaces and remove leading numbers
-        label = re.sub(r'[^a-zA-Z0-9_ ]', ' ', label)
-        label = re.sub(r'^\d+', '', label)
-        return label == ''.join(word.capitalize() for word in label.split())
+        label = re.sub(r"[^a-zA-Z0-9_ ]", " ", label)
+        label = re.sub(r"^\d+", "", label)
+        return label == "".join(word.capitalize() for word in label.split())
 
     @staticmethod
     def is_upper_underscore(relationship_type: str) -> bool:
@@ -88,9 +89,9 @@ class NamingConventionConverter:
             bool: True if the relationship type is in UPPERCASE_WITH_UNDERSCORES format, False otherwise.
         """
         # Replace special characters with spaces and remove leading numbers
-        relationship_type = re.sub(r'[^a-zA-Z0-9_ ]', ' ', relationship_type)
-        relationship_type = re.sub(r'^\d+', '', relationship_type)
-        return relationship_type == relationship_type.upper().replace(' ', '_')
+        relationship_type = re.sub(r"[^a-zA-Z0-9_ ]", " ", relationship_type)
+        relationship_type = re.sub(r"^\d+", "", relationship_type)
+        return relationship_type == relationship_type.upper().replace(" ", "_")
 
     @staticmethod
     def is_camel_case_key(key: str) -> bool:
@@ -104,14 +105,16 @@ class NamingConventionConverter:
             bool: True if the key is in camelCase format, False otherwise.
         """
         # Replace special characters with underscores and remove leading numbers
-        key = re.sub(r'[^a-zA-Z0-9_]', '_', key)
-        key = re.sub(r'^\d+', '', key)
-        parts = key.split('_')
-        formatted_key = parts[0].lower() + ''.join(word.capitalize() for word in parts[1:])
+        key = re.sub(r"[^a-zA-Z0-9_]", "_", key)
+        key = re.sub(r"^\d+", "", key)
+        parts = key.split("_")
+        formatted_key = parts[0].lower() + "".join(
+            word.capitalize() for word in parts[1:]
+        )
         return key == formatted_key
 
     @staticmethod
-    def convert_node_data(node_data: Dict[str, any]) -> Dict[str, any]:
+    def convert_node_data(node_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Convert labels, property keys, and relationships in node data to enforce naming conventions.
 
@@ -122,24 +125,31 @@ class NamingConventionConverter:
             dict: The converted node data.
         """
         # Convert labels to CamelCase
-        node_data['labels'] = [NamingConventionConverter.to_camel_case(label) for label in
-                               node_data.get('labels', [])]
+        node_data["labels"] = [
+            NamingConventionConverter.to_camel_case(label)
+            for label in node_data.get("labels", [])
+        ]
 
         # Convert property keys to camelCase
-        node_data['additional_properties'] = {NamingConventionConverter.to_camel_case_key(k): v for
-                                            k, v in
-                                   node_data.get('additional_properties', {}).items()}
+        node_data["additional_properties"] = {
+            NamingConventionConverter.to_camel_case_key(k): v
+            for k, v in node_data.get("additional_properties", {}).items()
+        }
 
         # Convert relationships
-        updated_realationships: List[Tuple[str, str, str, Dict[str, any]]] = []
-        for rel in node_data.get('relationships', []):
+        updated_realationships: List[Tuple[str, str, str, Dict[str, Any]]] = []
+        for rel in node_data.get("relationships", []):
             relationship_type, target, direction, properties = rel
             converted_relationship_type = NamingConventionConverter.to_upper_underscore(
-                relationship_type)
-            converted_properties = {NamingConventionConverter.to_camel_case_key(k): v for k,
-            v in properties.items()}
-            updated_realationships.append((converted_relationship_type, target, direction,
-                                           converted_properties))
-        node_data['relationships'] = updated_realationships
+                relationship_type
+            )
+            converted_properties = {
+                NamingConventionConverter.to_camel_case_key(k): v
+                for k, v in properties.items()
+            }
+            updated_realationships.append(
+                (converted_relationship_type, target, direction, converted_properties)
+            )
+        node_data["relationships"] = updated_realationships
 
         return node_data

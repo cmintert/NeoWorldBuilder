@@ -95,7 +95,13 @@ class QueryWorker(BaseNeo4jWorker):
 
     query_finished = pyqtSignal(list)
 
-    def __init__(self, uri: str, auth: Tuple[str, str], query: str, params: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        uri: str,
+        auth: Tuple[str, str],
+        query: str,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Initialize the worker with query parameters.
 
@@ -138,7 +144,9 @@ class WriteWorker(BaseNeo4jWorker):
 
     write_finished = pyqtSignal(bool)
 
-    def __init__(self, uri: str, auth: Tuple[str, str], func: Callable[..., Any], *args: Any) -> None:
+    def __init__(
+        self, uri: str, auth: Tuple[str, str], func: Callable[..., Any], *args: Any
+    ) -> None:
         """
         Initialize the worker with write function and arguments.
 
@@ -190,7 +198,9 @@ class DeleteWorker(BaseNeo4jWorker):
 
     delete_finished = pyqtSignal(bool)
 
-    def __init__(self, uri: str, auth: Tuple[str, str], func: Callable[..., Any], *args: Any) -> None:
+    def __init__(
+        self, uri: str, auth: Tuple[str, str], func: Callable[..., Any], *args: Any
+    ) -> None:
         """
         Initialize the worker with delete function and arguments.
 
@@ -241,7 +251,11 @@ class BatchWorker(BaseNeo4jWorker):
     batch_progress = pyqtSignal(int, int)  # current, total
     batch_finished = pyqtSignal(list)
 
-    def __init__(self, driver_config: Dict[str, Any], operations: List[Tuple[str, Optional[Dict[str, Any]]]]) -> None:
+    def __init__(
+        self,
+        driver_config: Dict[str, Any],
+        operations: List[Tuple[str, Optional[Dict[str, Any]]]],
+    ) -> None:
         """
         Initialize the worker with batch operations.
 
@@ -284,7 +298,9 @@ class SuggestionWorker(BaseNeo4jWorker):
 
     suggestions_ready = pyqtSignal(dict)
 
-    def __init__(self, uri: str, auth: Tuple[str, str], node_data: Dict[str, Any]) -> None:
+    def __init__(
+        self, uri: str, auth: Tuple[str, str], node_data: Dict[str, Any]
+    ) -> None:
         """
         Initialize the worker with node data.
 
@@ -297,7 +313,9 @@ class SuggestionWorker(BaseNeo4jWorker):
         self.node_data = node_data
         logging.basicConfig(level=logging.DEBUG)
 
-    def _find_similar_nodes(self, session: Any, node_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _find_similar_nodes(
+        self, session: Any, node_data: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """
         Find similar nodes based on labels.
 
@@ -377,7 +395,9 @@ class SuggestionWorker(BaseNeo4jWorker):
             logging.error(f"Error generating tag suggestions: {str(e)}", exc_info=True)
             return []
 
-    def _get_property_suggestions(self, df: pd.DataFrame) -> Dict[str, List[Tuple[str, float]]]:
+    def _get_property_suggestions(
+        self, df: pd.DataFrame
+    ) -> Dict[str, List[Tuple[str, float]]]:
         """
         Generate property suggestions based on frequency.
 
@@ -432,6 +452,11 @@ class SuggestionWorker(BaseNeo4jWorker):
                 f"Error generating property suggestions: {str(e)}", exc_info=True
             )
             return {}
+
+    def _get_relationship_suggestions(
+        self, df: pd.DataFrame
+    ) -> List[Tuple[str, str, str, Dict[str, Any], float]]:
+        pass
 
     def execute_operation(self) -> None:
         """

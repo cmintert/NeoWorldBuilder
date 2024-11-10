@@ -4,8 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c1c1f3df-892c-4735-83ba-216f6077e36f" name="Changes" comment="changed position of suggest button to make it accessible in all tabs.">
+    <list default="true" id="c1c1f3df-892c-4735-83ba-216f6077e36f" name="Changes" comment="reduced clutter in qss">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/qodana.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/neo4jworkers.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/neo4jworkers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/suggestion_controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/suggestion_controller.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/converters.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/converters.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/exporters.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/exporters.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -83,7 +89,7 @@
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
     "run.code.analysis.last.selected.profile": "pProject Default",
-    "settings.editor.selected.configurable": "com.jetbrains.python.black.configuration.BlackFormatterConfigurable",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
     "vue.rearranger.settings.migration": "true"
   },
   "keyToStringList": {
@@ -93,11 +99,6 @@
     ]
   }
 }]]></component>
-  <component name="QodanaReportsService">
-    <option name="descriptions">
-      <ReportDescription localRun="true" path="C:\Users\chris\AppData\Local\Temp\qodana_output\qodana.sarif.json" reportGuid="62585527-ff38-47ab-8e70-a6676944cd5b" reportId="NeoRealmBuilder/qodana/2024-11-09" />
-    </option>
-  </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\chris\PycharmProjects\NeoRealmBuilder" />
@@ -301,15 +302,8 @@
       <workItem from="1731172351803" duration="1279000" />
       <workItem from="1731173681546" duration="34000" />
       <workItem from="1731173953640" duration="2939000" />
-      <workItem from="1731228712531" duration="7126000" />
-    </task>
-    <task id="LOCAL-00018" summary="Still dealing with a nasty buffer overflow. I hope I can find it somewhere in the worker jungle.">
-      <option name="closed" value="true" />
-      <created>1729980206262</created>
-      <option name="number" value="00018" />
-      <option name="presentableId" value="LOCAL-00018" />
-      <option name="project" value="LOCAL" />
-      <updated>1729980206262</updated>
+      <workItem from="1731228712531" duration="7823000" />
+      <workItem from="1731249489525" duration="3993000" />
     </task>
     <task id="LOCAL-00019" summary="Autocompleter works, populate_node_fields is still corrupted/missing.">
       <option name="closed" value="true" />
@@ -695,7 +689,15 @@
       <option name="project" value="LOCAL" />
       <updated>1731237677352</updated>
     </task>
-    <option name="localTasksCounter" value="67" />
+    <task id="LOCAL-00067" summary="reduced clutter in qss">
+      <option name="closed" value="true" />
+      <created>1731241042334</created>
+      <option name="number" value="00067" />
+      <option name="presentableId" value="LOCAL-00067" />
+      <option name="project" value="LOCAL" />
+      <updated>1731241042334</updated>
+    </task>
+    <option name="localTasksCounter" value="68" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -743,7 +745,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Removed unused variable." />
     <MESSAGE value="Small logging error" />
     <MESSAGE value="Corrected the import for QAction" />
     <MESSAGE value="Corrected styling for the depth spin box" />
@@ -768,7 +769,8 @@
     <MESSAGE value="Switched to named expressions in many places" />
     <MESSAGE value="Done reordering code for the time." />
     <MESSAGE value="changed position of suggest button to make it accessible in all tabs." />
-    <option name="LAST_COMMIT_MESSAGE" value="changed position of suggest button to make it accessible in all tabs." />
+    <MESSAGE value="reduced clutter in qss" />
+    <option name="LAST_COMMIT_MESSAGE" value="reduced clutter in qss" />
     <option name="OPTIMIZE_IMPORTS_BEFORE_PROJECT_COMMIT" value="true" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
@@ -780,6 +782,6 @@
     <SUITE FILE_PATH="coverage/NeoRealmBuilder$scratch_1.coverage" NAME="scratch_1 Coverage Results" MODIFIED="1729632936135" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
     <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_in_main_test_py.coverage" NAME="pytest in main_test.py Coverage Results" MODIFIED="1731085976144" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
     <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_in_test_neo4j_model_py.coverage" NAME="pytest in test_neo4j_model.py Coverage Results" MODIFIED="1730666202332" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
-    <SUITE FILE_PATH="coverage/NeoRealmBuilder$main.coverage" NAME="main Coverage Results" MODIFIED="1731237611271" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/NeoRealmBuilder$main.coverage" NAME="main Coverage Results" MODIFIED="1731239005565" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

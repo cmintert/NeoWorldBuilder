@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Optional, Dict, Any
+from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, Qt, QPoint
 from PyQt6.QtGui import QPixmap
@@ -92,11 +92,11 @@ class WorldBuildingUI(QWidget):
         Args:
             is_loading (bool): Whether the UI is in loading state.
         """
-        self.save_button.setEnabled(!is_loading)
-        self.delete_button.setEnabled(!is_loading)
+        self.save_button.setEnabled(not is_loading)
+        self.delete_button.setEnabled(not is_loading)
         self.cancel_button.setVisible(is_loading)
         self.name_input.setReadOnly(is_loading)
-        self.suggest_button.setEnabled(!is_loading)
+        self.suggest_button.setEnabled(not is_loading)
         if is_loading:
             self.progress_bar.setVisible(True)
             self.progress_bar.setRange(0, 0)  # Indeterminate progress
@@ -545,7 +545,11 @@ class WorldBuildingUI(QWidget):
             QMessageBox.warning(self, "Image Error", f"Failed to load image: {str(e)}")
 
     def add_relationship_row(
-        self, rel_type: str = "", target: str = "", direction: str = ">", properties: str = ""
+        self,
+        rel_type: str = "",
+        target: str = "",
+        direction: str = ">",
+        properties: str = "",
     ) -> None:
         """
         Add relationship row with improved validation.
@@ -702,7 +706,9 @@ class WorldBuildingUI(QWidget):
 
         dialog.exec()
 
-    def set_relationship_properties(self, row: int, properties_table: QTableWidget, dialog: QDialog) -> None:
+    def set_relationship_properties(
+        self, row: int, properties_table: QTableWidget, dialog: QDialog
+    ) -> None:
         """
         Set relationship properties from the dialog.
 
