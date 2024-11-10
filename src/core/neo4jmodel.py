@@ -1,5 +1,6 @@
 import datetime
 import logging
+from datetime import datetime
 from typing import Dict, Any
 
 from PyQt6.QtWidgets import QMessageBox
@@ -144,26 +145,33 @@ class Neo4jModel:
         Private transaction handler for save_node.
         Preserves and updates system properties (_created, _modified, _author) while replacing all others.
         """
-        logging.debug("+++++++++++++++++ Starting Save Node Transaction +++++++++++++++++++++++")
+        logging.debug(
+            "+++++++++++++++++ Starting Save Node Transaction +++++++++++++++++++++++"
+        )
 
         # Enforce naming style conventions
 
         logging.debug(f"Node data to save: {node_data}")
         logging.debug(f"Node data is of type: {type(node_data)}")
-        original_node_data=node_data
-        node_data=ncc.convert_node_data(node_data)
+        original_node_data = node_data
+        node_data = ncc.convert_node_data(node_data)
 
         # Compare the original and converted data and give feedback on automatic conversion
         # Feedback is in form of an info message popup
 
         if original_node_data != node_data:
-            logging.info("Node data was automatically converted to adhere to naming conventions.")
+            logging.info(
+                "Node data was automatically converted to adhere to naming conventions."
+            )
             logging.info(f"Original data: {original_node_data}")
             logging.info(f"Converted data: {node_data}")
-            QMessageBox.information(None, "Naming Convention Conversion",
-                                    "Node data was automatically converted to adhere to naming conventions.\n"
-                                    f"Original data: {original_node_data}\n"
-                                    f"Converted data: {node_data}")
+            QMessageBox.information(
+                None,
+                "Naming Convention Conversion",
+                "Node data was automatically converted to adhere to naming conventions.\n"
+                f"Original data: {original_node_data}\n"
+                f"Converted data: {node_data}",
+            )
 
         # Extract data from node_data
         name = node_data["name"]
@@ -273,7 +281,9 @@ class Neo4jModel:
                 )
             tx.run(query_rel, name=name, rel_name=rel_name, properties=properties)
 
-        logging.debug("+++++++++++++++++ Finished Save Node Transaction +++++++++++++++++++++++")
+        logging.debug(
+            "+++++++++++++++++ Finished Save Node Transaction +++++++++++++++++++++++"
+        )
 
     def delete_node(self, name, callback):
         """
@@ -389,8 +399,10 @@ class Neo4jModel:
         return worker
 
     def generate_suggestions(
-            self, node_data: Dict[str, Any], suggestions_callback: callable,
-            error_callback: callable
+        self,
+        node_data: Dict[str, Any],
+        suggestions_callback: callable,
+        error_callback: callable,
     ):
         """
         Generate suggestions for a given node using SuggestionWorker.

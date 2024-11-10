@@ -45,7 +45,9 @@ def exception_hook(exctype, value, tb):
         None, "Unhandled Exception", f"An unhandled exception occurred:\n{value}"
     )
 
+
 sys.excepthook = exception_hook
+
 
 @dataclass
 class AppComponents:
