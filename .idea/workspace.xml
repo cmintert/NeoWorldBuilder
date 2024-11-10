@@ -4,14 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c1c1f3df-892c-4735-83ba-216f6077e36f" name="Changes" comment="reduced clutter in qss">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/qodana.yaml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core/neo4jworkers.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/neo4jworkers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/suggestion_controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/suggestion_controller.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/converters.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/converters.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/exporters.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/exporters.py" afterDir="false" />
+    <list default="true" id="c1c1f3df-892c-4735-83ba-216f6077e36f" name="Changes" comment="import bug squashed...">
+      <change beforePath="$PROJECT_DIR$/src/config.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/config.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -303,23 +297,7 @@
       <workItem from="1731173681546" duration="34000" />
       <workItem from="1731173953640" duration="2939000" />
       <workItem from="1731228712531" duration="7823000" />
-      <workItem from="1731249489525" duration="3993000" />
-    </task>
-    <task id="LOCAL-00019" summary="Autocompleter works, populate_node_fields is still corrupted/missing.">
-      <option name="closed" value="true" />
-      <created>1730025819563</created>
-      <option name="number" value="00019" />
-      <option name="presentableId" value="LOCAL-00019" />
-      <option name="project" value="LOCAL" />
-      <updated>1730025819563</updated>
-    </task>
-    <task id="LOCAL-00020" summary="It works kind of now...">
-      <option name="closed" value="true" />
-      <created>1730028543632</created>
-      <option name="number" value="00020" />
-      <option name="presentableId" value="LOCAL-00020" />
-      <option name="project" value="LOCAL" />
-      <updated>1730028543632</updated>
+      <workItem from="1731249489525" duration="4372000" />
     </task>
     <task id="LOCAL-00021" summary="Works.">
       <option name="closed" value="true" />
@@ -697,7 +675,23 @@
       <option name="project" value="LOCAL" />
       <updated>1731241042334</updated>
     </task>
-    <option name="localTasksCounter" value="68" />
+    <task id="LOCAL-00068" summary="more cleanup">
+      <option name="closed" value="true" />
+      <created>1731253856277</created>
+      <option name="number" value="00068" />
+      <option name="presentableId" value="LOCAL-00068" />
+      <option name="project" value="LOCAL" />
+      <updated>1731253856277</updated>
+    </task>
+    <task id="LOCAL-00069" summary="import bug squashed...">
+      <option name="closed" value="true" />
+      <created>1731253938861</created>
+      <option name="number" value="00069" />
+      <option name="presentableId" value="LOCAL-00069" />
+      <option name="project" value="LOCAL" />
+      <updated>1731253938861</updated>
+    </task>
+    <option name="localTasksCounter" value="70" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -745,8 +739,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Small logging error" />
-    <MESSAGE value="Corrected the import for QAction" />
     <MESSAGE value="Corrected styling for the depth spin box" />
     <MESSAGE value="Added selection boxes to all tree items, connection does not work yet" />
     <MESSAGE value="Selection and multi node export now seems to work in a basic way." />
@@ -770,7 +762,9 @@
     <MESSAGE value="Done reordering code for the time." />
     <MESSAGE value="changed position of suggest button to make it accessible in all tabs." />
     <MESSAGE value="reduced clutter in qss" />
-    <option name="LAST_COMMIT_MESSAGE" value="reduced clutter in qss" />
+    <MESSAGE value="more cleanup" />
+    <MESSAGE value="import bug squashed..." />
+    <option name="LAST_COMMIT_MESSAGE" value="import bug squashed..." />
     <option name="OPTIMIZE_IMPORTS_BEFORE_PROJECT_COMMIT" value="true" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
