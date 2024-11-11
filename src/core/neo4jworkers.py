@@ -400,6 +400,9 @@ class SuggestionWorker(BaseNeo4jWorker):
 
                 # 5. Format suggestions for SuggestionDialog
                 dialog_suggestions = self._format_suggestions(raw_suggestions)
+                logging.debug(
+                    f"Suggestion generation complete.Suggetsions: {dialog_suggestions}"
+                )
 
                 # 6. Emit results
                 self.suggestions_ready.emit(dialog_suggestions)
@@ -516,6 +519,9 @@ class SuggestionWorker(BaseNeo4jWorker):
                 if not isinstance(node_data, dict):
                     continue
 
+                # Log the node data dictionary
+                self.logger.debug(f"Node data: {node_data}")
+
                 # Ensure consistent property types
                 properties = node_data.get("properties", {})
                 processed_properties = {}
@@ -540,7 +546,7 @@ class SuggestionWorker(BaseNeo4jWorker):
                         label
                         for r in relationships
                         for label in (
-                            r.get("target_labels", []) + r.get("source_labels", [])
+                            (r.get("target_labels", [])) + (r.get("source_labels", []))
                         )
                     ),
                 }
@@ -673,7 +679,7 @@ class SuggestionWorker(BaseNeo4jWorker):
             # Enhance nodes DataFrame
             if not nodes_df.empty:
                 # Add label count
-                nodes_df["label_count"] = nodes_df["labels"].str.count("\|") + 1
+                nodes_df["label_count"] = nodes_df["labels"].str.count("|") + 1
 
                 # Calculate property diversity score (unique property keys / total properties)
                 property_counts = properties_df.groupby("node_id")["property_key"].agg(
@@ -700,10 +706,10 @@ class SuggestionWorker(BaseNeo4jWorker):
 
                 # Add connected label count
                 relationships_df["target_label_count"] = (
-                    relationships_df["target_labels"].str.count("\|") + 1
+                    relationships_df["target_labels"].str.count("|") + 1
                 )
                 relationships_df["source_label_count"] = (
-                    relationships_df["source_labels"].str.count("\|") + 1
+                    relationships_df["source_labels"].str.count("|") + 1
                 )
 
             # Enhance properties DataFrame
@@ -780,7 +786,7 @@ class SuggestionWorker(BaseNeo4jWorker):
                         rel_type,
                         target,
                         "outgoing",
-                        {"creative": True},  # Mark as creative in properties
+                        {"creative": {}},  # Mark as creative in properties
                         min(conf, 69.9),  # Ensure lower confidence
                     )
                 )
