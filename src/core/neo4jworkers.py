@@ -15,6 +15,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Set
 import pandas as pd
 from PyQt6.QtCore import QThread, pyqtSignal
 from neo4j import GraphDatabase
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
 
 
 class BaseNeo4jWorker(QThread):
@@ -414,7 +416,7 @@ class SuggestionWorker(BaseNeo4jWorker):
 
     def _get_unified_node_data(
         self, session: Any, query_type: str = "similar"
-    ) -> List[Dict[str, Any]]:
+    ) -> List<Dict[str, Any]]:
         """
         Unified method for retrieving node data with consistent output format.
 
@@ -793,6 +795,11 @@ class SuggestionWorker(BaseNeo4jWorker):
 
             # Sort by confidence
             relationships.sort(key=lambda x: x[4], reverse=True)
+
+            # Limit the number of suggestions to 8 for each category
+            tags = tags[:8]
+            properties = {k: v[:8] for k, v in properties.items()}
+            relationships = relationships[:8]
 
             # Final output format
             formatted = {
