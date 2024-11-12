@@ -4,7 +4,7 @@ It includes classes for querying, writing, deleting, and generating suggestions 
 """
 
 import json
-import logging
+import structlog
 import traceback
 from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -13,6 +13,7 @@ import pandas as pd
 from PyQt6.QtCore import QThread, pyqtSignal
 from neo4j import GraphDatabase
 
+logger = structlog.get_logger()
 
 class BaseNeo4jWorker(QThread):
     """
@@ -71,6 +72,7 @@ class BaseNeo4jWorker(QThread):
             self.connect()
             self.execute_operation()
         except Exception as e:
+            logger.error("Error occurred in BaseNeo4jWorker", exc_info=True, module="BaseNeo4jWorker", function="run")
             self.error_occurred.emit(str(e))
         finally:
             self.cleanup()
@@ -128,6 +130,7 @@ class QueryWorker(BaseNeo4jWorker):
             error_message = "".join(
                 traceback.format_exception(type(e), e, e.__traceback__)
             )
+            logger.error("Error occurred in QueryWorker", exc_info=True, module="QueryWorker", function="execute_operation")
             self.error_occurred.emit(error_message)
 
 
@@ -311,7 +314,6 @@ class SuggestionWorker(BaseNeo4jWorker):
         """
         super().__init__(uri, auth)
         self.node_data = node_data
-        logging.basicConfig(level=logging.DEBUG)
 
     def _find_similar_nodes(
         self, session: Any, node_data: Dict[str, Any]
@@ -327,11 +329,11 @@ class SuggestionWorker(BaseNeo4jWorker):
             list: A list of similar nodes with structured properties and relationships
         """
         try:
-            logging.debug("Finding similar nodes")
+            logger.debug("Finding similar nodes", module="SuggestionWorker", function="_find_similar_nodes")
             labels = node_data.get("labels", [])
             name = node_data.get("name", "")
 
-            logging.debug(f"Labels: {labels}, Name: {name}")
+            logger.debug(f"Labels: {labels}, Name: {name}", module="SuggestionWorker", function="_find_similar_nodes")
 
             query = """
             MATCH (n)
@@ -369,11 +371,11 @@ class SuggestionWorker(BaseNeo4jWorker):
             for record in result:
                 similar_nodes.append(record["node_data"])
 
-            logging.debug(f"Similar nodes: {similar_nodes}")
+            logger.debug(f"Similar nodes: {similar_nodes}", module="SuggestionWorker", function="_find_similar_nodes")
             return similar_nodes
 
         except Exception as e:
-            logging.error(f"Error finding similar nodes: {str(e)}", exc_info=True)
+            logger.error(f"Error finding similar nodes: {str(e)}", exc_info=True, module="SuggestionWorker", function="_find_similar_nodes")
             return []
 
     def _get_property_suggestions(
@@ -411,8 +413,8 @@ class SuggestionWorker(BaseNeo4jWorker):
             return suggestions
 
         except Exception as e:
-            logging.error(
-                f"Error generating property suggestions: {str(e)}", exc_info=True
+            logger.error(
+                f"Error generating property suggestions: {str(e)}", exc_info=True, module="SuggestionWorker", function="_get_property_suggestions"
             )
             return {}
 
@@ -439,7 +441,7 @@ class SuggestionWorker(BaseNeo4jWorker):
             return suggestions[:5]  # Limit to top 5 suggestions
 
         except Exception as e:
-            logging.error(f"Error generating tag suggestions: {str(e)}", exc_info=True)
+            logger.error(f"Error generating tag suggestions: {str(e)}", exc_info=True, module="SuggestionWorker", function="_get_tag_suggestions")
             return []
 
     def _get_relationship_suggestions(
@@ -499,20 +501,20 @@ class SuggestionWorker(BaseNeo4jWorker):
             return suggestions[:5]  # Limit to top 5 suggestions
 
         except Exception as e:
-            logging.error(
-                f"Error generating relationship suggestions: {str(e)}", exc_info=True
+            logger.error(
+                f"Error generating relationship suggestions: {str(e)}", exc_info=True, module="SuggestionWorker", function="_get_relationship_suggestions"
             )
             return []
 
     def execute_operation(self) -> None:
         try:
-            logging.info("Starting suggestion generation process")
+            logger.info("Starting suggestion generation process", module="SuggestionWorker", function="execute_operation")
 
             with self._driver.session() as session:
                 similar_nodes = self._find_similar_nodes(session, self.node_data)
 
                 if not similar_nodes:
-                    logging.info("No similar nodes found")
+                    logger.info("No similar nodes found", module="SuggestionWorker", function="execute_operation")
                     suggestions = {"tags": [], "properties": {}, "relationships": []}
                     self.suggestions_ready.emit(suggestions)
                     return
@@ -536,8 +538,8 @@ class SuggestionWorker(BaseNeo4jWorker):
                     }
                 )
 
-                logging.debug(f"Created DataFrame with columns: {df.columns.tolist()}")
-                logging.debug(f"DataFrame content:\n{df}")
+                logger.debug(f"Created DataFrame with columns: {df.columns.tolist()}", module="SuggestionWorker", function="execute_operation")
+                logger.debug(f"DataFrame content:\n{df}", module="SuggestionWorker", function="execute_operation")
 
                 # Example of the DataFrame:
                 """
@@ -553,13 +555,13 @@ class SuggestionWorker(BaseNeo4jWorker):
                     "relationships": self._get_relationship_suggestions(df),
                 }
 
-                logging.debug(
-                    f"Generated suggestions: {json.dumps(suggestions, indent=2)}"
+                logger.debug(
+                    f"Generated suggestions: {json.dumps(suggestions, indent=2)}", module="SuggestionWorker", function="execute_operation"
                 )
                 self.suggestions_ready.emit(suggestions)
-                logging.info("Suggestion generation completed successfully")
+                logger.info("Suggestion generation completed successfully", module="SuggestionWorker", function="execute_operation")
 
         except Exception as e:
             error_message = f"Error generating suggestions: {str(e)}"
-            logging.error(error_message, exc_info=True)
+            logger.error(error_message, exc_info=True, module="SuggestionWorker", function="execute_operation")
             self.error_occurred.emit(error_message)

@@ -37,6 +37,8 @@
     "VERSION": "0.1.0",
     "LOGGING_FILE": "logs.log",
     "LOGGING_LEVEL": "DEBUG",
+    "LOGGING_FORMAT": "json",
+    "LOGGING_TAGS": ["severity", "module", "function", "timestamp", "user_action", "transaction_id", "environment"],
     "SUGGESTION_MIN_SUPPORT" : 0.1,
     "SUGGESTION_MIN_CONFIDENCE" : 0.5,
     "CLUSTERING_NUM_CLUSTERS" : 3,

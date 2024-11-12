@@ -23,6 +23,7 @@ from datetime import time
 from logging.handlers import RotatingFileHandler
 from typing import Optional
 
+import structlog
 from PyQt6.QtCore import (
     Qt,
 )
@@ -45,8 +46,15 @@ from ui.controller import WorldBuildingController
 from ui.main_window import WorldBuildingUI
 
 # Configure logging
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+structlog.configure(
+    processors=[
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.JSONRenderer()
+    ],
+    wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
+    context_class=dict,
+    logger_factory=structlog.PrintLoggerFactory(),
+    cache_logger_on_first_use=True,
 )
 
 faulthandler.enable()
@@ -61,7 +69,7 @@ def exception_hook(exctype: type, value: Exception, tb: traceback) -> None:
         value (Exception): The exception instance.
         tb (traceback): The traceback object.
     """
-    logging.critical("Unhandled exception", exc_info=(exctype, value, tb))
+    structlog.get_logger().critical("Unhandled exception", exc_info=(exctype, value, tb))
     traceback.print_exception(exctype, value, tb)
     sys.__excepthook__(exctype, value, tb)
     QMessageBox.critical(
@@ -144,7 +152,7 @@ class WorldBuildingApp(QMainWindow):
             # 7. Show Window
             self.show()
 
-            logging.info("Application initialized successfully")
+            structlog.get_logger().info("Application initialized successfully")
 
         except Exception as e:
             self._handle_initialization_error(e)
@@ -161,9 +169,9 @@ class WorldBuildingApp(QMainWindow):
             pixmap = QPixmap(image_path)
             palette.setBrush(QPalette.ColorRole.Window, QBrush(pixmap))
             self.setPalette(palette)
-            logging.info(f"Background image set from {image_path}")
+            structlog.get_logger().info(f"Background image set from {image_path}")
         except Exception as e:
-            logging.error(f"Failed to set background image: {e}")
+            structlog.get_logger().error(f"Failed to set background image: {e}")
 
     def _load_configuration(self) -> Config:
         """
@@ -177,7 +185,7 @@ class WorldBuildingApp(QMainWindow):
         """
         try:
             config = Config("src/config.json")
-            logging.info("Configuration loaded successfully")
+            structlog.get_logger().info("Configuration loaded successfully")
             return config
         except FileNotFoundError:
             raise RuntimeError("Configuration file 'config.json' not found")
@@ -208,15 +216,17 @@ class WorldBuildingApp(QMainWindow):
             )
 
             # Set up logging configuration
-            logging.basicConfig(
-                level=log_level,
-                format="%(asctime)s - %(levelname)s - %(message)s",
-                handlers=[
-                    rotating_handler,
-                    logging.StreamHandler(),
+            structlog.configure(
+                processors=[
+                    structlog.processors.TimeStamper(fmt="iso"),
+                    structlog.processors.JSONRenderer()
                 ],
+                wrapper_class=structlog.make_filtering_bound_logger(log_level),
+                context_class=dict,
+                logger_factory=structlog.PrintLoggerFactory(),
+                cache_logger_on_first_use=True,
             )
-            logging.info("Logging system initialized")
+            structlog.get_logger().info("Logging system initialized")
         except Exception as e:
             raise RuntimeError(f"Failed to setup logging: {str(e)}")
 
@@ -241,14 +251,14 @@ class WorldBuildingApp(QMainWindow):
                 model = Neo4jModel(
                     config.NEO4J_URI, config.NEO4J_USERNAME, config.NEO4J_PASSWORD
                 )
-                logging.info("Database connection established")
+                structlog.get_logger().info("Database connection established")
                 return model
             except Exception as e:
                 if attempt >= max_retries - 1:
                     raise RuntimeError(
                         f"Failed to connect to database after {max_retries} attempts: {str(e)}"
                     )
-                logging.warning(
+                structlog.get_logger().warning(
                     f"Database connection attempt {attempt + 1} failed: {e}"
                 )
                 time.sleep(retry_delay)
@@ -270,7 +280,7 @@ class WorldBuildingApp(QMainWindow):
         """
         try:
             ui = WorldBuildingUI(controller)
-            logging.info("UI initialized successfully")
+            structlog.get_logger().info("UI initialized successfully")
             return ui
         except Exception as e:
             raise RuntimeError(f"Failed to initialize UI: {str(e)}")
@@ -294,7 +304,7 @@ class WorldBuildingApp(QMainWindow):
         """
         try:
             controller = WorldBuildingController(ui, model, config)
-            logging.info("Controller initialized successfully")
+            structlog.get_logger().info("Controller initialized successfully")
             return controller
         except Exception as e:
             raise RuntimeError(f"Failed to initialize controller: {str(e)}")
@@ -332,7 +342,7 @@ class WorldBuildingApp(QMainWindow):
             # Add Export menu to the main menu bar
             self._add_export_menu()
 
-            logging.info(
+            structlog.get_logger().info(
                 f"Window configured with size "
                 f"{self.components.config.UI_WINDOW_WIDTH}x"
                 f"{self.components.config.UI_WINDOW_HEIGHT}"
@@ -373,7 +383,7 @@ class WorldBuildingApp(QMainWindow):
             error (Exception): The initialization error.
         """
         error_message = f"Failed to initialize the application:\n{str(error)}"
-        logging.critical(error_message, exc_info=True)
+        structlog.get_logger().critical(error_message, exc_info=True)
 
         QMessageBox.critical(self, "Initialization Error", error_message)
 
@@ -391,13 +401,13 @@ class WorldBuildingApp(QMainWindow):
                 try:
                     self.components.controller.cleanup()
                 except Exception as e:
-                    logging.error(f"Error during controller cleanup: {e}")
+                    structlog.get_logger().error(f"Error during controller cleanup: {e}")
 
             if self.components.model:
                 try:
                     self.components.model.close()
                 except Exception as e:
-                    logging.error(f"Error during model cleanup: {e}")
+                    structlog.get_logger().error(f"Error during model cleanup: {e}")
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """
@@ -406,24 +416,24 @@ class WorldBuildingApp(QMainWindow):
         Args:
             event: The close event.
         """
-        logging.info("Application shutdown initiated")
+        structlog.get_logger().info("Application shutdown initiated")
 
         try:
             # Clean up controller resources
             if self.components and self.components.controller:
                 self.components.controller.cleanup()
-                logging.info("Controller resources cleaned up")
+                structlog.get_logger().info("Controller resources cleaned up")
 
             # Clean up model resources
             if self.components and self.components.model:
                 self.components.model.close()
-                logging.info("Model resources cleaned up")
+                structlog.get_logger().info("Model resources cleaned up")
 
             event.accept()
-            logging.info("Application shutdown completed successfully")
+            structlog.get_logger().info("Application shutdown completed successfully")
 
         except Exception as e:
-            logging.error(f"Error during application shutdown: {e}")
+            structlog.get_logger().error(f"Error during application shutdown: {e}")
             event.accept()  # Still close the application
 
 
@@ -433,5 +443,5 @@ if __name__ == "__main__":
         ex = WorldBuildingApp()
         sys.exit(app.exec())
     except Exception as e:
-        logging.critical("Unhandled exception in main loop", exc_info=True)
+        structlog.get_logger().critical("Unhandled exception in main loop", exc_info=True)
         sys.exit(1)

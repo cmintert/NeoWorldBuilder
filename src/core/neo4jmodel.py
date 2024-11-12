@@ -4,7 +4,7 @@ It includes methods for connecting to the database, performing CRUD operations o
 """
 
 import datetime
-import logging
+import structlog
 from datetime import datetime
 from typing import Dict, Any, Callable
 
@@ -13,6 +13,7 @@ from neo4j import GraphDatabase
 from core.neo4jworkers import QueryWorker, WriteWorker, DeleteWorker, SuggestionWorker
 from utils.converters import NamingConventionConverter as ncc
 
+logger = structlog.get_logger()
 
 class Neo4jModel:
     """
@@ -37,7 +38,7 @@ class Neo4jModel:
         self._auth = (username, password)
         self._driver = None
         self.connect()
-        logging.info("Neo4jModel initialized and connected to the database.")
+        logger.info("Neo4jModel initialized and connected to the database.", module="Neo4jModel", function="__init__")
 
     def connect(self) -> None:
         """
@@ -45,6 +46,7 @@ class Neo4jModel:
         """
         if not self._driver:
             self._driver = GraphDatabase.driver(self._uri, auth=self._auth)
+        logger.info("Connected to Neo4j database.", module="Neo4jModel", function="connect")
 
     def ensure_connection(self) -> None:
         """
@@ -57,7 +59,7 @@ class Neo4jModel:
             else:
                 self.connect()
         except Exception as e:
-            logging.warning(f"Connection verification failed: {e}")
+            logger.warning(f"Connection verification failed: {e}", module="Neo4jModel", function="ensure_connection")
             self.connect()
 
     def get_session(self) -> Any:
@@ -79,7 +81,7 @@ class Neo4jModel:
                 self._driver.close()
             finally:
                 self._driver = None
-        logging.info("Neo4jModel connection closed.")
+        logger.info("Neo4jModel connection closed.", module="Neo4jModel", function="close")
 
     #############################################
     # 2. Node CRUD Operations
@@ -165,9 +167,7 @@ class Neo4jModel:
             tx: The transaction object.
             node_data (dict): Node data including properties and relationships.
         """
-        logging.debug(
-            "+++++++++++++++++ Starting Save Node Transaction +++++++++++++++++++++++"
-        )
+        logger.debug("Starting Save Node Transaction", module="Neo4jModel", function="_save_node_transaction")
 
         # Enforce naming style conventions
 
@@ -281,9 +281,7 @@ class Neo4jModel:
                 )
             tx.run(query_rel, name=name, rel_name=rel_name, properties=properties)
 
-        logging.debug(
-            "+++++++++++++++++ Finished Save Node Transaction +++++++++++++++++++++++"
-        )
+        logger.debug("Finished Save Node Transaction", module="Neo4jModel", function="_save_node_transaction")
 
     def delete_node(self, name: str, callback: Callable) -> DeleteWorker:
         """
