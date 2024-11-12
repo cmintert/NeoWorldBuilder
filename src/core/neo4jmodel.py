@@ -339,7 +339,9 @@ class Neo4jModel:
     # 3. Node Query Operations
     #############################################
 
-    def get_node_relationships(self, node_name: str, depth: int, callback: Callable) -> QueryWorker:
+    def get_node_relationships(
+        self, node_name: str, depth: int, callback: Callable
+    ) -> QueryWorker:
         """
         Get the relationships of a node by name up to a specified depth using a worker.
 
@@ -353,7 +355,7 @@ class Neo4jModel:
         """
         depth += 1  # Adjust depth for query
         query = f"""
-            MATCH path = (n {{name: $name}})-[*1..{depth}]-()
+            MATCH path = (n {{name: $name}})-[*1..{depth}]-(connected_node)
             WHERE ALL(r IN relationships(path) WHERE startNode(r) IS NOT NULL AND endNode(r) IS NOT NULL)
               AND ALL(node IN nodes(path) WHERE node IS NOT NULL)
             WITH path, length(path) AS path_length
@@ -398,7 +400,9 @@ class Neo4jModel:
             )
             return {record["category"]: record["nodes"] for record in result}
 
-    def fetch_matching_node_names(self, prefix: str, limit: int, callback: Callable) -> QueryWorker:
+    def fetch_matching_node_names(
+        self, prefix: str, limit: int, callback: Callable
+    ) -> QueryWorker:
         """
         Search for nodes whose names match a given prefix using a worker.
 

@@ -1,6 +1,6 @@
 from PyQt6.QtCore import QObject, pyqtSlot, Qt
-from PyQt6.QtGui import QStandardItem, QIcon
-from PyQt6.QtWidgets import QStandardItemModel, QMessageBox
+from PyQt6.QtGui import QStandardItem, QIcon, QStandardItemModel
+from PyQt6.QtWidgets import QMessageBox
 
 from core.neo4jmodel import Neo4jModel
 
@@ -120,7 +120,7 @@ class TreeController(QObject):
 
     def process_relationship_records(self, records: list):
         """
-        Process relationship records and build parent-child map.
+        Process relationship records and build parent-child map, handling both incoming and outgoing relationships.
 
         Args:
             records (list): The list of relationship records.
@@ -142,10 +142,19 @@ class TreeController(QObject):
                 skipped_records += 1
                 continue
 
-            key = (parent_name, rel_type, direction)
+            if direction == ">":
+                # Outgoing relationship: parent_name -> node_name
+                parent = parent_name
+                child = node_name
+            elif direction == "<":
+                # Incoming relationship: node_name -> parent_name
+                parent = node_name
+                child = parent_name
+
+            key = (parent, rel_type, direction)
             if key not in parent_child_map:
                 parent_child_map[key] = []
-            parent_child_map[key].append((node_name, labels))
+            parent_child_map[key].append((child, labels))
 
         return parent_child_map, skipped_records
 
