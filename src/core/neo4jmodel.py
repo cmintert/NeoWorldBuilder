@@ -4,16 +4,20 @@ It includes methods for connecting to the database, performing CRUD operations o
 """
 
 import datetime
-import structlog
+import logging
 from datetime import datetime
 from typing import Dict, Any, Callable
 
+import structlog
 from neo4j import GraphDatabase
 
 from core.neo4jworkers import QueryWorker, WriteWorker, DeleteWorker, SuggestionWorker
 from utils.converters import NamingConventionConverter as ncc
 
+# Configure the standard logging
+logging.basicConfig(level=logging.INFO)
 logger = structlog.get_logger()
+
 
 class Neo4jModel:
     """
@@ -38,7 +42,11 @@ class Neo4jModel:
         self._auth = (username, password)
         self._driver = None
         self.connect()
-        logger.info("Neo4jModel initialized and connected to the database.", module="Neo4jModel", function="__init__")
+        logger.info(
+            "Neo4jModel initialized and connected to the database.",
+            module="Neo4jModel",
+            function="__init__",
+        )
 
     def connect(self) -> None:
         """
@@ -46,7 +54,9 @@ class Neo4jModel:
         """
         if not self._driver:
             self._driver = GraphDatabase.driver(self._uri, auth=self._auth)
-        logger.info("Connected to Neo4j database.", module="Neo4jModel", function="connect")
+        logger.info(
+            "Connected to Neo4j database.", module="Neo4jModel", function="connect"
+        )
 
     def ensure_connection(self) -> None:
         """
@@ -59,7 +69,11 @@ class Neo4jModel:
             else:
                 self.connect()
         except Exception as e:
-            logger.warning(f"Connection verification failed: {e}", module="Neo4jModel", function="ensure_connection")
+            logger.warning(
+                f"Connection verification failed: {e}",
+                module="Neo4jModel",
+                function="ensure_connection",
+            )
             self.connect()
 
     def get_session(self) -> Any:
@@ -81,7 +95,9 @@ class Neo4jModel:
                 self._driver.close()
             finally:
                 self._driver = None
-        logger.info("Neo4jModel connection closed.", module="Neo4jModel", function="close")
+        logger.info(
+            "Neo4jModel connection closed.", module="Neo4jModel", function="close"
+        )
 
     #############################################
     # 2. Node CRUD Operations
@@ -136,7 +152,17 @@ class Neo4jModel:
         """
         params = {"name": name}
         worker = QueryWorker(self._uri, self._auth, query, params)
-        worker.query_finished.connect(callback)
+
+        def inner_callback(result):
+            logger.info(
+                "Node relationships retrieved.",
+                relationships=result,
+                module="Neo4jModel",
+                function="get_node_relationships",
+            )
+            callback(result)
+
+        worker.query_finished.connect(inner_callback)
         return worker
 
     def save_node(self, node_data: Dict[str, Any], callback: Callable) -> WriteWorker:
@@ -167,7 +193,11 @@ class Neo4jModel:
             tx: The transaction object.
             node_data (dict): Node data including properties and relationships.
         """
-        logger.debug("Starting Save Node Transaction", module="Neo4jModel", function="_save_node_transaction")
+        logger.debug(
+            "Starting Save Node Transaction",
+            module="Neo4jModel",
+            function="_save_node_transaction",
+        )
 
         # Enforce naming style conventions
 
@@ -281,7 +311,11 @@ class Neo4jModel:
                 )
             tx.run(query_rel, name=name, rel_name=rel_name, properties=properties)
 
-        logger.debug("Finished Save Node Transaction", module="Neo4jModel", function="_save_node_transaction")
+        logger.debug(
+            "Finished Save Node Transaction",
+            module="Neo4jModel",
+            function="_save_node_transaction",
+        )
 
     def delete_node(self, name: str, callback: Callable) -> DeleteWorker:
         """
@@ -330,13 +364,18 @@ class Neo4jModel:
         Returns:
             QueryWorker: A worker that will execute the query.
         """
-        depth += 1  # Adjust depth for query
+        # Validate depth to ensure it's a positive integer
+        if not isinstance(depth, int) or depth < 1:
+            raise ValueError("Depth must be a positive integer (at least 1)")
+
+        # Safely insert the depth into the query string
         query = f"""
-            MATCH path = (n {{name: $name}})-[*1..{depth}]-(connected_node)
-            WHERE ALL(r IN relationships(path) WHERE startNode(r) IS NOT NULL AND endNode(r) IS NOT NULL)
+            MATCH path = (n)-[*1..{depth}]-(connected_node)
+            WHERE n.name = $name
+              AND ALL(r IN relationships(path) WHERE startNode(r) IS NOT NULL AND endNode(r) IS NOT NULL)
               AND ALL(node IN nodes(path) WHERE node IS NOT NULL)
             WITH path, length(path) AS path_length
-            UNWIND range(1, path_length - 1) AS idx
+            UNWIND range(1, path_length) AS idx
             WITH
                 nodes(path)[idx] AS current_node,
                 relationships(path)[idx - 1] AS current_rel,
@@ -353,8 +392,10 @@ class Neo4jModel:
             ORDER BY depth ASC
         """
         params = {"name": node_name}
+
         worker = QueryWorker(self._uri, self._auth, query, params)
         worker.query_finished.connect(callback)
+
         return worker
 
     def get_node_hierarchy(self) -> Dict[str, Any]:

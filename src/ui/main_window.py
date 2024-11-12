@@ -134,9 +134,9 @@ class WorldBuildingUI(QWidget):
         self.depth_spinbox.setObjectName("depthSpinBox")
         self.depth_spinbox.setFixedWidth(70)
         self.depth_spinbox.setFixedHeight(40)
-        self.depth_spinbox.setMinimum(0)
+        self.depth_spinbox.setMinimum(1)
         self.depth_spinbox.setMaximum(3)
-        self.depth_spinbox.setValue(1)  # Default value; can be loaded from config
+        self.depth_spinbox.setValue(1)
 
         depth_layout.addWidget(depth_label)
         depth_layout.addWidget(self.depth_spinbox)

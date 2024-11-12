@@ -30,7 +30,9 @@ class WorldBuildingController(QObject):
 
     NODE_RELATIONSHIPS_HEADER = "Node Relationships"
 
-    def __init__(self, ui: "WorldBuildingUI", model: "Neo4jModel", config: "Config") -> None:
+    def __init__(
+        self, ui: "WorldBuildingUI", model: "Neo4jModel", config: "Config"
+    ) -> None:
         """
         Initialize the controller with UI, model, and configuration.
 
@@ -751,7 +753,7 @@ class WorldBuildingController(QObject):
         Args:
             record: The record containing node data.
         """
-        logging.debug(f"Populating node fields with record: {record}")
+
         try:
             # Extract data from the record
             node = record["n"]
@@ -806,12 +808,12 @@ class WorldBuildingController(QObject):
             self.current_image_path = image_path
             self.ui.set_image(image_path)
 
-            logging.info("Node data populated successfully.")
-
         except Exception as e:
             self.handle_error(f"Error populating node fields: {str(e)}")
 
-    def process_relationship_records(self, records: List[Any]) -> Tuple[Dict[Tuple[str, str, str], List[Tuple[str, List[str]]]], int]:
+    def process_relationship_records(
+        self, records: List[Any]
+    ) -> Tuple[Dict[Tuple[str, str, str], List[Tuple[str, List[str]]]], int]:
         """
         Process relationship records and build parent-child map.
 
@@ -843,7 +845,13 @@ class WorldBuildingController(QObject):
 
         return parent_child_map, skipped_records
 
-    def add_children(self, parent_name: str, parent_item: QStandardItem, path: List[str], parent_child_map: Dict[Tuple[str, str, str], List[Tuple[str, List[str]]]]) -> None:
+    def add_children(
+        self,
+        parent_name: str,
+        parent_item: QStandardItem,
+        path: List[str],
+        parent_child_map: Dict[Tuple[str, str, str], List[Tuple[str, List[str]]]],
+    ) -> None:
         """
         Add child nodes to the relationship tree with checkboxes.
 
@@ -889,7 +897,9 @@ class WorldBuildingController(QObject):
                     child_name, child_item, path + [child_name], parent_child_map
                 )
 
-    def handle_cycles(self, parent_item: QStandardItem, rel_type: str, direction: str, child_name: str) -> None:
+    def handle_cycles(
+        self, parent_item: QStandardItem, rel_type: str, direction: str, child_name: str
+    ) -> None:
         """
         Handle cycles in the relationship data to avoid infinite loops.
 
