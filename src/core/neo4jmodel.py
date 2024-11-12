@@ -8,7 +8,6 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, Callable
 
-from PyQt6.QtWidgets import QMessageBox
 from neo4j import GraphDatabase
 
 from core.neo4jworkers import QueryWorker, WriteWorker, DeleteWorker, SuggestionWorker
@@ -172,27 +171,7 @@ class Neo4jModel:
 
         # Enforce naming style conventions
 
-        logging.debug(f"Node data to save: {node_data}")
-        logging.debug(f"Node data is of type: {type(node_data)}")
-        original_node_data = node_data
         node_data = ncc.convert_node_data(node_data)
-
-        # Compare the original and converted data and give feedback on automatic conversion
-        # Feedback is in form of an info message popup
-
-        if original_node_data != node_data:
-            logging.info(
-                "Node data was automatically converted to adhere to naming conventions."
-            )
-            logging.info(f"Original data: {original_node_data}")
-            logging.info(f"Converted data: {node_data}")
-            QMessageBox.information(
-                None,
-                "Naming Convention Conversion",
-                "Node data was automatically converted to adhere to naming conventions.\n"
-                f"Original data: {original_node_data}\n"
-                f"Converted data: {node_data}",
-            )
 
         # Extract data from node_data
         name = node_data["name"]

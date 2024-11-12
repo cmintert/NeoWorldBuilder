@@ -4,12 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c1c1f3df-892c-4735-83ba-216f6077e36f" name="Changes" comment="Updated database.">
+    <list default="true" id="c1c1f3df-892c-4735-83ba-216f6077e36f" name="Changes" comment="Ready to despair.">
       <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Checkout_at_03_11_2024_21_39_[Changes]/shelved.patch" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Checkout_at_03_11_2024_21_39__Changes_.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/core/neo4jmodel.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/neo4jmodel.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/tree_controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/tree_controller.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -302,15 +300,7 @@
       <workItem from="1731173953640" duration="2939000" />
       <workItem from="1731228712531" duration="7823000" />
       <workItem from="1731249489525" duration="8613000" />
-      <workItem from="1731409396025" duration="4363000" />
-    </task>
-    <task id="LOCAL-00023" summary="Stylesheet advances.">
-      <option name="closed" value="true" />
-      <created>1730061119987</created>
-      <option name="number" value="00023" />
-      <option name="presentableId" value="LOCAL-00023" />
-      <option name="project" value="LOCAL" />
-      <updated>1730061119987</updated>
+      <workItem from="1731409396025" duration="5177000" />
     </task>
     <task id="LOCAL-00024" summary="Background image loads via QPalette now... more of a workaround">
       <option name="closed" value="true" />
@@ -696,7 +686,15 @@
       <option name="project" value="LOCAL" />
       <updated>1731258057189</updated>
     </task>
-    <option name="localTasksCounter" value="72" />
+    <task id="LOCAL-00072" summary="Ready to despair.">
+      <option name="closed" value="true" />
+      <created>1731435235916</created>
+      <option name="number" value="00072" />
+      <option name="presentableId" value="LOCAL-00072" />
+      <option name="project" value="LOCAL" />
+      <updated>1731435235917</updated>
+    </task>
+    <option name="localTasksCounter" value="73" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -744,7 +742,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Selection and multi node export now seems to work in a basic way." />
     <MESSAGE value="Reduced clutter in the export menu" />
     <MESSAGE value="Improved handling of system properties starting with underscore." />
     <MESSAGE value="Added system properties author, created and modified to nodes. These do not show up in properties table. system properties can not be entered by the user." />
@@ -769,7 +766,8 @@
     <MESSAGE value="import bug squashed..." />
     <MESSAGE value="import bug squashed and corrected config.json..." />
     <MESSAGE value="Suggestions work kind of, much analysis to do...." />
-    <option name="LAST_COMMIT_MESSAGE" value="Suggestions work kind of, much analysis to do...." />
+    <MESSAGE value="Ready to despair." />
+    <option name="LAST_COMMIT_MESSAGE" value="Ready to despair." />
     <option name="OPTIMIZE_IMPORTS_BEFORE_PROJECT_COMMIT" value="true" />
   </component>
   <component name="XDebuggerManager">
@@ -779,11 +777,6 @@
           <url>file://$PROJECT_DIR$/src/ui/tree_controller.py</url>
           <line>158</line>
           <option name="timeStamp" value="2" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="NONE" type="python-line">
-          <url>file://$PROJECT_DIR$/src/ui/tree_controller.py</url>
-          <line>106</line>
-          <option name="timeStamp" value="4" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
@@ -797,6 +790,6 @@
     <SUITE FILE_PATH="coverage/NeoRealmBuilder$scratch_1.coverage" NAME="scratch_1 Coverage Results" MODIFIED="1729632936135" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
     <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_in_main_test_py.coverage" NAME="pytest in main_test.py Coverage Results" MODIFIED="1731085976144" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
     <SUITE FILE_PATH="coverage/NeoRealmBuilder$pytest_in_test_neo4j_model_py.coverage" NAME="pytest in test_neo4j_model.py Coverage Results" MODIFIED="1730666202332" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
-    <SUITE FILE_PATH="coverage/NeoRealmBuilder$main.coverage" NAME="main Coverage Results" MODIFIED="1731413136665" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/NeoRealmBuilder$main.coverage" NAME="main Coverage Results" MODIFIED="1731435574996" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
