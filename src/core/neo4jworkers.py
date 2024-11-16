@@ -11,6 +11,8 @@ import structlog
 from PyQt6.QtCore import QThread, pyqtSignal
 from neo4j import GraphDatabase
 
+from utils.converters import DataFrameBuilder
+
 logger = structlog.get_logger()
 
 
@@ -349,179 +351,17 @@ class SuggestionWorker(BaseNeo4jWorker):
     def _create_dataframes_from_data(
         self, nodes_data: List[Dict[str, Any]]
     ) -> Dict[str, pd.DataFrame]:
-        # Define expected columns
-        nodes_columns = ["name"]
-        properties_columns = ["node_name", "property", "value"]
-        tags_columns = ["node_name", "tag"]
-        labels_columns = ["node_name", "label"]
-        relationships_columns = [
-            "id",
-            "source_name",
-            "target_name",
-            "relationship_type",
-            "direction",
-        ]
-        rel_properties_columns = ["relationship_id", "property", "value"]
 
-        # Initialize record lists
-        nodes_list = []
-        properties_records = []
-        tags_records = []
-        labels_records = []
-        relationships_records = []
-        rel_properties_records = []
-        node_names = set()
+        builder = DataFrameBuilder()
 
-        if not nodes_data:
-            logger.info("No node data provided. Returning empty DataFrames.")
-            return {
-                "nodes": pd.DataFrame(columns=nodes_columns),
-                "properties": pd.DataFrame(columns=properties_columns),
-                "tags": pd.DataFrame(columns=tags_columns),
-                "labels": pd.DataFrame(columns=labels_columns),
-                "relationships": pd.DataFrame(columns=relationships_columns),
-                "relationship_properties": pd.DataFrame(columns=rel_properties_columns),
-            }
+        dataframes = builder.create_dataframes_from_data(nodes_data)
 
-        for node in nodes_data:
-            node_name = node.get("name")
-            if not node_name:
-                logger.warning("Encountered a node without a 'name'. Skipping.")
-                continue  # Skip nodes without a name
-            if node_name in node_names:
-                logger.debug(
-                    f"Duplicate node '{node_name}' found. Skipping addition to nodes_list."
-                )
-                continue  # Avoid duplicate nodes
-            node_names.add(node_name)
-            nodes_list.append({"name": node_name})
-
-            # Properties
-            properties = node.get("properties", {})
-            if isinstance(properties, dict):
-                for key, value in properties.items():
-                    properties_records.append(
-                        {
-                            "node_name": node_name,
-                            "property": key,
-                            "value": value,
-                        }
-                    )
-            else:
-                logger.warning(
-                    f"Properties for node '{node_name}' are not a dict. Skipping properties."
-                )
-
-            # Tags
-            tags = node.get("tags", [])
-            if isinstance(tags, list):
-                for tag in tags:
-                    tags_records.append(
-                        {
-                            "node_name": node_name,
-                            "tag": tag,
-                        }
-                    )
-            else:
-                logger.warning(
-                    f"Tags for node '{node_name}' are not a list. Skipping tags."
-                )
-
-            # Labels
-            labels = node.get("labels", [])
-            if isinstance(labels, list):
-                for label in labels:
-                    labels_records.append(
-                        {
-                            "node_name": node_name,
-                            "label": label,
-                        }
-                    )
-            else:
-                logger.warning(
-                    f"Labels for node '{node_name}' are not a list. Skipping labels."
-                )
-
-        # Process relationships
-        relationship_id_counter = 0
-
-        for node in nodes_data:
-            source_name = node.get("name")
-            if not source_name:
-                continue  # Already handled
-
-            relationships = node.get("relationships", [])
-            if not isinstance(relationships, list):
-                logger.warning(
-                    f"Relationships for node '{source_name}' are not a list. Skipping relationships."
-                )
-                continue
-
-            for rel in relationships:
-                relationship_type = rel.get("relationship")
-                target_name = rel.get("target")
-                direction = rel.get(
-                    "direction", "UNKNOWN"
-                )  # Default direction if missing
-                properties = rel.get("properties", {})
-
-                if not relationship_type or not target_name:
-                    logger.warning(
-                        f"Incomplete relationship in node '{source_name}': {rel}. Skipping."
-                    )
-                    continue
-
-                if not isinstance(properties, dict):
-                    logger.warning(
-                        f"Properties for relationship '{relationship_type}' in node '{source_name}' are not a dict. Skipping properties."
-                    )
-                    properties = {}
-
-                if target_name not in node_names:
-                    # Add missing target node
-                    nodes_list.append({"name": target_name})
-                    node_names.add(target_name)
-                    logger.debug(
-                        f"Added missing target node '{target_name}' from relationship."
-                    )
-
-                relationship_id = relationship_id_counter
-                relationship_id_counter += 1
-
-                # Add relationship record
-                relationships_records.append(
-                    {
-                        "id": relationship_id,
-                        "source_name": source_name,
-                        "target_name": target_name,
-                        "relationship_type": relationship_type,
-                        "direction": direction,
-                    }
-                )
-
-                # Add relationship properties
-                for prop_key, prop_value in properties.items():
-                    rel_properties_records.append(
-                        {
-                            "relationship_id": relationship_id,
-                            "property": prop_key,
-                            "value": prop_value,
-                        }
-                    )
-
-        # Create DataFrames with predefined columns
-        nodes_df = pd.DataFrame(nodes_list, columns=nodes_columns).drop_duplicates(
-            subset=["name"]
-        )
-        properties_df = pd.DataFrame(properties_records, columns=properties_columns)
-        tags_df = pd.DataFrame(tags_records, columns=tags_columns)
-        labels_df = pd.DataFrame(labels_records, columns=labels_columns)
-        relationships_df = pd.DataFrame(
-            relationships_records, columns=relationships_columns
-        )
-        rel_properties_df = pd.DataFrame(
-            rel_properties_records, columns=rel_properties_columns
-        )
+        nodes_df = dataframes["nodes"]
+        properties_df = dataframes["properties"]
+        tags_df = dataframes["tags"]
+        labels_df = dataframes["labels"]
+        relationships_df = dataframes["relationships"]
+        rel_properties_df = dataframes["relationship_properties"]
 
         logger.debug(f"Nodes DataFrame:\n{nodes_df}")
         logger.debug(f"Properties DataFrame:\n{properties_df}")
