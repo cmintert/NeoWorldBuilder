@@ -326,7 +326,11 @@ class SuggestionWorker(BaseNeo4jWorker):
 
     #####  The following methods are used to fetch data from the Neo4j database  #####
 
-    def fetch_data(self):
+    def fetch_data(
+        self,
+    ) -> Tuple[
+        Dict[str, pd.DataFrame], Dict[str, pd.DataFrame], Dict[str, pd.DataFrame]
+    ]:
 
         # Fetch full data (cached), label-based data, and self node data
         full_data = self._fetch_full_data()
@@ -342,7 +346,9 @@ class SuggestionWorker(BaseNeo4jWorker):
 
         return pd_full_data, pd_label_based, pd_self_node
 
-    def _create_dataframes_from_data(self, nodes_data):
+    def _create_dataframes_from_data(
+        self, nodes_data: List[Dict[str, Any]]
+    ) -> Dict[str, pd.DataFrame]:
         # Define expected columns
         nodes_columns = ["name"]
         properties_columns = ["node_name", "property", "value"]
@@ -809,6 +815,198 @@ class SuggestionWorker(BaseNeo4jWorker):
 
         return suggestions
 
+    def suggest_tags(
+        self,
+        self_node_pd: Dict[str, pd.DataFrame],
+        label_based_pd: Dict[str, pd.DataFrame],
+        top_n: int = 10,
+    ) -> List[Tuple[str, float]]:
+        """
+        Suggest tags to add to the active node based on label-based data.
+
+        Args:
+            self_node_pd (Dict[str, pd.DataFrame]): DataFrames related to the active node.
+            label_based_pd (Dict[str, pd.DataFrame]): DataFrames related to nodes sharing the same labels.
+            top_n (int): Maximum number of tags to suggest.
+
+        Returns:
+            List[Tuple[str, float]]: List of suggested tags and their confidence levels.
+        """
+        logger.debug("Starting suggest_tags method.")
+
+        # Validate presence of 'tags' DataFrame in both self_node_pd and label_based_pd
+        if "tags" not in self_node_pd or "tags" not in label_based_pd:
+            logger.error("Tags DataFrame missing in the provided data.")
+            return []
+
+        # Extract existing tags in the active node
+        active_tags = set(self_node_pd["tags"]["tag"].dropna().unique())
+        logger.debug(f"Active node tags: {active_tags}")
+
+        # Extract label-based tags, excluding those already present in the active node
+        label_tags = label_based_pd["tags"]
+        filtered_label_tags = label_tags[~label_tags["tag"].isin(active_tags)]
+        logger.debug(f"Filtered label-based tags count: {filtered_label_tags.shape[0]}")
+
+        if filtered_label_tags.empty:
+            logger.info("No new tags to suggest after filtering existing tags.")
+            return []
+
+        # Calculate tag frequencies
+        tag_counts = filtered_label_tags["tag"].value_counts().reset_index()
+        tag_counts.columns = ["tag", "count"]
+
+        # Calculate total number of nodes sharing the same label
+        total_nodes = label_based_pd["nodes"]["name"].nunique()
+        logger.debug(f"Total nodes sharing the label: {total_nodes}")
+
+        if total_nodes == 0:
+            logger.warning(
+                "No nodes found in label-based data. Cannot compute confidence levels."
+            )
+            return []
+
+        # Calculate confidence levels
+        tag_counts["confidence"] = (tag_counts["count"] / total_nodes) * 100
+        logger.debug(f"Tag counts with confidence:\n{tag_counts.head()}")
+
+        # Sort tags by confidence descending and take top N
+        top_tags = tag_counts.sort_values(by="confidence", ascending=False).head(top_n)
+
+        # Prepare the suggestions list
+        suggestions = [
+            (row["tag"], round(row["confidence"], 2)) for _, row in top_tags.iterrows()
+        ]
+
+        logger.debug(f"Generated tag suggestions: {suggestions}")
+        return suggestions
+
+    def suggest_relationships(
+        self,
+        self_node_pd: Dict[str, pd.DataFrame],
+        label_based_pd: Dict[str, pd.DataFrame],
+        top_n: int = 10,
+    ) -> List[Tuple[str, str, str, Dict[str, Any], float]]:
+        """
+        Suggest relationships to add to the active node based on label-based data.
+
+        Args:
+            self_node_pd (Dict[str, pd.DataFrame]): DataFrames related to the active node.
+            label_based_pd (Dict[str, pd.DataFrame]): DataFrames related to nodes sharing the same labels.
+            top_n (int): Maximum number of relationships to suggest.
+
+        Returns:
+            List[Tuple[str, str, str, Dict[str, Any], float]]:
+                List of tuples containing:
+                - relationship type (str)
+                - target node name (str)
+                - direction (str)
+                - properties (dict)
+                - confidence level (float)
+        """
+        logger.debug("Starting suggest_relationships method.")
+
+        # Validate the presence of 'relationships' DataFrame in both self_node_pd and label_based_pd
+        if "relationships" not in self_node_pd or "relationships" not in label_based_pd:
+            logger.error("Relationships DataFrame missing in the provided data.")
+            return []
+
+        # Extract existing relationships from the active node
+        active_relationships = self_node_pd["relationships"]
+        active_targets = set(active_relationships["target_name"].dropna().unique())
+        logger.debug(f"Active node target nodes: {active_targets}")
+
+        # Extract label-based relationships excluding those already connected to the active node
+        label_relationships = label_based_pd["relationships"]
+        filtered_relationships = label_relationships[
+            ~label_relationships["target_name"].isin(active_targets)
+        ]
+        logger.debug(
+            f"Filtered label-based relationships count: {filtered_relationships.shape[0]}"
+        )
+
+        if filtered_relationships.empty:
+            logger.info(
+                "No new relationships to suggest after filtering existing targets."
+            )
+            return []
+
+        # Calculate relationship frequencies
+        relationship_counts = (
+            filtered_relationships.groupby(
+                ["relationship_type", "target_name", "direction"]
+            )
+            .size()
+            .reset_index(name="count")
+        )
+
+        # Integrate relationship properties
+        if "relationship_properties" in label_based_pd:
+            # Join relationship properties to the relationship counts
+            relationship_properties_df = label_based_pd["relationship_properties"]
+            filtered_relationships_with_props = pd.merge(
+                filtered_relationships,
+                relationship_properties_df,
+                left_on="id",
+                right_on="relationship_id",
+                how="left",
+            )
+            relationship_properties = (
+                filtered_relationships_with_props.groupby(
+                    ["relationship_type", "target_name", "direction"]
+                )[
+                    ["property", "value"]
+                ]  # Correctly subset columns using a list
+                .apply(lambda df: df.set_index("property").to_dict()["value"])
+                .reset_index(name="properties")
+            )
+            relationship_data = pd.merge(
+                relationship_counts,
+                relationship_properties,
+                on=["relationship_type", "target_name", "direction"],
+                how="left",
+            )
+        else:
+            logger.warning("Relationship properties are missing in the provided data.")
+            relationship_counts["properties"] = [{}] * len(relationship_counts)
+            relationship_data = relationship_counts
+
+        # Calculate total number of nodes sharing the same label
+        total_nodes = label_based_pd["nodes"]["name"].nunique()
+        logger.debug(f"Total nodes sharing the label: {total_nodes}")
+
+        if total_nodes == 0:
+            logger.warning(
+                "No nodes found in label-based data. Cannot compute confidence levels."
+            )
+            return []
+
+        # Calculate confidence levels
+        relationship_data["confidence"] = (
+            relationship_data["count"] / total_nodes
+        ) * 100
+        logger.debug(f"Relationship data with confidence:\n{relationship_data.head()}")
+
+        # Sort relationships by confidence descending and take top N
+        top_relationships = relationship_data.sort_values(
+            by="confidence", ascending=False
+        ).head(top_n)
+
+        # Prepare the suggestions list
+        suggestions = [
+            (
+                row["relationship_type"],
+                row["target_name"],
+                row["direction"],
+                row.get("properties", {}),
+                round(row["confidence"], 2),
+            )
+            for _, row in top_relationships.iterrows()
+        ]
+
+        logger.debug(f"Generated relationship suggestions: {suggestions}")
+        return suggestions
+
     ##### This is the function that executes the operation of the worker #####
     def execute_operation(self) -> None:
 
@@ -820,9 +1018,11 @@ class SuggestionWorker(BaseNeo4jWorker):
 
             # Emit suggestions
             suggestions = {
-                "tags": [],
+                "tags": self.suggest_tags(self_node_pd, label_based_pd),
                 "properties": self.suggest_properties(self_node_pd, label_based_pd),
-                "relationships": [],
+                "relationships": self.suggest_relationships(
+                    self_node_pd, label_based_pd
+                ),
             }
             self.suggestions_ready.emit(suggestions)
 
