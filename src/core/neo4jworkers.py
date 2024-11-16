@@ -684,9 +684,6 @@ class SuggestionWorker(BaseNeo4jWorker):
         logger.debug(f"Fetched full node data: {nodes_data}")
         return nodes_data
 
-    def _format_data(self, result, source="unknown"):
-        pass
-
     #####  The following methods are used to generate suggestions based on the fetched data  #####
 
     import pandas as pd
@@ -701,60 +698,41 @@ class SuggestionWorker(BaseNeo4jWorker):
         self,
         self_node_pd: Dict[str, pd.DataFrame],
         label_based_pd: Dict[str, pd.DataFrame],
+        full_data_pd: Dict[str, pd.DataFrame],
         top_n: int = 10,
     ) -> Dict[str, Any]:
         """
-        Suggest properties to add to the active node based on label-based data.
+        Suggest properties to add to the active node based on label-based and global data.
 
         Args:
             self_node_pd (Dict[str, pd.DataFrame]): DataFrames related to the active node.
             label_based_pd (Dict[str, pd.DataFrame]): DataFrames related to nodes sharing the same labels.
+            full_data_pd (Dict[str, pd.DataFrame]): DataFrames related to all nodes in the dataset.
             top_n (int): Maximum number of properties to suggest.
 
         Returns:
-            Dict[str, Any]: Dictionary containing suggested properties with their common values and confidence levels.
+            Dict[str, Any]: Dictionary containing property suggestions compatible with SuggestionDialog.
         """
-        logger.debug("Starting suggest_properties method.")
+        logger.debug("Starting enhanced suggest_properties method with global data.")
 
-        # Validate presence of 'properties' DataFrame in self_node_pd
-        if "properties" not in self_node_pd:
-            logger.error("Active node data is missing 'properties' DataFrame.")
-            return {"properties": {}}
+        # Validate presence of 'properties' DataFrame
         if (
-            "property" not in self_node_pd["properties"].columns
-            or "value" not in self_node_pd["properties"].columns
+            "properties" not in self_node_pd
+            or "properties" not in label_based_pd
+            or "properties" not in full_data_pd
         ):
             logger.error(
-                "Active node 'properties' DataFrame lacks 'property' or 'value' columns."
+                "Properties DataFrame missing in one of the provided data sources."
             )
-            return {"properties": {}}
+            return {}
 
-        # Validate presence of 'properties' DataFrame in label_based_pd
-        if "properties" not in label_based_pd:
-            logger.error("Label-based data is missing 'properties' DataFrame.")
-            return {"properties": {}}
-        if (
-            "property" not in label_based_pd["properties"].columns
-            or "value" not in label_based_pd["properties"].columns
-        ):
-            logger.error(
-                "Label-based 'properties' DataFrame lacks 'property' or 'value' columns."
-            )
-            return {"properties": {}}
+        # Extract existing properties in the active node
+        active_properties = set(
+            self_node_pd["properties"]["property"].dropna().unique()
+        )
+        logger.debug(f"Active node properties: {active_properties}")
 
-        # Extract properties present in the active node
-        try:
-            active_properties = set(
-                self_node_pd["properties"]["property"].dropna().unique().tolist()
-            )
-            logger.debug(f"Active node properties: {active_properties}")
-        except KeyError as e:
-            logger.error(
-                f"Error accessing 'property' in self_node_pd['properties']: {e}"
-            )
-            return {"properties": {}}
-
-        # Extract label-based properties excluding those already present in the active node
+        # Extract label-based properties, excluding those already present
         label_properties = label_based_pd["properties"]
         filtered_label_properties = label_properties[
             ~label_properties["property"].isin(active_properties)
@@ -763,80 +741,213 @@ class SuggestionWorker(BaseNeo4jWorker):
             f"Filtered label-based properties count: {filtered_label_properties.shape[0]}"
         )
 
-        if filtered_label_properties.empty:
-            logger.info(
-                "No new properties to suggest after filtering existing properties."
-            )
-            return {"properties": {}}
-
-        # Calculate property frequencies
-        property_counts = (
+        # Calculate frequencies in label-based data
+        label_property_counts = (
             filtered_label_properties.groupby("property")["value"]
             .agg(["count", lambda x: x.mode().iloc[0] if not x.mode().empty else None])
             .reset_index()
         )
-        property_counts.rename(columns={"<lambda_0>": "common_value"}, inplace=True)
-        logger.debug(f"Property counts:\n{property_counts.head()}")
+        label_property_counts.rename(
+            columns={"<lambda_0>": "common_value"}, inplace=True
+        )
 
-        # Calculate total number of nodes sharing the same label
-        try:
-            total_nodes = label_based_pd["nodes"]["name"].nunique()
-            logger.debug(f"Total nodes sharing the label: {total_nodes}")
-        except KeyError as e:
-            logger.error(
-                f"Error accessing 'nodes' DataFrame or 'name' column in label_based_pd: {e}"
-            )
-            return {"properties": {}}
+        # Incorporate full data: Identify globally frequent properties
+        global_properties = full_data_pd["properties"]
+        filtered_global_properties = global_properties[
+            ~global_properties["property"].isin(active_properties)
+        ]
+        global_property_counts = (
+            filtered_global_properties.groupby("property")["value"]
+            .agg(["count", lambda x: x.mode().iloc[0] if not x.mode().empty else None])
+            .reset_index()
+        )
+        global_property_counts.rename(
+            columns={"<lambda_0>": "common_value"}, inplace=True
+        )
 
-        if total_nodes == 0:
-            logger.warning(
-                "No nodes found in label-based data. Cannot compute confidence levels."
-            )
-            return {"properties": {}}
+        # Calculate confidence for label-based properties
+        total_label_nodes = label_based_pd["nodes"]["name"].nunique()
+        label_property_counts["confidence"] = (
+            label_property_counts["count"] / total_label_nodes
+        ) * 100
 
-        # Calculate confidence levels
-        property_counts["confidence"] = (property_counts["count"] / total_nodes) * 100
-        logger.debug(f"Property counts with confidence:\n{property_counts.head()}")
+        # Calculate confidence for global properties
+        total_global_nodes = full_data_pd["nodes"]["name"].nunique()
+        global_property_counts["confidence"] = (
+            global_property_counts["count"] / total_global_nodes
+        ) * 50  # Lower weight for global
 
-        # Sort properties by confidence descending and take top N
-        top_properties = property_counts.sort_values(
+        # Merge and prioritize label-based over global properties
+        combined_properties = pd.concat(
+            [label_property_counts, global_property_counts], ignore_index=True
+        )
+        combined_properties = (
+            combined_properties.groupby("property")
+            .agg({"common_value": "first", "confidence": "sum"})
+            .reset_index()
+        )
+        combined_properties = combined_properties.sort_values(
             by="confidence", ascending=False
         ).head(top_n)
-        logger.debug(f"Top {top_n} properties:\n{top_properties}")
 
-        # Prepare the suggestions dictionary
-        suggestions = {
-            row["property"]: [(row["common_value"], round(row["confidence"], 2))]
-            for _, row in top_properties.iterrows()
-            if pd.notna(row["common_value"])  # Ensure common_value is not NaN
-        }
+        # Prepare suggestions in the expected format
+        suggestions = {}
+        for _, row in combined_properties.iterrows():
+            property_name = row["property"]
+            value = row["common_value"]
+            confidence = round(row["confidence"], 2)
 
-        logger.debug(f"Generated property suggestions: {suggestions}")
+            # Ensure property is added as a list of tuples
+            if property_name not in suggestions:
+                suggestions[property_name] = []
+            suggestions[property_name].append((value, confidence))
+
+        logger.debug(f"Enhanced property suggestions for dialog: {suggestions}")
 
         return suggestions
+
+    def suggest_relationships(
+        self,
+        self_node_pd: Dict[str, pd.DataFrame],
+        label_based_pd: Dict[str, pd.DataFrame],
+        full_data_pd: Dict[str, pd.DataFrame],
+        top_n: int = 10,
+    ) -> List[Tuple[str, str, str, Dict[str, Any], float]]:
+        """
+        Suggest relationships to add to the active node based on label-based and global data.
+
+        Args:
+            self_node_pd (Dict[str, pd.DataFrame]): DataFrames related to the active node.
+            label_based_pd (Dict[str, pd.DataFrame]): DataFrames related to nodes sharing the same labels.
+            full_data_pd (Dict[str, pd.DataFrame]): DataFrames related to all nodes in the dataset.
+            top_n (int): Maximum number of relationships to suggest.
+
+        Returns:
+            List[Tuple[str, str, str, Dict[str, Any], float]]:
+        """
+        logger.debug("Starting enhanced suggest_relationships method.")
+
+        # Validate required DataFrames
+        for df_name, df in [
+            ("self_node_pd", self_node_pd),
+            ("label_based_pd", label_based_pd),
+            ("full_data_pd", full_data_pd),
+        ]:
+            if "relationships" not in df:
+                logger.error(f"Relationships DataFrame missing in {df_name}.")
+                return []
+
+        # Extract existing relationships for the active node
+        active_relationships = self_node_pd["relationships"]
+        active_targets = set(active_relationships["target_name"].dropna().unique())
+        logger.debug(f"Active node target nodes: {active_targets}")
+
+        # Extract and validate label-based relationships
+        label_relationships = label_based_pd["relationships"]
+        if "relationship_type" not in label_relationships.columns:
+            logger.error("Missing 'relationship_type' in label-based relationships.")
+            return []
+
+        filtered_label_relationships = label_relationships[
+            ~label_relationships["target_name"].isin(active_targets)
+        ]
+        logger.debug(
+            f"Filtered label-based relationships count: {filtered_label_relationships.shape[0]}"
+        )
+
+        # Extract and validate global relationships
+        global_relationships = full_data_pd["relationships"]
+        if "relationship_type" not in global_relationships.columns:
+            logger.error("Missing 'relationship_type' in global relationships.")
+            return []
+
+        filtered_global_relationships = global_relationships[
+            ~global_relationships["target_name"].isin(active_targets)
+        ]
+        logger.debug(
+            f"Filtered global relationships count: {filtered_global_relationships.shape[0]}"
+        )
+
+        # Combine relationships
+        combined_relationships = pd.concat(
+            [filtered_label_relationships, filtered_global_relationships],
+            ignore_index=True,
+        )
+        if "relationship_type" not in combined_relationships.columns:
+            logger.error(
+                "Combined relationships DataFrame is missing 'relationship_type'."
+            )
+            return []
+        logger.debug(f"Combined relationships count: {combined_relationships.shape[0]}")
+
+        # Group and calculate confidence
+        relationship_counts = (
+            combined_relationships.groupby(
+                ["relationship_type", "target_name", "direction"]
+            )
+            .size()
+            .reset_index(name="count")
+        )
+
+        total_label_nodes = label_based_pd["nodes"]["name"].nunique()
+        total_global_nodes = full_data_pd["nodes"]["name"].nunique()
+        total_nodes = total_label_nodes + total_global_nodes
+
+        if total_nodes == 0:
+            logger.warning("No nodes available for confidence calculation.")
+            return []
+
+        relationship_counts["confidence"] = (
+            relationship_counts["count"] / total_nodes
+        ) * 100
+
+        # Sort and return suggestions
+        suggestions = relationship_counts.sort_values(
+            by="confidence", ascending=False
+        ).head(top_n)
+
+        result = [
+            (
+                row["relationship_type"],
+                row["target_name"],
+                row["direction"],
+                {},  # Placeholder for relationship properties
+                round(row["confidence"], 2),
+            )
+            for _, row in suggestions.iterrows()
+        ]
+
+        logger.debug(f"Generated relationship suggestions: {result}")
+        return result
 
     def suggest_tags(
         self,
         self_node_pd: Dict[str, pd.DataFrame],
         label_based_pd: Dict[str, pd.DataFrame],
+        full_data_pd: Dict[str, pd.DataFrame],
         top_n: int = 10,
     ) -> List[Tuple[str, float]]:
         """
-        Suggest tags to add to the active node based on label-based data.
+        Suggest tags to add to the active node based on label-based and global data.
 
         Args:
             self_node_pd (Dict[str, pd.DataFrame]): DataFrames related to the active node.
             label_based_pd (Dict[str, pd.DataFrame]): DataFrames related to nodes sharing the same labels.
+            full_data_pd (Dict[str, pd.DataFrame]): DataFrames related to all nodes in the dataset.
             top_n (int): Maximum number of tags to suggest.
 
         Returns:
             List[Tuple[str, float]]: List of suggested tags and their confidence levels.
         """
-        logger.debug("Starting suggest_tags method.")
+        logger.debug("Starting enhanced suggest_tags method with global data.")
 
-        # Validate presence of 'tags' DataFrame in both self_node_pd and label_based_pd
-        if "tags" not in self_node_pd or "tags" not in label_based_pd:
-            logger.error("Tags DataFrame missing in the provided data.")
+        # Validate presence of 'tags' DataFrame
+        if (
+            "tags" not in self_node_pd
+            or "tags" not in label_based_pd
+            or "tags" not in full_data_pd
+        ):
+            logger.error("Tags DataFrame missing in one of the provided data sources.")
             return []
 
         # Extract existing tags in the active node
@@ -848,163 +959,163 @@ class SuggestionWorker(BaseNeo4jWorker):
         filtered_label_tags = label_tags[~label_tags["tag"].isin(active_tags)]
         logger.debug(f"Filtered label-based tags count: {filtered_label_tags.shape[0]}")
 
-        if filtered_label_tags.empty:
-            logger.info("No new tags to suggest after filtering existing tags.")
-            return []
+        # Calculate tag frequencies in label-based data
+        label_tag_counts = filtered_label_tags["tag"].value_counts().reset_index()
+        label_tag_counts.columns = ["tag", "count"]
 
-        # Calculate tag frequencies
-        tag_counts = filtered_label_tags["tag"].value_counts().reset_index()
-        tag_counts.columns = ["tag", "count"]
+        # Incorporate full data: Identify globally frequent tags
+        global_tags = full_data_pd["tags"]
+        filtered_global_tags = global_tags[~global_tags["tag"].isin(active_tags)]
+        global_tag_counts = filtered_global_tags["tag"].value_counts().reset_index()
+        global_tag_counts.columns = ["tag", "count"]
 
-        # Calculate total number of nodes sharing the same label
-        total_nodes = label_based_pd["nodes"]["name"].nunique()
-        logger.debug(f"Total nodes sharing the label: {total_nodes}")
-
-        if total_nodes == 0:
-            logger.warning(
-                "No nodes found in label-based data. Cannot compute confidence levels."
-            )
-            return []
-
-        # Calculate confidence levels
-        tag_counts["confidence"] = (tag_counts["count"] / total_nodes) * 100
-        logger.debug(f"Tag counts with confidence:\n{tag_counts.head()}")
-
-        # Sort tags by confidence descending and take top N
-        top_tags = tag_counts.sort_values(by="confidence", ascending=False).head(top_n)
-
-        # Prepare the suggestions list
-        suggestions = [
-            (row["tag"], round(row["confidence"], 2)) for _, row in top_tags.iterrows()
-        ]
-
-        logger.debug(f"Generated tag suggestions: {suggestions}")
-        return suggestions
-
-    def suggest_relationships(
-        self,
-        self_node_pd: Dict[str, pd.DataFrame],
-        label_based_pd: Dict[str, pd.DataFrame],
-        top_n: int = 10,
-    ) -> List[Tuple[str, str, str, Dict[str, Any], float]]:
-        """
-        Suggest relationships to add to the active node based on label-based data.
-
-        Args:
-            self_node_pd (Dict[str, pd.DataFrame]): DataFrames related to the active node.
-            label_based_pd (Dict[str, pd.DataFrame]): DataFrames related to nodes sharing the same labels.
-            top_n (int): Maximum number of relationships to suggest.
-
-        Returns:
-            List[Tuple[str, str, str, Dict[str, Any], float]]:
-                List of tuples containing:
-                - relationship type (str)
-                - target node name (str)
-                - direction (str)
-                - properties (dict)
-                - confidence level (float)
-        """
-        logger.debug("Starting suggest_relationships method.")
-
-        # Validate the presence of 'relationships' DataFrame in both self_node_pd and label_based_pd
-        if "relationships" not in self_node_pd or "relationships" not in label_based_pd:
-            logger.error("Relationships DataFrame missing in the provided data.")
-            return []
-
-        # Extract existing relationships from the active node
-        active_relationships = self_node_pd["relationships"]
-        active_targets = set(active_relationships["target_name"].dropna().unique())
-        logger.debug(f"Active node target nodes: {active_targets}")
-
-        # Extract label-based relationships excluding those already connected to the active node
-        label_relationships = label_based_pd["relationships"]
-        filtered_relationships = label_relationships[
-            ~label_relationships["target_name"].isin(active_targets)
-        ]
-        logger.debug(
-            f"Filtered label-based relationships count: {filtered_relationships.shape[0]}"
-        )
-
-        if filtered_relationships.empty:
-            logger.info(
-                "No new relationships to suggest after filtering existing targets."
-            )
-            return []
-
-        # Calculate relationship frequencies
-        relationship_counts = (
-            filtered_relationships.groupby(
-                ["relationship_type", "target_name", "direction"]
-            )
-            .size()
-            .reset_index(name="count")
-        )
-
-        # Integrate relationship properties
-        if "relationship_properties" in label_based_pd:
-            # Join relationship properties to the relationship counts
-            relationship_properties_df = label_based_pd["relationship_properties"]
-            filtered_relationships_with_props = pd.merge(
-                filtered_relationships,
-                relationship_properties_df,
-                left_on="id",
-                right_on="relationship_id",
-                how="left",
-            )
-            relationship_properties = (
-                filtered_relationships_with_props.groupby(
-                    ["relationship_type", "target_name", "direction"]
-                )[
-                    ["property", "value"]
-                ]  # Correctly subset columns using a list
-                .apply(lambda df: df.set_index("property").to_dict()["value"])
-                .reset_index(name="properties")
-            )
-            relationship_data = pd.merge(
-                relationship_counts,
-                relationship_properties,
-                on=["relationship_type", "target_name", "direction"],
-                how="left",
-            )
-        else:
-            logger.warning("Relationship properties are missing in the provided data.")
-            relationship_counts["properties"] = [{}] * len(relationship_counts)
-            relationship_data = relationship_counts
-
-        # Calculate total number of nodes sharing the same label
-        total_nodes = label_based_pd["nodes"]["name"].nunique()
-        logger.debug(f"Total nodes sharing the label: {total_nodes}")
-
-        if total_nodes == 0:
-            logger.warning(
-                "No nodes found in label-based data. Cannot compute confidence levels."
-            )
-            return []
-
-        # Calculate confidence levels
-        relationship_data["confidence"] = (
-            relationship_data["count"] / total_nodes
+        # Calculate confidence for label-based tags
+        total_label_nodes = label_based_pd["nodes"]["name"].nunique()
+        label_tag_counts["confidence"] = (
+            label_tag_counts["count"] / total_label_nodes
         ) * 100
-        logger.debug(f"Relationship data with confidence:\n{relationship_data.head()}")
 
-        # Sort relationships by confidence descending and take top N
-        top_relationships = relationship_data.sort_values(
+        # Calculate confidence for global tags
+        total_global_nodes = full_data_pd["nodes"]["name"].nunique()
+        global_tag_counts["confidence"] = (
+            global_tag_counts["count"] / total_global_nodes
+        ) * 50  # Lower weight for global
+
+        # Merge and prioritize label-based over global tags
+        combined_tags = pd.concat(
+            [label_tag_counts, global_tag_counts], ignore_index=True
+        )
+        combined_tags = (
+            combined_tags.groupby("tag").agg({"confidence": "sum"}).reset_index()
+        )
+        combined_tags = combined_tags.sort_values(
             by="confidence", ascending=False
         ).head(top_n)
 
         # Prepare the suggestions list
         suggestions = [
-            (
-                row["relationship_type"],
-                row["target_name"],
-                row["direction"],
-                row.get("properties", {}),
-                round(row["confidence"], 2),
-            )
-            for _, row in top_relationships.iterrows()
+            (row["tag"], round(row["confidence"], 2))
+            for _, row in combined_tags.iterrows()
         ]
+        logger.debug(f"Enhanced tag suggestions: {suggestions}")
 
-        logger.debug(f"Generated relationship suggestions: {suggestions}")
+        return suggestions
+
+    def suggest_properties(
+        self,
+        self_node_pd: Dict[str, pd.DataFrame],
+        label_based_pd: Dict[str, pd.DataFrame],
+        full_data_pd: Dict[str, pd.DataFrame],
+        top_n: int = 10,
+    ) -> Dict[str, Any]:
+        """
+        Suggest properties to add to the active node based on label-based and global data.
+
+        Args:
+            self_node_pd (Dict[str, pd.DataFrame]): DataFrames related to the active node.
+            label_based_pd (Dict[str, pd.DataFrame]): DataFrames related to nodes sharing the same labels.
+            full_data_pd (Dict[str, pd.DataFrame]): DataFrames related to all nodes in the dataset.
+            top_n (int): Maximum number of properties to suggest.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing property suggestions compatible with SuggestionDialog.
+        """
+        logger.debug("Starting enhanced suggest_properties method with global data.")
+
+        # Ensure 'properties' DataFrame is present
+        if (
+            "properties" not in self_node_pd
+            or "properties" not in label_based_pd
+            or "properties" not in full_data_pd
+        ):
+            logger.error(
+                "Properties DataFrame missing in one of the provided data sources."
+            )
+            return {}
+
+        # Extract active node properties
+        active_properties = set(
+            self_node_pd["properties"]["property"].dropna().unique()
+        )
+        logger.debug(f"Active node properties: {active_properties}")
+
+        # Extract and filter label-based properties
+        label_properties = label_based_pd["properties"]
+        filtered_label_properties = label_properties[
+            ~label_properties["property"].isin(active_properties)
+        ]
+        logger.debug(
+            f"Filtered label-based properties count: {filtered_label_properties.shape[0]}"
+        )
+
+        # Extract and filter global properties
+        global_properties = full_data_pd["properties"]
+        filtered_global_properties = global_properties[
+            ~global_properties["property"].isin(active_properties)
+        ]
+        logger.debug(
+            f"Filtered global properties count: {filtered_global_properties.shape[0]}"
+        )
+
+        # Calculate frequencies in label-based data
+        label_property_counts = (
+            filtered_label_properties.groupby("property")["value"]
+            .agg(["count", lambda x: x.mode().iloc[0] if not x.mode().empty else None])
+            .reset_index()
+        )
+        label_property_counts.rename(
+            columns={"<lambda_0>": "common_value"}, inplace=True
+        )
+
+        # Calculate frequencies in global data
+        global_property_counts = (
+            filtered_global_properties.groupby("property")["value"]
+            .agg(["count", lambda x: x.mode().iloc[0] if not x.mode().empty else None])
+            .reset_index()
+        )
+        global_property_counts.rename(
+            columns={"<lambda_0>": "common_value"}, inplace=True
+        )
+
+        # Calculate confidence for label-based properties
+        total_label_nodes = label_based_pd["nodes"]["name"].nunique()
+        label_property_counts["confidence"] = (
+            label_property_counts["count"] / total_label_nodes
+        ) * 100
+
+        # Calculate confidence for global properties
+        total_global_nodes = full_data_pd["nodes"]["name"].nunique()
+        global_property_counts["confidence"] = (
+            global_property_counts["count"] / total_global_nodes
+        ) * 50  # Lower weight for global
+
+        # Merge and prioritize label-based over global properties
+        combined_properties = pd.concat(
+            [label_property_counts, global_property_counts], ignore_index=True
+        )
+        combined_properties = (
+            combined_properties.groupby("property")
+            .agg({"common_value": "first", "confidence": "sum"})
+            .reset_index()
+        )
+        combined_properties = combined_properties.sort_values(
+            by="confidence", ascending=False
+        ).head(top_n)
+
+        # Prepare suggestions in the expected format
+        suggestions = {}
+        for _, row in combined_properties.iterrows():
+            property_name = row["property"]
+            value = row["common_value"]
+            confidence = round(row["confidence"], 2)
+
+            # Ensure property is added as a list of tuples
+            if property_name not in suggestions:
+                suggestions[property_name] = []
+            suggestions[property_name].append((value, confidence))
+
+        logger.debug(f"Enhanced property suggestions for dialog: {suggestions}")
+
         return suggestions
 
     ##### This is the function that executes the operation of the worker #####
@@ -1016,12 +1127,16 @@ class SuggestionWorker(BaseNeo4jWorker):
 
             full_data_pd, label_based_pd, self_node_pd = self.fetch_data()
 
+            # Calculate cluster data
+
             # Emit suggestions
             suggestions = {
-                "tags": self.suggest_tags(self_node_pd, label_based_pd),
-                "properties": self.suggest_properties(self_node_pd, label_based_pd),
+                "tags": self.suggest_tags(self_node_pd, label_based_pd, full_data_pd),
+                "properties": self.suggest_properties(
+                    self_node_pd, label_based_pd, full_data_pd
+                ),
                 "relationships": self.suggest_relationships(
-                    self_node_pd, label_based_pd
+                    self_node_pd, label_based_pd, full_data_pd
                 ),
             }
             self.suggestions_ready.emit(suggestions)
