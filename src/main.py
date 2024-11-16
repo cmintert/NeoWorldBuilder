@@ -20,7 +20,6 @@ import sys
 import traceback
 from dataclasses import dataclass
 from datetime import time
-from logging.handlers import RotatingFileHandler
 from typing import Optional
 
 import structlog
@@ -49,7 +48,7 @@ from ui.main_window import WorldBuildingUI
 structlog.configure(
     processors=[
         structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
     context_class=dict,
@@ -69,7 +68,9 @@ def exception_hook(exctype: type, value: Exception, tb: traceback) -> None:
         value (Exception): The exception instance.
         tb (traceback): The traceback object.
     """
-    structlog.get_logger().critical("Unhandled exception", exc_info=(exctype, value, tb))
+    structlog.get_logger().critical(
+        "Unhandled exception", exc_info=(exctype, value, tb)
+    )
     traceback.print_exception(exctype, value, tb)
     sys.__excepthook__(exctype, value, tb)
     QMessageBox.critical(
@@ -145,11 +146,14 @@ class WorldBuildingApp(QMainWindow):
             # 6. Configure Window
             self._configure_main_window()
 
-            # 8. Set Background Image
+            # 7. Set Background Image
 
             self.set_background_image("src/background.png")
 
-            # 7. Show Window
+            # 8 Load last modified node
+            controller.load_last_modified_node()
+
+            # 9. Show Window
             self.show()
 
             structlog.get_logger().info("Application initialized successfully")
@@ -205,21 +209,14 @@ class WorldBuildingApp(QMainWindow):
             RuntimeError: If logging setup fails.
         """
         try:
-            log_file = config.LOGGING_FILE
-            log_level = getattr(logging, config.LOGGING_LEVEL.upper())
 
-            # Create a rotating file handler
-            rotating_handler = RotatingFileHandler(
-                log_file,
-                maxBytes=1024 * 1024,
-                backupCount=5,  # 1MB per file, keep 5 backups
-            )
+            log_level = getattr(logging, config.LOGGING_LEVEL.upper())
 
             # Set up logging configuration
             structlog.configure(
                 processors=[
                     structlog.processors.TimeStamper(fmt="iso"),
-                    structlog.processors.JSONRenderer()
+                    structlog.processors.JSONRenderer(),
                 ],
                 wrapper_class=structlog.make_filtering_bound_logger(log_level),
                 context_class=dict,
@@ -228,7 +225,7 @@ class WorldBuildingApp(QMainWindow):
             )
             structlog.get_logger().info("Logging system initialized")
         except Exception as e:
-            raise RuntimeError(f"Failed to setup logging: {str(e)}")
+            raise RuntimeError(f"Failed to setup logging: {str(e)}") from e
 
     def _initialize_database(self, config: Config) -> Neo4jModel:
         """
@@ -401,7 +398,9 @@ class WorldBuildingApp(QMainWindow):
                 try:
                     self.components.controller.cleanup()
                 except Exception as e:
-                    structlog.get_logger().error(f"Error during controller cleanup: {e}")
+                    structlog.get_logger().error(
+                        f"Error during controller cleanup: {e}"
+                    )
 
             if self.components.model:
                 try:
@@ -443,5 +442,7 @@ if __name__ == "__main__":
         ex = WorldBuildingApp()
         sys.exit(app.exec())
     except Exception as e:
-        structlog.get_logger().critical("Unhandled exception in main loop", exc_info=True)
+        structlog.get_logger().critical(
+            "Unhandled exception in main loop", exc_info=True
+        )
         sys.exit(1)

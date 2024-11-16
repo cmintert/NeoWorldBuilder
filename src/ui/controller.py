@@ -1201,3 +1201,17 @@ class WorldBuildingController(QObject):
         except ValueError as e:
             self.handle_error(str(e))
             return None
+
+    def load_last_modified_node(self) -> None:
+        """
+        Load the last modified node and display it in the UI.
+        """
+        try:
+            last_modified_node = self.model.get_last_modified_node()
+            if last_modified_node:
+                self.ui.name_input.setText(last_modified_node["name"])
+                self.load_node_data()
+            else:
+                logging.info("No nodes available to load.")
+        except Exception as e:
+            self.handle_error(f"Error loading last modified node: {e}")

@@ -6,7 +6,7 @@ It includes methods for connecting to the database, performing CRUD operations o
 import datetime
 import logging
 from datetime import datetime
-from typing import Dict, Any, Callable
+from typing import Dict, Any, Callable, Optional
 
 import structlog
 from neo4j import GraphDatabase
@@ -467,3 +467,21 @@ class Neo4jModel:
 
         # Start the worker thread
         worker.start()
+
+    def get_last_modified_node(self) -> Optional[Dict[str, Any]]:
+        """
+        Fetch the last modified node based on the '_modified' property.
+
+        Returns:
+            dict: The last modified node data or None if no nodes exist.
+        """
+        query = """
+        MATCH (n)
+        RETURN n.name AS name, n._modified AS modified
+        ORDER BY modified DESC
+        LIMIT 1
+        """
+        with self.get_session() as session:
+            result = session.run(query)
+            record = result.single()
+            return dict(record) if record else None
