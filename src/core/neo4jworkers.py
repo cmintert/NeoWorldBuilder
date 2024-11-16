@@ -3,17 +3,16 @@ This module provides worker classes for performing Neo4j database operations in 
 It includes classes for querying, writing, deleting, and generating suggestions for nodes.
 """
 
-import json
-import structlog
 import traceback
-from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
+import structlog
 from PyQt6.QtCore import QThread, pyqtSignal
 from neo4j import GraphDatabase
 
 logger = structlog.get_logger()
+
 
 class BaseNeo4jWorker(QThread):
     """
@@ -72,7 +71,12 @@ class BaseNeo4jWorker(QThread):
             self.connect()
             self.execute_operation()
         except Exception as e:
-            logger.error("Error occurred in BaseNeo4jWorker", exc_info=True, module="BaseNeo4jWorker", function="run")
+            logger.error(
+                "Error occurred in BaseNeo4jWorker",
+                exc_info=True,
+                module="BaseNeo4jWorker",
+                function="run",
+            )
             self.error_occurred.emit(str(e))
         finally:
             self.cleanup()
@@ -130,7 +134,12 @@ class QueryWorker(BaseNeo4jWorker):
             error_message = "".join(
                 traceback.format_exception(type(e), e, e.__traceback__)
             )
-            logger.error("Error occurred in QueryWorker", exc_info=True, module="QueryWorker", function="execute_operation")
+            logger.error(
+                "Error occurred in QueryWorker",
+                exc_info=True,
+                module="QueryWorker",
+                function="execute_operation",
+            )
             self.error_occurred.emit(error_message)
 
 
@@ -315,253 +324,520 @@ class SuggestionWorker(BaseNeo4jWorker):
         super().__init__(uri, auth)
         self.node_data = node_data
 
-    def _find_similar_nodes(
-        self, session: Any, node_data: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
-        """
-        Find similar nodes based on labels, including their relationships.
+    #####  The following methods are used to fetch data from the Neo4j database  #####
 
-        Args:
-            session: The Neo4j session
-            node_data (dict): The data of the node to find similar nodes for
+    def fetch_data(self):
 
-        Returns:
-            list: A list of similar nodes with structured properties and relationships
-        """
-        try:
-            logger.debug("Finding similar nodes", module="SuggestionWorker", function="_find_similar_nodes")
-            labels = node_data.get("labels", [])
-            name = node_data.get("name", "")
+        # Fetch full data (cached), label-based data, and self node data
+        full_data = self._fetch_full_data()
+        label_based = self._fetch_label_based_data()
+        self_node = self._fetch_self_node_data()
 
-            logger.debug(f"Labels: {labels}, Name: {name}", module="SuggestionWorker", function="_find_similar_nodes")
+        logger.info("Creating pd_full_data")
+        pd_full_data = self._create_dataframes_from_data(full_data)
+        logger.info("Creating pd_label_based")
+        pd_label_based = self._create_dataframes_from_data(label_based)
+        logger.info("Creating pd_self_node")
+        pd_self_node = self._create_dataframes_from_data([self_node])
 
-            query = """
-            MATCH (n)
-            WHERE any(label IN $labels WHERE label IN labels(n))
-              AND n.name <> $name
-            WITH n, labels(n) as node_labels
-            OPTIONAL MATCH (n)-[r]->(target)
-            WITH n, node_labels,
-                 collect({
-                    type: type(r),
-                    source: n.name,
-                    target: target.name,
-                    direction: 'outgoing',
-                    properties: properties(r)
-                 }) as outRels
-            OPTIONAL MATCH (n)<-[r2]-(source)
-            WITH n, node_labels, outRels,
-                 collect({
-                    type: type(r2),
-                    source: source.name,
-                    target: n.name,
-                    direction: 'incoming',
-                    properties: properties(r2)
-                 }) as inRels
-            RETURN {
-                properties: properties(n),
-                labels: node_labels,
-                relationships: outRels + inRels
-            } as node_data
-            """
+        return pd_full_data, pd_label_based, pd_self_node
 
-            result = session.run(query, labels=labels, name=name)
-            similar_nodes = []
+    def _create_dataframes_from_data(self, nodes_data):
+        # Define expected columns
+        nodes_columns = ["name"]
+        properties_columns = ["node_name", "property", "value"]
+        tags_columns = ["node_name", "tag"]
+        labels_columns = ["node_name", "label"]
+        relationships_columns = [
+            "id",
+            "source_name",
+            "target_name",
+            "relationship_type",
+            "direction",
+        ]
+        rel_properties_columns = ["relationship_id", "property", "value"]
 
-            for record in result:
-                similar_nodes.append(record["node_data"])
+        # Initialize record lists
+        nodes_list = []
+        properties_records = []
+        tags_records = []
+        labels_records = []
+        relationships_records = []
+        rel_properties_records = []
+        node_names = set()
 
-            logger.debug(f"Similar nodes: {similar_nodes}", module="SuggestionWorker", function="_find_similar_nodes")
-            return similar_nodes
-
-        except Exception as e:
-            logger.error(f"Error finding similar nodes: {str(e)}", exc_info=True, module="SuggestionWorker", function="_find_similar_nodes")
-            return []
-
-    def _get_property_suggestions(
-        self, df: pd.DataFrame
-    ) -> Dict[str, List[Tuple[str, float]]]:
-        """
-        Generate property suggestions based on frequency from a DataFrame.
-        """
-        try:
-            suggestions = {}
-            exclude_props = {
-                "name",
-                "description",
-                "tags",
-                "_created",
-                "_modified",
-                "_author",
+        if not nodes_data:
+            logger.info("No node data provided. Returning empty DataFrames.")
+            return {
+                "nodes": pd.DataFrame(columns=nodes_columns),
+                "properties": pd.DataFrame(columns=properties_columns),
+                "tags": pd.DataFrame(columns=tags_columns),
+                "labels": pd.DataFrame(columns=labels_columns),
+                "relationships": pd.DataFrame(columns=relationships_columns),
+                "relationship_properties": pd.DataFrame(columns=rel_properties_columns),
             }
 
-            # Extract all properties from DataFrame
-            properties_df = pd.json_normalize(df["properties"])
-            for column in properties_df.columns:
-                if column in exclude_props:
+        for node in nodes_data:
+            node_name = node.get("name")
+            if not node_name:
+                logger.warning("Encountered a node without a 'name'. Skipping.")
+                continue  # Skip nodes without a name
+            if node_name in node_names:
+                logger.debug(
+                    f"Duplicate node '{node_name}' found. Skipping addition to nodes_list."
+                )
+                continue  # Avoid duplicate nodes
+            node_names.add(node_name)
+            nodes_list.append({"name": node_name})
+
+            # Properties
+            properties = node.get("properties", {})
+            if isinstance(properties, dict):
+                for key, value in properties.items():
+                    properties_records.append(
+                        {
+                            "node_name": node_name,
+                            "property": key,
+                            "value": value,
+                        }
+                    )
+            else:
+                logger.warning(
+                    f"Properties for node '{node_name}' are not a dict. Skipping properties."
+                )
+
+            # Tags
+            tags = node.get("tags", [])
+            if isinstance(tags, list):
+                for tag in tags:
+                    tags_records.append(
+                        {
+                            "node_name": node_name,
+                            "tag": tag,
+                        }
+                    )
+            else:
+                logger.warning(
+                    f"Tags for node '{node_name}' are not a list. Skipping tags."
+                )
+
+            # Labels
+            labels = node.get("labels", [])
+            if isinstance(labels, list):
+                for label in labels:
+                    labels_records.append(
+                        {
+                            "node_name": node_name,
+                            "label": label,
+                        }
+                    )
+            else:
+                logger.warning(
+                    f"Labels for node '{node_name}' are not a list. Skipping labels."
+                )
+
+        # Process relationships
+        relationship_id_counter = 0
+
+        for node in nodes_data:
+            source_name = node.get("name")
+            if not source_name:
+                continue  # Already handled
+
+            relationships = node.get("relationships", [])
+            if not isinstance(relationships, list):
+                logger.warning(
+                    f"Relationships for node '{source_name}' are not a list. Skipping relationships."
+                )
+                continue
+
+            for rel in relationships:
+                relationship_type = rel.get("relationship")
+                target_name = rel.get("target")
+                direction = rel.get(
+                    "direction", "UNKNOWN"
+                )  # Default direction if missing
+                properties = rel.get("properties", {})
+
+                if not relationship_type or not target_name:
+                    logger.warning(
+                        f"Incomplete relationship in node '{source_name}': {rel}. Skipping."
+                    )
                     continue
 
-                # Count occurrences of each unique value in the property column
-                value_counts = properties_df[column].value_counts(dropna=True)
-                total = value_counts.sum() or 1  # Avoid division by zero
+                if not isinstance(properties, dict):
+                    logger.warning(
+                        f"Properties for relationship '{relationship_type}' in node '{source_name}' are not a dict. Skipping properties."
+                    )
+                    properties = {}
 
-                # Convert to list of tuples (value, confidence)
-                suggestions[column] = [
-                    (val, (count / total) * 100) for val, count in value_counts.items()
-                ]
+                if target_name not in node_names:
+                    # Add missing target node
+                    nodes_list.append({"name": target_name})
+                    node_names.add(target_name)
+                    logger.debug(
+                        f"Added missing target node '{target_name}' from relationship."
+                    )
 
-            return suggestions
+                relationship_id = relationship_id_counter
+                relationship_id_counter += 1
 
-        except Exception as e:
-            logger.error(
-                f"Error generating property suggestions: {str(e)}", exc_info=True, module="SuggestionWorker", function="_get_property_suggestions"
-            )
-            return {}
-
-    def _get_tag_suggestions(self, df: pd.DataFrame) -> List[Tuple[str, float]]:
-        """
-        Generate tag suggestions based on frequency from a DataFrame.
-        """
-        try:
-            all_tags = []
-            current_tags = set(self.node_data.get("properties", {}).get("tags", []))
-
-            # Flatten list of tags for all rows
-            all_tags = [tag for tags_list in df["tags"].dropna() for tag in tags_list]
-
-            # Count tag occurrences and calculate confidence
-            tag_counts = Counter(all_tags)
-            total = sum(tag_counts.values()) or 1  # Avoid division by zero
-
-            suggestions = [
-                (tag, (count / total) * 100)
-                for tag, count in tag_counts.items()
-                if tag not in current_tags
-            ]
-            return suggestions[:5]  # Limit to top 5 suggestions
-
-        except Exception as e:
-            logger.error(f"Error generating tag suggestions: {str(e)}", exc_info=True, module="SuggestionWorker", function="_get_tag_suggestions")
-            return []
-
-    def _get_relationship_suggestions(
-        self, df: pd.DataFrame
-    ) -> List[Tuple[str, str, str, Dict[str, Any], float]]:
-        """
-        Generate relationship suggestions, including relationship properties, based on a DataFrame.
-        """
-        try:
-            outgoing_rels = []
-            incoming_rels = []
-
-            # Flatten and classify relationships by direction
-            for rel_list in df["relationships"].dropna():
-                for rel in rel_list:
-                    rel_type = rel["type"]
-                    target = rel["target"]
-                    direction = rel["direction"]
-                    properties = rel.get("properties", {})
-
-                    if direction == "outgoing":
-                        outgoing_rels.append(
-                            (rel_type, target, direction, frozenset(properties.items()))
-                        )
-                    elif direction == "incoming":
-                        incoming_rels.append(
-                            (rel_type, target, direction, frozenset(properties.items()))
-                        )
-
-            # Count and calculate confidence scores
-            out_counts = Counter(outgoing_rels)
-            in_counts = Counter(incoming_rels)
-
-            total_out = sum(out_counts.values()) or 1
-            total_in = sum(in_counts.values()) or 1
-
-            # Generate top 3 suggestions per direction with confidence scores
-            suggestions = [
-                (rel_type, target, direction, dict(props), (count / total_out) * 100)
-                for (
-                    rel_type,
-                    target,
-                    direction,
-                    props,
-                ), count in out_counts.most_common(3)
-            ] + [
-                (rel_type, target, direction, dict(props), (count / total_in) * 100)
-                for (
-                    rel_type,
-                    target,
-                    direction,
-                    props,
-                ), count in in_counts.most_common(3)
-            ]
-
-            suggestions.sort(key=lambda x: x[4], reverse=True)
-            return suggestions[:5]  # Limit to top 5 suggestions
-
-        except Exception as e:
-            logger.error(
-                f"Error generating relationship suggestions: {str(e)}", exc_info=True, module="SuggestionWorker", function="_get_relationship_suggestions"
-            )
-            return []
-
-    def execute_operation(self) -> None:
-        try:
-            logger.info("Starting suggestion generation process", module="SuggestionWorker", function="execute_operation")
-
-            with self._driver.session() as session:
-                similar_nodes = self._find_similar_nodes(session, self.node_data)
-
-                if not similar_nodes:
-                    logger.info("No similar nodes found", module="SuggestionWorker", function="execute_operation")
-                    suggestions = {"tags": [], "properties": {}, "relationships": []}
-                    self.suggestions_ready.emit(suggestions)
-                    return
-
-                # Create structured DataFrame
-                df = pd.DataFrame(
+                # Add relationship record
+                relationships_records.append(
                     {
-                        "node_id": [i for i, _ in enumerate(similar_nodes)],
-                        "properties": [node["properties"] for node in similar_nodes],
-                        "labels": [node["labels"] for node in similar_nodes],
-                        "relationships": [
-                            node["relationships"] for node in similar_nodes
-                        ],
-                        # Extract common properties for direct access if needed
-                        "name": [
-                            node["properties"].get("name") for node in similar_nodes
-                        ],
-                        "tags": [
-                            node["properties"].get("tags", []) for node in similar_nodes
-                        ],
+                        "id": relationship_id,
+                        "source_name": source_name,
+                        "target_name": target_name,
+                        "relationship_type": relationship_type,
+                        "direction": direction,
                     }
                 )
 
-                logger.debug(f"Created DataFrame with columns: {df.columns.tolist()}", module="SuggestionWorker", function="execute_operation")
-                logger.debug(f"DataFrame content:\n{df}", module="SuggestionWorker", function="execute_operation")
+                # Add relationship properties
+                for prop_key, prop_value in properties.items():
+                    rel_properties_records.append(
+                        {
+                            "relationship_id": relationship_id,
+                            "property": prop_key,
+                            "value": prop_value,
+                        }
+                    )
 
-                # Example of the DataFrame:
-                """
-                   node_id  properties                  labels        relationships     name     tags
-                0  0       {'name': 'Saruman', ...}    [Character]   [{type: ...}]    Saruman  [wizard, ...]
-                1  1       {'name': 'Gandalf', ...}    [Character]   [{type: ...}]    Gandalf  [wizard, ...]
-                """
+        # Create DataFrames with predefined columns
+        nodes_df = pd.DataFrame(nodes_list, columns=nodes_columns).drop_duplicates(
+            subset=["name"]
+        )
+        properties_df = pd.DataFrame(properties_records, columns=properties_columns)
+        tags_df = pd.DataFrame(tags_records, columns=tags_columns)
+        labels_df = pd.DataFrame(labels_records, columns=labels_columns)
+        relationships_df = pd.DataFrame(
+            relationships_records, columns=relationships_columns
+        )
+        rel_properties_df = pd.DataFrame(
+            rel_properties_records, columns=rel_properties_columns
+        )
 
-                # Generate suggestions
-                suggestions = {
-                    "tags": self._get_tag_suggestions(df),
-                    "properties": self._get_property_suggestions(df),
-                    "relationships": self._get_relationship_suggestions(df),
+        logger.debug(f"Nodes DataFrame:\n{nodes_df}")
+        logger.debug(f"Properties DataFrame:\n{properties_df}")
+        logger.debug(f"Tags DataFrame:\n{tags_df}")
+        logger.debug(f"Labels DataFrame:\n{labels_df}")
+        logger.debug(f"Relationships DataFrame:\n{relationships_df}")
+        logger.debug(f"Relationship Properties DataFrame:\n{rel_properties_df}")
+
+        return {
+            "nodes": nodes_df,
+            "properties": properties_df,
+            "tags": tags_df,
+            "labels": labels_df,
+            "relationships": relationships_df,
+            "relationship_properties": rel_properties_df,
+        }
+
+    def _fetch_self_node_data(self) -> Dict[str, Any]:
+        """Fetch data for the active node from the database."""
+        logger.debug("Fetching data for the active node from the database")
+        query = """
+                MATCH (n)
+                WHERE n.name = $node_name
+                OPTIONAL MATCH (n)-[r]->(m)
+                OPTIONAL MATCH (n)<-[r_in]-(m_in)
+                RETURN n,
+                       COLLECT(DISTINCT {
+                           relationship: type(r),
+                           target: m.name,
+                           properties: properties(r),
+                           direction: 'OUTGOING'
+                       }) +
+                       COLLECT(DISTINCT {
+                           relationship: type(r_in),
+                           target: m_in.name,
+                           properties: properties(r_in),
+                           direction: 'INCOMING'
+                       }) AS relationships
+        """
+        params = {"node_name": self.node_data.get("name")}
+
+        with self._driver.session() as session:
+            result = session.run(query, params).single()
+            if result:
+                node = result["n"]
+                relationships = [
+                    {
+                        "relationship": rel["relationship"],
+                        "target": rel["target"],
+                        "properties": rel["properties"],
+                        "direction": rel["direction"],
+                    }
+                    for rel in result["relationships"]
+                ]
+                node_data = {
+                    "name": node["name"],
+                    "tags": node.get("tags", []),
+                    "labels": list(node.labels),
+                    "properties": dict(node),
+                    "relationships": relationships,
                 }
+                logger.debug(f"Fetched active node data: {node_data}")
+                return node_data
+        return {}
 
-                logger.debug(
-                    f"Generated suggestions: {json.dumps(suggestions, indent=2)}", module="SuggestionWorker", function="execute_operation"
-                )
-                self.suggestions_ready.emit(suggestions)
-                logger.info("Suggestion generation completed successfully", module="SuggestionWorker", function="execute_operation")
+    def _fetch_label_based_data(self) -> List[Dict[str, Any]]:
+        """Fetch data for nodes sharing the same label."""
+        logger.debug("Fetching data for nodes sharing the same label")
+        labels = self.node_data["labels"]
+        query = """
+                MATCH (n)
+                WHERE ANY(label IN $node_labels WHERE label IN labels(n))
+                OPTIONAL MATCH (n)-[r]->(m)
+                OPTIONAL MATCH (n)<-[r_in]-(m_in)
+                RETURN n,
+                       COLLECT(DISTINCT {
+                           relationship: type(r),
+                           target: m.name,
+                           properties: properties(r),
+                           direction: 'OUTGOING'
+                       }) +
+                       COLLECT(DISTINCT {
+                           relationship: type(r_in),
+                           target: m_in.name,
+                           properties: properties(r_in),
+                           direction: 'INCOMING'
+                       }) AS relationships
+                """
+        params = {"node_labels": labels}
+
+        nodes_data = []
+        with self._driver.session() as session:
+            results = session.run(query, params)
+            for result in results:
+                node = result["n"]
+                relationships = [
+                    {
+                        "relationship": rel["relationship"],
+                        "target": rel["target"],
+                        "properties": rel["properties"],
+                        "direction": rel["direction"],
+                    }
+                    for rel in result["relationships"]
+                ]
+                node_data = {
+                    "name": node["name"],
+                    "tags": node.get("tags", []),
+                    "labels": list(node.labels),
+                    "properties": dict(node),
+                    "relationships": relationships,
+                }
+                nodes_data.append(node_data)
+        logger.debug(f"Fetched label-based node data: {nodes_data}")
+        return nodes_data
+
+    def _fetch_full_data(self) -> List[Dict[str, Any]]:
+        """Fetch data for all nodes in the database."""
+        logger.debug("Fetching data for all nodes in the database")
+        query = """
+                MATCH (n)
+                OPTIONAL MATCH (n)-[r]->(m)
+                OPTIONAL MATCH (n)<-[r_in]-(m_in)
+                RETURN n,
+                       COLLECT(DISTINCT {
+                           relationship: type(r),
+                           target: m.name,
+                           properties: properties(r),
+                           direction: 'OUTGOING'
+                       }) +
+                       COLLECT(DISTINCT {
+                           relationship: type(r_in),
+                           target: m_in.name,
+                           properties: properties(r_in),
+                           direction: 'INCOMING'
+                       }) AS relationships
+        """
+
+        nodes_data = []
+        with self._driver.session() as session:
+            results = session.run(query)
+            for result in results:
+                node = result["n"]
+                relationships = [
+                    {
+                        "relationship": rel["relationship"],
+                        "target": rel["target"],
+                        "properties": rel["properties"],
+                        "direction": rel["direction"],
+                    }
+                    for rel in result["relationships"]
+                ]
+                node_data = {
+                    "name": node["name"],
+                    "tags": node.get("tags", []),
+                    "labels": list(node.labels),
+                    "properties": dict(node),
+                    "relationships": relationships,
+                }
+                nodes_data.append(node_data)
+        logger.debug(f"Fetched full node data: {nodes_data}")
+        return nodes_data
+
+    def _format_data(self, result, source="unknown"):
+        pass
+
+    #####  The following methods are used to generate suggestions based on the fetched data  #####
+
+    import pandas as pd
+    import logging
+    from typing import Dict, Any
+
+    # Configure logging
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.DEBUG)
+
+    def suggest_properties(
+        self,
+        self_node_pd: Dict[str, pd.DataFrame],
+        label_based_pd: Dict[str, pd.DataFrame],
+        top_n: int = 10,
+    ) -> Dict[str, Any]:
+        """
+        Suggest properties to add to the active node based on label-based data.
+
+        Args:
+            self_node_pd (Dict[str, pd.DataFrame]): DataFrames related to the active node.
+            label_based_pd (Dict[str, pd.DataFrame]): DataFrames related to nodes sharing the same labels.
+            top_n (int): Maximum number of properties to suggest.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing suggested properties with their common values and confidence levels.
+        """
+        logger.debug("Starting suggest_properties method.")
+
+        # Validate presence of 'properties' DataFrame in self_node_pd
+        if "properties" not in self_node_pd:
+            logger.error("Active node data is missing 'properties' DataFrame.")
+            return {"properties": {}}
+        if (
+            "property" not in self_node_pd["properties"].columns
+            or "value" not in self_node_pd["properties"].columns
+        ):
+            logger.error(
+                "Active node 'properties' DataFrame lacks 'property' or 'value' columns."
+            )
+            return {"properties": {}}
+
+        # Validate presence of 'properties' DataFrame in label_based_pd
+        if "properties" not in label_based_pd:
+            logger.error("Label-based data is missing 'properties' DataFrame.")
+            return {"properties": {}}
+        if (
+            "property" not in label_based_pd["properties"].columns
+            or "value" not in label_based_pd["properties"].columns
+        ):
+            logger.error(
+                "Label-based 'properties' DataFrame lacks 'property' or 'value' columns."
+            )
+            return {"properties": {}}
+
+        # Extract properties present in the active node
+        try:
+            active_properties = set(
+                self_node_pd["properties"]["property"].dropna().unique().tolist()
+            )
+            logger.debug(f"Active node properties: {active_properties}")
+        except KeyError as e:
+            logger.error(
+                f"Error accessing 'property' in self_node_pd['properties']: {e}"
+            )
+            return {"properties": {}}
+
+        # Extract label-based properties excluding those already present in the active node
+        label_properties = label_based_pd["properties"]
+        filtered_label_properties = label_properties[
+            ~label_properties["property"].isin(active_properties)
+        ]
+        logger.debug(
+            f"Filtered label-based properties count: {filtered_label_properties.shape[0]}"
+        )
+
+        if filtered_label_properties.empty:
+            logger.info(
+                "No new properties to suggest after filtering existing properties."
+            )
+            return {"properties": {}}
+
+        # Calculate property frequencies
+        property_counts = (
+            filtered_label_properties.groupby("property")["value"]
+            .agg(["count", lambda x: x.mode().iloc[0] if not x.mode().empty else None])
+            .reset_index()
+        )
+        property_counts.rename(columns={"<lambda_0>": "common_value"}, inplace=True)
+        logger.debug(f"Property counts:\n{property_counts.head()}")
+
+        # Calculate total number of nodes sharing the same label
+        try:
+            total_nodes = label_based_pd["nodes"]["name"].nunique()
+            logger.debug(f"Total nodes sharing the label: {total_nodes}")
+        except KeyError as e:
+            logger.error(
+                f"Error accessing 'nodes' DataFrame or 'name' column in label_based_pd: {e}"
+            )
+            return {"properties": {}}
+
+        if total_nodes == 0:
+            logger.warning(
+                "No nodes found in label-based data. Cannot compute confidence levels."
+            )
+            return {"properties": {}}
+
+        # Calculate confidence levels
+        property_counts["confidence"] = (property_counts["count"] / total_nodes) * 100
+        logger.debug(f"Property counts with confidence:\n{property_counts.head()}")
+
+        # Sort properties by confidence descending and take top N
+        top_properties = property_counts.sort_values(
+            by="confidence", ascending=False
+        ).head(top_n)
+        logger.debug(f"Top {top_n} properties:\n{top_properties}")
+
+        # Prepare the suggestions dictionary
+        suggestions = {
+            row["property"]: [(row["common_value"], round(row["confidence"], 2))]
+            for _, row in top_properties.iterrows()
+            if pd.notna(row["common_value"])  # Ensure common_value is not NaN
+        }
+
+        logger.debug(f"Generated property suggestions: {suggestions}")
+
+        return suggestions
+
+    ##### This is the function that executes the operation of the worker #####
+    def execute_operation(self) -> None:
+
+        try:
+
+            # Fetch data
+
+            full_data_pd, label_based_pd, self_node_pd = self.fetch_data()
+
+            # Emit suggestions
+            suggestions = {
+                "tags": [],
+                "properties": self.suggest_properties(self_node_pd, label_based_pd),
+                "relationships": [],
+            }
+            self.suggestions_ready.emit(suggestions)
+
+            logger.info(
+                "Suggestion generation completed successfully",
+                module="SuggestionWorker",
+                function="execute_operation",
+            )
 
         except Exception as e:
             error_message = f"Error generating suggestions: {str(e)}"
-            logger.error(error_message, exc_info=True, module="SuggestionWorker", function="execute_operation")
+            logger.error(
+                error_message,
+                exc_info=True,
+                module="SuggestionWorker",
+                function="execute_operation",
+            )
             self.error_occurred.emit(error_message)
