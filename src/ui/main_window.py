@@ -4,7 +4,7 @@ import os
 from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, Qt, QPoint
-from PyQt6.QtGui import QPixmap, QAction, QTextCharFormat, QFont
+from PyQt6.QtGui import QPixmap, QAction, QFont
 from PyQt6.QtWidgets import (
     QWidget,
     QHBoxLayout,
@@ -48,6 +48,7 @@ class WorldBuildingUI(QWidget):
         """
         super().__init__()
         self.controller = controller
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setObjectName("CentralWidget")
         self.setAttribute(
             Qt.WidgetAttribute.WA_StyledBackground, True
@@ -240,8 +241,9 @@ class WorldBuildingUI(QWidget):
             QWidget: The basic info tab widget.
         """
         tab = QWidget()
-        layout = QFormLayout(tab)
-        layout.setSpacing(15)
+        main_layout = QHBoxLayout(tab)
+        form_layout = QFormLayout()
+        form_layout.setSpacing(15)
 
         # Description
         self.description_input = QTextEdit()
@@ -251,7 +253,6 @@ class WorldBuildingUI(QWidget):
 
         # Add formatting toolbar
         self.formatting_toolbar = self._create_formatting_toolbar()
-        layout.addRow(self.formatting_toolbar)
 
         # Labels with auto-completion
         self.labels_input = QLineEdit()
@@ -266,11 +267,13 @@ class WorldBuildingUI(QWidget):
         # Image section
         image_group = self._create_image_group()
 
-        layout.addRow("Description:", self.description_input)
-        layout.addRow("Labels:", self.labels_input)
-        layout.addRow("Tags:", self.tags_input)
+        form_layout.addRow("", self.formatting_toolbar)
+        form_layout.addRow("Description:", self.description_input)
+        form_layout.addRow("Labels:", self.labels_input)
+        form_layout.addRow("Tags:", self.tags_input)
 
-        layout.addRow(image_group)
+        main_layout.addLayout(form_layout)
+        main_layout.addWidget(image_group)
 
         return tab
 
@@ -282,18 +285,39 @@ class WorldBuildingUI(QWidget):
             QToolBar: The formatting toolbar.
         """
         toolbar = QToolBar("Formatting")
+        toolbar.setFixedHeight(24)
 
         # Add actions for formatting
-        self._add_formatting_action(toolbar, "H1", self._set_heading1)
-        self._add_formatting_action(toolbar, "H2", self._set_heading2)
-        self._add_formatting_action(toolbar, "H3", self._set_heading3)
-        self._add_formatting_action(toolbar, "Bold", self._set_bold, checkable=True)
-        self._add_formatting_action(toolbar, "Italic", self._set_italic, checkable=True)
-        self._add_formatting_action(toolbar, "Underline", self._set_underline, checkable=True)
+        self._add_formatting_action(
+            toolbar, "H1", lambda: self._set_heading(1), shortcut="Ctrl+1"
+        )
+        self._add_formatting_action(
+            toolbar, "H2", lambda: self._set_heading(2), shortcut="Ctrl+2"
+        )
+        self._add_formatting_action(
+            toolbar, "H3", lambda: self._set_heading(3), shortcut="Ctrl+3"
+        )
+        self._add_formatting_action(toolbar, "Body", self._set_body, shortcut="Ctrl+0")
+        self._add_formatting_action(
+            toolbar, "Bold", self._set_bold, checkable=True, shortcut="Ctrl+B"
+        )
+        self._add_formatting_action(
+            toolbar, "Italic", self._set_italic, checkable=True, shortcut="Ctrl+I"
+        )
+        self._add_formatting_action(
+            toolbar, "Underline", self._set_underline, checkable=True, shortcut="Ctrl+U"
+        )
 
         return toolbar
 
-    def _add_formatting_action(self, toolbar: QToolBar, text: str, slot: callable, checkable: bool = False) -> None:
+    def _add_formatting_action(
+        self,
+        toolbar: QToolBar,
+        text: str,
+        slot: callable,
+        checkable: bool = False,
+        shortcut: Optional[str] = None,
+    ) -> None:
         """
         Add a formatting action to the toolbar.
 
@@ -306,7 +330,14 @@ class WorldBuildingUI(QWidget):
         action = QAction(text, self)
         action.setCheckable(checkable)
         action.triggered.connect(slot)
+
+        # Set the shortcut if provided
+        if shortcut:
+            action.setShortcut(shortcut)
+            action.setShortcutVisibleInContextMenu(True)
+
         toolbar.addAction(action)
+        self.addAction(action)
 
     def _set_heading1(self) -> None:
         """
@@ -336,9 +367,43 @@ class WorldBuildingUI(QWidget):
         cursor = self.description_input.textCursor()
         cursor.beginEditBlock()
 
-        block_format = cursor.blockFormat()
-        block_format.setHeadingLevel(level)
-        cursor.setBlockFormat(block_format)
+        # Adjust font size and weight for heading levels
+        font = cursor.charFormat().font()
+        if level == 1:
+            font.setPointSize(16)  # Large size for H1
+            font.setWeight(QFont.Weight.Bold)  # Bold weight
+        elif level == 2:
+            font.setPointSize(14)  # Medium size for H2
+            font.setWeight(QFont.Weight.Medium)  # Medium weight
+        elif level == 3:
+            font.setPointSize(12)  # Smaller size for H3
+            font.setWeight(QFont.Weight.Normal)  # Normal weight
+
+        # Apply the font changes
+        char_format = cursor.charFormat()
+        char_format.setFont(font)
+        cursor.setCharFormat(char_format)
+
+        cursor.endEditBlock()
+
+    def _set_body(self) -> None:
+        """
+        Reset the selected text to standard body text formatting.
+        """
+        cursor = self.description_input.textCursor()
+        cursor.beginEditBlock()
+
+        # Create a standard font
+        standard_font = QFont()
+        standard_font.setPointSize(10)  # Default font size
+        standard_font.setWeight(QFont.Weight.Normal)  # Default weight
+
+        # Apply the standard font to the selected text
+        char_format = cursor.charFormat()
+        char_format.setFont(standard_font)
+        char_format.setFontItalic(False)
+        char_format.setFontUnderline(False)
+        cursor.setCharFormat(char_format)
 
         cursor.endEditBlock()
 
@@ -346,36 +411,40 @@ class WorldBuildingUI(QWidget):
         """
         Toggle bold formatting for the selected text.
         """
-        self._toggle_format(QFont.Bold)
+        self._toggle_format("bold")
 
     def _set_italic(self) -> None:
         """
         Toggle italic formatting for the selected text.
         """
-        self._toggle_format(QFont.StyleItalic)
+        self._toggle_format("italic")
 
     def _set_underline(self) -> None:
         """
         Toggle underline formatting for the selected text.
         """
-        self._toggle_format(QFont.Underline)
+        self._toggle_format("underline")
 
-    def _toggle_format(self, format_type: int) -> None:
+    def _toggle_format(self, format_type: str) -> None:
         """
         Toggle the specified format for the selected text.
 
         Args:
-            format_type (int): The format type (e.g., QFont.Bold, QFont.StyleItalic, QFont.Underline).
+            format_type (str): The format type ('bold', 'italic', 'underline').
         """
         cursor = self.description_input.textCursor()
         cursor.beginEditBlock()
 
         char_format = cursor.charFormat()
-        if format_type == QFont.Bold:
-            char_format.setFontWeight(QFont.Bold if not char_format.fontWeight() == QFont.Bold else QFont.Normal)
-        elif format_type == QFont.StyleItalic:
+        if format_type == "bold":
+            char_format.setFontWeight(
+                QFont.Weight.Bold
+                if char_format.fontWeight() != QFont.Weight.Bold
+                else QFont.Weight.Normal
+            )
+        elif format_type == "italic":
             char_format.setFontItalic(not char_format.fontItalic())
-        elif format_type == QFont.Underline:
+        elif format_type == "underline":
             char_format.setFontUnderline(not char_format.fontUnderline())
 
         cursor.setCharFormat(char_format)
@@ -391,6 +460,9 @@ class WorldBuildingUI(QWidget):
         group = QGroupBox("Image")
         group.setObjectName("imageGroupBox")
         layout = QVBoxLayout()
+
+        group.setFixedWidth(220)
+        group.setFixedHeight(300)
 
         # Image display
         self.image_label = QLabel()
