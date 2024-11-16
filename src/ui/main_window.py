@@ -258,11 +258,15 @@ class WorldBuildingUI(QWidget):
         self.labels_input = QLineEdit()
         self.labels_input.setObjectName("labelsInput")
         self.labels_input.setPlaceholderText("Enter labels (comma-separated)")
+        self.labels_input.setToolTip("Labels help categorize nodes. Keep to a minimum.")
 
         # Tags
         self.tags_input = QLineEdit()
         self.tags_input.setObjectName("tagsInput")
         self.tags_input.setPlaceholderText("Enter tags (comma-separated)")
+        self.tags_input.setToolTip(
+            "Tags are used to cluster nodes based on common themes or attributes."
+        )
 
         # Image section
         image_group = self._create_image_group()
