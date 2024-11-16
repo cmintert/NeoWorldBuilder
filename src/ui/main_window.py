@@ -215,6 +215,9 @@ class WorldBuildingUI(QWidget):
         # Action buttons with loading states
         self.save_button = QPushButton("💾 Save")
         self.save_button.setObjectName("saveButton")
+        self.save_button.setShortcut("Ctrl+S")
+        self.save_button.setToolTip("Ctrl+S")
+
         self.delete_button = QPushButton("🗑️ Delete")
         self.delete_button.setObjectName("deleteButton")
         self.cancel_button = QPushButton("⚠️ Cancel")

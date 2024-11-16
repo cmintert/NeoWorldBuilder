@@ -677,6 +677,8 @@ class WorldBuildingController(QObject):
             record = data[0]  # Extract the first record
             self._populate_node_fields(record)
             self.original_node_data = self._collect_node_data()
+            self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
+
         except Exception as e:
             self.handle_error(f"Error populating node fields: {str(e)}")
 
@@ -716,7 +718,15 @@ class WorldBuildingController(QObject):
         Args:
             _: The result of the save operation.
         """
-        QMessageBox.information(self.ui, "Success", "Node saved successfully")
+        msg_box = QMessageBox(self.ui)
+        msg_box.setIcon(QMessageBox.Icon.Information)
+        msg_box.setWindowTitle("Success")
+        msg_box.setText("Node saved successfully")
+        msg_box.setStandardButtons(QMessageBox.StandardButton.NoButton)
+        msg_box.show()
+
+        QTimer.singleShot(1000, msg_box.accept)  # Close after 2 seconds
+
         self.refresh_tree_view()
         self.load_node_data()
 
