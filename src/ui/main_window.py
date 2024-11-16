@@ -4,7 +4,7 @@ import os
 from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, Qt, QPoint
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QAction, QTextCharFormat, QFont
 from PyQt6.QtWidgets import (
     QWidget,
     QHBoxLayout,
@@ -28,6 +28,7 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QToolBar,
 )
 
 
@@ -248,6 +249,10 @@ class WorldBuildingUI(QWidget):
         self.description_input.setPlaceholderText("Enter description...")
         self.description_input.setMinimumHeight(100)
 
+        # Add formatting toolbar
+        self.formatting_toolbar = self._create_formatting_toolbar()
+        layout.addRow(self.formatting_toolbar)
+
         # Labels with auto-completion
         self.labels_input = QLineEdit()
         self.labels_input.setObjectName("labelsInput")
@@ -268,6 +273,113 @@ class WorldBuildingUI(QWidget):
         layout.addRow(image_group)
 
         return tab
+
+    def _create_formatting_toolbar(self) -> QToolBar:
+        """
+        Create the formatting toolbar with rich text options.
+
+        Returns:
+            QToolBar: The formatting toolbar.
+        """
+        toolbar = QToolBar("Formatting")
+
+        # Add actions for formatting
+        self._add_formatting_action(toolbar, "H1", self._set_heading1)
+        self._add_formatting_action(toolbar, "H2", self._set_heading2)
+        self._add_formatting_action(toolbar, "H3", self._set_heading3)
+        self._add_formatting_action(toolbar, "Bold", self._set_bold, checkable=True)
+        self._add_formatting_action(toolbar, "Italic", self._set_italic, checkable=True)
+        self._add_formatting_action(toolbar, "Underline", self._set_underline, checkable=True)
+
+        return toolbar
+
+    def _add_formatting_action(self, toolbar: QToolBar, text: str, slot: callable, checkable: bool = False) -> None:
+        """
+        Add a formatting action to the toolbar.
+
+        Args:
+            toolbar (QToolBar): The toolbar to add the action to.
+            text (str): The text for the action.
+            slot (callable): The slot to connect the action to.
+            checkable (bool): Whether the action is checkable. Defaults to False.
+        """
+        action = QAction(text, self)
+        action.setCheckable(checkable)
+        action.triggered.connect(slot)
+        toolbar.addAction(action)
+
+    def _set_heading1(self) -> None:
+        """
+        Set the selected text to heading 1.
+        """
+        self._set_heading(1)
+
+    def _set_heading2(self) -> None:
+        """
+        Set the selected text to heading 2.
+        """
+        self._set_heading(2)
+
+    def _set_heading3(self) -> None:
+        """
+        Set the selected text to heading 3.
+        """
+        self._set_heading(3)
+
+    def _set_heading(self, level: int) -> None:
+        """
+        Set the selected text to the specified heading level.
+
+        Args:
+            level (int): The heading level (1, 2, or 3).
+        """
+        cursor = self.description_input.textCursor()
+        cursor.beginEditBlock()
+
+        block_format = cursor.blockFormat()
+        block_format.setHeadingLevel(level)
+        cursor.setBlockFormat(block_format)
+
+        cursor.endEditBlock()
+
+    def _set_bold(self) -> None:
+        """
+        Toggle bold formatting for the selected text.
+        """
+        self._toggle_format(QFont.Bold)
+
+    def _set_italic(self) -> None:
+        """
+        Toggle italic formatting for the selected text.
+        """
+        self._toggle_format(QFont.StyleItalic)
+
+    def _set_underline(self) -> None:
+        """
+        Toggle underline formatting for the selected text.
+        """
+        self._toggle_format(QFont.Underline)
+
+    def _toggle_format(self, format_type: int) -> None:
+        """
+        Toggle the specified format for the selected text.
+
+        Args:
+            format_type (int): The format type (e.g., QFont.Bold, QFont.StyleItalic, QFont.Underline).
+        """
+        cursor = self.description_input.textCursor()
+        cursor.beginEditBlock()
+
+        char_format = cursor.charFormat()
+        if format_type == QFont.Bold:
+            char_format.setFontWeight(QFont.Bold if not char_format.fontWeight() == QFont.Bold else QFont.Normal)
+        elif format_type == QFont.StyleItalic:
+            char_format.setFontItalic(not char_format.fontItalic())
+        elif format_type == QFont.Underline:
+            char_format.setFontUnderline(not char_format.fontUnderline())
+
+        cursor.setCharFormat(char_format)
+        cursor.endEditBlock()
 
     def _create_image_group(self) -> QGroupBox:
         """

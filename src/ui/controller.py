@@ -557,7 +557,7 @@ class WorldBuildingController(QObject):
         try:
             node_data = {
                 "name": self.ui.name_input.text().strip(),
-                "description": self.ui.description_input.toPlainText().strip(),
+                "description": self.ui.description_input.toHtml().strip(),
                 "tags": self._parse_comma_separated(self.ui.tags_input.text()),
                 "labels": [
                     label.strip().upper().replace(" ", "_")
@@ -770,7 +770,7 @@ class WorldBuildingController(QObject):
 
             # Update UI elements in the main thread
             self.ui.name_input.setText(node_name)
-            self.ui.description_input.setPlainText(node_description)
+            self.ui.description_input.setHtml(node_description)
             self.ui.labels_input.setText(", ".join(labels))
             self.ui.tags_input.setText(", ".join(node_tags))
 
