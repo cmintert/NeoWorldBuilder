@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QMessageBox, QTableWidgetItem
 
 from core.neo4jworkers import SuggestionWorker
 from ui.dialogs import SuggestionDialog
+from config.config import Config
 
 
 class SuggestionController(QObject):
@@ -15,6 +16,7 @@ class SuggestionController(QObject):
         self.ui = ui
         self.model = model
         self.current_suggestion_worker = None
+        self.config = Config(["src/config/logging.json"])
 
     def show_suggestions_modal(self):
         node_data = self._collect_node_data()

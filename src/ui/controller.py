@@ -160,7 +160,7 @@ class WorldBuildingController(QObject):
 
         self.current_search_worker = self.model.fetch_matching_node_names(
             text,
-            self.config.NEO4J_MATCH_NODE_LIMIT,
+            self.config.get("MATCH_NODE_LIMIT"),
             self._handle_target_autocomplete_results,
         )
         self.current_search_worker.error_occurred.connect(self.handle_error)
@@ -188,7 +188,7 @@ class WorldBuildingController(QObject):
         self.name_input_timer.setSingleShot(True)
         self.name_input_timer.timeout.connect(self._fetch_matching_nodes)
         self.name_input_timer.setInterval(
-            self.config.TIMING_NAME_INPUT_DEBOUNCE_TIME_MS
+            self.config.get("NAME_INPUT_DEBOUNCE_TIME_MS")
         )
 
     def _connect_signals(self) -> None:
@@ -527,7 +527,7 @@ class WorldBuildingController(QObject):
             self.current_search_worker.wait()
 
         self.current_search_worker = self.model.fetch_matching_node_names(
-            text, self.config.NEO4J_MATCH_NODE_LIMIT, self._handle_autocomplete_results
+            text, self.config.get("MATCH_NODE_LIMIT"), self._handle_autocomplete_results
         )
         self.current_search_worker.error_occurred.connect(self.handle_error)
         self.current_search_worker.start()
@@ -600,7 +600,7 @@ class WorldBuildingController(QObject):
 
             key_text = key.text().strip()
 
-            if key_text.lower() in self.config.RESERVED_PROPERTY_KEYS:
+            if key_text.lower() in self.config.get("RESERVED_PROPERTY_KEYS"):
                 raise ValueError(f"Property key '{key_text}' is reserved")
 
             if key_text.startswith("_"):
@@ -1043,11 +1043,11 @@ class WorldBuildingController(QObject):
             QMessageBox.warning(self.ui, "Warning", "Node name cannot be empty.")
             return False
 
-        if len(name) > self.config.LIMITS_MAX_NODE_NAME_LENGTH:
+        if len(name) > self.config.get("MAX_NODE_NAME_LENGTH"):
             QMessageBox.warning(
                 self.ui,
                 "Warning",
-                f"Node name cannot exceed {self.config.LIMITS_MAX_NODE_NAME_LENGTH} characters.",
+                f"Node name cannot exceed {self.config.get('MAX_NODE_NAME_LENGTH')} characters.",
             )
             return False
 

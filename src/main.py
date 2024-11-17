@@ -192,6 +192,7 @@ class WorldBuildingApp(QMainWindow):
                 "src/config/ui.json",
                 "src/config/database.json",
                 "src/config/logging.json",
+                "src/config/general.json",
             ]
             config = Config(config_files)
             structlog.get_logger().info("Configuration loaded successfully")

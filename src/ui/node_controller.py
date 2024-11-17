@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import QMessageBox
 
 from core.neo4jmodel import Neo4jModel
 from core.neo4jworkers import QueryWorker, WriteWorker, DeleteWorker
+from config.config import Config
 
 
 class NodeController(QObject):
@@ -10,15 +11,17 @@ class NodeController(QObject):
     Controller class to handle node-related operations such as loading, saving, and deleting nodes.
     """
 
-    def __init__(self, model: Neo4jModel):
+    def __init__(self, model: Neo4jModel, config: Config):
         """
-        Initialize the NodeController with the Neo4j model.
+        Initialize the NodeController with the Neo4j model and configuration.
 
         Args:
             model (Neo4jModel): The Neo4j model instance.
+            config (Config): The configuration instance.
         """
         super().__init__()
         self.model = model
+        self.config = config
         self.current_load_worker = None
         self.current_save_worker = None
         self.current_delete_worker = None

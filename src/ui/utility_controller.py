@@ -1,4 +1,5 @@
 from PyQt6.QtWidgets import QMessageBox, QFileDialog, QTableWidgetItem
+from config.config import Config
 
 class UtilityController:
     """
