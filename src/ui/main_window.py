@@ -31,6 +31,8 @@ from PyQt6.QtWidgets import (
     QToolBar,
 )
 
+from .tag_widget import TagWidget
+
 
 class WorldBuildingUI(QWidget):
     """Enhanced UI class with thread-aware components and better feedback"""
@@ -260,9 +262,8 @@ class WorldBuildingUI(QWidget):
         self.labels_input.setPlaceholderText("Enter labels (comma-separated)")
 
         # Tags
-        self.tags_input = QLineEdit()
+        self.tags_input = TagWidget()
         self.tags_input.setObjectName("tagsInput")
-        self.tags_input.setPlaceholderText("Enter tags (comma-separated)")
 
         # Image section
         image_group = self._create_image_group()
