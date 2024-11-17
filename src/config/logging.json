@@ -1,0 +1,5 @@
+{
+    "LOGGING_FILE": "logs.log",
+    "LOGGING_LEVEL": "DEBUG",
+    "LOGGING_FORMAT": "json"
+}

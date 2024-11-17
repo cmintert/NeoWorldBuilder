@@ -188,11 +188,16 @@ class WorldBuildingApp(QMainWindow):
             RuntimeError: If the configuration file is not found or invalid.
         """
         try:
-            config = Config("src/config.json")
+            config_files = [
+                "src/config/ui.json",
+                "src/config/database.json",
+                "src/config/logging.json",
+            ]
+            config = Config(config_files)
             structlog.get_logger().info("Configuration loaded successfully")
             return config
-        except FileNotFoundError:
-            raise RuntimeError("Configuration file 'config.json' not found")
+        except FileNotFoundError as e:
+            raise RuntimeError(f"Configuration file not found: {str(e)}")
         except json.JSONDecodeError:
             raise RuntimeError("Invalid JSON in configuration file")
         except Exception as e:
@@ -210,7 +215,7 @@ class WorldBuildingApp(QMainWindow):
         """
         try:
 
-            log_level = getattr(logging, config.LOGGING_LEVEL.upper())
+            log_level = getattr(logging, config.get("LOGGING_LEVEL").upper())
 
             # Set up logging configuration
             structlog.configure(
@@ -246,7 +251,7 @@ class WorldBuildingApp(QMainWindow):
         for attempt in range(max_retries):
             try:
                 model = Neo4jModel(
-                    config.NEO4J_URI, config.NEO4J_USERNAME, config.NEO4J_PASSWORD
+                    config.get("NEO4J_URI"), config.get("NEO4J_USERNAME"), config.get("NEO4J_PASSWORD")
                 )
                 structlog.get_logger().info("Database connection established")
                 return model
@@ -318,7 +323,7 @@ class WorldBuildingApp(QMainWindow):
             self.setCentralWidget(self.components.ui)
 
             # Set window title with version
-            self.setWindowTitle(f"NeoRealmBuilder {self.components.config.VERSION}")
+            self.setWindowTitle(f"NeoRealmBuilder {self.components.config.get('VERSION')}")
 
             # Ensure transparency is properly set
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
@@ -328,12 +333,12 @@ class WorldBuildingApp(QMainWindow):
 
             # Set window size
             self.resize(
-                self.components.config.UI_WINDOW_WIDTH,
-                self.components.config.UI_WINDOW_HEIGHT,
+                self.components.config.get("UI_WINDOW_WIDTH"),
+                self.components.config.get("UI_WINDOW_HEIGHT"),
             )
             self.setMinimumSize(
-                self.components.config.UI_WINDOW_WIDTH,
-                self.components.config.UI_WINDOW_HEIGHT,
+                self.components.config.get("UI_WINDOW_WIDTH"),
+                self.components.config.get("UI_WINDOW_HEIGHT"),
             )
 
             # Add Export menu to the main menu bar
@@ -341,8 +346,8 @@ class WorldBuildingApp(QMainWindow):
 
             structlog.get_logger().info(
                 f"Window configured with size "
-                f"{self.components.config.UI_WINDOW_WIDTH}x"
-                f"{self.components.config.UI_WINDOW_HEIGHT}"
+                f"{self.components.config.get('UI_WINDOW_WIDTH')}x"
+                f"{self.components.config.get('UI_WINDOW_HEIGHT')}"
             )
         except Exception as e:
             raise RuntimeError(f"Failed to configure main window: {str(e)}")
