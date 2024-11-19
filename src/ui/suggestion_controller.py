@@ -5,15 +5,15 @@ from typing import Optional, Dict, Any, List
 from PyQt6.QtCore import QObject
 from PyQt6.QtWidgets import QMessageBox, QTableWidgetItem
 
-from core.neo4jworkers import SuggestionWorker
 from ui.dialogs import SuggestionDialog
+from services.suggestion_service import SuggestionService
 
 
 class SuggestionController(QObject):
-    def __init__(self, ui, model):
+    def __init__(self, suggestion_service: SuggestionService, ui):
         super().__init__()
         self.ui = ui
-        self.model = model
+        self.suggestion_service = suggestion_service
         self.current_suggestion_worker = None
 
     def show_suggestions_modal(self):
@@ -32,13 +32,11 @@ class SuggestionController(QObject):
             logging.debug("Existing SuggestionWorker canceled and cleaned up.")
 
         # Create and start the SuggestionWorker
-        self.current_suggestion_worker = SuggestionWorker(
-            self.model._uri, self.model._auth, node_data
+        self.current_suggestion_worker = self.suggestion_service.generate_suggestions(
+            node_data,
+            self.handle_suggestions,
+            self.handle_error
         )
-        self.current_suggestion_worker.suggestions_ready.connect(
-            self.handle_suggestions
-        )
-        self.current_suggestion_worker.error_occurred.connect(self.handle_error)
         self.current_suggestion_worker.finished.connect(
             self.on_suggestion_worker_finished
         )

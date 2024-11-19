@@ -2,7 +2,7 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSlot, Qt
 from PyQt6.QtGui import QStringListModel, QCompleter
 from PyQt6.QtWidgets import QLineEdit
 
-from core.neo4jmodel import Neo4jModel
+from services.search_service import SearchService
 
 
 class SearchController(QObject):
@@ -10,16 +10,16 @@ class SearchController(QObject):
     Controller class to handle auto-completion and search functionality.
     """
 
-    def __init__(self, model: Neo4jModel, ui: "WorldBuildingUI"):
+    def __init__(self, search_service: SearchService, ui: "WorldBuildingUI"):
         """
-        Initialize the SearchController with the Neo4j model and UI.
+        Initialize the SearchController with the SearchService and UI.
 
         Args:
-            model (Neo4jModel): The Neo4j model instance.
+            search_service (SearchService): The SearchService instance.
             ui (WorldBuildingUI): The UI instance.
         """
         super().__init__()
-        self.model = model
+        self.search_service = search_service
         self.ui = ui
         self.current_search_worker = None
         self._initialize_completer()
@@ -89,7 +89,7 @@ class SearchController(QObject):
             self.current_search_worker.cancel()
             self.current_search_worker.wait()
 
-        self.current_search_worker = self.model.fetch_matching_node_names(
+        self.current_search_worker = self.search_service.fetch_matching_node_names(
             text,
             self.ui.controller.config.NEO4J_MATCH_NODE_LIMIT,
             self._handle_target_autocomplete_results,
@@ -150,7 +150,7 @@ class SearchController(QObject):
             self.current_search_worker.cancel()
             self.current_search_worker.wait()
 
-        self.current_search_worker = self.model.fetch_matching_node_names(
+        self.current_search_worker = self.search_service.fetch_matching_node_names(
             text,
             self.ui.controller.config.NEO4J_MATCH_NODE_LIMIT,
             self._handle_autocomplete_results,

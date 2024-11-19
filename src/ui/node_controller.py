@@ -1,8 +1,7 @@
 from PyQt6.QtCore import QObject, pyqtSlot
 from PyQt6.QtWidgets import QMessageBox
 
-from core.neo4jmodel import Neo4jModel
-from core.neo4jworkers import QueryWorker, WriteWorker, DeleteWorker
+from services.node_service import NodeService
 
 
 class NodeController(QObject):
@@ -10,15 +9,15 @@ class NodeController(QObject):
     Controller class to handle node-related operations such as loading, saving, and deleting nodes.
     """
 
-    def __init__(self, model: Neo4jModel):
+    def __init__(self, node_service: NodeService):
         """
-        Initialize the NodeController with the Neo4j model.
+        Initialize the NodeController with the NodeService.
 
         Args:
-            model (Neo4jModel): The Neo4j model instance.
+            node_service (NodeService): The NodeService instance.
         """
         super().__init__()
-        self.model = model
+        self.node_service = node_service
         self.current_load_worker = None
         self.current_save_worker = None
         self.current_delete_worker = None
@@ -40,7 +39,7 @@ class NodeController(QObject):
             self.current_load_worker.wait()
 
         # Start new load operation
-        self.current_load_worker = self.model.load_node(name, callback)
+        self.current_load_worker = self.node_service.load_node(name, callback)
         self.current_load_worker.error_occurred.connect(self.handle_error)
         self.current_load_worker.start()
 
@@ -60,7 +59,7 @@ class NodeController(QObject):
             self.current_save_worker.cancel()
 
         # Start new save operation
-        self.current_save_worker = self.model.save_node(node_data, callback)
+        self.current_save_worker = self.node_service.save_node(node_data, callback)
         self.current_save_worker.error_occurred.connect(self.handle_error)
         self.current_save_worker.start()
 
@@ -90,7 +89,7 @@ class NodeController(QObject):
                 self.current_delete_worker.wait()
 
             # Start new delete operation
-            self.current_delete_worker = self.model.delete_node(name, callback)
+            self.current_delete_worker = self.node_service.delete_node(name, callback)
             self.current_delete_worker.error_occurred.connect(self.handle_error)
             self.current_delete_worker.start()
 

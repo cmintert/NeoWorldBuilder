@@ -2,7 +2,7 @@ from PyQt6.QtCore import QObject, pyqtSlot, Qt
 from PyQt6.QtGui import QStandardItem, QIcon, QStandardItemModel
 from PyQt6.QtWidgets import QMessageBox
 
-from core.neo4jmodel import Neo4jModel
+from services.relationship_service import RelationshipService
 
 
 class TreeController(QObject):
@@ -12,16 +12,16 @@ class TreeController(QObject):
 
     NODE_RELATIONSHIPS_HEADER = "Node Relationships"
 
-    def __init__(self, model: Neo4jModel, ui: "WorldBuildingUI"):
+    def __init__(self, relationship_service: RelationshipService, ui: "WorldBuildingUI"):
         """
-        Initialize the TreeController with the Neo4j model and UI.
+        Initialize the TreeController with the RelationshipService and UI.
 
         Args:
-            model (Neo4jModel): The Neo4j model instance.
+            relationship_service (RelationshipService): The RelationshipService instance.
             ui (WorldBuildingUI): The UI instance.
         """
         super().__init__()
-        self.model = model
+        self.relationship_service = relationship_service
         self.ui = ui
         self.tree_model = QStandardItemModel()
         self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
@@ -47,7 +47,7 @@ class TreeController(QObject):
             self.current_relationship_worker.cancel()
             self.current_relationship_worker.wait()
 
-        self.current_relationship_worker = self.model.get_node_relationships(
+        self.current_relationship_worker = self.relationship_service.get_node_relationships(
             node_name, depth, self._populate_relationship_tree
         )
         self.current_relationship_worker.error_occurred.connect(self.handle_error)
