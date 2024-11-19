@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
 )
 
-from ui.utility_controller import SecurityUtility
+from utils.crypto import SecurityUtility
 
 
 class SuggestionDialog(QDialog):

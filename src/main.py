@@ -43,7 +43,7 @@ from config.config import Config
 from core.neo4jmodel import Neo4jModel
 from ui.controller import WorldBuildingController
 from ui.main_window import WorldBuildingUI
-from ui.utility_controller import SecurityUtility
+from utils.crypto import SecurityUtility
 
 # Configure logging
 structlog.configure(
@@ -149,7 +149,7 @@ class WorldBuildingApp(QMainWindow):
 
             # 7. Set Background Image
 
-            self.set_background_image("src/background.png")
+            self.set_background_image("src/resources/graphics/background.png")
 
             # 8 Load last modified node
             controller.load_last_modified_node()
