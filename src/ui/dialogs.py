@@ -1,3 +1,4 @@
+import json
 from typing import Dict, List, Tuple, Any
 
 from PyQt6.QtWidgets import (
@@ -11,7 +12,11 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QGroupBox,
     QLineEdit,
+    QPushButton,
+    QMessageBox,
 )
+
+from ui.utility_controller import SecurityUtility
 
 
 class SuggestionDialog(QDialog):
@@ -134,3 +139,82 @@ class SuggestionDialog(QDialog):
                 )
 
         super().accept()
+
+
+class ConnectionSettingsDialog(QDialog):
+    def __init__(self, config, parent=None):
+        super().__init__(parent)
+
+        self.config = config
+        self.setWindowTitle("Manage Connection Settings")
+        self.layout = QVBoxLayout()
+
+        self.uri_label = QLabel("URI:", self)
+        self.uri_input = QLineEdit(config.URI, self)
+        self.uri_label.setBuddy(self.uri_input)
+        self.layout.addWidget(self.uri_label)
+        self.layout.addWidget(self.uri_input)
+
+        self.username_label = QLabel("Username:", self)
+        self.username_input = QLineEdit(config.USERNAME, self)
+        self.username_label.setBuddy(self.username_input)
+        self.layout.addWidget(self.username_label)
+        self.layout.addWidget(self.username_input)
+
+        self.password_label = QLabel("Password:", self)
+        self.password_input = QLineEdit(config.PASSWORD, self)
+        self.password_label.setBuddy(self.password_input)
+        self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.layout.addWidget(self.password_label)
+        self.layout.addWidget(self.password_input)
+
+        self.test_button = QPushButton("Test Connection", self)
+        self.test_button.setObjectName("test_connect_button")
+
+        self.save_button = QPushButton("Save", self)
+        self.save_button.setObjectName("save_button")
+
+        self.layout.addWidget(self.test_button)
+        self.layout.addWidget(self.save_button)
+        self.setLayout(self.layout)
+
+        self.test_button.clicked.connect(self.test_connection)
+        self.save_button.clicked.connect(self.save_settings)
+
+    def test_connection(self):
+        # Logic to test database connection
+        pass
+
+    def save_settings(self):
+        # Retrieve the input values
+        uri = self.uri_input.text()
+        username = self.username_input.text()
+        password = self.password_input.text()
+
+        # Encrypt the password
+        encryption_key = self.config.KEY
+        security_utility = SecurityUtility(encryption_key)
+        encrypted_password = security_utility.encrypt(password)
+
+        # Prepare the new settings dictionary
+        new_settings = {
+            "URI": uri,
+            "USERNAME": username,
+            "PASSWORD": encrypted_password,
+        }
+
+        # Load existing settings from the JSON file
+        try:
+            with open("src/config/database.json", "r") as config_file:
+                existing_settings = json.load(config_file)
+        except FileNotFoundError:
+            existing_settings = {}
+
+        # Update the existing settings with the new settings
+        existing_settings |= new_settings
+
+        # Save the updated settings back to the JSON file
+        with open("src/config/database.json", "w") as config_file:
+            json.dump(existing_settings, config_file, indent=4)
+
+        QMessageBox.information(self, "Success", "Settings saved successfully.")

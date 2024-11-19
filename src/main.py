@@ -43,6 +43,7 @@ from config.config import Config
 from core.neo4jmodel import Neo4jModel
 from ui.controller import WorldBuildingController
 from ui.main_window import WorldBuildingUI
+from ui.utility_controller import SecurityUtility
 
 # Configure logging
 structlog.configure(
@@ -187,12 +188,35 @@ class WorldBuildingApp(QMainWindow):
         Raises:
             RuntimeError: If the configuration file is not found or invalid.
         """
+
+        # Load system.json configuration
+        with open("src/config/system.json", "r") as config_file:
+            system_config = json.load(config_file)
+
+        print(system_config)
+
+        # Check if system.json contains the encryption key:value pair. If not, generate a new
+        # one using SecurityUtility.generate_encryption_key() and save it to the file.
+        if "KEY" not in system_config:
+            encryption_key = SecurityUtility.generate_key()
+            system_config["KEY"] = encryption_key
+            with open("src/config/system.json", "w") as config_file:
+                json.dump(system_config, config_file, indent=4)
+
         try:
-            config = Config("src/config.json")
+            config_files = [
+                "src/config/database.json",
+                "src/config/logging.json",
+                "src/config/limits.json",
+                "src/config/ui.json",
+                "src/config/system.json",
+            ]
+            config = Config(config_files)
+
             structlog.get_logger().info("Configuration loaded successfully")
             return config
         except FileNotFoundError:
-            raise RuntimeError("Configuration file 'config.json' not found")
+            raise RuntimeError("Configuration file 'config.database.json' not found")
         except json.JSONDecodeError:
             raise RuntimeError("Invalid JSON in configuration file")
         except Exception as e:
@@ -242,12 +266,16 @@ class WorldBuildingApp(QMainWindow):
         """
         max_retries = 3
         retry_delay = 2  # seconds
+        plain = "not set"
+
+        security_utility = SecurityUtility(config.KEY)
+
+        if config.PASSWORD != "":
+            plain = security_utility.decrypt(config.PASSWORD)
 
         for attempt in range(max_retries):
             try:
-                model = Neo4jModel(
-                    config.NEO4J_URI, config.NEO4J_USERNAME, config.NEO4J_PASSWORD
-                )
+                model = Neo4jModel(config.URI, config.USERNAME, plain)
                 structlog.get_logger().info("Database connection established")
                 return model
             except Exception as e:
@@ -328,26 +356,26 @@ class WorldBuildingApp(QMainWindow):
 
             # Set window size
             self.resize(
-                self.components.config.UI_WINDOW_WIDTH,
-                self.components.config.UI_WINDOW_HEIGHT,
+                self.components.config.WINDOW_WIDTH,
+                self.components.config.WINDOW_HEIGHT,
             )
             self.setMinimumSize(
-                self.components.config.UI_WINDOW_WIDTH,
-                self.components.config.UI_WINDOW_HEIGHT,
+                self.components.config.WINDOW_WIDTH,
+                self.components.config.WINDOW_HEIGHT,
             )
 
             # Add Export menu to the main menu bar
-            self._add_export_menu()
+            self._add_menu_bar()
 
             structlog.get_logger().info(
                 f"Window configured with size "
-                f"{self.components.config.UI_WINDOW_WIDTH}x"
-                f"{self.components.config.UI_WINDOW_HEIGHT}"
+                f"{self.components.config.WINDOW_WIDTH}x"
+                f"{self.components.config.WINDOW_HEIGHT}"
             )
         except Exception as e:
             raise RuntimeError(f"Failed to configure main window: {str(e)}")
 
-    def _add_export_menu(self) -> None:
+    def _add_menu_bar(self) -> None:
         """
         Add Export menu to the main menu bar.
         """
@@ -355,6 +383,7 @@ class WorldBuildingApp(QMainWindow):
         menu_bar.setObjectName("menuBar")
 
         export_menu = menu_bar.addMenu("Export")
+        database_connect_menu = menu_bar.addMenu("Connection Settings")
 
         export_json_action = QAction("Export as JSON", self)
         export_json_action.triggered.connect(self.components.controller.export_as_json)
@@ -371,6 +400,12 @@ class WorldBuildingApp(QMainWindow):
         export_pdf_action = QAction("Export as PDF", self)
         export_pdf_action.triggered.connect(self.components.controller.export_as_pdf)
         export_menu.addAction(export_pdf_action)
+
+        open_connection_settings_action = QAction("Open Connection Settings", self)
+        open_connection_settings_action.triggered.connect(
+            self.components.controller.open_connection_settings
+        )
+        database_connect_menu.addAction(open_connection_settings_action)
 
     def _handle_initialization_error(self, error: Exception) -> None:
         """

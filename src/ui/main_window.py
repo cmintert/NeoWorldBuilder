@@ -924,3 +924,36 @@ class WorldBuildingUI(QWidget):
         properties_json = json.dumps(properties)
         self.relationships_table.item(row, 3).setText(properties_json)
         dialog.accept()
+
+
+class ConnectionSettingsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Manage Connection Settings")
+        self.layout = QVBoxLayout()
+
+        self.uri_input = QLineEdit(self)
+        self.username_input = QLineEdit(self)
+        self.password_input = QLineEdit(self)
+        self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
+
+        self.test_button = QPushButton("Test Connection", self)
+        self.save_button = QPushButton("Save", self)
+
+        self.layout.addWidget(self.uri_input)
+        self.layout.addWidget(self.username_input)
+        self.layout.addWidget(self.password_input)
+        self.layout.addWidget(self.test_button)
+        self.layout.addWidget(self.save_button)
+        self.setLayout(self.layout)
+
+        self.test_button.clicked.connect(self.test_connection)
+        self.save_button.clicked.connect(self.save_settings)
+
+    def test_connection(self):
+        # Logic to test database connection
+        pass
+
+    def save_settings(self):
+        # Logic to save the encrypted settings
+        pass

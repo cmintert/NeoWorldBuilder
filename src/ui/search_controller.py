@@ -94,7 +94,9 @@ class SearchController(QObject):
             self.ui.controller.config.NEO4J_MATCH_NODE_LIMIT,
             self._handle_target_autocomplete_results,
         )
-        self.current_search_worker.error_occurred.connect(self.ui.controller.handle_error)
+        self.current_search_worker.error_occurred.connect(
+            self.ui.controller.handle_error
+        )
         self.current_search_worker.start()
 
     @pyqtSlot(list)
@@ -109,7 +111,9 @@ class SearchController(QObject):
             names = [record["name"] for record in records]
             self.target_name_model.setStringList(names)
         except Exception as e:
-            self.ui.controller.handle_error(f"Error processing target autocomplete results: {str(e)}")
+            self.ui.controller.handle_error(
+                f"Error processing target autocomplete results: {str(e)}"
+            )
 
     def _setup_debounce_timer(self):
         """
@@ -119,7 +123,7 @@ class SearchController(QObject):
         self.name_input_timer.setSingleShot(True)
         self.name_input_timer.timeout.connect(self._fetch_matching_nodes)
         self.name_input_timer.setInterval(
-            self.ui.controller.config.TIMING_NAME_INPUT_DEBOUNCE_TIME_MS
+            self.ui.controller.config.NAME_INPUT_DEBOUNCE_TIME_MS
         )
 
     def debounce_name_input(self, text: str):
@@ -147,9 +151,13 @@ class SearchController(QObject):
             self.current_search_worker.wait()
 
         self.current_search_worker = self.model.fetch_matching_node_names(
-            text, self.ui.controller.config.NEO4J_MATCH_NODE_LIMIT, self._handle_autocomplete_results
+            text,
+            self.ui.controller.config.NEO4J_MATCH_NODE_LIMIT,
+            self._handle_autocomplete_results,
         )
-        self.current_search_worker.error_occurred.connect(self.ui.controller.handle_error)
+        self.current_search_worker.error_occurred.connect(
+            self.ui.controller.handle_error
+        )
         self.current_search_worker.start()
 
     @pyqtSlot(list)
@@ -164,7 +172,9 @@ class SearchController(QObject):
             names = [record["name"] for record in records]
             self.node_name_model.setStringList(names)
         except Exception as e:
-            self.ui.controller.handle_error(f"Error processing autocomplete results: {str(e)}")
+            self.ui.controller.handle_error(
+                f"Error processing autocomplete results: {str(e)}"
+            )
 
     def on_completer_activated(self, text: str):
         """

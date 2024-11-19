@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from core.neo4jworkers import SuggestionWorker
-from ui.dialogs import SuggestionDialog
+from ui.dialogs import SuggestionDialog, ConnectionSettingsDialog
 from utils.exporters import Exporter
 
 
@@ -160,7 +160,7 @@ class WorldBuildingController(QObject):
 
         self.current_search_worker = self.model.fetch_matching_node_names(
             text,
-            self.config.NEO4J_MATCH_NODE_LIMIT,
+            self.config.MATCH_NODE_LIMIT,
             self._handle_target_autocomplete_results,
         )
         self.current_search_worker.error_occurred.connect(self.handle_error)
@@ -187,9 +187,7 @@ class WorldBuildingController(QObject):
         self.name_input_timer = QTimer()
         self.name_input_timer.setSingleShot(True)
         self.name_input_timer.timeout.connect(self._fetch_matching_nodes)
-        self.name_input_timer.setInterval(
-            self.config.TIMING_NAME_INPUT_DEBOUNCE_TIME_MS
-        )
+        self.name_input_timer.setInterval(self.config.NAME_INPUT_DEBOUNCE_TIME_MS)
 
     def _connect_signals(self) -> None:
         """
@@ -527,7 +525,7 @@ class WorldBuildingController(QObject):
             self.current_search_worker.wait()
 
         self.current_search_worker = self.model.fetch_matching_node_names(
-            text, self.config.NEO4J_MATCH_NODE_LIMIT, self._handle_autocomplete_results
+            text, self.config.MATCH_NODE_LIMIT, self._handle_autocomplete_results
         )
         self.current_search_worker.error_occurred.connect(self.handle_error)
         self.current_search_worker.start()
@@ -1043,11 +1041,11 @@ class WorldBuildingController(QObject):
             QMessageBox.warning(self.ui, "Warning", "Node name cannot be empty.")
             return False
 
-        if len(name) > self.config.LIMITS_MAX_NODE_NAME_LENGTH:
+        if len(name) > self.config.MAX_NODE_NAME_LENGTH:
             QMessageBox.warning(
                 self.ui,
                 "Warning",
-                f"Node name cannot exceed {self.config.LIMITS_MAX_NODE_NAME_LENGTH} characters.",
+                f"Node name cannot exceed {self.config.MAX_NODE_NAME_LENGTH} characters.",
             )
             return False
 
@@ -1083,7 +1081,7 @@ class WorldBuildingController(QObject):
         Generic export method that handles all export formats.
 
         Args:
-            format_type (str): The type of export format ('json', 'txt', 'csv', 'pdf')
+            format_type (str): The type of export format ('database.json', 'txt', 'csv', 'pdf')
         """
         selected_nodes = self.get_selected_nodes()
         if not selected_nodes:
@@ -1101,7 +1099,7 @@ class WorldBuildingController(QObject):
         """
         Export selected nodes as JSON.
         """
-        self._export("json")
+        self._export("database.json")
 
     def export_as_txt(self) -> None:
         """
@@ -1225,3 +1223,7 @@ class WorldBuildingController(QObject):
                 logging.info("No nodes available to load.")
         except Exception as e:
             self.handle_error(f"Error loading last modified node: {e}")
+
+    def open_connection_settings(self):
+        dialog = ConnectionSettingsDialog(self.config, self.ui)
+        dialog.exec()
