@@ -31,7 +31,11 @@ class WorldBuildingController(QObject):
     NODE_RELATIONSHIPS_HEADER = "Node Relationships"
 
     def __init__(
-        self, ui: "WorldBuildingUI", model: "Neo4jModel", config: "Config"
+        self,
+        ui: "WorldBuildingUI",
+        model: "Neo4jModel",
+        config: "Config",
+        app_instance: "WorldBuildingApp",
     ) -> None:
         """
         Initialize the controller with UI, model, and configuration.
@@ -45,6 +49,7 @@ class WorldBuildingController(QObject):
         self.ui = ui
         self.model = model
         self.config = config
+        self.app_instance = app_instance
         self.exporter = Exporter(self.ui, self.config)
         self.current_image_path: Optional[str] = None
         self.original_node_data: Optional[Dict[str, Any]] = None
@@ -1225,5 +1230,5 @@ class WorldBuildingController(QObject):
             self.handle_error(f"Error loading last modified node: {e}")
 
     def open_connection_settings(self):
-        dialog = ConnectionSettingsDialog(self.config, self.ui)
+        dialog = ConnectionSettingsDialog(self.config, self.app_instance)
         dialog.exec()

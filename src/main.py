@@ -328,7 +328,7 @@ class WorldBuildingApp(QMainWindow):
             RuntimeError: If controller initialization fails.
         """
         try:
-            controller = WorldBuildingController(ui, model, config)
+            controller = WorldBuildingController(ui, model, config, self)
             structlog.get_logger().info("Controller initialized successfully")
             return controller
         except Exception as e:

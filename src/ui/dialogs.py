@@ -142,10 +142,12 @@ class SuggestionDialog(QDialog):
 
 
 class ConnectionSettingsDialog(QDialog):
-    def __init__(self, config, parent=None):
+    def __init__(self, config, app_instance, parent=None):
         super().__init__(parent)
 
         self.config = config
+        self.app_instance = app_instance
+
         self.setWindowTitle("Manage Connection Settings")
         self.layout = QVBoxLayout()
 
@@ -168,8 +170,8 @@ class ConnectionSettingsDialog(QDialog):
         self.layout.addWidget(self.password_label)
         self.layout.addWidget(self.password_input)
 
-        self.test_button = QPushButton("Test Connection", self)
-        self.test_button.setObjectName("test_connect_button")
+        self.test_button = QPushButton("Establish Connection", self)
+        self.test_button.setObjectName("establish_connect_button")
 
         self.save_button = QPushButton("Save", self)
         self.save_button.setObjectName("save_button")
@@ -178,12 +180,19 @@ class ConnectionSettingsDialog(QDialog):
         self.layout.addWidget(self.save_button)
         self.setLayout(self.layout)
 
-        self.test_button.clicked.connect(self.test_connection)
+        self.test_button.clicked.connect(self.establish_connection)
         self.save_button.clicked.connect(self.save_settings)
 
-    def test_connection(self):
+    def establish_connection(self):
         # Logic to test database connection
-        pass
+        try:
+            # Attempt to initialize the database connection using the main application instance
+            self.app_instance._initialize_database(self.config)
+            QMessageBox.information(self, "Success", "Connection successful.")
+        except RuntimeError as e:
+            QMessageBox.critical(
+                self, "Error", f"Failed to connect to the database: {e}"
+            )
 
     def save_settings(self):
         # Retrieve the input values
