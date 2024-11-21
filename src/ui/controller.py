@@ -274,25 +274,8 @@ class WorldBuildingController(QObject):
         self.update_relationship_tree(name)
 
     def save_node(self) -> None:
-        """
-        Save node data using worker thread.
-        """
-        name = self.ui.name_input.text().strip()
-        if not self.validate_node_name(name):
-            return
 
-        node_data = self._collect_node_data()
-        if not node_data:
-            return
-
-        # Cancel any existing save operation
-        if hasattr(self, "current_save_worker") and self.current_save_worker:
-            self.current_save_worker.cancel()
-
-        # Start new save operation
-        self.current_save_worker = self.model.save_node(node_data, self.on_save_success)
-        self.current_save_worker.error_occurred.connect(self.handle_error)
-        self.current_save_worker.start()
+        self.node_controller.save_node()
 
     def delete_node(self) -> None:
         """
@@ -714,25 +697,6 @@ class WorldBuildingController(QObject):
         QMessageBox.information(self.ui, "Success", "Node deleted successfully")
         self._load_default_state()
 
-    def on_save_success(self, _: Any) -> None:
-        """
-        Handle successful node save.
-
-        Args:
-            _: The result of the save operation.
-        """
-        msg_box = QMessageBox(self.ui)
-        msg_box.setIcon(QMessageBox.Icon.Information)
-        msg_box.setWindowTitle("Success")
-        msg_box.setText("Node saved successfully")
-        msg_box.setStandardButtons(QMessageBox.StandardButton.NoButton)
-        msg_box.show()
-
-        QTimer.singleShot(1000, msg_box.accept)  # Close after 2 seconds
-
-        self.refresh_tree_view()
-        self.load_node_data()
-
     @pyqtSlot(list)
     def _handle_autocomplete_results(self, records: List[Any]) -> None:
         """
@@ -1032,30 +996,6 @@ class WorldBuildingController(QObject):
         """
         return [item.strip() for item in text.split(",") if item.strip()]
 
-    def validate_node_name(self, name: str) -> bool:
-        """
-        Validate node name.
-
-        Args:
-            name (str): The node name to validate.
-
-        Returns:
-            bool: True if the node name is valid, False otherwise.
-        """
-        if not name:
-            QMessageBox.warning(self.ui, "Warning", "Node name cannot be empty.")
-            return False
-
-        if len(name) > self.config.MAX_NODE_NAME_LENGTH:
-            QMessageBox.warning(
-                self.ui,
-                "Warning",
-                f"Node name cannot exceed {self.config.MAX_NODE_NAME_LENGTH} characters.",
-            )
-            return False
-
-        return True
-
     def change_image(self) -> None:
         """
         Handle changing the image.
@@ -1232,3 +1172,67 @@ class WorldBuildingController(QObject):
     def open_connection_settings(self):
         dialog = ConnectionSettingsDialog(self.config, self.app_instance)
         dialog.exec()
+
+    def save_node(self) -> None:
+        """
+        Save node data using worker thread.
+        """
+        name = self.ui.name_input.text().strip()
+        if not self.validate_node_name(name):
+            return
+
+        node_data = self._collect_node_data()
+        if not node_data:
+            return
+
+        # Cancel any existing save operation
+        if hasattr(self, "current_save_worker") and self.current_save_worker:
+            self.current_save_worker.cancel()
+
+        # Start new save operation
+        self.current_save_worker = self.model.save_node(node_data, self.on_save_success)
+        self.current_save_worker.error_occurred.connect(self.handle_error)
+        self.current_save_worker.start()
+
+    def validate_node_name(self, name: str) -> bool:
+        """
+        Validate node name.
+
+        Args:
+            name (str): The node name to validate.
+
+        Returns:
+            bool: True if the node name is valid, False otherwise.
+        """
+        if not name:
+            QMessageBox.warning(self.ui, "Warning", "Node name cannot be empty.")
+            return False
+
+        if len(name) > self.config.MAX_NODE_NAME_LENGTH:
+            QMessageBox.warning(
+                self.ui,
+                "Warning",
+                f"Node name cannot exceed {self.config.MAX_NODE_NAME_LENGTH} characters.",
+            )
+            return False
+
+        return True
+
+    def on_save_success(self, _: Any) -> None:
+        """
+        Handle successful node save.
+
+        Args:
+            _: The result of the save operation.
+        """
+        msg_box = QMessageBox(self.ui)
+        msg_box.setIcon(QMessageBox.Icon.Information)
+        msg_box.setWindowTitle("Success")
+        msg_box.setText("Node saved successfully")
+        msg_box.setStandardButtons(QMessageBox.StandardButton.NoButton)
+        msg_box.show()
+
+        QTimer.singleShot(1000, msg_box.accept)  # Close after 2 seconds
+
+        self.refresh_tree_view()
+        self.load_node_data()
