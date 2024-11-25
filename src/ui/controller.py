@@ -10,12 +10,17 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QTableWidgetItem,
-    QFileDialog,
 )
 
 from core.neo4jworkers import SuggestionWorker
+from models.property_model import PropertyItem
+from services.image_service import ImageService
+from services.property_service import PropertyService
 from ui.dialogs import SuggestionDialog, ConnectionSettingsDialog
+from utils.error_handler import ErrorHandler
 from utils.exporters import Exporter
+from utils.parsers import parse_comma_separated
+from utils.validation import validate_node_name as validate_node_name_logic
 
 
 class WorldBuildingController(QObject):
@@ -54,6 +59,11 @@ class WorldBuildingController(QObject):
         self.current_image_path: Optional[str] = None
         self.original_node_data: Optional[Dict[str, Any]] = None
         self.ui.controller = self
+        self.error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
+
+        # Initialize services
+        self.property_service = PropertyService(self.config)
+        self.image_service = ImageService()
 
         # Initialize UI state
         self._initialize_tree_view()
@@ -168,7 +178,11 @@ class WorldBuildingController(QObject):
             self.config.MATCH_NODE_LIMIT,
             self._handle_target_autocomplete_results,
         )
-        self.current_search_worker.error_occurred.connect(self.handle_error)
+        self.current_search_worker.error_occurred.connect(
+            self.error_handler.handle_error(
+                "Error fetching target nodes", logging.ERROR
+            )
+        )
         self.current_search_worker.start()
 
     @pyqtSlot(list)
@@ -183,7 +197,9 @@ class WorldBuildingController(QObject):
             names = [record["name"] for record in records]
             self.target_name_model.setStringList(names)
         except Exception as e:
-            self.handle_error(f"Error processing target autocomplete results: {str(e)}")
+            self.error_handler.handle_error(
+                f"Error processing target autocomplete results: {str(e)}"
+            )
 
     def _setup_debounce_timer(self) -> None:
         """
@@ -267,15 +283,13 @@ class WorldBuildingController(QObject):
 
         # Start new load operation
         self.current_load_worker = self.model.load_node(name, self._handle_node_data)
-        self.current_load_worker.error_occurred.connect(self.handle_error)
+        self.current_load_worker.error_occurred.connect(
+            lambda: self.error_handler.handle_error("Error loading node")
+        )
         self.current_load_worker.start()
 
         # Update relationship tree
         self.update_relationship_tree(name)
-
-    def save_node(self) -> None:
-
-        self.node_controller.save_node()
 
     def delete_node(self) -> None:
         """
@@ -303,7 +317,9 @@ class WorldBuildingController(QObject):
             self.current_delete_worker = self.model.delete_node(
                 name, self._handle_delete_success
             )
-            self.current_delete_worker.error_occurred.connect(self.handle_error)
+            self.current_delete_worker.error_occurred.connect(
+                lambda: self.error_handler.handle_error("Error deleting node")
+            )
             self.current_delete_worker.start()
 
     #############################################
@@ -342,7 +358,9 @@ class WorldBuildingController(QObject):
         self.current_relationship_worker = self.model.get_node_relationships(
             node_name, depth, self._populate_relationship_tree
         )
-        self.current_relationship_worker.error_occurred.connect(self.handle_error)
+        self.current_relationship_worker.error_occurred.connect(
+            lambda: self.error_handler.handle_error("Error getting relationships")
+        )
         self.current_relationship_worker.start()
 
     def refresh_tree_view(self) -> None:
@@ -396,7 +414,9 @@ class WorldBuildingController(QObject):
         self.current_suggestion_worker.suggestions_ready.connect(
             self.handle_suggestions
         )
-        self.current_suggestion_worker.error_occurred.connect(self.handle_error)
+        self.current_suggestion_worker.error_occurred.connect(
+            lambda: self.error_handler.handle_error("Error creating suggestion")
+        )
         self.current_suggestion_worker.finished.connect(
             self.on_suggestion_worker_finished
         )
@@ -437,7 +457,7 @@ class WorldBuildingController(QObject):
             logging.debug(f"User selected suggestions: {selected}")
 
             # Update tags
-            existing_tags = self._parse_comma_separated(self.ui.tags_input.text())
+            existing_tags = parse_comma_separated(self.ui.tags_input.text())
             new_tags = list(set(existing_tags + selected["tags"]))
             self.ui.tags_input.setText(", ".join(new_tags))
             logging.debug(f"Updated tags: {new_tags}")
@@ -515,7 +535,9 @@ class WorldBuildingController(QObject):
         self.current_search_worker = self.model.fetch_matching_node_names(
             text, self.config.MATCH_NODE_LIMIT, self._handle_autocomplete_results
         )
-        self.current_search_worker.error_occurred.connect(self.handle_error)
+        self.current_search_worker.error_occurred.connect(
+            lambda: self.error_handler.handle_error("Error  on autocompletion")
+        )
         self.current_search_worker.start()
 
     def on_completer_activated(self, text: str) -> None:
@@ -544,12 +566,10 @@ class WorldBuildingController(QObject):
             node_data = {
                 "name": self.ui.name_input.text().strip(),
                 "description": self.ui.description_input.toHtml().strip(),
-                "tags": self._parse_comma_separated(self.ui.tags_input.text()),
+                "tags": parse_comma_separated(self.ui.tags_input.text()),
                 "labels": [
                     label.strip().upper().replace(" ", "_")
-                    for label in self._parse_comma_separated(
-                        self.ui.labels_input.text()
-                    )
+                    for label in parse_comma_separated(self.ui.labels_input.text())
                 ],
                 "relationships": self._collect_relationships(),
                 "additional_properties": self._collect_properties(),
@@ -566,7 +586,7 @@ class WorldBuildingController(QObject):
 
             return node_data
         except ValueError as e:
-            self.handle_error(str(e))
+            self.error_handler.handle_error(str(e))
             return None
 
     def _collect_properties(self) -> Dict[str, Any]:
@@ -576,33 +596,19 @@ class WorldBuildingController(QObject):
         Returns:
             Dict[str, Any]: The collected properties.
         """
-        properties = {}
+        properties = []
         for row in range(self.ui.properties_table.rowCount()):
-            key = self.ui.properties_table.item(row, 0)
-            value = self.ui.properties_table.item(row, 1)
+            key_item = self.ui.properties_table.item(row, 0)
+            value_item = self.ui.properties_table.item(row, 1)
 
-            if not key or not key.text().strip():
-                continue
+            prop = PropertyItem.from_table_item(key_item, value_item)
+            if prop:
+                properties.append(prop)
 
-            key_text = key.text().strip()
-
-            if key_text.lower() in self.config.RESERVED_PROPERTY_KEYS:
-                raise ValueError(f"Property key '{key_text}' is reserved")
-
-            if key_text.startswith("_"):
-                raise ValueError(
-                    f"Property key '{key_text}' cannot start with an underscore"
-                )
-
-            try:
-                value_text = value.text().strip() if value else ""
-                properties[key_text] = (
-                    json.loads(value_text) if value_text else value_text
-                )
-            except json.JSONDecodeError:
-                properties[key_text] = value_text
-
-        return properties
+        try:
+            return self.property_service.process_properties(properties)
+        except ValueError as e:
+            self.error_handler.handle_error(str(e))
 
     def _collect_relationships(self) -> List[Tuple[str, str, str, Dict[str, Any]]]:
         """
@@ -666,7 +672,7 @@ class WorldBuildingController(QObject):
             self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
 
         except Exception as e:
-            self.handle_error(f"Error populating node fields: {str(e)}")
+            self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
 
     def is_node_changed(self) -> bool:
         """
@@ -709,7 +715,10 @@ class WorldBuildingController(QObject):
             names = [record["name"] for record in records]
             self.node_name_model.setStringList(names)
         except Exception as e:
-            self.handle_error(f"Error processing autocomplete results: {str(e)}")
+
+            self.error_handler.handle_error(
+                f"Error processing autocomplete results: {str(e)}"
+            )
 
     def _update_save_progress(self, current: int, total: int) -> None:
         """
@@ -743,7 +752,6 @@ class WorldBuildingController(QObject):
             node_name = node_properties.get("name", "")
             node_description = node_properties.get("description", "")
             node_tags = node_properties.get("tags", [])
-            image_path = node_properties.get("image_path")
 
             # Update UI elements in the main thread
             self.ui.name_input.setText(node_name)
@@ -782,11 +790,13 @@ class WorldBuildingController(QObject):
                 self.ui.add_relationship_row(rel_type, target, direction, props)
 
             # Update image if available
-            self.current_image_path = image_path
+            image_path = node_properties.get("image_path")
+            self.image_service.set_current_image(image_path)
             self.ui.set_image(image_path)
 
         except Exception as e:
-            self.handle_error(f"Error populating node fields: {str(e)}")
+
+            self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
 
     def process_relationship_records(
         self, records: List[Any]
@@ -947,7 +957,10 @@ class WorldBuildingController(QObject):
                 )
 
         except Exception as e:
-            self.handle_error(f"Error populating relationship tree: {str(e)}")
+
+            self.error_handler.handle_error(
+                f"Error populating relationship tree: {str(e)}"
+            )
 
     #############################################
     # 7. Cleanup and Error Handling
@@ -970,63 +983,37 @@ class WorldBuildingController(QObject):
                 worker.wait()
         self.model.close()
 
-    def handle_error(self, error_message: str) -> None:
-        """
-        Handle any errors.
-
-        Args:
-            error_message (str): The error message to display.
-        """
-        logging.error(error_message)
-        QMessageBox.critical(self.ui, "Error", error_message)
+    def _show_error_dialog(self, title: str, message: str) -> None:
+        """Show error dialog to user."""
+        QMessageBox.critical(self.ui, title, message)
 
     #############################################
     # 8. Utility Methods
     #############################################
 
-    def _parse_comma_separated(self, text: str) -> List[str]:
-        """
-        Parse comma-separated input.
-
-        Args:
-            text (str): The comma-separated input text.
-
-        Returns:
-            List[str]: The parsed list of strings.
-        """
-        return [item.strip() for item in text.split(",") if item.strip()]
-
     def change_image(self) -> None:
-        """
-        Handle changing the image.
-        """
-        try:
-            file_name, _ = QFileDialog.getOpenFileName(
-                self.ui,
-                "Select Image",
-                "",
-                "Image Files (*.png *.jpg *.bmp)",
+        """Handle image change request from UI."""
+        result = self.image_service.change_image(self.ui)
+        if result.success:
+            self.ui.set_image(result.path)
+            self.update_unsaved_changes_indicator()  # If you need to track changes
+        else:
+            self.error_handler.handle_error(
+                f"Error changing image - {result.error_message}"
             )
-            if file_name:
-                # Process image in the UI thread since it's UI-related
-                self.current_image_path = file_name
-                self.ui.set_image(file_name)
-        except Exception as e:
-            self.handle_error(f"Error changing image: {str(e)}")
 
     def delete_image(self) -> None:
-        """
-        Handle deleting the image.
-        """
-        self.current_image_path = None
+        """Handle image deletion request from UI."""
+        self.image_service.delete_image()
         self.ui.set_image(None)
+        self.update_unsaved_changes_indicator()  # If you need to track changes
 
-    def _export(self, format_type: str) -> None:
+    def export_to_filetype(self, format_type: str) -> None:
         """
         Generic export method that handles all export formats.
 
         Args:
-            format_type (str): The type of export format ('database.json', 'txt', 'csv', 'pdf')
+            format_type (str): The type of export format ('json', 'txt', 'csv', 'pdf')
         """
         selected_nodes = self.get_selected_nodes()
         if not selected_nodes:
@@ -1038,31 +1025,8 @@ class WorldBuildingController(QObject):
                 format_type, selected_nodes, self._collect_node_data_for_export
             )
         except ValueError as e:
-            self.handle_error(f"Export error: {str(e)}")
 
-    def export_as_json(self) -> None:
-        """
-        Export selected nodes as JSON.
-        """
-        self._export("database.json")
-
-    def export_as_txt(self) -> None:
-        """
-        Export selected nodes as TXT.
-        """
-        self._export("txt")
-
-    def export_as_csv(self) -> None:
-        """
-        Export selected nodes as CSV.
-        """
-        self._export("csv")
-
-    def export_as_pdf(self) -> None:
-        """
-        Export selected nodes as PDF.
-        """
-        self._export("pdf")
+            self.error_handler.handle_error(f"Export error: {str(e)}")
 
     def get_selected_nodes(self) -> List[str]:
         """
@@ -1132,27 +1096,24 @@ class WorldBuildingController(QObject):
             node_data = {
                 "name": node_name,
                 "description": self.ui.description_input.toPlainText().strip(),
-                "tags": self._parse_comma_separated(self.ui.tags_input.text()),
+                "tags": parse_comma_separated(self.ui.tags_input.text()),
                 "labels": [
                     label.strip().upper().replace(" ", "_")
-                    for label in self._parse_comma_separated(
-                        self.ui.labels_input.text()
-                    )
+                    for label in parse_comma_separated(self.ui.labels_input.text())
                 ],
                 "relationships": self._collect_relationships(),
                 "additional_properties": self._collect_properties(),
             }
 
-            if self.current_image_path:
-                node_data["additional_properties"][
-                    "image_path"
-                ] = self.current_image_path
+            current_image = self.image_service.get_current_image()
+            if current_image:
+                node_data["additional_properties"]["image_path"] = current_image
             else:
                 node_data["additional_properties"]["image_path"] = None
 
             return node_data
         except ValueError as e:
-            self.handle_error(str(e))
+            self.error_handler.handle_error(str(e))
             return None
 
     def load_last_modified_node(self) -> None:
@@ -1167,9 +1128,10 @@ class WorldBuildingController(QObject):
             else:
                 logging.info("No nodes available to load.")
         except Exception as e:
-            self.handle_error(f"Error loading last modified node: {e}")
 
-    def open_connection_settings(self):
+            self.error_handler.handle_error(f"Error loading last modified node: {e}")
+
+    def open_connection_settings(self) -> None:
         dialog = ConnectionSettingsDialog(self.config, self.app_instance)
         dialog.exec()
 
@@ -1191,12 +1153,14 @@ class WorldBuildingController(QObject):
 
         # Start new save operation
         self.current_save_worker = self.model.save_node(node_data, self.on_save_success)
-        self.current_save_worker.error_occurred.connect(self.handle_error)
+        self.current_save_worker.error_occurred.connect(
+            lambda: self.error_handler.handle_error("Error saving node")
+        )
         self.current_save_worker.start()
 
     def validate_node_name(self, name: str) -> bool:
         """
-        Validate node name.
+        Validate node name and show appropriate UI feedback.
 
         Args:
             name (str): The node name to validate.
@@ -1204,19 +1168,12 @@ class WorldBuildingController(QObject):
         Returns:
             bool: True if the node name is valid, False otherwise.
         """
-        if not name:
-            QMessageBox.warning(self.ui, "Warning", "Node name cannot be empty.")
-            return False
+        result = validate_node_name_logic(name, self.config.MAX_NODE_NAME_LENGTH)
 
-        if len(name) > self.config.MAX_NODE_NAME_LENGTH:
-            QMessageBox.warning(
-                self.ui,
-                "Warning",
-                f"Node name cannot exceed {self.config.MAX_NODE_NAME_LENGTH} characters.",
-            )
-            return False
+        if not result.is_valid:
+            QMessageBox.warning(self.ui, "Warning", result.error_message)
 
-        return True
+        return result.is_valid
 
     def on_save_success(self, _: Any) -> None:
         """

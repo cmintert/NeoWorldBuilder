@@ -25,13 +25,13 @@ class Exporter:
         self.ui = ui
         self.config = config
         self._format_handlers = {
-            "database.json": self._handle_json,
+            "json": self._handle_json,
             "txt": self._handle_txt,
             "csv": self._handle_csv,
             "pdf": self._handle_pdf,
         }
         self._file_types = {
-            "database.json": "JSON Files (*.database.json)",
+            "json": "JSON Files (*.json)",
             "txt": "Text Files (*.txt)",
             "csv": "CSV Files (*.csv)",
             "pdf": "PDF Files (*.pdf)",
@@ -47,7 +47,7 @@ class Exporter:
         Main export method that handles all export formats.
 
         Args:
-            format_type (str): The type of export format (e.g., 'database.json', 'txt', 'csv', 'pdf').
+            format_type (str): The type of export format (e.g., 'json', 'txt', 'csv', 'pdf').
             selected_nodes (List[str]): The list of selected node names.
             collect_node_data (Callable[[str], Dict[str, Any]]): The function to collect node data.
 
@@ -76,7 +76,7 @@ class Exporter:
         Get file name from save dialog.
 
         Args:
-            format_type (str): The type of export format (e.g., 'database.json', 'txt', 'csv', 'pdf').
+            format_type (str): The type of export format (e.g., 'json', 'txt', 'csv', 'pdf').
 
         Returns:
             str: The selected file name.

@@ -386,19 +386,27 @@ class WorldBuildingApp(QMainWindow):
         database_connect_menu = menu_bar.addMenu("Connection Settings")
 
         export_json_action = QAction("Export as JSON", self)
-        export_json_action.triggered.connect(self.components.controller.export_as_json)
+        export_json_action.triggered.connect(
+            lambda: self.components.controller.export_to_filetype("json")
+        )
         export_menu.addAction(export_json_action)
 
         export_txt_action = QAction("Export as TXT", self)
-        export_txt_action.triggered.connect(self.components.controller.export_as_txt)
+        export_txt_action.triggered.connect(
+            lambda: self.components.controller.export_to_filetype("txt")
+        )
         export_menu.addAction(export_txt_action)
 
         export_csv_action = QAction("Export as CSV", self)
-        export_csv_action.triggered.connect(self.components.controller.export_as_csv)
+        export_csv_action.triggered.connect(
+            lambda: self.components.controller.export_to_filetype("csv")
+        )
         export_menu.addAction(export_csv_action)
 
         export_pdf_action = QAction("Export as PDF", self)
-        export_pdf_action.triggered.connect(self.components.controller.export_as_pdf)
+        export_pdf_action.triggered.connect(
+            lambda: self.components.controller.export_to_filetype("pdf")
+        )
         export_menu.addAction(export_pdf_action)
 
         open_connection_settings_action = QAction("Open Connection Settings", self)
