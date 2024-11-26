@@ -766,7 +766,7 @@ class WorldBuildingController(QObject):
                 if key.startswith("_"):
                     continue
 
-                if key not in ["name", "description", "tags", "imagepath"]:
+                if key not in self.config.RESERVED_PROPERTY_KEYS:
 
                     row = self.ui.properties_table.rowCount()
                     self.ui.properties_table.insertRow(row)
