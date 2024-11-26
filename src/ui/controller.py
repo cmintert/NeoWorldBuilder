@@ -791,8 +791,15 @@ class WorldBuildingController(QObject):
 
             # Update image if available
             image_path = node_properties.get("image_path")
-            self.image_service.set_current_image(image_path)
-            self.ui.set_image(image_path)
+
+            if image_path:
+                self.image_service.set_current_image(image_path)
+                self.current_image_path = image_path  # Keep controller in sync
+                self.ui.set_image(image_path)
+            else:
+                self.image_service.set_current_image(None)
+                self.current_image_path = None
+                self.ui.set_image(None)
 
         except Exception as e:
 
@@ -996,6 +1003,7 @@ class WorldBuildingController(QObject):
         result = self.image_service.change_image(self.ui)
         if result.success:
             self.ui.set_image(result.path)
+            self.current_image_path = result.path
             self.update_unsaved_changes_indicator()  # If you need to track changes
         else:
             self.error_handler.handle_error(
@@ -1005,6 +1013,7 @@ class WorldBuildingController(QObject):
     def delete_image(self) -> None:
         """Handle image deletion request from UI."""
         self.image_service.delete_image()
+        self.current_image_path = None
         self.ui.set_image(None)
         self.update_unsaved_changes_indicator()  # If you need to track changes
 
@@ -1093,6 +1102,7 @@ class WorldBuildingController(QObject):
             Optional[Dict[str, Any]]: The collected node data.
         """
         try:
+
             node_data = {
                 "name": node_name,
                 "description": self.ui.description_input.toPlainText().strip(),
@@ -1106,10 +1116,7 @@ class WorldBuildingController(QObject):
             }
 
             current_image = self.image_service.get_current_image()
-            if current_image:
-                node_data["additional_properties"]["image_path"] = current_image
-            else:
-                node_data["additional_properties"]["image_path"] = None
+            node_data["image_path"] = current_image
 
             return node_data
         except ValueError as e:
