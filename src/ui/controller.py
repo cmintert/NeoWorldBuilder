@@ -14,8 +14,11 @@ from PyQt6.QtWidgets import (
 
 from core.neo4jworkers import SuggestionWorker
 from models.property_model import PropertyItem
+from models.worker_model import WorkerOperation
 from services.image_service import ImageService
 from services.property_service import PropertyService
+from services.relationship_tree_service import RelationshipTreeService
+from services.worker_manager_service import WorkerManagerService
 from ui.dialogs import SuggestionDialog, ConnectionSettingsDialog
 from utils.error_handler import ErrorHandler
 from utils.exporters import Exporter
@@ -64,22 +67,23 @@ class WorldBuildingController(QObject):
         # Initialize services
         self.property_service = PropertyService(self.config)
         self.image_service = ImageService()
+        self.worker_manager = WorkerManagerService(self.error_handler)
+
+        # Initialize tree model and service
+        self.tree_model = QStandardItemModel()
+        self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
+        self.relationship_tree_service = RelationshipTreeService(
+            self.tree_model, self.NODE_RELATIONSHIPS_HEADER
+        )
 
         # Initialize UI state
         self._initialize_tree_view()
+
         self._initialize_completer()
         self._initialize_target_completer()
         self._setup_debounce_timer()
         self._connect_signals()
         self._load_default_state()
-
-        # Initialize worker manager
-        self.current_load_worker = None
-        self.current_save_worker = None
-        self.current_relationship_worker = None
-        self.current_search_worker = None
-        self.current_delete_worker = None
-        self.current_suggestion_worker = None
 
     #############################################
     # 1. Initialization Methods
@@ -168,22 +172,22 @@ class WorldBuildingController(QObject):
         if not text:
             return
 
-        # Cancel any existing search worker
-        if self.current_search_worker:
-            self.current_search_worker.cancel()
-            self.current_search_worker.wait()
-
-        self.current_search_worker = self.model.fetch_matching_node_names(
+        worker = self.model.fetch_matching_node_names(
             text,
             self.config.MATCH_NODE_LIMIT,
             self._handle_target_autocomplete_results,
         )
-        self.current_search_worker.error_occurred.connect(
-            self.error_handler.handle_error(
-                "Error fetching target nodes", logging.ERROR
-            )
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=self._handle_target_autocomplete_results,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Error fetching target nodes: {msg}"
+            ),
+            operation_name="target_search",
         )
-        self.current_search_worker.start()
+
+        self.worker_manager.execute_worker("target_search", operation)
 
     @pyqtSlot(list)
     def _handle_target_autocomplete_results(self, records: List[Any]) -> None:
@@ -276,20 +280,20 @@ class WorldBuildingController(QObject):
         # Clear all fields to populate them again
         self.ui.clear_all_fields()
 
-        # Cancel any existing load operation
-        if self.current_load_worker:
-            self.current_load_worker.cancel()
-            self.current_load_worker.wait()
+        # Create load operation
+        worker = self.model.load_node(name, self._handle_node_data)
 
-        # Start new load operation
-        self.current_load_worker = self.model.load_node(name, self._handle_node_data)
-        self.current_load_worker.error_occurred.connect(
-            lambda: self.error_handler.handle_error("Error loading node")
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=self._handle_node_data,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Error loading node: {msg}"
+            ),
+            finished_callback=lambda: self.update_relationship_tree(name),
+            operation_name="load_node",
         )
-        self.current_load_worker.start()
 
-        # Update relationship tree
-        self.update_relationship_tree(name)
+        self.worker_manager.execute_worker("load", operation)
 
     def delete_node(self) -> None:
         """
@@ -308,19 +312,18 @@ class WorldBuildingController(QObject):
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            # Cancel any existing delete operation
-            if self.current_delete_worker:
-                self.current_delete_worker.cancel()
-                self.current_delete_worker.wait()
+            worker = self.model.delete_node(name, self._handle_delete_success)
 
-            # Start new delete operation
-            self.current_delete_worker = self.model.delete_node(
-                name, self._handle_delete_success
+            operation = WorkerOperation(
+                worker=worker,
+                success_callback=self._handle_delete_success,
+                error_callback=lambda msg: self.error_handler.handle_error(
+                    f"Error deleting node: {msg}"
+                ),
+                operation_name="delete_node",
             )
-            self.current_delete_worker.error_occurred.connect(
-                lambda: self.error_handler.handle_error("Error deleting node")
-            )
-            self.current_delete_worker.start()
+
+            self.worker_manager.execute_worker("delete", operation)
 
     #############################################
     # 3. Tree and Relationship Management
@@ -348,20 +351,22 @@ class WorldBuildingController(QObject):
             self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
             return
 
-        depth = self.ui.depth_spinbox.value()  # Get depth from UI
+        depth = self.ui.depth_spinbox.value()
 
-        # Cancel any existing relationship worker
-        if self.current_relationship_worker:
-            self.current_relationship_worker.cancel()
-            self.current_relationship_worker.wait()
-
-        self.current_relationship_worker = self.model.get_node_relationships(
+        worker = self.model.get_node_relationships(
             node_name, depth, self._populate_relationship_tree
         )
-        self.current_relationship_worker.error_occurred.connect(
-            lambda: self.error_handler.handle_error("Error getting relationships")
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=self._populate_relationship_tree,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Error getting relationships: {msg}"
+            ),
+            operation_name="relationship_tree",
         )
-        self.current_relationship_worker.start()
+
+        self.worker_manager.execute_worker("relationships", operation)
 
     def refresh_tree_view(self) -> None:
         """
@@ -400,37 +405,28 @@ class WorldBuildingController(QObject):
         # Show loading indicator
         self.ui.show_loading(True)
 
-        # Cancel any existing SuggestionWorker
-        if self.current_suggestion_worker:
-            self.current_suggestion_worker.cancel()
-            self.current_suggestion_worker.wait()
-            self.current_suggestion_worker = None
-            logging.debug("Existing SuggestionWorker canceled and cleaned up.")
+        worker = SuggestionWorker(self.model._uri, self.model._auth, node_data)
 
-        # Create and start the SuggestionWorker
-        self.current_suggestion_worker = SuggestionWorker(
-            self.model._uri, self.model._auth, node_data
-        )
-        self.current_suggestion_worker.suggestions_ready.connect(
-            self.handle_suggestions
-        )
-        self.current_suggestion_worker.error_occurred.connect(
-            lambda: self.error_handler.handle_error("Error creating suggestion")
-        )
-        self.current_suggestion_worker.finished.connect(
-            self.on_suggestion_worker_finished
-        )
-        self.current_suggestion_worker.start()
+        # Connect the specific signal before creating operation
+        worker.suggestions_ready.connect(self.handle_suggestions)
 
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=None,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Error creating suggestion: {msg}"
+            ),
+            finished_callback=self._handle_suggestion_finished,
+            operation_name="suggestions",
+        )
+
+        self.worker_manager.execute_worker("suggestions", operation)
         logging.debug("SuggestionWorker started successfully.")
 
-    def on_suggestion_worker_finished(self) -> None:
-        """
-        Cleanup after SuggestionWorker has finished.
-        """
-        self.current_suggestion_worker = None
+    def _handle_suggestion_finished(self) -> None:
+        """Handle suggestion worker completion."""
         self.ui.show_loading(False)
-        logging.debug("SuggestionWorker has finished and cleaned up.")
+        logging.debug("Suggestion worker has finished and cleaned up.")
 
     def handle_suggestions(self, suggestions: Dict[str, Any]) -> None:
         """
@@ -527,18 +523,20 @@ class WorldBuildingController(QObject):
         if not text:
             return
 
-        # Cancel any existing search worker
-        if self.current_search_worker:
-            self.current_search_worker.cancel()
-            self.current_search_worker.wait()
-
-        self.current_search_worker = self.model.fetch_matching_node_names(
+        worker = self.model.fetch_matching_node_names(
             text, self.config.MATCH_NODE_LIMIT, self._handle_autocomplete_results
         )
-        self.current_search_worker.error_occurred.connect(
-            lambda: self.error_handler.handle_error("Error  on autocompletion")
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=self._handle_autocomplete_results,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Error on autocompletion: {msg}"
+            ),
+            operation_name="search_nodes",
         )
-        self.current_search_worker.start()
+
+        self.worker_manager.execute_worker("search", operation)
 
     def on_completer_activated(self, text: str) -> None:
         """
@@ -979,10 +977,7 @@ class WorldBuildingController(QObject):
                 )
 
         except Exception as e:
-
-            self.error_handler.handle_error(
-                f"Error populating relationship tree: {str(e)}"
-            )
+            self.handle_error(f"Error populating relationship tree: {str(e)}")
 
     #############################################
     # 7. Cleanup and Error Handling
@@ -992,17 +987,7 @@ class WorldBuildingController(QObject):
         """
         Clean up resources.
         """
-        # Cancel and wait for any running workers
-        for worker in [
-            self.current_load_worker,
-            self.current_save_worker,
-            self.current_relationship_worker,
-            self.current_search_worker,
-            self.current_delete_worker,
-        ]:
-            if worker is not None:
-                worker.cancel()
-                worker.wait()
+        self.worker_manager.cancel_all_workers()
         self.model.close()
 
     def _show_error_dialog(self, title: str, message: str) -> None:
@@ -1169,16 +1154,35 @@ class WorldBuildingController(QObject):
         if not node_data:
             return
 
-        # Cancel any existing save operation
-        if hasattr(self, "current_save_worker") and self.current_save_worker:
-            self.current_save_worker.cancel()
+        worker = self.model.save_node(node_data, self._handle_save_success)
 
-        # Start new save operation
-        self.current_save_worker = self.model.save_node(node_data, self.on_save_success)
-        self.current_save_worker.error_occurred.connect(
-            lambda: self.error_handler.handle_error("Error saving node")
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=self._handle_save_success,  # We'll create this new method
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Error saving node: {msg}"
+            ),
+            operation_name="save_node",
         )
-        self.current_save_worker.start()
+
+        self.worker_manager.execute_worker("save", operation)
+
+    def _handle_save_success(self, _: Any) -> None:
+        """Handle successful node save with proper UI updates."""
+        # Show success message
+        msg_box = QMessageBox(self.ui)
+        msg_box.setIcon(QMessageBox.Icon.Information)
+        msg_box.setWindowTitle("Success")
+        msg_box.setText("Node saved successfully")
+        msg_box.setStandardButtons(QMessageBox.StandardButton.NoButton)
+        msg_box.show()
+
+        # Auto-close message after 1 second
+        QTimer.singleShot(1000, msg_box.accept)
+
+        # Update UI state
+        self.refresh_tree_view()
+        self.load_node_data()
 
     def validate_node_name(self, name: str) -> bool:
         """
@@ -1196,22 +1200,3 @@ class WorldBuildingController(QObject):
             QMessageBox.warning(self.ui, "Warning", result.error_message)
 
         return result.is_valid
-
-    def on_save_success(self, _: Any) -> None:
-        """
-        Handle successful node save.
-
-        Args:
-            _: The result of the save operation.
-        """
-        msg_box = QMessageBox(self.ui)
-        msg_box.setIcon(QMessageBox.Icon.Information)
-        msg_box.setWindowTitle("Success")
-        msg_box.setText("Node saved successfully")
-        msg_box.setStandardButtons(QMessageBox.StandardButton.NoButton)
-        msg_box.show()
-
-        QTimer.singleShot(1000, msg_box.accept)  # Close after 2 seconds
-
-        self.refresh_tree_view()
-        self.load_node_data()
