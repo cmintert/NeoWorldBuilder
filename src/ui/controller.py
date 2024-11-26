@@ -577,10 +577,10 @@ class WorldBuildingController(QObject):
 
             if self.current_image_path:
                 node_data["additional_properties"][
-                    "image_path"
+                    "imagepath"
                 ] = self.current_image_path
             else:
-                node_data["additional_properties"]["image_path"] = None
+                node_data["additional_properties"]["imagepath"] = None
 
             logging.debug(f"Collected Node Data: {node_data}")
 
@@ -766,7 +766,7 @@ class WorldBuildingController(QObject):
                 if key.startswith("_"):
                     continue
 
-                if key not in ["name", "description", "tags", "image_path"]:
+                if key not in ["name", "description", "tags", "imagepath"]:
 
                     row = self.ui.properties_table.rowCount()
                     self.ui.properties_table.insertRow(row)
@@ -790,7 +790,7 @@ class WorldBuildingController(QObject):
                 self.ui.add_relationship_row(rel_type, target, direction, props)
 
             # Update image if available
-            image_path = node_properties.get("image_path")
+            image_path = node_properties.get("imagepath")
 
             if image_path:
                 self.image_service.set_current_image(image_path)
@@ -1116,7 +1116,7 @@ class WorldBuildingController(QObject):
             }
 
             current_image = self.image_service.get_current_image()
-            node_data["image_path"] = current_image
+            node_data["imagepath"] = current_image
 
             return node_data
         except ValueError as e:
