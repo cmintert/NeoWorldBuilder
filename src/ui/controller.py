@@ -557,12 +557,18 @@ class WorldBuildingController(QObject):
 
     def _collect_node_data(self) -> Optional[Dict[str, Any]]:
         """
-        Collect all node data from UI.
+        Collect all node data from UI with proper handling of additional properties.
 
         Returns:
-            Optional[Dict[str, Any]]: The collected node data.
+            Optional[Dict[str, Any]]: The collected node data, or None if collection fails.
         """
         try:
+            # Ensure properties are collected first and properly initialized
+            additional_properties = self._collect_properties()
+            if additional_properties is None:
+                additional_properties = {}  # Ensure we always have a dict
+
+            # Now build the complete node data structure
             node_data = {
                 "name": self.ui.name_input.text().strip(),
                 "description": self.ui.description_input.toHtml().strip(),
@@ -572,43 +578,52 @@ class WorldBuildingController(QObject):
                     for label in parse_comma_separated(self.ui.labels_input.text())
                 ],
                 "relationships": self._collect_relationships(),
-                "additional_properties": self._collect_properties(),
+                "additional_properties": additional_properties,  # Use our guaranteed dict
             }
 
-            if self.current_image_path:
-                node_data["additional_properties"][
-                    "imagepath"
-                ] = self.current_image_path
-            else:
-                node_data["additional_properties"]["imagepath"] = None
+            # Handle image path after ensuring additional_properties exists
+            node_data["additional_properties"]["imagepath"] = (
+                self.current_image_path if self.current_image_path else None
+            )
 
             logging.debug(f"Collected Node Data: {node_data}")
-
             return node_data
-        except ValueError as e:
+
+        except Exception as e:
+            logging.error(f"Error collecting node data: {str(e)}")
             self.error_handler.handle_error(str(e))
             return None
 
     def _collect_properties(self) -> Dict[str, Any]:
         """
-        Collect properties from table.
+        Collect properties from table with proper error handling and type safety.
 
         Returns:
-            Dict[str, Any]: The collected properties.
+            Dict[str, Any]: The collected properties, never returns None.
         """
         properties = []
-        for row in range(self.ui.properties_table.rowCount()):
-            key_item = self.ui.properties_table.item(row, 0)
-            value_item = self.ui.properties_table.item(row, 1)
-
-            prop = PropertyItem.from_table_item(key_item, value_item)
-            if prop:
-                properties.append(prop)
-
         try:
-            return self.property_service.process_properties(properties)
+            for row in range(self.ui.properties_table.rowCount()):
+                key_item = self.ui.properties_table.item(row, 0)
+                value_item = self.ui.properties_table.item(row, 1)
+
+                prop = PropertyItem.from_table_item(key_item, value_item)
+                if prop:
+                    properties.append(prop)
+
+            processed_properties = self.property_service.process_properties(properties)
+            return processed_properties if processed_properties is not None else {}
+
         except ValueError as e:
+            logging.error(f"Error collecting properties: {str(e)}")
             self.error_handler.handle_error(str(e))
+            return {}  # Return empty dict instead of None on error
+        except Exception as e:
+            logging.error(f"Unexpected error collecting properties: {str(e)}")
+            self.error_handler.handle_error(
+                f"Unexpected error in property collection: {str(e)}"
+            )
+            return {}  # Return empty dict on any error
 
     def _collect_relationships(self) -> List[Tuple[str, str, str, Dict[str, Any]]]:
         """
