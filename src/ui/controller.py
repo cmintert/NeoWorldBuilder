@@ -3,7 +3,7 @@ import logging
 from typing import Optional, Dict, Any, List, Tuple
 
 from PyQt6.QtCore import QObject, QStringListModel, Qt, pyqtSlot, QTimer
-from PyQt6.QtGui import QStandardItemModel, QStandardItem, QIcon
+from PyQt6.QtGui import QStandardItemModel, QStandardItem
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QCompleter,
@@ -71,7 +71,6 @@ class WorldBuildingController(QObject):
 
         # Initialize tree model and service
         self.tree_model = QStandardItemModel()
-        self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
         self.relationship_tree_service = RelationshipTreeService(
             self.tree_model, self.NODE_RELATIONSHIPS_HEADER
         )
@@ -852,132 +851,31 @@ class WorldBuildingController(QObject):
 
         return parent_child_map, skipped_records
 
-    def add_children(
-        self,
-        parent_name: str,
-        parent_item: QStandardItem,
-        path: List[str],
-        parent_child_map: Dict[Tuple[str, str, str], List[Tuple[str, List[str]]]],
-    ) -> None:
-        """
-        Add child nodes to the relationship tree with checkboxes.
-
-        Args:
-            parent_name (str): The name of the parent node.
-            parent_item (QStandardItem): The parent item in the tree.
-            path (List[str]): The path of node names to avoid cycles.
-            parent_child_map (dict): The parent-child map of relationships.
-        """
-        for (p_name, rel_type, direction), children in parent_child_map.items():
-            if p_name != parent_name:
-                continue
-
-            for child_name, child_labels in children:
-                if child_name in path:
-                    self.handle_cycles(parent_item, rel_type, direction, child_name)
-                    continue
-
-                arrow = "➡️" if direction == ">" else "⬅️"
-
-                # Create relationship item (non-checkable separator)
-                rel_item = QStandardItem(f"{arrow} [{rel_type}]")
-                rel_item.setFlags(
-                    Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
-                )
-
-                # Create node item (checkable)
-                child_item = QStandardItem(
-                    f"🔹 {child_name} [{', '.join(child_labels)}]"
-                )
-                child_item.setData(child_name, Qt.ItemDataRole.UserRole)
-                child_item.setFlags(
-                    Qt.ItemFlag.ItemIsEnabled
-                    | Qt.ItemFlag.ItemIsSelectable
-                    | Qt.ItemFlag.ItemIsUserCheckable
-                )
-                child_item.setCheckState(Qt.CheckState.Unchecked)
-
-                rel_item.appendRow(child_item)
-                parent_item.appendRow(rel_item)
-
-                self.add_children(
-                    child_name, child_item, path + [child_name], parent_child_map
-                )
-
-    def handle_cycles(
-        self, parent_item: QStandardItem, rel_type: str, direction: str, child_name: str
-    ) -> None:
-        """
-        Handle cycles in the relationship data to avoid infinite loops.
-
-        Args:
-            parent_item (QStandardItem): The parent item in the tree.
-            rel_type (str): The type of the relationship.
-            direction (str): The direction of the relationship.
-            child_name (str): The name of the child node.
-        """
-        rel_item = QStandardItem(f"🔄 [{rel_type}] ({direction})")
-        rel_item.setIcon(QIcon("path/to/relationship_icon.png"))
-
-        cycle_item = QStandardItem(f"🔁 {child_name} (Cycle)")
-        cycle_item.setData(child_name, Qt.ItemDataRole.UserRole)
-        cycle_item.setIcon(QIcon("path/to/cycle_icon.png"))
-
-        rel_item.appendRow(cycle_item)
-        parent_item.appendRow(rel_item)
-
     @pyqtSlot(list)
     def _populate_relationship_tree(self, records: List[Any]) -> None:
         """
-        Populate the tree view with relationships up to the specified depth.
+        Populate the relationship tree in the UI.
 
         Args:
-            records (List[Any]): The list of relationship records.
+            records (List[Any]): The relationship data.
         """
-        logging.debug(f"Populating relationship tree with records: {records}")
         try:
             self.tree_model.clear()
             self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
-
-            if not records:
-                logging.info("No relationship records found.")
-                return
-
             root_node_name = self.ui.name_input.text().strip()
-            if not root_node_name:
-                logging.warning("Root node name is empty.")
-                return
-
-            # Create root item with checkbox
             root_item = QStandardItem(f"🔵 {root_node_name}")
             root_item.setData(root_node_name, Qt.ItemDataRole.UserRole)
-            root_item.setFlags(
-                Qt.ItemFlag.ItemIsEnabled
-                | Qt.ItemFlag.ItemIsSelectable
-                | Qt.ItemFlag.ItemIsUserCheckable
-            )
-            root_item.setCheckState(Qt.CheckState.Unchecked)
-            root_item.setIcon(QIcon("path/to/node_icon.png"))
+            self.tree_model.appendRow(root_item)
 
-            parent_child_map, skipped_records = self.process_relationship_records(
-                records
+            parent_child_map, _ = (
+                self.relationship_tree_service.process_relationship_records(records)
             )
-
-            self.add_children(
+            self.relationship_tree_service.add_children(
                 root_node_name, root_item, [root_node_name], parent_child_map
             )
-
-            self.tree_model.appendRow(root_item)
             self.ui.tree_view.expandAll()
-            logging.info("Relationship tree populated successfully.")
-
-            if skipped_records > 0:
-                logging.warning(
-                    f"Skipped {skipped_records} incomplete relationship records."
-                )
-
         except Exception as e:
-            self.handle_error(f"Error populating relationship tree: {str(e)}")
+            self.error_handler.handle_error(f"Tree population failed: {e}")
 
     #############################################
     # 7. Cleanup and Error Handling
