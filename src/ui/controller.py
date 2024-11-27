@@ -7,7 +7,6 @@ from PyQt6.QtGui import QStandardItemModel, QStandardItem
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QCompleter,
-    QLineEdit,
     QMessageBox,
     QTableWidgetItem,
 )
@@ -15,6 +14,7 @@ from PyQt6.QtWidgets import (
 from core.neo4jworkers import SuggestionWorker
 from models.property_model import PropertyItem
 from models.worker_model import WorkerOperation
+from services.autocompletion_service import AutoCompletionService
 from services.image_service import ImageService
 from services.property_service import PropertyService
 from services.relationship_tree_service import RelationshipTreeService
@@ -68,6 +68,12 @@ class WorldBuildingController(QObject):
         self.property_service = PropertyService(self.config)
         self.image_service = ImageService()
         self.worker_manager = WorkerManagerService(self.error_handler)
+        self.auto_completion_service = AutoCompletionService(
+            self.model,
+            self.config,
+            self.worker_manager,
+            self.error_handler.handle_error,
+        )
 
         # Initialize tree model and service
         self.tree_model = QStandardItemModel()
@@ -77,10 +83,7 @@ class WorldBuildingController(QObject):
 
         # Initialize UI state
         self._initialize_tree_view()
-
-        self._initialize_completer()
-        self._initialize_target_completer()
-        self._setup_debounce_timer()
+        self._initialize_completers()
         self._connect_signals()
         self._load_default_state()
 
@@ -113,16 +116,35 @@ class WorldBuildingController(QObject):
         self.ui.tree_view.setAllColumnsShowFocus(True)
         self.ui.tree_view.setHeaderHidden(False)
 
-    def _initialize_completer(self) -> None:
+    def _initialize_completers(self) -> None:
+        """Initialize auto-completion for node names and relationship targets."""
+        # Initialize node name completion
+        self.auto_completion_service.initialize_node_completer(self.ui.name_input)
+
+        # Connect completer activation signal
+        self.ui.name_input.completer().activated.connect(self.on_completer_activated)
+
+    def on_completer_activated(self, text: str) -> None:
         """
-        Initialize name auto-completion.
+        Handle completer selection.
+
+        Args:
+            text: The selected text from the completer
         """
-        self.node_name_model = QStringListModel()
-        self.completer = QCompleter(self.node_name_model)
-        self.completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        self.completer.setFilterMode(Qt.MatchFlag.MatchContains)
-        self.ui.name_input.setCompleter(self.completer)
-        self.completer.activated.connect(self.on_completer_activated)
+        if text:
+            self.ui.name_input.setText(text)
+            self.load_node_data()
+
+    def _add_target_completer_to_row(self, row: int) -> None:
+        """
+        Add target completer to the target input field in the relationship table.
+
+        Args:
+            row: The row number where the completer will be added
+        """
+        self.auto_completion_service.add_target_completer_to_row(
+            self.ui.relationships_table, row
+        )
 
     def _initialize_target_completer(self) -> None:
         """
@@ -133,85 +155,6 @@ class WorldBuildingController(QObject):
         self.target_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         self.target_completer.setFilterMode(Qt.MatchFlag.MatchContains)
         self.target_completer.activated.connect(self.on_target_completer_activated)
-
-    def _add_target_completer_to_row(self, row: int) -> None:
-        """
-        Add target completer to the target input field in the relationship table.
-
-        Args:
-            row (int): The row number where the completer will be added.
-        """
-        if target_item := self.ui.relationships_table.item(row, 1):
-            target_text = target_item.text()
-            line_edit = QLineEdit(target_text)
-            line_edit.setCompleter(self.target_completer)
-            line_edit.textChanged.connect(
-                lambda text: self._fetch_matching_target_nodes(text)
-            )
-            self.ui.relationships_table.setCellWidget(row, 1, line_edit)
-
-    def on_target_completer_activated(self, text: str) -> None:
-        """
-        Handle target completer selection.
-
-        Args:
-            text (str): The selected text from the completer.
-        """
-        current_row = self.ui.relationships_table.currentRow()
-        if current_row >= 0:
-            self.ui.relationships_table.item(current_row, 1).setText(text)
-
-    def _fetch_matching_target_nodes(self, text: str) -> None:
-        """
-        Fetch matching target nodes for auto-completion.
-
-        Args:
-            text (str): The text to match against node names.
-        """
-        if not text:
-            return
-
-        worker = self.model.fetch_matching_node_names(
-            text,
-            self.config.MATCH_NODE_LIMIT,
-            self._handle_target_autocomplete_results,
-        )
-
-        operation = WorkerOperation(
-            worker=worker,
-            success_callback=self._handle_target_autocomplete_results,
-            error_callback=lambda msg: self.error_handler.handle_error(
-                f"Error fetching target nodes: {msg}"
-            ),
-            operation_name="target_search",
-        )
-
-        self.worker_manager.execute_worker("target_search", operation)
-
-    @pyqtSlot(list)
-    def _handle_target_autocomplete_results(self, records: List[Any]) -> None:
-        """
-        Handle target autocomplete results.
-
-        Args:
-            records (List[Any]): The list of matching records.
-        """
-        try:
-            names = [record["name"] for record in records]
-            self.target_name_model.setStringList(names)
-        except Exception as e:
-            self.error_handler.handle_error(
-                f"Error processing target autocomplete results: {str(e)}"
-            )
-
-    def _setup_debounce_timer(self) -> None:
-        """
-        Setup debounce timer for search.
-        """
-        self.name_input_timer = QTimer()
-        self.name_input_timer.setSingleShot(True)
-        self.name_input_timer.timeout.connect(self._fetch_matching_nodes)
-        self.name_input_timer.setInterval(self.config.NAME_INPUT_DEBOUNCE_TIME_MS)
 
     def _connect_signals(self) -> None:
         """
@@ -226,7 +169,7 @@ class WorldBuildingController(QObject):
         self.ui.delete_image_button.clicked.connect(self.delete_image)
 
         # Name input and autocomplete
-        self.ui.name_input.textChanged.connect(self.debounce_name_input)
+
         self.ui.name_input.editingFinished.connect(self.load_node_data)
 
         # Table buttons
@@ -503,40 +446,6 @@ class WorldBuildingController(QObject):
             delete_button = self.ui.create_delete_button(self.ui.properties_table, row)
             self.ui.properties_table.setCellWidget(row, 2, delete_button)
 
-    def debounce_name_input(self, text: str) -> None:
-        """
-        Debounce name input for search.
-
-        Args:
-            text (str): The input text.
-        """
-        self.name_input_timer.stop()
-        if text.strip():
-            self.name_input_timer.start()
-
-    def _fetch_matching_nodes(self) -> None:
-        """
-        Fetch matching nodes for auto-completion.
-        """
-        text = self.ui.name_input.text().strip()
-        if not text:
-            return
-
-        worker = self.model.fetch_matching_node_names(
-            text, self.config.MATCH_NODE_LIMIT, self._handle_autocomplete_results
-        )
-
-        operation = WorkerOperation(
-            worker=worker,
-            success_callback=self._handle_autocomplete_results,
-            error_callback=lambda msg: self.error_handler.handle_error(
-                f"Error on autocompletion: {msg}"
-            ),
-            operation_name="search_nodes",
-        )
-
-        self.worker_manager.execute_worker("search", operation)
-
     def on_completer_activated(self, text: str) -> None:
         """
         Handle completer selection.
@@ -714,23 +623,6 @@ class WorldBuildingController(QObject):
         """
         QMessageBox.information(self.ui, "Success", "Node deleted successfully")
         self._load_default_state()
-
-    @pyqtSlot(list)
-    def _handle_autocomplete_results(self, records: List[Any]) -> None:
-        """
-        Handle autocomplete results.
-
-        Args:
-            records (List[Any]): The list of matching records.
-        """
-        try:
-            names = [record["name"] for record in records]
-            self.node_name_model.setStringList(names)
-        except Exception as e:
-
-            self.error_handler.handle_error(
-                f"Error processing autocomplete results: {str(e)}"
-            )
 
     def _update_save_progress(self, current: int, total: int) -> None:
         """
