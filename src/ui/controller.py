@@ -61,7 +61,7 @@ class WorldBuildingController(QObject):
         self.model = model
         self.config = config
         self.app_instance = app_instance
-        self.exporter = Exporter(self.ui, self.config)
+        self.exporter = Exporter(ui, self.config)
         self.ui.controller = self
         self.error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
 
@@ -69,6 +69,12 @@ class WorldBuildingController(QObject):
         self.property_service = PropertyService(self.config)
         self.image_service = ImageService()
         self.worker_manager = WorkerManagerService(self.error_handler)
+
+        # Initialize the ui
+        self.ui = ui
+        self.ui.controller = self
+
+        # Initialize services that require the ui
         self.auto_completion_service = AutoCompletionService(
             self.model,
             self.config,

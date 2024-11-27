@@ -1,0 +1,15 @@
+QTableWidget {
+    background-color: white;
+    border: 1px solid ${secondary-color};
+    gridline-color: #CCCCCC;
+}
+
+QTableWidget::item {
+    padding: 5px;
+}
+
+QHeaderView::section {
+    background-color: ${primary-color};
+    color: white;
+    padding: 5px;
+}

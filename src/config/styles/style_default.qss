@@ -1,0 +1,16 @@
+QWidget#CentralWidget {
+    background-color: ${background-color};
+    color: ${text-color};
+}
+
+QPushButton {
+    background-color: ${primary-color};
+    color: white;
+    border-radius: 4px;
+    padding: 6px 12px;
+}
+
+QTreeView {
+    background-color: white;
+    border: 1px solid ${secondary-color};
+}y-color};

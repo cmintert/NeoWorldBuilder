@@ -1,0 +1,22 @@
+{
+    "default": {
+        "file": "style_default.qss",
+        "description": "Default application theme",
+        "variables": {
+            "primary-color": "#83A00E",
+            "secondary-color": "#4682B4",
+            "background-color": "#FFFFFF",
+            "text-color": "#333333"
+        }
+    },
+    "tree": {
+        "file": "style_tree.qss",
+        "description": "Tree view styling",
+        "parent": "default"
+    },
+    "data-table": {
+        "file": "style_table.qss",
+        "description": "Data table styling",
+        "parent": "default"
+    }
+}

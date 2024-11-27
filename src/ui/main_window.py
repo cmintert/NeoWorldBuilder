@@ -1,6 +1,6 @@
 import json
 import logging
-import os
+from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, Qt, QPoint
@@ -31,6 +31,8 @@ from PyQt6.QtWidgets import (
     QToolBar,
 )
 
+from ui.styles import StyleManager
+
 
 class WorldBuildingUI(QWidget):
 
@@ -47,6 +49,7 @@ class WorldBuildingUI(QWidget):
         """
         super().__init__()
         self.controller = controller
+        self.style_manager = StyleManager(Path("src/config/styles"))
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setObjectName("CentralWidget")
         self.setAttribute(
@@ -55,7 +58,8 @@ class WorldBuildingUI(QWidget):
         self.setAttribute(
             Qt.WidgetAttribute.WA_TranslucentBackground, True
         )  # Allow transparency
-        self.init_ui()
+
+        self._create_ui_elements()
 
     def init_ui(self) -> None:
         """
@@ -82,6 +86,86 @@ class WorldBuildingUI(QWidget):
 
         main_layout.addWidget(splitter)
         self.setLayout(main_layout)
+
+        # Apply styles
+        self.apply_styles()
+
+    def _create_ui_elements(self) -> None:
+        """Create all UI elements without connecting signals"""
+        main_layout = QHBoxLayout()
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(20)
+
+        # Create splitter for resizable panels
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        # Left panel with search and tree
+        left_panel = self._create_left_panel()
+        splitter.addWidget(left_panel)
+
+        # Right panel with node details and progress
+        right_panel = self._create_right_panel()
+        splitter.addWidget(right_panel)
+
+        # Set stretch factors
+        splitter.setStretchFactor(0, 1)  # Left panel
+        splitter.setStretchFactor(1, 2)  # Right panel gets more space
+
+        main_layout.addWidget(splitter)
+        self.setLayout(main_layout)
+
+    def _connect_signals(self) -> None:
+        """Connect all UI signals to their handlers"""
+        # Main buttons
+        self.save_button.clicked.connect(self.controller.save_node)
+        self.delete_button.clicked.connect(self.controller.delete_node)
+
+        # Image handling
+        self.change_image_button.clicked.connect(self.controller.change_image)
+        self.delete_image_button.clicked.connect(self.controller.delete_image)
+
+        # Name input
+        self.name_input.editingFinished.connect(self.controller.load_node_data)
+
+        # Table buttons
+        self.add_rel_button.clicked.connect(self.add_relationship_row)
+
+        # connect the suggest button
+        self.suggest_button.clicked.connect(self.controller.show_suggestions_modal)
+
+        # Check for unsaved changes
+        self.name_input.textChanged.connect(
+            self.controller.update_unsaved_changes_indicator
+        )
+        self.description_input.textChanged.connect(
+            self.controller.update_unsaved_changes_indicator
+        )
+        self.labels_input.textChanged.connect(
+            self.controller.update_unsaved_changes_indicator
+        )
+        self.tags_input.textChanged.connect(
+            self.controller.update_unsaved_changes_indicator
+        )
+        self.properties_table.itemChanged.connect(
+            self.controller.update_unsaved_changes_indicator
+        )
+        self.relationships_table.itemChanged.connect(
+            self.controller.update_unsaved_changes_indicator
+        )
+
+        # Depth spinbox change
+        self.depth_spinbox.valueChanged.connect(self.controller.on_depth_changed)
+
+        # Tree view
+        self.tree_view.customContextMenuRequested.connect(self._show_tree_context_menu)
+
+    def setup_ui(self) -> None:
+        """Connect signals and finalize UI setup after controller is set"""
+        if not self.controller:
+            raise RuntimeError("Controller must be set before initializing UI")
+
+        # Connect all signals
+        self._connect_signals()
 
         # Apply styles
         self.apply_styles()
@@ -803,24 +887,20 @@ class WorldBuildingUI(QWidget):
         """
         Apply styles to the UI components.
         """
-        logging.debug("apply_styles method called")
         try:
-            stylesheet_path = os.path.abspath("src/config/style_default.qss")
+            # Apply main style to the whole UI
+            self.style_manager.apply_style(self, "default")
 
-            # Log the paths for debugging
-            logging.info(f"Stylesheet path: {stylesheet_path}")
-
-            with open(stylesheet_path, "r") as f:
-                stylesheet = f.read()
-
-            self.setStyleSheet(stylesheet)
-            logging.info(f"Stylesheet applied successfully from {stylesheet_path}")
+            # Apply specific styles to components
+            self.style_manager.apply_style(self.tree_view, "tree")
+            self.style_manager.apply_style(self.properties_table, "data-table")
+            self.style_manager.apply_style(self.relationships_table, "data-table")
 
         except Exception as e:
-            error_message = f"Failed to load stylesheet: {e}"
-            logging.error(error_message)
-            QMessageBox.warning(self, "Stylesheet Error", error_message)
-        logging.debug("Completed apply_styles method")
+            logging.error(f"Failed to apply styles: {e}")
+            QMessageBox.warning(
+                self, "Style Error", f"Failed to apply styles: {str(e)}"
+            )
 
     def open_relation_properties_dialog(self, row: int) -> None:
         """

@@ -118,9 +118,6 @@ class WorldBuildingApp(QMainWindow):
         self.initialize_application()
 
     def initialize_application(self) -> None:
-        """
-        Initialize all application components with comprehensive error handling.
-        """
         try:
             # 1. Load Configuration
             config = self._load_configuration()
@@ -131,30 +128,29 @@ class WorldBuildingApp(QMainWindow):
             # 3. Initialize Database Model
             model = self._initialize_database(config)
 
-            # 4 Setup UI
-            ui = self._setup_ui(None)
+            # 4. Create UI (elements created but signals not connected)
+            ui = WorldBuildingUI(None)
 
             # 5. Initialize Controller
-            controller = self._initialize_controller(ui, model, config)
+            controller = WorldBuildingController(ui, model, config, self)
 
+            # 6. Set controller and connect signals
             ui.controller = controller
+            ui.setup_ui()  # Now connect signals
 
             # Store components for access
             self.components = AppComponents(
                 ui=ui, model=model, controller=controller, config=config
             )
 
-            # 6. Configure Window
+            # Configure window
             self._configure_main_window()
-
-            # 7. Set Background Image
-
             self.set_background_image("src/resources/graphics/background.png")
 
-            # 8 Load last modified node
+            # Load initial data
             controller.load_last_modified_node()
 
-            # 9. Show Window
+            # Show window
             self.show()
 
             structlog.get_logger().info("Application initialized successfully")
