@@ -16,6 +16,7 @@ from models.property_model import PropertyItem
 from models.worker_model import WorkerOperation
 from services.autocompletion_service import AutoCompletionService
 from services.image_service import ImageService
+from services.node_operation_service import NodeOperationsService
 from services.property_service import PropertyService
 from services.relationship_tree_service import RelationshipTreeService
 from services.worker_manager_service import WorkerManagerService
@@ -23,7 +24,6 @@ from ui.dialogs import SuggestionDialog, ConnectionSettingsDialog
 from utils.error_handler import ErrorHandler
 from utils.exporters import Exporter
 from utils.parsers import parse_comma_separated
-from utils.validation import validate_node_name as validate_node_name_logic
 
 
 class WorldBuildingController(QObject):
@@ -59,8 +59,6 @@ class WorldBuildingController(QObject):
         self.config = config
         self.app_instance = app_instance
         self.exporter = Exporter(self.ui, self.config)
-        self.current_image_path: Optional[str] = None
-        self.original_node_data: Optional[Dict[str, Any]] = None
         self.ui.controller = self
         self.error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
 
@@ -74,12 +72,23 @@ class WorldBuildingController(QObject):
             self.worker_manager,
             self.error_handler.handle_error,
         )
+        self.node_operations = NodeOperationsService(
+            self.model,
+            self.config,
+            self.worker_manager,
+            self.property_service,
+            self.error_handler,
+        )
 
         # Initialize tree model and service
         self.tree_model = QStandardItemModel()
         self.relationship_tree_service = RelationshipTreeService(
             self.tree_model, self.NODE_RELATIONSHIPS_HEADER
         )
+
+        # Track UI state
+        self.current_image_path: Optional[str] = None
+        self.original_node_data: Optional[Dict[str, Any]] = None
 
         # Initialize UI state
         self._initialize_tree_view()
@@ -212,9 +221,7 @@ class WorldBuildingController(QObject):
     #############################################
 
     def load_node_data(self) -> None:
-        """
-        Load node data using worker thread.
-        """
+        """Load node data."""
         name = self.ui.name_input.text().strip()
         if not name:
             return
@@ -222,25 +229,12 @@ class WorldBuildingController(QObject):
         # Clear all fields to populate them again
         self.ui.clear_all_fields()
 
-        # Create load operation
-        worker = self.model.load_node(name, self._handle_node_data)
-
-        operation = WorkerOperation(
-            worker=worker,
-            success_callback=self._handle_node_data,
-            error_callback=lambda msg: self.error_handler.handle_error(
-                f"Error loading node: {msg}"
-            ),
-            finished_callback=lambda: self.update_relationship_tree(name),
-            operation_name="load_node",
+        self.node_operations.load_node(
+            name, self._handle_node_data, lambda: self.update_relationship_tree(name)
         )
 
-        self.worker_manager.execute_worker("load", operation)
-
     def delete_node(self) -> None:
-        """
-        Delete node using worker thread.
-        """
+        """Handle node deletion request."""
         name = self.ui.name_input.text().strip()
         if not name:
             return
@@ -254,18 +248,7 @@ class WorldBuildingController(QObject):
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            worker = self.model.delete_node(name, self._handle_delete_success)
-
-            operation = WorkerOperation(
-                worker=worker,
-                success_callback=self._handle_delete_success,
-                error_callback=lambda msg: self.error_handler.handle_error(
-                    f"Error deleting node: {msg}"
-                ),
-                operation_name="delete_node",
-            )
-
-            self.worker_manager.execute_worker("delete", operation)
+            self.node_operations.delete_node(name, self._handle_delete_success)
 
     #############################################
     # 3. Tree and Relationship Management
@@ -331,6 +314,49 @@ class WorldBuildingController(QObject):
                 if node_name and node_name != self.ui.name_input.text():
                     self.ui.name_input.setText(node_name)
                     self.load_node_data()
+
+    def _collect_table_relationships(self) -> List[Tuple[str, str, str, str]]:
+        """Get relationships from the relationships table.
+
+        Returns:
+            List[Tuple[str, str, str, str]]: List of relationship tuples (type, target, direction, props_json)
+        """
+        relationships = []
+        for row in range(self.ui.relationships_table.rowCount()):
+            rel_type = self.ui.relationships_table.item(row, 0)
+            target = self.ui.relationships_table.cellWidget(row, 1)
+            direction = self.ui.relationships_table.cellWidget(row, 2)
+            props = self.ui.relationships_table.item(row, 3)
+
+            if all([rel_type, target, direction]):
+                relationships.append(
+                    (
+                        rel_type.text(),
+                        target.text(),
+                        direction.currentText(),
+                        props.text() if props else "",
+                    )
+                )
+        return relationships
+
+    def _collect_table_properties(self) -> List[PropertyItem]:
+        """Get properties from the properties table.
+
+        Returns:
+            List[PropertyItem]: The list of property items from the table
+        """
+        properties = []
+        for row in range(self.ui.properties_table.rowCount()):
+            key_item = self.ui.properties_table.item(row, 0)
+            value_item = self.ui.properties_table.item(row, 1)
+
+            if prop := PropertyItem.from_table_item(key_item, value_item):
+                properties.append(prop)
+        return properties
+
+    def load_last_modified_node(self) -> None:
+        """Load the last modified node."""
+        self.node_operations.load_last_modified_node(self._handle_node_data)
 
     #############################################
     # 4. Auto-completion and Search
@@ -461,154 +487,49 @@ class WorldBuildingController(QObject):
     # 5. Data Collection and Validation
     #############################################
 
-    def _collect_node_data(self) -> Optional[Dict[str, Any]]:
-        """
-        Collect all node data from UI with proper handling of additional properties.
-
-        Returns:
-            Optional[Dict[str, Any]]: The collected node data, or None if collection fails.
-        """
-        try:
-            # Ensure properties are collected first and properly initialized
-            additional_properties = self._collect_properties()
-            if additional_properties is None:
-                additional_properties = {}  # Ensure we always have a dict
-
-            # Now build the complete node data structure
-            node_data = {
-                "name": self.ui.name_input.text().strip(),
-                "description": self.ui.description_input.toHtml().strip(),
-                "tags": parse_comma_separated(self.ui.tags_input.text()),
-                "labels": [
-                    label.strip().upper().replace(" ", "_")
-                    for label in parse_comma_separated(self.ui.labels_input.text())
-                ],
-                "relationships": self._collect_relationships(),
-                "additional_properties": additional_properties,  # Use our guaranteed dict
-            }
-
-            # Handle image path after ensuring additional_properties exists
-            node_data["additional_properties"]["imagepath"] = (
-                self.current_image_path if self.current_image_path else None
-            )
-
-            logging.debug(f"Collected Node Data: {node_data}")
-            return node_data
-
-        except Exception as e:
-            logging.error(f"Error collecting node data: {str(e)}")
-            self.error_handler.handle_error(str(e))
-            return None
-
-    def _collect_properties(self) -> Dict[str, Any]:
-        """
-        Collect properties from table with proper error handling and type safety.
-
-        Returns:
-            Dict[str, Any]: The collected properties, never returns None.
-        """
-        properties = []
-        try:
-            for row in range(self.ui.properties_table.rowCount()):
-                key_item = self.ui.properties_table.item(row, 0)
-                value_item = self.ui.properties_table.item(row, 1)
-
-                prop = PropertyItem.from_table_item(key_item, value_item)
-                if prop:
-                    properties.append(prop)
-
-            processed_properties = self.property_service.process_properties(properties)
-            return processed_properties if processed_properties is not None else {}
-
-        except ValueError as e:
-            logging.error(f"Error collecting properties: {str(e)}")
-            self.error_handler.handle_error(str(e))
-            return {}  # Return empty dict instead of None on error
-        except Exception as e:
-            logging.error(f"Unexpected error collecting properties: {str(e)}")
-            self.error_handler.handle_error(
-                f"Unexpected error in property collection: {str(e)}"
-            )
-            return {}  # Return empty dict on any error
-
-    def _collect_relationships(self) -> List[Tuple[str, str, str, Dict[str, Any]]]:
-        """
-        Collect relationships from table.
-
-        Returns:
-            List[Tuple[str, str, str, Dict[str, Any]]]: The collected relationships.
-        """
-        relationships = []
-        for row in range(self.ui.relationships_table.rowCount()):
-            rel_type = self.ui.relationships_table.item(row, 0)
-            target = self.ui.relationships_table.cellWidget(row, 1)
-            direction = self.ui.relationships_table.cellWidget(row, 2)
-            props = self.ui.relationships_table.item(row, 3)
-
-            if not all([rel_type, target, direction]):
-                continue
-
-            try:
-                properties = (
-                    json.loads(props.text()) if props and props.text().strip() else {}
-                )
-
-                # Enforce uppercase and replace spaces with underscores
-                formatted_rel_type = rel_type.text().strip().upper().replace(" ", "_")
-
-                relationships.append(
-                    (
-                        formatted_rel_type,
-                        target.text().strip(),
-                        direction.currentText(),
-                        properties,
-                    )
-                )
-            except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON in relationship properties: {e}") from e
-
-        logging.debug(f"Collected the following Relationships: {relationships}")
-        return relationships
-
     #############################################
     # 6. Event Handlers
     #############################################
 
     @pyqtSlot(list)
     def _handle_node_data(self, data: List[Any]) -> None:
-        """
-        Handle node data fetched by the worker.
-
-        Args:
-            data (List[Any]): The fetched node data.
-        """
+        """Handle node data fetched by the worker."""
         logging.debug(f"Handling node data: {data}")
         if not data:
-            return  # No need to notify the user
+            return
 
         try:
-            record = data[0]  # Extract the first record
+            record = data[0]
             self._populate_node_fields(record)
-            self.original_node_data = self._collect_node_data()
+            self.original_node_data = self.node_operations.collect_node_data(
+                name=self.ui.name_input.text().strip(),
+                description=self.ui.description_input.toHtml().strip(),
+                tags=self.ui.tags_input.text(),
+                labels=self.ui.labels_input.text(),
+                properties=self._collect_table_properties(),
+                relationships=self._collect_table_relationships(),
+                image_path=self.current_image_path,
+            )
             self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
 
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
 
     def is_node_changed(self) -> bool:
-        """
-        Check if the node data has changed.
-
-        Returns:
-            bool: Whether the node data has changed.
-        """
-        current_data = self._collect_node_data()
+        """Check if the node data has changed."""
+        current_data = self.node_operations.collect_node_data(
+            name=self.ui.name_input.text().strip(),
+            description=self.ui.description_input.toHtml().strip(),
+            tags=self.ui.tags_input.text(),
+            labels=self.ui.labels_input.text(),
+            properties=self._collect_table_properties(),
+            relationships=self._collect_table_relationships(),
+            image_path=self.current_image_path,
+        )
         return current_data != self.original_node_data
 
     def update_unsaved_changes_indicator(self) -> None:
-        """
-        Update the unsaved changes indicator.
-        """
+        """Update the unsaved changes indicator."""
         if self.is_node_changed():
             self.ui.save_button.setStyleSheet("background-color: #83A00E;")
         else:
@@ -933,29 +854,27 @@ class WorldBuildingController(QObject):
         dialog.exec()
 
     def save_node(self) -> None:
-        """
-        Save node data using worker thread.
-        """
+        """Handle node save request."""
         name = self.ui.name_input.text().strip()
-        if not self.validate_node_name(name):
+        if not self.node_operations.validate_node_name(name).is_valid:
             return
 
-        node_data = self._collect_node_data()
-        if not node_data:
-            return
+        # Collect properties from UI
+        properties = self._collect_table_properties()
+        relationships = self._collect_table_relationships()
 
-        worker = self.model.save_node(node_data, self._handle_save_success)
-
-        operation = WorkerOperation(
-            worker=worker,
-            success_callback=self._handle_save_success,  # We'll create this new method
-            error_callback=lambda msg: self.error_handler.handle_error(
-                f"Error saving node: {msg}"
-            ),
-            operation_name="save_node",
+        node_data = self.node_operations.collect_node_data(
+            name=name,
+            description=self.ui.description_input.toHtml().strip(),
+            tags=self.ui.tags_input.text(),
+            labels=self.ui.labels_input.text(),
+            properties=properties,
+            relationships=relationships,
+            image_path=self.current_image_path,
         )
 
-        self.worker_manager.execute_worker("save", operation)
+        if node_data:
+            self.node_operations.save_node(node_data, self._handle_save_success)
 
     def _handle_save_success(self, _: Any) -> None:
         """Handle successful node save with proper UI updates."""
@@ -973,20 +892,3 @@ class WorldBuildingController(QObject):
         # Update UI state
         self.refresh_tree_view()
         self.load_node_data()
-
-    def validate_node_name(self, name: str) -> bool:
-        """
-        Validate node name and show appropriate UI feedback.
-
-        Args:
-            name (str): The node name to validate.
-
-        Returns:
-            bool: True if the node name is valid, False otherwise.
-        """
-        result = validate_node_name_logic(name, self.config.MAX_NODE_NAME_LENGTH)
-
-        if not result.is_valid:
-            QMessageBox.warning(self.ui, "Warning", result.error_message)
-
-        return result.is_valid
