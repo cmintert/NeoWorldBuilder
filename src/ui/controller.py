@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 )
 
 from models.property_model import PropertyItem
+from models.suggestion_model import SuggestionUIHandler, SuggestionResult
 from models.worker_model import WorkerOperation
 from services.autocompletion_service import AutoCompletionService
 from services.image_service import ImageService
@@ -79,7 +80,11 @@ class WorldBuildingController(QObject):
             self.error_handler,
         )
         self.suggestion_service = SuggestionService(
-            self.model, self.config, self.worker_manager, self.error_handler
+            self.model,
+            self.config,
+            self.worker_manager,
+            self.error_handler,
+            self._create_suggestion_ui_handler(),
         )
 
         # Initialize tree model and service
@@ -364,75 +369,8 @@ class WorldBuildingController(QObject):
         """
         Show the suggestions modal dialog.
         """
-        node_data = self.get_current_node_data()
-        if not node_data:
-            return
-
-        self.suggestion_service.get_suggestions(
-            node_data, self.ui.show_loading, self.handle_suggestions
-        )
-
-    def _handle_suggestion_finished(self) -> None:
-        """Handle suggestion worker completion."""
-        self.ui.show_loading(False)
-        logging.debug("Suggestion worker has finished and cleaned up.")
-
-    def handle_suggestions(self, suggestions: Dict[str, Any]) -> None:
-        """Handle received suggestions."""
-        if not suggestions or all(not suggestions[key] for key in suggestions):
-            QMessageBox.information(
-                self.ui, "No Suggestions", "No suggestions were found for this node."
-            )
-            return
-
-        dialog = SuggestionDialog(suggestions, self.ui)
-        if dialog.exec():
-            node_data = self.get_current_node_data()
-
-            if node_data:
-                updated_data = self.suggestion_service.process_selected_suggestions(
-                    dialog.selected_suggestions, node_data
-                )
-                self._apply_node_data(updated_data)
-                QMessageBox.information(
-                    self.ui,
-                    "Suggestions Applied",
-                    "Selected suggestions have been applied to the node.",
-                )
-
-    def _apply_node_data(self, data: Dict[str, Any]) -> None:
-        """Apply node data to UI fields."""
-        self.ui.tags_input.setText(", ".join(data.get("tags", [])))
-
-        for key, value in data.get("additional_properties", {}).items():
-            self.add_or_update_property(key, value)
-
-        for rel in data.get("relationships", []):
-            rel_type, target, direction, props = rel
-            self.ui.add_relationship_row(rel_type, target, direction, json.dumps(props))
-
-    def add_or_update_property(self, key: str, value: Any) -> None:
-        """
-        Add or update a property in the properties table.
-
-        Args:
-            key (str): The property key.
-            value (Any): The property value.
-        """
-        found = False
-        for row in range(self.ui.properties_table.rowCount()):
-            item_key = self.ui.properties_table.item(row, 0)
-            if item_key and item_key.text() == key:
-                self.ui.properties_table.item(row, 1).setText(str(value))
-                found = True
-                break
-        if not found:
-            row = self.ui.properties_table.rowCount()
-            self.ui.properties_table.insertRow(row)
-            self.ui.properties_table.setItem(row, 0, QTableWidgetItem(key))
-            self.ui.properties_table.setItem(row, 1, QTableWidgetItem(str(value)))
-            delete_button = self.ui.create_delete_button(self.ui.properties_table, row)
-            self.ui.properties_table.setCellWidget(row, 2, delete_button)
+        if node_data := self.get_current_node_data():
+            self.suggestion_service.show_suggestions_modal(node_data)
 
     def on_completer_activated(self, text: str) -> None:
         """
@@ -444,14 +382,6 @@ class WorldBuildingController(QObject):
         if text:
             self.ui.name_input.setText(text)
             self.load_node_data()
-
-    #############################################
-    # 5. Data Collection and Validation
-    #############################################
-
-    #############################################
-    # 6. Event Handlers
-    #############################################
 
     @pyqtSlot(list)
     def _handle_node_data(self, data: List[Any]) -> None:
@@ -849,3 +779,52 @@ class WorldBuildingController(QObject):
             relationships=self._collect_table_relationships(),
             image_path=self.current_image_path,
         )
+
+    def _create_suggestion_ui_handler(self) -> SuggestionUIHandler:
+        class UIHandler:
+            def __init__(self, controller: "WorldBuildingController"):
+                self.controller = controller
+
+            def show_loading(self, is_loading: bool) -> None:
+                self.controller.ui.show_loading(is_loading)
+
+            def show_message(self, title: str, message: str) -> None:
+                QMessageBox.information(self.controller.ui, title, message)
+
+            def show_suggestion_dialog(
+                self, suggestions: Dict[str, Any]
+            ) -> SuggestionResult:
+                dialog = SuggestionDialog(suggestions, self.controller.ui)
+                if dialog.exec():
+                    return SuggestionResult(
+                        success=True, selected_suggestions=dialog.selected_suggestions
+                    )
+                return SuggestionResult(success=False)
+
+            def update_tags(self, tags: List[str]) -> None:
+                current_tags = self.controller.ui.tags_input.text().split(",")
+                all_tags = list(set(current_tags + tags))
+                self.controller.ui.tags_input.setText(", ".join(all_tags))
+
+            def add_property(self, key: str, value: Any) -> None:
+                row = self.controller.ui.properties_table.rowCount()
+                self.controller.ui.properties_table.insertRow(row)
+                self.controller.ui.properties_table.setItem(
+                    row, 0, QTableWidgetItem(key)
+                )
+                self.controller.ui.properties_table.setItem(
+                    row, 1, QTableWidgetItem(str(value))
+                )
+                delete_button = self.controller.ui.create_delete_button(
+                    self.controller.ui.properties_table, row
+                )
+                self.controller.ui.properties_table.setCellWidget(row, 2, delete_button)
+
+            def add_relationship(
+                self, rel_type: str, target: str, direction: str, props: Dict[str, Any]
+            ) -> None:
+                self.controller.ui.add_relationship_row(
+                    rel_type, target, direction, json.dumps(props)
+                )
+
+        return UIHandler(self)
