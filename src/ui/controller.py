@@ -2,15 +2,18 @@ import json
 import logging
 from typing import Optional, Dict, Any, List, Tuple
 
-from PyQt6.QtCore import QObject, QStringListModel, Qt, pyqtSlot, QTimer
+from PyQt6.QtCore import QObject, Qt, pyqtSlot, QTimer
 from PyQt6.QtGui import QStandardItemModel, QStandardItem
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QCompleter,
     QMessageBox,
     QTableWidgetItem,
+    QTableWidget,
+    QLineEdit,
 )
 
+from models.completer_model import AutoCompletionUIHandler, CompleterInput
 from models.property_model import PropertyItem
 from models.suggestion_model import SuggestionUIHandler, SuggestionResult
 from models.worker_model import WorkerOperation
@@ -70,6 +73,7 @@ class WorldBuildingController(QObject):
             self.model,
             self.config,
             self.worker_manager,
+            self._create_autocompletion_ui_handler(),
             self.error_handler.handle_error,
         )
         self.node_operations = NodeOperationsService(
@@ -134,11 +138,7 @@ class WorldBuildingController(QObject):
 
     def _initialize_completers(self) -> None:
         """Initialize auto-completion for node names and relationship targets."""
-        # Initialize node name completion
         self.auto_completion_service.initialize_node_completer(self.ui.name_input)
-
-        # Connect completer activation signal
-        self.ui.name_input.completer().activated.connect(self.on_completer_activated)
 
     def on_completer_activated(self, text: str) -> None:
         """
@@ -161,16 +161,6 @@ class WorldBuildingController(QObject):
         self.auto_completion_service.add_target_completer_to_row(
             self.ui.relationships_table, row
         )
-
-    def _initialize_target_completer(self) -> None:
-        """
-        Initialize target auto-completion for relationship table.
-        """
-        self.target_name_model = QStringListModel()
-        self.target_completer = QCompleter(self.target_name_model)
-        self.target_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        self.target_completer.setFilterMode(Qt.MatchFlag.MatchContains)
-        self.target_completer.activated.connect(self.on_target_completer_activated)
 
     def _connect_signals(self) -> None:
         """
@@ -522,40 +512,6 @@ class WorldBuildingController(QObject):
 
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
 
-    def process_relationship_records(
-        self, records: List[Any]
-    ) -> Tuple[Dict[Tuple[str, str, str], List[Tuple[str, List[str]]]], int]:
-        """
-        Process relationship records and build parent-child map.
-
-        Args:
-            records (List[Any]): The list of relationship records.
-
-        Returns:
-            dict: A dictionary mapping parent names to their child nodes with relationship details.
-        """
-        parent_child_map = {}
-        skipped_records = 0
-
-        for record in records:
-            node_name = record.get("node_name")
-            labels = record.get("labels", [])
-            parent_name = record.get("parent_name")
-            rel_type = record.get("rel_type")
-            direction = record.get("direction")
-
-            if not node_name or not parent_name or not rel_type or not direction:
-                logging.warning(f"Incomplete record encountered and skipped: {record}")
-                skipped_records += 1
-                continue
-
-            key = (parent_name, rel_type, direction)
-            if key not in parent_child_map:
-                parent_child_map[key] = []
-            parent_child_map[key].append((node_name, labels))
-
-        return parent_child_map, skipped_records
-
     @pyqtSlot(list)
     def _populate_relationship_tree(self, records: List[Any]) -> None:
         """
@@ -826,5 +782,38 @@ class WorldBuildingController(QObject):
                 self.controller.ui.add_relationship_row(
                     rel_type, target, direction, json.dumps(props)
                 )
+
+        return UIHandler(self)
+
+    def _create_autocompletion_ui_handler(self) -> AutoCompletionUIHandler:
+        """Create the UI handler for auto-completion operations."""
+
+        class UIHandler:
+            def __init__(self, controller: "WorldBuildingController"):
+                self.controller = controller
+
+            def create_completer(self, input: CompleterInput) -> QCompleter:
+                """Create a configured completer for the input widget."""
+                completer = QCompleter(input.model)
+                completer.setCaseSensitivity(input.case_sensitivity)
+                completer.setFilterMode(input.filter_mode)
+
+                # Connect completer activation signal to node data loading
+                if input.widget == self.controller.ui.name_input:
+                    completer.activated.connect(self.controller.on_completer_activated)
+
+                return completer
+
+            def setup_target_cell_widget(
+                self,
+                table: QTableWidget,
+                row: int,
+                column: int,
+                text: str,
+            ) -> QLineEdit:
+                """Create and setup a line edit widget for table cell."""
+                line_edit = QLineEdit(text)
+                table.setCellWidget(row, column, line_edit)
+                return line_edit
 
         return UIHandler(self)
