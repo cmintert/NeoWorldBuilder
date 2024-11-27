@@ -3,7 +3,8 @@
         "name",
         "description",
         "tags",
-        "image_path"
+        "imagepath",
+        "easteregg"
     ],
     "VERSION": "0.1.0",
     "NAME_INPUT_DEBOUNCE_TIME_MS": 100,

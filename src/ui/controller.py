@@ -2,19 +2,30 @@ import json
 import logging
 from typing import Optional, Dict, Any, List, Tuple
 
-from PyQt6.QtCore import QObject, QStringListModel, Qt, pyqtSlot, QTimer
-from PyQt6.QtGui import QStandardItemModel, QStandardItem, QIcon
+from PyQt6.QtCore import QObject, Qt, pyqtSlot, QTimer
+from PyQt6.QtGui import QStandardItemModel, QStandardItem
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QCompleter,
-    QLineEdit,
     QMessageBox,
     QTableWidgetItem,
-    QFileDialog,
+    QTableWidget,
+    QLineEdit,
 )
 
-from core.neo4jworkers import SuggestionWorker
+from models.completer_model import AutoCompletionUIHandler, CompleterInput
+from models.property_model import PropertyItem
+from models.suggestion_model import SuggestionUIHandler, SuggestionResult
+from models.worker_model import WorkerOperation
+from services.autocompletion_service import AutoCompletionService
+from services.image_service import ImageService
+from services.node_operation_service import NodeOperationsService
+from services.property_service import PropertyService
+from services.relationship_tree_service import RelationshipTreeService
+from services.suggestion_service import SuggestionService
+from services.worker_manager_service import WorkerManagerService
 from ui.dialogs import SuggestionDialog, ConnectionSettingsDialog
+from utils.error_handler import ErrorHandler
 from utils.exporters import Exporter
 
 
@@ -51,25 +62,50 @@ class WorldBuildingController(QObject):
         self.config = config
         self.app_instance = app_instance
         self.exporter = Exporter(self.ui, self.config)
+        self.ui.controller = self
+        self.error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
+
+        # Initialize services
+        self.property_service = PropertyService(self.config)
+        self.image_service = ImageService()
+        self.worker_manager = WorkerManagerService(self.error_handler)
+        self.auto_completion_service = AutoCompletionService(
+            self.model,
+            self.config,
+            self.worker_manager,
+            self._create_autocompletion_ui_handler(),
+            self.error_handler.handle_error,
+        )
+        self.node_operations = NodeOperationsService(
+            self.model,
+            self.config,
+            self.worker_manager,
+            self.property_service,
+            self.error_handler,
+        )
+        self.suggestion_service = SuggestionService(
+            self.model,
+            self.config,
+            self.worker_manager,
+            self.error_handler,
+            self._create_suggestion_ui_handler(),
+        )
+
+        # Initialize tree model and service
+        self.tree_model = QStandardItemModel()
+        self.relationship_tree_service = RelationshipTreeService(
+            self.tree_model, self.NODE_RELATIONSHIPS_HEADER
+        )
+
+        # Track UI state
         self.current_image_path: Optional[str] = None
         self.original_node_data: Optional[Dict[str, Any]] = None
-        self.ui.controller = self
 
         # Initialize UI state
         self._initialize_tree_view()
-        self._initialize_completer()
-        self._initialize_target_completer()
-        self._setup_debounce_timer()
+        self._initialize_completers()
         self._connect_signals()
         self._load_default_state()
-
-        # Initialize worker manager
-        self.current_load_worker = None
-        self.current_save_worker = None
-        self.current_relationship_worker = None
-        self.current_search_worker = None
-        self.current_delete_worker = None
-        self.current_suggestion_worker = None
 
     #############################################
     # 1. Initialization Methods
@@ -100,99 +136,31 @@ class WorldBuildingController(QObject):
         self.ui.tree_view.setAllColumnsShowFocus(True)
         self.ui.tree_view.setHeaderHidden(False)
 
-    def _initialize_completer(self) -> None:
-        """
-        Initialize name auto-completion.
-        """
-        self.node_name_model = QStringListModel()
-        self.completer = QCompleter(self.node_name_model)
-        self.completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        self.completer.setFilterMode(Qt.MatchFlag.MatchContains)
-        self.ui.name_input.setCompleter(self.completer)
-        self.completer.activated.connect(self.on_completer_activated)
+    def _initialize_completers(self) -> None:
+        """Initialize auto-completion for node names and relationship targets."""
+        self.auto_completion_service.initialize_node_completer(self.ui.name_input)
 
-    def _initialize_target_completer(self) -> None:
+    def on_completer_activated(self, text: str) -> None:
         """
-        Initialize target auto-completion for relationship table.
+        Handle completer selection.
+
+        Args:
+            text: The selected text from the completer
         """
-        self.target_name_model = QStringListModel()
-        self.target_completer = QCompleter(self.target_name_model)
-        self.target_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        self.target_completer.setFilterMode(Qt.MatchFlag.MatchContains)
-        self.target_completer.activated.connect(self.on_target_completer_activated)
+        if text:
+            self.ui.name_input.setText(text)
+            self.load_node_data()
 
     def _add_target_completer_to_row(self, row: int) -> None:
         """
         Add target completer to the target input field in the relationship table.
 
         Args:
-            row (int): The row number where the completer will be added.
+            row: The row number where the completer will be added
         """
-        if target_item := self.ui.relationships_table.item(row, 1):
-            target_text = target_item.text()
-            line_edit = QLineEdit(target_text)
-            line_edit.setCompleter(self.target_completer)
-            line_edit.textChanged.connect(
-                lambda text: self._fetch_matching_target_nodes(text)
-            )
-            self.ui.relationships_table.setCellWidget(row, 1, line_edit)
-
-    def on_target_completer_activated(self, text: str) -> None:
-        """
-        Handle target completer selection.
-
-        Args:
-            text (str): The selected text from the completer.
-        """
-        current_row = self.ui.relationships_table.currentRow()
-        if current_row >= 0:
-            self.ui.relationships_table.item(current_row, 1).setText(text)
-
-    def _fetch_matching_target_nodes(self, text: str) -> None:
-        """
-        Fetch matching target nodes for auto-completion.
-
-        Args:
-            text (str): The text to match against node names.
-        """
-        if not text:
-            return
-
-        # Cancel any existing search worker
-        if self.current_search_worker:
-            self.current_search_worker.cancel()
-            self.current_search_worker.wait()
-
-        self.current_search_worker = self.model.fetch_matching_node_names(
-            text,
-            self.config.MATCH_NODE_LIMIT,
-            self._handle_target_autocomplete_results,
+        self.auto_completion_service.add_target_completer_to_row(
+            self.ui.relationships_table, row
         )
-        self.current_search_worker.error_occurred.connect(self.handle_error)
-        self.current_search_worker.start()
-
-    @pyqtSlot(list)
-    def _handle_target_autocomplete_results(self, records: List[Any]) -> None:
-        """
-        Handle target autocomplete results.
-
-        Args:
-            records (List[Any]): The list of matching records.
-        """
-        try:
-            names = [record["name"] for record in records]
-            self.target_name_model.setStringList(names)
-        except Exception as e:
-            self.handle_error(f"Error processing target autocomplete results: {str(e)}")
-
-    def _setup_debounce_timer(self) -> None:
-        """
-        Setup debounce timer for search.
-        """
-        self.name_input_timer = QTimer()
-        self.name_input_timer.setSingleShot(True)
-        self.name_input_timer.timeout.connect(self._fetch_matching_nodes)
-        self.name_input_timer.setInterval(self.config.NAME_INPUT_DEBOUNCE_TIME_MS)
 
     def _connect_signals(self) -> None:
         """
@@ -207,7 +175,7 @@ class WorldBuildingController(QObject):
         self.ui.delete_image_button.clicked.connect(self.delete_image)
 
         # Name input and autocomplete
-        self.ui.name_input.textChanged.connect(self.debounce_name_input)
+
         self.ui.name_input.editingFinished.connect(self.load_node_data)
 
         # Table buttons
@@ -250,9 +218,7 @@ class WorldBuildingController(QObject):
     #############################################
 
     def load_node_data(self) -> None:
-        """
-        Load node data using worker thread.
-        """
+        """Load node data."""
         name = self.ui.name_input.text().strip()
         if not name:
             return
@@ -260,27 +226,12 @@ class WorldBuildingController(QObject):
         # Clear all fields to populate them again
         self.ui.clear_all_fields()
 
-        # Cancel any existing load operation
-        if self.current_load_worker:
-            self.current_load_worker.cancel()
-            self.current_load_worker.wait()
-
-        # Start new load operation
-        self.current_load_worker = self.model.load_node(name, self._handle_node_data)
-        self.current_load_worker.error_occurred.connect(self.handle_error)
-        self.current_load_worker.start()
-
-        # Update relationship tree
-        self.update_relationship_tree(name)
-
-    def save_node(self) -> None:
-
-        self.node_controller.save_node()
+        self.node_operations.load_node(
+            name, self._handle_node_data, lambda: self.update_relationship_tree(name)
+        )
 
     def delete_node(self) -> None:
-        """
-        Delete node using worker thread.
-        """
+        """Handle node deletion request."""
         name = self.ui.name_input.text().strip()
         if not name:
             return
@@ -294,17 +245,7 @@ class WorldBuildingController(QObject):
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            # Cancel any existing delete operation
-            if self.current_delete_worker:
-                self.current_delete_worker.cancel()
-                self.current_delete_worker.wait()
-
-            # Start new delete operation
-            self.current_delete_worker = self.model.delete_node(
-                name, self._handle_delete_success
-            )
-            self.current_delete_worker.error_occurred.connect(self.handle_error)
-            self.current_delete_worker.start()
+            self.node_operations.delete_node(name, self._handle_delete_success)
 
     #############################################
     # 3. Tree and Relationship Management
@@ -332,18 +273,22 @@ class WorldBuildingController(QObject):
             self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
             return
 
-        depth = self.ui.depth_spinbox.value()  # Get depth from UI
+        depth = self.ui.depth_spinbox.value()
 
-        # Cancel any existing relationship worker
-        if self.current_relationship_worker:
-            self.current_relationship_worker.cancel()
-            self.current_relationship_worker.wait()
-
-        self.current_relationship_worker = self.model.get_node_relationships(
+        worker = self.model.get_node_relationships(
             node_name, depth, self._populate_relationship_tree
         )
-        self.current_relationship_worker.error_occurred.connect(self.handle_error)
-        self.current_relationship_worker.start()
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=self._populate_relationship_tree,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Error getting relationships: {msg}"
+            ),
+            operation_name="relationship_tree",
+        )
+
+        self.worker_manager.execute_worker("relationships", operation)
 
     def refresh_tree_view(self) -> None:
         """
@@ -367,6 +312,45 @@ class WorldBuildingController(QObject):
                     self.ui.name_input.setText(node_name)
                     self.load_node_data()
 
+    def _collect_table_relationships(self) -> List[Tuple[str, str, str, str]]:
+        """Get relationships from the relationships table.
+
+        Returns:
+            List[Tuple[str, str, str, str]]: List of relationship tuples (type, target, direction, props_json)
+        """
+        relationships = []
+        for row in range(self.ui.relationships_table.rowCount()):
+            rel_type = self.ui.relationships_table.item(row, 0)
+            target = self.ui.relationships_table.cellWidget(row, 1)
+            direction = self.ui.relationships_table.cellWidget(row, 2)
+            props = self.ui.relationships_table.item(row, 3)
+
+            if all([rel_type, target, direction]):
+                relationships.append(
+                    (
+                        rel_type.text(),
+                        target.text(),
+                        direction.currentText(),
+                        props.text() if props else "",
+                    )
+                )
+        return relationships
+
+    def _collect_table_properties(self) -> List[PropertyItem]:
+        """Get properties from the properties table.
+
+        Returns:
+            List[PropertyItem]: The list of property items from the table
+        """
+        properties = []
+        for row in range(self.ui.properties_table.rowCount()):
+            key_item = self.ui.properties_table.item(row, 0)
+            value_item = self.ui.properties_table.item(row, 1)
+
+            if prop := PropertyItem.from_table_item(key_item, value_item):
+                properties.append(prop)
+        return properties
+
     #############################################
     # 4. Auto-completion and Search
     #############################################
@@ -375,148 +359,8 @@ class WorldBuildingController(QObject):
         """
         Show the suggestions modal dialog.
         """
-        node_data = self._collect_node_data()
-        if not node_data:
-            return
-
-        # Show loading indicator
-        self.ui.show_loading(True)
-
-        # Cancel any existing SuggestionWorker
-        if self.current_suggestion_worker:
-            self.current_suggestion_worker.cancel()
-            self.current_suggestion_worker.wait()
-            self.current_suggestion_worker = None
-            logging.debug("Existing SuggestionWorker canceled and cleaned up.")
-
-        # Create and start the SuggestionWorker
-        self.current_suggestion_worker = SuggestionWorker(
-            self.model._uri, self.model._auth, node_data
-        )
-        self.current_suggestion_worker.suggestions_ready.connect(
-            self.handle_suggestions
-        )
-        self.current_suggestion_worker.error_occurred.connect(self.handle_error)
-        self.current_suggestion_worker.finished.connect(
-            self.on_suggestion_worker_finished
-        )
-        self.current_suggestion_worker.start()
-
-        logging.debug("SuggestionWorker started successfully.")
-
-    def on_suggestion_worker_finished(self) -> None:
-        """
-        Cleanup after SuggestionWorker has finished.
-        """
-        self.current_suggestion_worker = None
-        self.ui.show_loading(False)
-        logging.debug("SuggestionWorker has finished and cleaned up.")
-
-    def handle_suggestions(self, suggestions: Dict[str, Any]) -> None:
-        """
-        Handle the suggestions received from the SuggestionWorker.
-
-        Args:
-            suggestions (dict): The suggestions dictionary containing tags, properties, and relationships.
-        """
-        logging.debug(f"handle_suggestions called with suggestions: {suggestions}")
-        # Hide loading indicator
-        self.ui.show_loading(False)
-        logging.debug("Loading indicator hidden.")
-
-        if not suggestions or all(not suggestions[key] for key in suggestions):
-            logging.debug("No suggestions found.")
-            QMessageBox.information(
-                self.ui, "No Suggestions", "No suggestions were found for this node."
-            )
-            return
-
-        dialog = SuggestionDialog(suggestions, self.ui)
-        if dialog.exec():
-            selected = dialog.selected_suggestions
-            logging.debug(f"User selected suggestions: {selected}")
-
-            # Update tags
-            existing_tags = self._parse_comma_separated(self.ui.tags_input.text())
-            new_tags = list(set(existing_tags + selected["tags"]))
-            self.ui.tags_input.setText(", ".join(new_tags))
-            logging.debug(f"Updated tags: {new_tags}")
-
-            # Update properties
-            for key, value in selected["properties"].items():
-                self.add_or_update_property(key, value)
-                logging.debug(f"Updated property - Key: {key}, Value: {value}")
-
-            # Update relationships
-            for rel in selected["relationships"]:
-                rel_type, target, direction, props = rel
-                self.ui.add_relationship_row(
-                    rel_type, target, direction, json.dumps(props)
-                )
-                logging.debug(
-                    f"Added relationship - Type: {rel_type}, Target: {target}, Direction: {direction}, Properties: {props}"
-                )
-
-            QMessageBox.information(
-                self.ui,
-                "Suggestions Applied",
-                "Selected suggestions have been applied to the node.",
-            )
-        else:
-            logging.debug("Suggestion dialog was canceled by the user.")
-
-    def add_or_update_property(self, key: str, value: Any) -> None:
-        """
-        Add or update a property in the properties table.
-
-        Args:
-            key (str): The property key.
-            value (Any): The property value.
-        """
-        found = False
-        for row in range(self.ui.properties_table.rowCount()):
-            item_key = self.ui.properties_table.item(row, 0)
-            if item_key and item_key.text() == key:
-                self.ui.properties_table.item(row, 1).setText(str(value))
-                found = True
-                break
-        if not found:
-            row = self.ui.properties_table.rowCount()
-            self.ui.properties_table.insertRow(row)
-            self.ui.properties_table.setItem(row, 0, QTableWidgetItem(key))
-            self.ui.properties_table.setItem(row, 1, QTableWidgetItem(str(value)))
-            delete_button = self.ui.create_delete_button(self.ui.properties_table, row)
-            self.ui.properties_table.setCellWidget(row, 2, delete_button)
-
-    def debounce_name_input(self, text: str) -> None:
-        """
-        Debounce name input for search.
-
-        Args:
-            text (str): The input text.
-        """
-        self.name_input_timer.stop()
-        if text.strip():
-            self.name_input_timer.start()
-
-    def _fetch_matching_nodes(self) -> None:
-        """
-        Fetch matching nodes for auto-completion.
-        """
-        text = self.ui.name_input.text().strip()
-        if not text:
-            return
-
-        # Cancel any existing search worker
-        if self.current_search_worker:
-            self.current_search_worker.cancel()
-            self.current_search_worker.wait()
-
-        self.current_search_worker = self.model.fetch_matching_node_names(
-            text, self.config.MATCH_NODE_LIMIT, self._handle_autocomplete_results
-        )
-        self.current_search_worker.error_occurred.connect(self.handle_error)
-        self.current_search_worker.start()
+        if node_data := self.get_current_node_data():
+            self.suggestion_service.show_suggestions_modal(node_data)
 
     def on_completer_activated(self, text: str) -> None:
         """
@@ -529,159 +373,45 @@ class WorldBuildingController(QObject):
             self.ui.name_input.setText(text)
             self.load_node_data()
 
-    #############################################
-    # 5. Data Collection and Validation
-    #############################################
-
-    def _collect_node_data(self) -> Optional[Dict[str, Any]]:
-        """
-        Collect all node data from UI.
-
-        Returns:
-            Optional[Dict[str, Any]]: The collected node data.
-        """
-        try:
-            node_data = {
-                "name": self.ui.name_input.text().strip(),
-                "description": self.ui.description_input.toHtml().strip(),
-                "tags": self._parse_comma_separated(self.ui.tags_input.text()),
-                "labels": [
-                    label.strip().upper().replace(" ", "_")
-                    for label in self._parse_comma_separated(
-                        self.ui.labels_input.text()
-                    )
-                ],
-                "relationships": self._collect_relationships(),
-                "additional_properties": self._collect_properties(),
-            }
-
-            if self.current_image_path:
-                node_data["additional_properties"][
-                    "image_path"
-                ] = self.current_image_path
-            else:
-                node_data["additional_properties"]["image_path"] = None
-
-            logging.debug(f"Collected Node Data: {node_data}")
-
-            return node_data
-        except ValueError as e:
-            self.handle_error(str(e))
-            return None
-
-    def _collect_properties(self) -> Dict[str, Any]:
-        """
-        Collect properties from table.
-
-        Returns:
-            Dict[str, Any]: The collected properties.
-        """
-        properties = {}
-        for row in range(self.ui.properties_table.rowCount()):
-            key = self.ui.properties_table.item(row, 0)
-            value = self.ui.properties_table.item(row, 1)
-
-            if not key or not key.text().strip():
-                continue
-
-            key_text = key.text().strip()
-
-            if key_text.lower() in self.config.RESERVED_PROPERTY_KEYS:
-                raise ValueError(f"Property key '{key_text}' is reserved")
-
-            if key_text.startswith("_"):
-                raise ValueError(
-                    f"Property key '{key_text}' cannot start with an underscore"
-                )
-
-            try:
-                value_text = value.text().strip() if value else ""
-                properties[key_text] = (
-                    json.loads(value_text) if value_text else value_text
-                )
-            except json.JSONDecodeError:
-                properties[key_text] = value_text
-
-        return properties
-
-    def _collect_relationships(self) -> List[Tuple[str, str, str, Dict[str, Any]]]:
-        """
-        Collect relationships from table.
-
-        Returns:
-            List[Tuple[str, str, str, Dict[str, Any]]]: The collected relationships.
-        """
-        relationships = []
-        for row in range(self.ui.relationships_table.rowCount()):
-            rel_type = self.ui.relationships_table.item(row, 0)
-            target = self.ui.relationships_table.cellWidget(row, 1)
-            direction = self.ui.relationships_table.cellWidget(row, 2)
-            props = self.ui.relationships_table.item(row, 3)
-
-            if not all([rel_type, target, direction]):
-                continue
-
-            try:
-                properties = (
-                    json.loads(props.text()) if props and props.text().strip() else {}
-                )
-
-                # Enforce uppercase and replace spaces with underscores
-                formatted_rel_type = rel_type.text().strip().upper().replace(" ", "_")
-
-                relationships.append(
-                    (
-                        formatted_rel_type,
-                        target.text().strip(),
-                        direction.currentText(),
-                        properties,
-                    )
-                )
-            except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON in relationship properties: {e}") from e
-
-        logging.debug(f"Collected the following Relationships: {relationships}")
-        return relationships
-
-    #############################################
-    # 6. Event Handlers
-    #############################################
-
     @pyqtSlot(list)
     def _handle_node_data(self, data: List[Any]) -> None:
-        """
-        Handle node data fetched by the worker.
-
-        Args:
-            data (List[Any]): The fetched node data.
-        """
+        """Handle node data fetched by the worker."""
         logging.debug(f"Handling node data: {data}")
         if not data:
-            return  # No need to notify the user
+            return
 
         try:
-            record = data[0]  # Extract the first record
+            record = data[0]
             self._populate_node_fields(record)
-            self.original_node_data = self._collect_node_data()
+            self.original_node_data = self.node_operations.collect_node_data(
+                name=self.ui.name_input.text().strip(),
+                description=self.ui.description_input.toHtml().strip(),
+                tags=self.ui.tags_input.text(),
+                labels=self.ui.labels_input.text(),
+                properties=self._collect_table_properties(),
+                relationships=self._collect_table_relationships(),
+                image_path=self.current_image_path,
+            )
             self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
 
         except Exception as e:
-            self.handle_error(f"Error populating node fields: {str(e)}")
+            self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
 
     def is_node_changed(self) -> bool:
-        """
-        Check if the node data has changed.
-
-        Returns:
-            bool: Whether the node data has changed.
-        """
-        current_data = self._collect_node_data()
+        """Check if the node data has changed."""
+        current_data = self.node_operations.collect_node_data(
+            name=self.ui.name_input.text().strip(),
+            description=self.ui.description_input.toHtml().strip(),
+            tags=self.ui.tags_input.text(),
+            labels=self.ui.labels_input.text(),
+            properties=self._collect_table_properties(),
+            relationships=self._collect_table_relationships(),
+            image_path=self.current_image_path,
+        )
         return current_data != self.original_node_data
 
     def update_unsaved_changes_indicator(self) -> None:
-        """
-        Update the unsaved changes indicator.
-        """
+        """Update the unsaved changes indicator."""
         if self.is_node_changed():
             self.ui.save_button.setStyleSheet("background-color: #83A00E;")
         else:
@@ -696,20 +426,6 @@ class WorldBuildingController(QObject):
         """
         QMessageBox.information(self.ui, "Success", "Node deleted successfully")
         self._load_default_state()
-
-    @pyqtSlot(list)
-    def _handle_autocomplete_results(self, records: List[Any]) -> None:
-        """
-        Handle autocomplete results.
-
-        Args:
-            records (List[Any]): The list of matching records.
-        """
-        try:
-            names = [record["name"] for record in records]
-            self.node_name_model.setStringList(names)
-        except Exception as e:
-            self.handle_error(f"Error processing autocomplete results: {str(e)}")
 
     def _update_save_progress(self, current: int, total: int) -> None:
         """
@@ -743,7 +459,6 @@ class WorldBuildingController(QObject):
             node_name = node_properties.get("name", "")
             node_description = node_properties.get("description", "")
             node_tags = node_properties.get("tags", [])
-            image_path = node_properties.get("image_path")
 
             # Update UI elements in the main thread
             self.ui.name_input.setText(node_name)
@@ -758,7 +473,7 @@ class WorldBuildingController(QObject):
                 if key.startswith("_"):
                     continue
 
-                if key not in ["name", "description", "tags", "image_path"]:
+                if key not in self.config.RESERVED_PROPERTY_KEYS:
 
                     row = self.ui.properties_table.rowCount()
                     self.ui.properties_table.insertRow(row)
@@ -782,172 +497,46 @@ class WorldBuildingController(QObject):
                 self.ui.add_relationship_row(rel_type, target, direction, props)
 
             # Update image if available
-            self.current_image_path = image_path
-            self.ui.set_image(image_path)
+            image_path = node_properties.get("imagepath")
+
+            if image_path:
+                self.image_service.set_current_image(image_path)
+                self.current_image_path = image_path  # Keep controller in sync
+                self.ui.set_image(image_path)
+            else:
+                self.image_service.set_current_image(None)
+                self.current_image_path = None
+                self.ui.set_image(None)
 
         except Exception as e:
-            self.handle_error(f"Error populating node fields: {str(e)}")
 
-    def process_relationship_records(
-        self, records: List[Any]
-    ) -> Tuple[Dict[Tuple[str, str, str], List[Tuple[str, List[str]]]], int]:
-        """
-        Process relationship records and build parent-child map.
-
-        Args:
-            records (List[Any]): The list of relationship records.
-
-        Returns:
-            dict: A dictionary mapping parent names to their child nodes with relationship details.
-        """
-        parent_child_map = {}
-        skipped_records = 0
-
-        for record in records:
-            node_name = record.get("node_name")
-            labels = record.get("labels", [])
-            parent_name = record.get("parent_name")
-            rel_type = record.get("rel_type")
-            direction = record.get("direction")
-
-            if not node_name or not parent_name or not rel_type or not direction:
-                logging.warning(f"Incomplete record encountered and skipped: {record}")
-                skipped_records += 1
-                continue
-
-            key = (parent_name, rel_type, direction)
-            if key not in parent_child_map:
-                parent_child_map[key] = []
-            parent_child_map[key].append((node_name, labels))
-
-        return parent_child_map, skipped_records
-
-    def add_children(
-        self,
-        parent_name: str,
-        parent_item: QStandardItem,
-        path: List[str],
-        parent_child_map: Dict[Tuple[str, str, str], List[Tuple[str, List[str]]]],
-    ) -> None:
-        """
-        Add child nodes to the relationship tree with checkboxes.
-
-        Args:
-            parent_name (str): The name of the parent node.
-            parent_item (QStandardItem): The parent item in the tree.
-            path (List[str]): The path of node names to avoid cycles.
-            parent_child_map (dict): The parent-child map of relationships.
-        """
-        for (p_name, rel_type, direction), children in parent_child_map.items():
-            if p_name != parent_name:
-                continue
-
-            for child_name, child_labels in children:
-                if child_name in path:
-                    self.handle_cycles(parent_item, rel_type, direction, child_name)
-                    continue
-
-                arrow = "➡️" if direction == ">" else "⬅️"
-
-                # Create relationship item (non-checkable separator)
-                rel_item = QStandardItem(f"{arrow} [{rel_type}]")
-                rel_item.setFlags(
-                    Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
-                )
-
-                # Create node item (checkable)
-                child_item = QStandardItem(
-                    f"🔹 {child_name} [{', '.join(child_labels)}]"
-                )
-                child_item.setData(child_name, Qt.ItemDataRole.UserRole)
-                child_item.setFlags(
-                    Qt.ItemFlag.ItemIsEnabled
-                    | Qt.ItemFlag.ItemIsSelectable
-                    | Qt.ItemFlag.ItemIsUserCheckable
-                )
-                child_item.setCheckState(Qt.CheckState.Unchecked)
-
-                rel_item.appendRow(child_item)
-                parent_item.appendRow(rel_item)
-
-                self.add_children(
-                    child_name, child_item, path + [child_name], parent_child_map
-                )
-
-    def handle_cycles(
-        self, parent_item: QStandardItem, rel_type: str, direction: str, child_name: str
-    ) -> None:
-        """
-        Handle cycles in the relationship data to avoid infinite loops.
-
-        Args:
-            parent_item (QStandardItem): The parent item in the tree.
-            rel_type (str): The type of the relationship.
-            direction (str): The direction of the relationship.
-            child_name (str): The name of the child node.
-        """
-        rel_item = QStandardItem(f"🔄 [{rel_type}] ({direction})")
-        rel_item.setIcon(QIcon("path/to/relationship_icon.png"))
-
-        cycle_item = QStandardItem(f"🔁 {child_name} (Cycle)")
-        cycle_item.setData(child_name, Qt.ItemDataRole.UserRole)
-        cycle_item.setIcon(QIcon("path/to/cycle_icon.png"))
-
-        rel_item.appendRow(cycle_item)
-        parent_item.appendRow(rel_item)
+            self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
 
     @pyqtSlot(list)
     def _populate_relationship_tree(self, records: List[Any]) -> None:
         """
-        Populate the tree view with relationships up to the specified depth.
+        Populate the relationship tree in the UI.
 
         Args:
-            records (List[Any]): The list of relationship records.
+            records (List[Any]): The relationship data.
         """
-        logging.debug(f"Populating relationship tree with records: {records}")
         try:
             self.tree_model.clear()
             self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
-
-            if not records:
-                logging.info("No relationship records found.")
-                return
-
             root_node_name = self.ui.name_input.text().strip()
-            if not root_node_name:
-                logging.warning("Root node name is empty.")
-                return
-
-            # Create root item with checkbox
             root_item = QStandardItem(f"🔵 {root_node_name}")
             root_item.setData(root_node_name, Qt.ItemDataRole.UserRole)
-            root_item.setFlags(
-                Qt.ItemFlag.ItemIsEnabled
-                | Qt.ItemFlag.ItemIsSelectable
-                | Qt.ItemFlag.ItemIsUserCheckable
-            )
-            root_item.setCheckState(Qt.CheckState.Unchecked)
-            root_item.setIcon(QIcon("path/to/node_icon.png"))
+            self.tree_model.appendRow(root_item)
 
-            parent_child_map, skipped_records = self.process_relationship_records(
-                records
+            parent_child_map, _ = (
+                self.relationship_tree_service.process_relationship_records(records)
             )
-
-            self.add_children(
+            self.relationship_tree_service.add_children(
                 root_node_name, root_item, [root_node_name], parent_child_map
             )
-
-            self.tree_model.appendRow(root_item)
             self.ui.tree_view.expandAll()
-            logging.info("Relationship tree populated successfully.")
-
-            if skipped_records > 0:
-                logging.warning(
-                    f"Skipped {skipped_records} incomplete relationship records."
-                )
-
         except Exception as e:
-            self.handle_error(f"Error populating relationship tree: {str(e)}")
+            self.error_handler.handle_error(f"Tree population failed: {e}")
 
     #############################################
     # 7. Cleanup and Error Handling
@@ -957,76 +546,42 @@ class WorldBuildingController(QObject):
         """
         Clean up resources.
         """
-        # Cancel and wait for any running workers
-        for worker in [
-            self.current_load_worker,
-            self.current_save_worker,
-            self.current_relationship_worker,
-            self.current_search_worker,
-            self.current_delete_worker,
-        ]:
-            if worker is not None:
-                worker.cancel()
-                worker.wait()
+        self.worker_manager.cancel_all_workers()
         self.model.close()
 
-    def handle_error(self, error_message: str) -> None:
-        """
-        Handle any errors.
-
-        Args:
-            error_message (str): The error message to display.
-        """
-        logging.error(error_message)
-        QMessageBox.critical(self.ui, "Error", error_message)
+    def _show_error_dialog(self, title: str, message: str) -> None:
+        """Show error dialog to user."""
+        QMessageBox.critical(self.ui, title, message)
 
     #############################################
     # 8. Utility Methods
     #############################################
 
-    def _parse_comma_separated(self, text: str) -> List[str]:
-        """
-        Parse comma-separated input.
-
-        Args:
-            text (str): The comma-separated input text.
-
-        Returns:
-            List[str]: The parsed list of strings.
-        """
-        return [item.strip() for item in text.split(",") if item.strip()]
-
     def change_image(self) -> None:
-        """
-        Handle changing the image.
-        """
-        try:
-            file_name, _ = QFileDialog.getOpenFileName(
-                self.ui,
-                "Select Image",
-                "",
-                "Image Files (*.png *.jpg *.bmp)",
+        """Handle image change request from UI."""
+        result = self.image_service.change_image(self.ui)
+        if result.success:
+            self.ui.set_image(result.path)
+            self.current_image_path = result.path
+            self.update_unsaved_changes_indicator()  # If you need to track changes
+        else:
+            self.error_handler.handle_error(
+                f"Error changing image - {result.error_message}"
             )
-            if file_name:
-                # Process image in the UI thread since it's UI-related
-                self.current_image_path = file_name
-                self.ui.set_image(file_name)
-        except Exception as e:
-            self.handle_error(f"Error changing image: {str(e)}")
 
     def delete_image(self) -> None:
-        """
-        Handle deleting the image.
-        """
+        """Handle image deletion request from UI."""
+        self.image_service.delete_image()
         self.current_image_path = None
         self.ui.set_image(None)
+        self.update_unsaved_changes_indicator()  # If you need to track changes
 
-    def _export(self, format_type: str) -> None:
+    def export_to_filetype(self, format_type: str) -> None:
         """
         Generic export method that handles all export formats.
 
         Args:
-            format_type (str): The type of export format ('database.json', 'txt', 'csv', 'pdf')
+            format_type (str): The type of export format ('json', 'txt', 'csv', 'pdf')
         """
         selected_nodes = self.get_selected_nodes()
         if not selected_nodes:
@@ -1038,31 +593,8 @@ class WorldBuildingController(QObject):
                 format_type, selected_nodes, self._collect_node_data_for_export
             )
         except ValueError as e:
-            self.handle_error(f"Export error: {str(e)}")
 
-    def export_as_json(self) -> None:
-        """
-        Export selected nodes as JSON.
-        """
-        self._export("database.json")
-
-    def export_as_txt(self) -> None:
-        """
-        Export selected nodes as TXT.
-        """
-        self._export("txt")
-
-    def export_as_csv(self) -> None:
-        """
-        Export selected nodes as CSV.
-        """
-        self._export("csv")
-
-    def export_as_pdf(self) -> None:
-        """
-        Export selected nodes as PDF.
-        """
-        self._export("pdf")
+            self.error_handler.handle_error(f"Export error: {str(e)}")
 
     def get_selected_nodes(self) -> List[str]:
         """
@@ -1128,103 +660,56 @@ class WorldBuildingController(QObject):
         Returns:
             Optional[Dict[str, Any]]: The collected node data.
         """
-        try:
-            node_data = {
-                "name": node_name,
-                "description": self.ui.description_input.toPlainText().strip(),
-                "tags": self._parse_comma_separated(self.ui.tags_input.text()),
-                "labels": [
-                    label.strip().upper().replace(" ", "_")
-                    for label in self._parse_comma_separated(
-                        self.ui.labels_input.text()
-                    )
-                ],
-                "relationships": self._collect_relationships(),
-                "additional_properties": self._collect_properties(),
-            }
-
-            if self.current_image_path:
-                node_data["additional_properties"][
-                    "image_path"
-                ] = self.current_image_path
-            else:
-                node_data["additional_properties"]["image_path"] = None
-
-            return node_data
-        except ValueError as e:
-            self.handle_error(str(e))
-            return None
+        image_path = self.image_service.get_current_image()
+        return self.node_operations.collect_node_data(
+            name=node_name,
+            description=self.ui.description_input.toPlainText().strip(),
+            tags=self.ui.tags_input.text(),
+            labels=self.ui.labels_input.text(),
+            properties=self._collect_table_properties(),
+            relationships=self._collect_table_relationships(),
+            image_path=image_path,
+        )
 
     def load_last_modified_node(self) -> None:
-        """
-        Load the last modified node and display it in the UI.
-        """
-        try:
-            last_modified_node = self.model.get_last_modified_node()
-            if last_modified_node:
-                self.ui.name_input.setText(last_modified_node["name"])
-                self.load_node_data()
-            else:
-                logging.info("No nodes available to load.")
-        except Exception as e:
-            self.handle_error(f"Error loading last modified node: {e}")
+        """Load the last modified node and display it in the UI."""
 
-    def open_connection_settings(self):
+        def on_load(data: List[Any]) -> None:
+            self._handle_node_data(data)
+            self.update_relationship_tree(self.ui.name_input.text().strip())
+
+        self.node_operations.load_last_modified_node(on_load)
+
+    def open_connection_settings(self) -> None:
         dialog = ConnectionSettingsDialog(self.config, self.app_instance)
         dialog.exec()
 
     def save_node(self) -> None:
-        """
-        Save node data using worker thread.
-        """
+        """Handle node save request."""
         name = self.ui.name_input.text().strip()
-        if not self.validate_node_name(name):
+        if not self.node_operations.validate_node_name(name).is_valid:
             return
 
-        node_data = self._collect_node_data()
-        if not node_data:
-            return
+        # Collect properties from UI
+        properties = self._collect_table_properties()
+        relationships = self._collect_table_relationships()
 
-        # Cancel any existing save operation
-        if hasattr(self, "current_save_worker") and self.current_save_worker:
-            self.current_save_worker.cancel()
+        node_data = self.node_operations.collect_node_data(
+            name=name,
+            description=self.ui.description_input.toHtml().strip(),
+            tags=self.ui.tags_input.text(),
+            labels=self.ui.labels_input.text(),
+            properties=properties,
+            relationships=relationships,
+            image_path=self.current_image_path,
+        )
 
-        # Start new save operation
-        self.current_save_worker = self.model.save_node(node_data, self.on_save_success)
-        self.current_save_worker.error_occurred.connect(self.handle_error)
-        self.current_save_worker.start()
+        if node_data:
+            self.node_operations.save_node(node_data, self._handle_save_success)
 
-    def validate_node_name(self, name: str) -> bool:
-        """
-        Validate node name.
-
-        Args:
-            name (str): The node name to validate.
-
-        Returns:
-            bool: True if the node name is valid, False otherwise.
-        """
-        if not name:
-            QMessageBox.warning(self.ui, "Warning", "Node name cannot be empty.")
-            return False
-
-        if len(name) > self.config.MAX_NODE_NAME_LENGTH:
-            QMessageBox.warning(
-                self.ui,
-                "Warning",
-                f"Node name cannot exceed {self.config.MAX_NODE_NAME_LENGTH} characters.",
-            )
-            return False
-
-        return True
-
-    def on_save_success(self, _: Any) -> None:
-        """
-        Handle successful node save.
-
-        Args:
-            _: The result of the save operation.
-        """
+    def _handle_save_success(self, _: Any) -> None:
+        """Handle successful node save with proper UI updates."""
+        # Show success message
         msg_box = QMessageBox(self.ui)
         msg_box.setIcon(QMessageBox.Icon.Information)
         msg_box.setWindowTitle("Success")
@@ -1232,7 +717,103 @@ class WorldBuildingController(QObject):
         msg_box.setStandardButtons(QMessageBox.StandardButton.NoButton)
         msg_box.show()
 
-        QTimer.singleShot(1000, msg_box.accept)  # Close after 2 seconds
+        # Auto-close message after 1 second
+        QTimer.singleShot(1000, msg_box.accept)
 
+        # Update UI state
         self.refresh_tree_view()
         self.load_node_data()
+
+    def get_current_node_data(self) -> Optional[Dict[str, Any]]:
+        """Get current node data from UI fields."""
+        return self.node_operations.collect_node_data(
+            name=self.ui.name_input.text().strip(),
+            description=self.ui.description_input.toHtml().strip(),
+            tags=self.ui.tags_input.text(),
+            labels=self.ui.labels_input.text(),
+            properties=self._collect_table_properties(),
+            relationships=self._collect_table_relationships(),
+            image_path=self.current_image_path,
+        )
+
+    def _create_suggestion_ui_handler(self) -> SuggestionUIHandler:
+        class UIHandler:
+            def __init__(self, controller: "WorldBuildingController"):
+                self.controller = controller
+
+            def show_loading(self, is_loading: bool) -> None:
+                self.controller.ui.show_loading(is_loading)
+
+            def show_message(self, title: str, message: str) -> None:
+                QMessageBox.information(self.controller.ui, title, message)
+
+            def show_suggestion_dialog(
+                self, suggestions: Dict[str, Any]
+            ) -> SuggestionResult:
+                dialog = SuggestionDialog(suggestions, self.controller.ui)
+                if dialog.exec():
+                    return SuggestionResult(
+                        success=True, selected_suggestions=dialog.selected_suggestions
+                    )
+                return SuggestionResult(success=False)
+
+            def update_tags(self, tags: List[str]) -> None:
+                current_tags = self.controller.ui.tags_input.text().split(",")
+                all_tags = list(set(current_tags + tags))
+                self.controller.ui.tags_input.setText(", ".join(all_tags))
+
+            def add_property(self, key: str, value: Any) -> None:
+                row = self.controller.ui.properties_table.rowCount()
+                self.controller.ui.properties_table.insertRow(row)
+                self.controller.ui.properties_table.setItem(
+                    row, 0, QTableWidgetItem(key)
+                )
+                self.controller.ui.properties_table.setItem(
+                    row, 1, QTableWidgetItem(str(value))
+                )
+                delete_button = self.controller.ui.create_delete_button(
+                    self.controller.ui.properties_table, row
+                )
+                self.controller.ui.properties_table.setCellWidget(row, 2, delete_button)
+
+            def add_relationship(
+                self, rel_type: str, target: str, direction: str, props: Dict[str, Any]
+            ) -> None:
+                self.controller.ui.add_relationship_row(
+                    rel_type, target, direction, json.dumps(props)
+                )
+
+        return UIHandler(self)
+
+    def _create_autocompletion_ui_handler(self) -> AutoCompletionUIHandler:
+        """Create the UI handler for auto-completion operations."""
+
+        class UIHandler:
+            def __init__(self, controller: "WorldBuildingController"):
+                self.controller = controller
+
+            def create_completer(self, input: CompleterInput) -> QCompleter:
+                """Create a configured completer for the input widget."""
+                completer = QCompleter(input.model)
+                completer.setCaseSensitivity(input.case_sensitivity)
+                completer.setFilterMode(input.filter_mode)
+
+                # Connect completer activation signal to node data loading
+                if input.widget == self.controller.ui.name_input:
+                    completer.activated.connect(self.controller.on_completer_activated)
+
+                return completer
+
+            def setup_target_cell_widget(
+                self,
+                table: QTableWidget,
+                row: int,
+                column: int,
+                text: str,
+            ) -> QLineEdit:
+                """Create and setup a line edit widget for table cell."""
+                line_edit = QLineEdit(text)
+                table.setCellWidget(row, column, line_edit)
+                return line_edit
+
+        return UIHandler(self)

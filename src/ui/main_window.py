@@ -33,7 +33,6 @@ from PyQt6.QtWidgets import (
 
 
 class WorldBuildingUI(QWidget):
-    """Enhanced UI class with thread-aware components and better feedback"""
 
     # Class-level signals
     name_selected = pyqtSignal(str)
