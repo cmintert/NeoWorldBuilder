@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
 )
 
-from core.neo4jworkers import SuggestionWorker
 from models.property_model import PropertyItem
 from models.worker_model import WorkerOperation
 from services.autocompletion_service import AutoCompletionService
@@ -19,11 +18,11 @@ from services.image_service import ImageService
 from services.node_operation_service import NodeOperationsService
 from services.property_service import PropertyService
 from services.relationship_tree_service import RelationshipTreeService
+from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
 from ui.dialogs import SuggestionDialog, ConnectionSettingsDialog
 from utils.error_handler import ErrorHandler
 from utils.exporters import Exporter
-from utils.parsers import parse_comma_separated
 
 
 class WorldBuildingController(QObject):
@@ -78,6 +77,9 @@ class WorldBuildingController(QObject):
             self.worker_manager,
             self.property_service,
             self.error_handler,
+        )
+        self.suggestion_service = SuggestionService(
+            self.model, self.config, self.worker_manager, self.error_handler
         )
 
         # Initialize tree model and service
@@ -354,10 +356,6 @@ class WorldBuildingController(QObject):
                 properties.append(prop)
         return properties
 
-    def load_last_modified_node(self) -> None:
-        """Load the last modified node."""
-        self.node_operations.load_last_modified_node(self._handle_node_data)
-
     #############################################
     # 4. Auto-completion and Search
     #############################################
@@ -366,30 +364,13 @@ class WorldBuildingController(QObject):
         """
         Show the suggestions modal dialog.
         """
-        node_data = self._collect_node_data()
+        node_data = self.get_current_node_data()
         if not node_data:
             return
 
-        # Show loading indicator
-        self.ui.show_loading(True)
-
-        worker = SuggestionWorker(self.model._uri, self.model._auth, node_data)
-
-        # Connect the specific signal before creating operation
-        worker.suggestions_ready.connect(self.handle_suggestions)
-
-        operation = WorkerOperation(
-            worker=worker,
-            success_callback=None,
-            error_callback=lambda msg: self.error_handler.handle_error(
-                f"Error creating suggestion: {msg}"
-            ),
-            finished_callback=self._handle_suggestion_finished,
-            operation_name="suggestions",
+        self.suggestion_service.get_suggestions(
+            node_data, self.ui.show_loading, self.handle_suggestions
         )
-
-        self.worker_manager.execute_worker("suggestions", operation)
-        logging.debug("SuggestionWorker started successfully.")
 
     def _handle_suggestion_finished(self) -> None:
         """Handle suggestion worker completion."""
@@ -397,19 +378,8 @@ class WorldBuildingController(QObject):
         logging.debug("Suggestion worker has finished and cleaned up.")
 
     def handle_suggestions(self, suggestions: Dict[str, Any]) -> None:
-        """
-        Handle the suggestions received from the SuggestionWorker.
-
-        Args:
-            suggestions (dict): The suggestions dictionary containing tags, properties, and relationships.
-        """
-        logging.debug(f"handle_suggestions called with suggestions: {suggestions}")
-        # Hide loading indicator
-        self.ui.show_loading(False)
-        logging.debug("Loading indicator hidden.")
-
+        """Handle received suggestions."""
         if not suggestions or all(not suggestions[key] for key in suggestions):
-            logging.debug("No suggestions found.")
             QMessageBox.information(
                 self.ui, "No Suggestions", "No suggestions were found for this node."
             )
@@ -417,37 +387,29 @@ class WorldBuildingController(QObject):
 
         dialog = SuggestionDialog(suggestions, self.ui)
         if dialog.exec():
-            selected = dialog.selected_suggestions
-            logging.debug(f"User selected suggestions: {selected}")
+            node_data = self.get_current_node_data()
 
-            # Update tags
-            existing_tags = parse_comma_separated(self.ui.tags_input.text())
-            new_tags = list(set(existing_tags + selected["tags"]))
-            self.ui.tags_input.setText(", ".join(new_tags))
-            logging.debug(f"Updated tags: {new_tags}")
-
-            # Update properties
-            for key, value in selected["properties"].items():
-                self.add_or_update_property(key, value)
-                logging.debug(f"Updated property - Key: {key}, Value: {value}")
-
-            # Update relationships
-            for rel in selected["relationships"]:
-                rel_type, target, direction, props = rel
-                self.ui.add_relationship_row(
-                    rel_type, target, direction, json.dumps(props)
+            if node_data:
+                updated_data = self.suggestion_service.process_selected_suggestions(
+                    dialog.selected_suggestions, node_data
                 )
-                logging.debug(
-                    f"Added relationship - Type: {rel_type}, Target: {target}, Direction: {direction}, Properties: {props}"
+                self._apply_node_data(updated_data)
+                QMessageBox.information(
+                    self.ui,
+                    "Suggestions Applied",
+                    "Selected suggestions have been applied to the node.",
                 )
 
-            QMessageBox.information(
-                self.ui,
-                "Suggestions Applied",
-                "Selected suggestions have been applied to the node.",
-            )
-        else:
-            logging.debug("Suggestion dialog was canceled by the user.")
+    def _apply_node_data(self, data: Dict[str, Any]) -> None:
+        """Apply node data to UI fields."""
+        self.ui.tags_input.setText(", ".join(data.get("tags", [])))
+
+        for key, value in data.get("additional_properties", {}).items():
+            self.add_or_update_property(key, value)
+
+        for rel in data.get("relationships", []):
+            rel_type, target, direction, props = rel
+            self.ui.add_relationship_row(rel_type, target, direction, json.dumps(props))
 
     def add_or_update_property(self, key: str, value: Any) -> None:
         """
@@ -812,42 +774,25 @@ class WorldBuildingController(QObject):
         Returns:
             Optional[Dict[str, Any]]: The collected node data.
         """
-        try:
-
-            node_data = {
-                "name": node_name,
-                "description": self.ui.description_input.toPlainText().strip(),
-                "tags": parse_comma_separated(self.ui.tags_input.text()),
-                "labels": [
-                    label.strip().upper().replace(" ", "_")
-                    for label in parse_comma_separated(self.ui.labels_input.text())
-                ],
-                "relationships": self._collect_relationships(),
-                "additional_properties": self._collect_properties(),
-            }
-
-            current_image = self.image_service.get_current_image()
-            node_data["imagepath"] = current_image
-
-            return node_data
-        except ValueError as e:
-            self.error_handler.handle_error(str(e))
-            return None
+        image_path = self.image_service.get_current_image()
+        return self.node_operations.collect_node_data(
+            name=node_name,
+            description=self.ui.description_input.toPlainText().strip(),
+            tags=self.ui.tags_input.text(),
+            labels=self.ui.labels_input.text(),
+            properties=self._collect_table_properties(),
+            relationships=self._collect_table_relationships(),
+            image_path=image_path,
+        )
 
     def load_last_modified_node(self) -> None:
-        """
-        Load the last modified node and display it in the UI.
-        """
-        try:
-            last_modified_node = self.model.get_last_modified_node()
-            if last_modified_node:
-                self.ui.name_input.setText(last_modified_node["name"])
-                self.load_node_data()
-            else:
-                logging.info("No nodes available to load.")
-        except Exception as e:
+        """Load the last modified node and display it in the UI."""
 
-            self.error_handler.handle_error(f"Error loading last modified node: {e}")
+        def on_load(data: List[Any]) -> None:
+            self._handle_node_data(data)
+            self.update_relationship_tree(self.ui.name_input.text().strip())
+
+        self.node_operations.load_last_modified_node(on_load)
 
     def open_connection_settings(self) -> None:
         dialog = ConnectionSettingsDialog(self.config, self.app_instance)
@@ -892,3 +837,15 @@ class WorldBuildingController(QObject):
         # Update UI state
         self.refresh_tree_view()
         self.load_node_data()
+
+    def get_current_node_data(self) -> Optional[Dict[str, Any]]:
+        """Get current node data from UI fields."""
+        return self.node_operations.collect_node_data(
+            name=self.ui.name_input.text().strip(),
+            description=self.ui.description_input.toHtml().strip(),
+            tags=self.ui.tags_input.text(),
+            labels=self.ui.labels_input.text(),
+            properties=self._collect_table_properties(),
+            relationships=self._collect_table_relationships(),
+            image_path=self.current_image_path,
+        )
