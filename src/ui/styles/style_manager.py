@@ -42,3 +42,12 @@ class StyleManager:
             Dictionary of style names and descriptions
         """
         return {name: style.description for name, style in self.registry.styles.items()}
+
+    def switch_theme(self, theme_name: str) -> None:
+        """Switch between light and dark themes.
+
+        Args:
+            theme_name: Name of the theme to switch to
+        """
+        self.registry.apply_style(self, theme_name)
+        self.reapply_current_styles()

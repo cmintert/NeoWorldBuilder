@@ -124,3 +124,16 @@ class StyleRegistry(QObject):
         for var_name, var_value in variables.items():
             stylesheet = stylesheet.replace(f"${var_name}", var_value)
         return stylesheet
+
+    def switch_theme(self, theme_name: str) -> None:
+        """Switch between light and dark themes.
+
+        Args:
+            theme_name: Name of the theme to switch to
+        """
+        if theme_name not in self.styles:
+            raise ValueError(f"Theme not found: {theme_name}")
+
+        self.apply_style(self, theme_name)
+        self.current_style = theme_name
+        self.style_changed.emit(theme_name)

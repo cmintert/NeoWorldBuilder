@@ -199,3 +199,199 @@ QLabel {
     color: gray;
     font-size: 11px;
 }
+
+/* Dark Mode Styles */
+QWidget[theme="dark"] {
+    font-family: 'Segoe UI';
+    font-size: 13px;
+    background-color: #121212;
+    color: #E0E0E0;
+}
+
+QLineEdit[theme="dark"],
+#nameInput[theme="dark"],
+#descriptionInput[theme="dark"],
+#labelsInput[theme="dark"],
+#tagsInput[theme="dark"],
+#depthSpinBox[theme="dark"] {
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 5px;
+    background: #1E1E1E;
+    color: #E0E0E0;
+}
+
+QLineEdit[theme="dark"]:focus,
+#nameInput[theme="dark"]:focus,
+#descriptionInput[theme="dark"]:focus,
+#labelsInput[theme="dark"]:focus,
+#tagsInput[theme="dark"]:focus,
+#depthSpinBox[theme="dark"]:focus {
+    border-color: #BB86FC;
+}
+
+QPushButton[theme="dark"],
+#saveButton[theme="dark"],
+#cancelButton[theme="dark"],
+#changeImageButton[theme="dark"],
+#deleteImageButton[theme="dark"],
+#addRelationshipButton[theme="dark"],
+#suggestButton[theme="dark"],
+#addPropertyButton[theme="dark"] {
+    background-color: #1E1E1E;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 5px 15px;
+    color: #E0E0E0;
+}
+
+QPushButton[theme="dark"]:hover,
+#saveButton[theme="dark"]:hover,
+#cancelButton[theme="dark"]:hover,
+#changeImageButton[theme="dark"]:hover,
+#deleteImageButton[theme="dark"]:hover,
+#addRelationshipButton[theme="dark"]:hover,
+#suggestButton[theme="dark"]:hover,
+#addPropertyButton[theme="dark"]:hover {
+    background-color: #333;
+}
+
+QPushButton[theme="dark"]:pressed,
+#saveButton[theme="dark"]:pressed,
+#cancelButton[theme="dark"]:pressed,
+#changeImageButton[theme="dark"]:pressed,
+#deleteImageButton[theme="dark"]:pressed,
+#addRelationshipButton[theme="dark"]:pressed,
+#suggestButton[theme="dark"]:pressed,
+#addPropertyButton[theme="dark"]:pressed {
+    background-color: #444;
+}
+
+QPushButton[theme="dark"]:disabled,
+#saveButton[theme="dark"]:disabled,
+#cancelButton[theme="dark"]:disabled {
+    background-color: #333;
+    color: #666;
+}
+
+#deleteButton[theme="dark"],
+#relationshipsTable QPushButton#rowDeleteButton[theme="dark"],
+#propertiesTable QPushButton#rowDeleteButton[theme="dark"] {
+    background-color: #A00E0E;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px;
+}
+
+#progressBar[theme="dark"] {
+    border: 1px solid #444;
+    border-radius: 4px;
+    text-align: center;
+    background: #1E1E1E;
+}
+
+#progressBar[theme="dark"]::chunk {
+    background-color: #BB86FC;
+}
+
+#imageGroupBox[theme="dark"],
+#treeView[theme="dark"],
+QGroupBox[theme="dark"] {
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: #1E1E1E;
+    margin-top: 10px;
+}
+
+#imageGroupBox[theme="dark"] {
+    padding-top: 10px;
+}
+
+#relationshipsTable[theme="dark"],
+#propertiesTable[theme="dark"] {
+    background: #1E1E1E;
+}
+
+#relationshipsTable QTableWidget::item[theme="dark"],
+#propertiesTable QTableWidget::item[theme="dark"] {
+    border: none;
+    padding: 0;
+    color: #E0E0E0;
+}
+
+#mainTabs::pane[theme="dark"] {
+    background: #1E1E1E;
+    border: 1px solid #444;
+    border-radius: 4px;
+}
+
+#mainTabs QTabBar::tab[theme="dark"] {
+    background-color: #1E1E1E;
+    border: 1px solid #444;
+    border-bottom-color: #1E1E1E;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    padding: 5px 10px;
+    margin-right: 2px;
+    color: #E0E0E0;
+}
+
+#mainTabs QTabBar::tab:selected[theme="dark"] {
+    background-color: #1E1E1E;
+    border-bottom-color: transparent;
+}
+
+#mainTabs QTabBar::tab:!selected[theme="dark"] {
+    background-color: #333;
+    margin-top: 2px;
+}
+
+#mainTabs QTabBar::tab:!selected:hover[theme="dark"] {
+    background-color: #444;
+}
+
+#statusLabel[theme="dark"] {
+    color: #E0E0E0;
+    background: transparent;
+}
+
+#imageLabel[theme="dark"] {
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: #1E1E1E;
+}
+
+#CentralWidget[theme="dark"] {
+    background-color: transparent;
+}
+
+#depthSpinBox::up-button[theme="dark"],
+#depthSpinBox::down-button[theme="dark"] {
+    width: 30px;
+    height: 20px;
+}
+
+.relationship-property[theme="dark"] {
+    background-color: #333;
+    border-radius: 4px;
+    padding: 5px;
+    margin: 2px;
+}
+
+QGroupBox::title[theme="dark"] {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 3px;
+    color: #E0E0E0;
+}
+
+QCheckBox[theme="dark"] {
+    spacing: 5px;
+    color: #E0E0E0;
+}
+
+QLabel[theme="dark"] {
+    color: #E0E0E0;
+    font-size: 11px;
+}

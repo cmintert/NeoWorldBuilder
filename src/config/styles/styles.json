@@ -9,6 +9,16 @@
             "text-color": "#333333"
         }
     },
+    "dark": {
+        "file": "style_dark.qss",
+        "description": "Dark mode theme",
+        "variables": {
+            "primary-color": "#1E1E1E",
+            "secondary-color": "#2D2D2D",
+            "background-color": "#121212",
+            "text-color": "#E0E0E0"
+        }
+    },
     "tree": {
         "file": "style_tree.qss",
         "description": "Tree view styling",

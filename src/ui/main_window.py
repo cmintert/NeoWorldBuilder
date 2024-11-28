@@ -159,6 +159,9 @@ class WorldBuildingUI(QWidget):
         # Tree view
         self.tree_view.customContextMenuRequested.connect(self._show_tree_context_menu)
 
+        # Theme switch button
+        self.theme_switch_button.clicked.connect(self.switch_theme)
+
     def setup_ui(self) -> None:
         """Connect signals and finalize UI setup after controller is set"""
         if not self.controller:
@@ -316,6 +319,13 @@ class WorldBuildingUI(QWidget):
         layout.addWidget(self.save_button)
         layout.addWidget(self.delete_button)
         layout.addWidget(self.cancel_button)
+
+        # Theme switch button
+        self.theme_switch_button = QPushButton("Switch Theme")
+        self.theme_switch_button.setObjectName("themeSwitchButton")
+        self.theme_switch_button.setMinimumHeight(35)
+        self.theme_switch_button.setFixedWidth(150)
+        layout.addWidget(self.theme_switch_button)
 
         return layout
 
@@ -901,6 +911,15 @@ class WorldBuildingUI(QWidget):
             QMessageBox.warning(
                 self, "Style Error", f"Failed to apply styles: {str(e)}"
             )
+
+    def switch_theme(self) -> None:
+        """
+        Switch between light and dark themes.
+        """
+        current_theme = self.style_manager.registry.current_style
+        new_theme = "dark" if current_theme == "default" else "default"
+        self.style_manager.apply_style(self, new_theme)
+        self.style_manager.reapply_current_styles()
 
     def open_relation_properties_dialog(self, row: int) -> None:
         """
