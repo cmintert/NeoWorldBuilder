@@ -1,227 +1,87 @@
-/* Base Application Styling */
-#CentralWidget {
-background-color: ${background-color};
-color: ${text-color};
-font-family: 'Segoe UI', sans-serif;
+QWidget {
+    font-size: 16px;
+    font-family: Segoe UI;
 }
-/* Main Containers */
-#mainTreeView {
-background-color: white;
-border: 1px solid #DDE2E5;
-border-radius: 4px;
-padding: 4px;
+
+#NeoRealmBuilder {
+    background-color: ${global-background};
 }
-#mainTabs {
-background-color: white;
+
+#leftPanel, #rightPanel {
+    background-color: ${background-color};
+    border: 1px solid #9C9C9C;
+    border-radius: 5px;
 }
-#mainTabs QTabBar::tab {
-padding: 8px 16px;
-background: #F8F9FA;
-border: 1px solid #DDE2E5;
-border-bottom: none;
-margin-right: 2px;
+
+#menuBar {
+    background-color: ${tab-color};
 }
-#mainTabs QTabBar::tab:selected {
-background: white;
-border-bottom: 2px solid ${primary-color};
+
+QPushButton {
+    border: 1px solid #9C9C9C;
+    border-radius: 5px;
 }
-/* Input Fields */
-#nameInput {
-padding: 8px;
-border: 1px solid #DDE2E5;
-border-radius: 4px;
-background-color: white;
-min-height: 20px;
-}
-#descriptionInput {
-border: 1px solid #DDE2E5;
-border-radius: 4px;
-padding: 8px;
-}
-#labelsInput, #tagsInput {
-padding: 8px;
-border: 1px solid #DDE2E5;
-border-radius: 4px;
-}
-/* Input States */
-#nameInput:focus,
-#descriptionInput:focus,
-#labelsInput:focus,
-#tagsInput:focus {
-border-color: ${primary-color};
-}
-/* Tables */
-#propertiesTable, #relationshipsTable {
-background-color: white;
-border: 1px solid #DDE2E5;
-border-radius: 4px;
-gridline-color: #EDF2F7;
-}
-#propertiesTable::item,
-#relationshipsTable::item {
-padding: 8px;
-color: #333333;
-}
-#propertiesTable QHeaderView::section,
-#relationshipsTable QHeaderView::section {
-background-color: #F8F9FA;
-padding: 8px;
-border: none;
-border-right: 1px solid #DDE2E5;
-font-weight: bold;
-color: #333333;
-}
-/* Table-specific Elements */
-#relationshipsTable QLineEdit {
-padding: 4px;
-border: 1px solid #DDE2E5;
-border-radius: 2px;
-}
-#relationshipsTable QComboBox {
-padding: 4px;
-border: 1px solid #DDE2E5;
-border-radius: 2px;
-}
-/* Buttons */
-#saveButton {
-background-color: ${primary-color};
-color: white;
-border: none;
-border-radius: 4px;
-padding: 8px 16px;
-font-size: 13px;
-font-weight: bold;
-min-height: 35px;
-}
-#deleteButton {
-background-color: #DC3545;
-color: white;
-border: none;
-border-radius: 4px;
-padding: 8px 16px;
-}
-#cancelButton {
-background-color: #FFC107;
-color: white;
-border: none;
-border-radius: 4px;
-padding: 8px 16px;
-}
-#suggestButton {
-background-color: ${secondary-color};
-color: white;
-border: none;
-border-radius: 4px;
-padding: 8px 16px;
-}
-/* Button States */
-#saveButton:hover { background-color: ${secondary-color}; }
-#saveButton:pressed { background-color: #2C4A5F; }
-#saveButton:disabled { background-color: #D3D3D3; }
-#deleteButton:hover { background-color: #C82333; }
-#deleteButton:pressed { background-color: #BD2130; }
-#cancelButton:hover { background-color: #E0A800; }
-#cancelButton:pressed { background-color: #D39E00; }
-#suggestButton:hover { background-color: #138496; }
-#suggestButton:pressed { background-color: #117A8B; }
-/* Table Operation Buttons */
-#relationshipsTable QPushButton[text="-"],
-#propertiesTable QPushButton[text="-"] {
-background-color: #DC3545;
-padding: 4px 8px;
-min-width: 30px;
-min-height: 30px;
-}
-#relationshipsTable QPushButton[text="Edit Properties"] {
-background-color: ${secondary-color};
-padding: 4px 8px;
-}
-/* Image Related Elements */
-#imageGroupBox {
-border: 1px solid #DDE2E5;
-background-color: white;
-border-radius: 4px;
-margin-top: 1.5ex;
-padding: 8px;
-}
+
 #imageLabel {
-background-color: #F8F9FA;
-border: 1px dashed #DDE2E5;
-border-radius: 4px;
+    background-color: #FFFFFF;
+    border: 1px solid #9C9C9C;
+    border-radius: 5px;
 }
-#changeImageButton, #deleteImageButton {
-background-color: ${primary-color};
-padding: 6px 12px;
+
+#changeImageButton {
+    background-color: ${danger-color};
+    color: #000000;
 }
-/* Tree View Specific */
-#mainTreeView::item {
-min-height: 25px;
-padding: 4px;
+
+#deleteImageButton {
+    background-color: ${safe-color};
+    color: #000000;
 }
-#mainTreeView::item:selected {
-background-color: #E8F0FE;
-color: ${text-color};
+
+#deleteButton {
+    background-color: ${danger-color};
+    color: #000000;
 }
-/* Formatting Toolbar */
-#formattingToolbar {
-background-color: #F8F9FA;
-border: none;
-padding: 4px;
+
+#mainTabs::pane {
+    /* This affects the content area below the tabs */
+    border: 1px solid #9C9C9C;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    border-top: none;  /* Remove top border since tabs flow into it */
+    background-color: ${tab-color};
 }
-#formattingToolbar QAction[text="Bold"],
-#formattingToolbar QAction[text="Italic"],
-#formattingToolbar QAction[text="Underline"] {
-padding: 4px;
-margin: 0 2px;
+
+QTabWidget#mainTabs{
+    background-color: #CEBDA3;
 }
-/* Progress Elements */
-#progressBar {
-text-align: center;
-background-color: #F8F9FA;
-border: 1px solid #DDE2E5;
-border-radius: 4px;
+
+#mainTabs QTabBar::tab {
+    border: 1px solid #9C9C9C;
+    border-bottom: none;
+    padding: 2px 6px;
+    margin-right: 8px;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+
 }
-#depthSpinBox {
-max-width: 70px;
-padding: 4px;
-border: 1px solid #DDE2E5;
-border-radius: 2px;
+
+#mainTabs QTabBar::tab:selected {
+    background-color: ${tab-color};
+
 }
-/* Dialog Elements */
-QDialog {
-background-color: white;
-color: ${text-color};
+
+#labelsInput, #tagsInput, #descriptionInput, #nameInput {
+    border: 1px solid #9C9C9C;
+    border-radius: 5px;
+    padding-left: 5px;
+    background-color: #FFFFFF
 }
-QDialog QLineEdit[echoMode="2"] {
-padding: 8px;
-border: 1px solid #DDE2E5;
-border-radius: 4px;
+
+#labelsInput, #tagsInput{
+    font-size: 14px;
 }
-QDialog[windowTitle="Edit Relationship Properties"] QTableWidget {
-border: 1px solid #DDE2E5;
-gridline-color: #EDF2F7;
-}
-/* Context Menu */
-QMenu {
-background-color: white;
-border: 1px solid #DDE2E5;
-padding: 4px;
-}
-QMenu::item {
-padding: 4px 20px;
-color: ${text-color};
-}
-QMenu::item:selected {
-background-color: #E8F0FE;
-}
-/* Message Boxes */
-QMessageBox {
-background-color: white;
-}
-QMessageBox QPushButton {
-min-width: 80px;
-}
-QMessageBox QLabel {
-color: ${text-color};
-padding: 8px;
+
+#descriptionInput {
+    font-size: 14px;
 }

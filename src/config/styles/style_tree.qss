@@ -1,14 +1,3 @@
-QTreeView {
-    background-color: white;
-    border: 1px solid ${secondary-color};
-    padding: 5px;
-}
-
-QTreeView::item {
-    padding: 5px;
-}
-
-QTreeView::item:selected {
-    background-color: ${primary-color};
-    color: white;
+#treeView {
+    font-size: 12px;
 }

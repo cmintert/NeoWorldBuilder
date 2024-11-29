@@ -338,7 +338,7 @@ class WorldBuildingApp(QMainWindow):
             RuntimeError: If main window configuration fails.
         """
         try:
-            self.setObjectName("WorldBuildingApp")
+            self.setObjectName("NeoRealmBuilder")
             self.setCentralWidget(self.components.ui)
             self.components.ui.style_manager.apply_style(self, "default")
 
@@ -380,7 +380,7 @@ class WorldBuildingApp(QMainWindow):
         menu_bar.setObjectName("menuBar")
 
         export_menu = menu_bar.addMenu("Export")
-        database_connect_menu = menu_bar.addMenu("Connection Settings")
+        database_connect_menu = menu_bar.addMenu("Settings")
 
         export_json_action = QAction("Export as JSON", self)
         export_json_action.triggered.connect(
@@ -479,7 +479,7 @@ class WorldBuildingApp(QMainWindow):
 if __name__ == "__main__":
     try:
         app = QApplication(sys.argv)
-        app.setStyle("Fusion")
+        # app.setStyle("Fusion")
         ex = WorldBuildingApp()
         sys.exit(app.exec())
     except Exception as e:

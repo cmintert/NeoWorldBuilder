@@ -198,6 +198,8 @@ class WorldBuildingUI(QWidget):
             QWidget: The left panel widget.
         """
         panel = QWidget()
+        panel.setObjectName("leftPanel")
+
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(10)
@@ -241,6 +243,7 @@ class WorldBuildingUI(QWidget):
             QWidget: The right panel widget.
         """
         panel = QWidget()
+        panel.setObjectName("rightPanel")
 
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -487,7 +490,7 @@ class WorldBuildingUI(QWidget):
 
         # Create a standard font
         standard_font = QFont()
-        standard_font.setPointSize(10)  # Default font size
+        standard_font.setPointSize(12)  # Default font size
         standard_font.setWeight(QFont.Weight.Normal)  # Default weight
 
         # Apply the standard font to the selected text

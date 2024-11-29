@@ -5,8 +5,12 @@
         "variables": {
             "primary-color": "#74A0AA",
             "secondary-color": "#4682B4",
-            "background-color": "#8988A4",
-            "text-color": "#E4080A"
+            "background-color": "#D7E4EA",
+            "text-color": "#E4080A",
+            "danger-color": "#B73327",
+            "safe-color": "#75AC37",
+            "tab-color": "#ADBAC1",
+            "global-background": "#3D5059"
         }
     },
     "tree": {
