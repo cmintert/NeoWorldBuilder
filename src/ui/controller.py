@@ -25,6 +25,7 @@ from services.relationship_tree_service import RelationshipTreeService
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
 from ui.dialogs import SuggestionDialog, ConnectionSettingsDialog
+from ui.styles import StyleManager
 from utils.error_handler import ErrorHandler
 from utils.exporters import Exporter
 
@@ -102,6 +103,18 @@ class WorldBuildingController(QObject):
         self.relationship_tree_service = RelationshipTreeService(
             self.tree_model, self.NODE_RELATIONSHIPS_HEADER
         )
+
+        # Initialize style management
+        self.style_manager = StyleManager("src/config/styles")
+        self.style_manager.registry.error_occurred.connect(self._show_error_dialog)
+
+        # Apply default application style
+        self.style_manager.apply_style(app_instance, "default")
+
+        # Apply specific styles to UI components
+        self.style_manager.apply_style(self.ui.tree_view, "tree")
+        self.style_manager.apply_style(self.ui.properties_table, "data-table")
+        self.style_manager.apply_style(self.ui.relationships_table, "data-table")
 
         # Track UI state
         self.current_image_path: Optional[str] = None
@@ -741,6 +754,14 @@ class WorldBuildingController(QObject):
             relationships=self._collect_table_relationships(),
             image_path=self.current_image_path,
         )
+
+    def change_application_style(self, style_name: str) -> None:
+        """Change the application-wide style."""
+        self.style_manager.apply_style(self.app_instance, style_name)
+
+    def refresh_styles(self) -> None:
+        """Refresh all component styles."""
+        self.style_manager._reapply_widget_styles()
 
     def _create_suggestion_ui_handler(self) -> SuggestionUIHandler:
         class UIHandler:

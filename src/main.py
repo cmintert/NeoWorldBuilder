@@ -340,6 +340,7 @@ class WorldBuildingApp(QMainWindow):
         try:
             self.setObjectName("WorldBuildingApp")
             self.setCentralWidget(self.components.ui)
+            self.components.ui.style_manager.apply_style(self, "default")
 
             # Set window title with version
             self.setWindowTitle(f"NeoRealmBuilder {self.components.config.VERSION}")

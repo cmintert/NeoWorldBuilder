@@ -1,16 +1,136 @@
+/* style_default.qss.old */
+/* Base styles */
 QWidget#CentralWidget {
     background-color: ${background-color};
     color: ${text-color};
+    font-family: 'Segoe UI', sans-serif;
 }
 
+/* Buttons */
 QPushButton {
     background-color: ${primary-color};
     color: white;
+    border: none;
     border-radius: 4px;
-    padding: 6px 12px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
 }
 
+QPushButton:hover {
+    background-color: #6F870C;
+}
+
+QPushButton:pressed {
+    background-color: #5A6E0A;
+}
+
+/* Delete button special styling */
+QPushButton#deleteButton {
+    background-color: #DC3545;
+}
+
+QPushButton#deleteButton:hover {
+    background-color: #C82333;
+}
+
+/* Input fields */
+QLineEdit {
+    padding: 8px;
+    border: 1px solid #DDE2E5;
+    border-radius: 4px;
+    background: white;
+    min-height: 20px;
+}
+
+QLineEdit:focus {
+    border-color: ${primary-color};
+    outline: none;
+}
+
+/* Text areas */
+QTextEdit {
+    border: 1px solid #DDE2E5;
+    border-radius: 4px;
+    background: white;
+    padding: 8px;
+}
+
+/* Tabs */
+QTabWidget::pane {
+    border: 1px solid #DDE2E5;
+    border-radius: 4px;
+    background: white;
+}
+
+QTabBar::tab {
+    padding: 8px 16px;
+    border: 1px solid #DDE2E5;
+    border-bottom: none;
+    background: #F8F9FA;
+}
+
+QTabBar::tab:selected {
+    background: white;
+    border-bottom: 2px solid ${primary-color};
+}
+
+/* Toolbars */
+QToolBar {
+    background: #F8F9FA;
+    border: none;
+    padding: 4px;
+}
+
+/* style_tree.qss */
 QTreeView {
-    background-color: white;
-    border: 1px solid ${secondary-color};
-}y-color};
+    background: white;
+    border: 1px solid #DDE2E5;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+QTreeView::item {
+    padding: 4px;
+    border-radius: 2px;
+}
+
+QTreeView::item:selected {
+    background-color: #E8F0FE;
+    color: ${primary-color};
+}
+
+QTreeView::branch {
+    background: transparent;
+}
+
+/* style_table.qss */
+QTableWidget {
+    background: white;
+    border: 1px solid #DDE2E5;
+    border-radius: 4px;
+    gridline-color: #EDF2F7;
+}
+
+QTableWidget::item {
+    padding: 8px;
+}
+
+QHeaderView::section {
+    background-color: #F8F9FA;
+    padding: 8px;
+    border: none;
+    border-right: 1px solid #DDE2E5;
+    font-weight: 500;
+}
+
+QScrollBar:vertical {
+    width: 12px;
+    background: #F8F9FA;
+}
+
+QScrollBar::handle:vertical {
+    background: #CED4DA;
+    border-radius: 6px;
+    min-height: 20px;
+}

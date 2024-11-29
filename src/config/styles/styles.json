@@ -3,10 +3,10 @@
         "file": "style_default.qss",
         "description": "Default application theme",
         "variables": {
-            "primary-color": "#83A00E",
+            "primary-color": "#436F8D",
             "secondary-color": "#4682B4",
             "background-color": "#FFFFFF",
-            "text-color": "#333333"
+            "text-color": "#E4080A"
         }
     },
     "tree": {

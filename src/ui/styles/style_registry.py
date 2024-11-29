@@ -12,7 +12,8 @@ from models.styleconfig_model import StyleConfig
 class StyleRegistry(QObject):
     """Central registry for managing application styles."""
 
-    style_changed = pyqtSignal(str)  # Emitted when style changes
+    style_changed = pyqtSignal(str)
+    error_occurred = pyqtSignal(str)
 
     def __init__(self, config_dir: Union[str, Path]) -> None:
         """Initialize the style registry.
