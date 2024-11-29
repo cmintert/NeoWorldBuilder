@@ -3,9 +3,9 @@
         "file": "style_default.qss",
         "description": "Default application theme",
         "variables": {
-            "primary-color": "#436F8D",
+            "primary-color": "#74A0AA",
             "secondary-color": "#4682B4",
-            "background-color": "#FFFFFF",
+            "background-color": "#8988A4",
             "text-color": "#E4080A"
         }
     },

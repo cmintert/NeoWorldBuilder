@@ -479,6 +479,7 @@ class WorldBuildingApp(QMainWindow):
 if __name__ == "__main__":
     try:
         app = QApplication(sys.argv)
+        app.setStyle("Fusion")
         ex = WorldBuildingApp()
         sys.exit(app.exec())
     except Exception as e:

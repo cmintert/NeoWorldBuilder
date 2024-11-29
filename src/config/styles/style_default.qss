@@ -1,136 +1,227 @@
-/* style_default.qss.old */
-/* Base styles */
-QWidget#CentralWidget {
-    background-color: ${background-color};
-    color: ${text-color};
-    font-family: 'Segoe UI', sans-serif;
+/* Base Application Styling */
+#CentralWidget {
+background-color: ${background-color};
+color: ${text-color};
+font-family: 'Segoe UI', sans-serif;
 }
-
+/* Main Containers */
+#mainTreeView {
+background-color: white;
+border: 1px solid #DDE2E5;
+border-radius: 4px;
+padding: 4px;
+}
+#mainTabs {
+background-color: white;
+}
+#mainTabs QTabBar::tab {
+padding: 8px 16px;
+background: #F8F9FA;
+border: 1px solid #DDE2E5;
+border-bottom: none;
+margin-right: 2px;
+}
+#mainTabs QTabBar::tab:selected {
+background: white;
+border-bottom: 2px solid ${primary-color};
+}
+/* Input Fields */
+#nameInput {
+padding: 8px;
+border: 1px solid #DDE2E5;
+border-radius: 4px;
+background-color: white;
+min-height: 20px;
+}
+#descriptionInput {
+border: 1px solid #DDE2E5;
+border-radius: 4px;
+padding: 8px;
+}
+#labelsInput, #tagsInput {
+padding: 8px;
+border: 1px solid #DDE2E5;
+border-radius: 4px;
+}
+/* Input States */
+#nameInput:focus,
+#descriptionInput:focus,
+#labelsInput:focus,
+#tagsInput:focus {
+border-color: ${primary-color};
+}
+/* Tables */
+#propertiesTable, #relationshipsTable {
+background-color: white;
+border: 1px solid #DDE2E5;
+border-radius: 4px;
+gridline-color: #EDF2F7;
+}
+#propertiesTable::item,
+#relationshipsTable::item {
+padding: 8px;
+color: #333333;
+}
+#propertiesTable QHeaderView::section,
+#relationshipsTable QHeaderView::section {
+background-color: #F8F9FA;
+padding: 8px;
+border: none;
+border-right: 1px solid #DDE2E5;
+font-weight: bold;
+color: #333333;
+}
+/* Table-specific Elements */
+#relationshipsTable QLineEdit {
+padding: 4px;
+border: 1px solid #DDE2E5;
+border-radius: 2px;
+}
+#relationshipsTable QComboBox {
+padding: 4px;
+border: 1px solid #DDE2E5;
+border-radius: 2px;
+}
 /* Buttons */
-QPushButton {
-    background-color: ${primary-color};
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 8px 16px;
-    font-size: 13px;
-    font-weight: 500;
+#saveButton {
+background-color: ${primary-color};
+color: white;
+border: none;
+border-radius: 4px;
+padding: 8px 16px;
+font-size: 13px;
+font-weight: bold;
+min-height: 35px;
 }
-
-QPushButton:hover {
-    background-color: #6F870C;
+#deleteButton {
+background-color: #DC3545;
+color: white;
+border: none;
+border-radius: 4px;
+padding: 8px 16px;
 }
-
-QPushButton:pressed {
-    background-color: #5A6E0A;
+#cancelButton {
+background-color: #FFC107;
+color: white;
+border: none;
+border-radius: 4px;
+padding: 8px 16px;
 }
-
-/* Delete button special styling */
-QPushButton#deleteButton {
-    background-color: #DC3545;
+#suggestButton {
+background-color: ${secondary-color};
+color: white;
+border: none;
+border-radius: 4px;
+padding: 8px 16px;
 }
-
-QPushButton#deleteButton:hover {
-    background-color: #C82333;
+/* Button States */
+#saveButton:hover { background-color: ${secondary-color}; }
+#saveButton:pressed { background-color: #2C4A5F; }
+#saveButton:disabled { background-color: #D3D3D3; }
+#deleteButton:hover { background-color: #C82333; }
+#deleteButton:pressed { background-color: #BD2130; }
+#cancelButton:hover { background-color: #E0A800; }
+#cancelButton:pressed { background-color: #D39E00; }
+#suggestButton:hover { background-color: #138496; }
+#suggestButton:pressed { background-color: #117A8B; }
+/* Table Operation Buttons */
+#relationshipsTable QPushButton[text="-"],
+#propertiesTable QPushButton[text="-"] {
+background-color: #DC3545;
+padding: 4px 8px;
+min-width: 30px;
+min-height: 30px;
 }
-
-/* Input fields */
-QLineEdit {
-    padding: 8px;
-    border: 1px solid #DDE2E5;
-    border-radius: 4px;
-    background: white;
-    min-height: 20px;
+#relationshipsTable QPushButton[text="Edit Properties"] {
+background-color: ${secondary-color};
+padding: 4px 8px;
 }
-
-QLineEdit:focus {
-    border-color: ${primary-color};
-    outline: none;
+/* Image Related Elements */
+#imageGroupBox {
+border: 1px solid #DDE2E5;
+background-color: white;
+border-radius: 4px;
+margin-top: 1.5ex;
+padding: 8px;
 }
-
-/* Text areas */
-QTextEdit {
-    border: 1px solid #DDE2E5;
-    border-radius: 4px;
-    background: white;
-    padding: 8px;
+#imageLabel {
+background-color: #F8F9FA;
+border: 1px dashed #DDE2E5;
+border-radius: 4px;
 }
-
-/* Tabs */
-QTabWidget::pane {
-    border: 1px solid #DDE2E5;
-    border-radius: 4px;
-    background: white;
+#changeImageButton, #deleteImageButton {
+background-color: ${primary-color};
+padding: 6px 12px;
 }
-
-QTabBar::tab {
-    padding: 8px 16px;
-    border: 1px solid #DDE2E5;
-    border-bottom: none;
-    background: #F8F9FA;
+/* Tree View Specific */
+#mainTreeView::item {
+min-height: 25px;
+padding: 4px;
 }
-
-QTabBar::tab:selected {
-    background: white;
-    border-bottom: 2px solid ${primary-color};
+#mainTreeView::item:selected {
+background-color: #E8F0FE;
+color: ${text-color};
 }
-
-/* Toolbars */
-QToolBar {
-    background: #F8F9FA;
-    border: none;
-    padding: 4px;
+/* Formatting Toolbar */
+#formattingToolbar {
+background-color: #F8F9FA;
+border: none;
+padding: 4px;
 }
-
-/* style_tree.qss */
-QTreeView {
-    background: white;
-    border: 1px solid #DDE2E5;
-    border-radius: 4px;
-    padding: 4px;
+#formattingToolbar QAction[text="Bold"],
+#formattingToolbar QAction[text="Italic"],
+#formattingToolbar QAction[text="Underline"] {
+padding: 4px;
+margin: 0 2px;
 }
-
-QTreeView::item {
-    padding: 4px;
-    border-radius: 2px;
+/* Progress Elements */
+#progressBar {
+text-align: center;
+background-color: #F8F9FA;
+border: 1px solid #DDE2E5;
+border-radius: 4px;
 }
-
-QTreeView::item:selected {
-    background-color: #E8F0FE;
-    color: ${primary-color};
+#depthSpinBox {
+max-width: 70px;
+padding: 4px;
+border: 1px solid #DDE2E5;
+border-radius: 2px;
 }
-
-QTreeView::branch {
-    background: transparent;
+/* Dialog Elements */
+QDialog {
+background-color: white;
+color: ${text-color};
 }
-
-/* style_table.qss */
-QTableWidget {
-    background: white;
-    border: 1px solid #DDE2E5;
-    border-radius: 4px;
-    gridline-color: #EDF2F7;
+QDialog QLineEdit[echoMode="2"] {
+padding: 8px;
+border: 1px solid #DDE2E5;
+border-radius: 4px;
 }
-
-QTableWidget::item {
-    padding: 8px;
+QDialog[windowTitle="Edit Relationship Properties"] QTableWidget {
+border: 1px solid #DDE2E5;
+gridline-color: #EDF2F7;
 }
-
-QHeaderView::section {
-    background-color: #F8F9FA;
-    padding: 8px;
-    border: none;
-    border-right: 1px solid #DDE2E5;
-    font-weight: 500;
+/* Context Menu */
+QMenu {
+background-color: white;
+border: 1px solid #DDE2E5;
+padding: 4px;
 }
-
-QScrollBar:vertical {
-    width: 12px;
-    background: #F8F9FA;
+QMenu::item {
+padding: 4px 20px;
+color: ${text-color};
 }
-
-QScrollBar::handle:vertical {
-    background: #CED4DA;
-    border-radius: 6px;
-    min-height: 20px;
+QMenu::item:selected {
+background-color: #E8F0FE;
+}
+/* Message Boxes */
+QMessageBox {
+background-color: white;
+}
+QMessageBox QPushButton {
+min-width: 80px;
+}
+QMessageBox QLabel {
+color: ${text-color};
+padding: 8px;
 }

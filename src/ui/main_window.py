@@ -1,5 +1,4 @@
 import json
-import logging
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +28,7 @@ from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QToolBar,
+    QApplication,
 )
 
 from ui.styles import StyleManager
@@ -49,7 +49,9 @@ class WorldBuildingUI(QWidget):
         """
         super().__init__()
         self.controller = controller
+
         self.style_manager = StyleManager(Path("src/config/styles"))
+
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setObjectName("CentralWidget")
         self.setAttribute(
@@ -884,20 +886,51 @@ class WorldBuildingUI(QWidget):
         table.setCellWidget(row, 2, delete_button)
 
     def apply_styles(self) -> None:
-        """
-        Apply styles to the UI components.
-        """
+        """Apply styles to UI components with enhanced error checking."""
         try:
-            # Apply main style to the whole UI
-            self.style_manager.apply_style(self, "default")
+            print("\nStarting style application...")
 
-            # Apply specific styles to components
-            self.style_manager.apply_style(self.tree_view, "tree")
-            self.style_manager.apply_style(self.properties_table, "data-table")
-            self.style_manager.apply_style(self.relationships_table, "data-table")
+            # First, apply the default style to the application
+            print("Applying default style to application")
+            if app := QApplication.instance():
+                self.style_manager.apply_style(app, "default")
+
+            # Then apply styles to specific components
+            components = [
+                (self, "default", "Main Widget"),
+                (self.tree_view, "tree", "Tree View"),
+                (self.properties_table, "data-table", "Properties Table"),
+                (self.relationships_table, "data-table", "Relationships Table"),
+            ]
+
+            for widget, style, name in components:
+                print(f"\nApplying {style} style to {name}")
+                if not widget:
+                    print(f"Warning: {name} widget is None")
+                    continue
+
+                if not widget.objectName():
+                    widget.setObjectName(name.replace(" ", ""))
+
+                # Ensure stylesheet processing is enabled
+                widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+
+                # Apply the style
+                self.style_manager.apply_style(widget, style)
+
+                # Verify style application
+                if not widget.styleSheet():
+                    print(f"Warning: No stylesheet applied to {name}")
+                else:
+                    print(f"Successfully applied style to {name}")
+
+            print("\nStyle application completed")
 
         except Exception as e:
-            logging.error(f"Failed to apply styles: {e}")
+            print(f"Error during style application: {str(e)}")
+            import traceback
+
+            traceback.print_exc()
             QMessageBox.warning(
                 self, "Style Error", f"Failed to apply styles: {str(e)}"
             )
