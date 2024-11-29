@@ -133,6 +133,13 @@ class StyleRegistry(QObject):
                 widget.setStyleSheet(stylesheet)
                 self.style_changed.emit(style_name)
 
+        except ValueError as e:
+            error_msg = f"Style not found: {str(e)}"
+            self.error_occurred.emit(error_msg)
+            logging.error(error_msg)
+            QMessageBox.warning(
+                widget, "Style Error", f"Failed to apply style: {str(e)}"
+            )
         except Exception as e:
             error_msg = f"Failed to apply style {style_name}: {str(e)}"
             self.error_occurred.emit(error_msg)

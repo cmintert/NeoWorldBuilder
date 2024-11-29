@@ -377,6 +377,7 @@ class WorldBuildingUI(QWidget):
             QToolBar: The formatting toolbar.
         """
         toolbar = QToolBar("Formatting")
+        toolbar.setObjectName("formattingToolbar")
         toolbar.setFixedHeight(24)
 
         # Add actions for formatting
