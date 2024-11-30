@@ -68,11 +68,13 @@ class WorldBuildingUI(QWidget):
         Initialize the main UI layout with enhanced components.
         """
         main_layout = QHBoxLayout()
+        main_layout.setObjectName("mainLayout")
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(20)
 
         # Create splitter for resizable panels
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setObjectName("mainLayoutSplitter")
 
         # Left panel with search and tree
         left_panel = self._create_left_panel()
@@ -199,18 +201,21 @@ class WorldBuildingUI(QWidget):
         """
         panel = QWidget()
         panel.setObjectName("leftPanel")
+        panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
 
         layout = QVBoxLayout(panel)
+        layout.setObjectName("leftPanelLayout")
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(10)
 
         # Enhanced tree view
         self.tree_view = QTreeView()
         self.tree_view.setObjectName("treeView")
-        self.tree_view.setHeaderHidden(True)
-        self.tree_view.setAnimated(True)
-        self.tree_view.setAlternatingRowColors(True)
+        # self.tree_view.setHeaderHidden(True)
+        # self.tree_view.setAnimated(True)
+        # self.tree_view.setAlternatingRowColors(True)
         self.tree_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.tree_view.customContextMenuRequested.connect(self._show_tree_context_menu)
 
         layout.addWidget(self.tree_view)
@@ -218,9 +223,14 @@ class WorldBuildingUI(QWidget):
         # Depth selector
 
         depth_layout = QHBoxLayout()
+        depth_layout.setObjectName("depthLayout")
+
         depth_label = QLabel("Relationship Depth:")
+        depth_label.setObjectName("depthLabel")
+
         self.depth_spinbox = QSpinBox()
         self.depth_spinbox.setObjectName("depthSpinBox")
+
         self.depth_spinbox.setFixedWidth(70)
         self.depth_spinbox.setFixedHeight(40)
         self.depth_spinbox.setMinimum(1)
@@ -246,11 +256,13 @@ class WorldBuildingUI(QWidget):
         panel.setObjectName("rightPanel")
 
         layout = QVBoxLayout(panel)
+        layout.setObjectName("rightPanelLayout")
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(15)
 
         # Header with node name and actions
         header_widget = QWidget()
+        header_widget.setObjectName("headerWidget")
         header_layout = self._create_header_layout()
         header_widget.setLayout(header_layout)
         layout.addWidget(header_widget)
@@ -276,6 +288,7 @@ class WorldBuildingUI(QWidget):
         self.suggest_button.setFixedWidth(250)
         self.suggest_button.setMinimumHeight(30)
         button_layout = QHBoxLayout()
+        button_layout.setObjectName("suggestButtonLayout")
         button_layout.addStretch()
         button_layout.addWidget(self.suggest_button)
         button_layout.addStretch()
@@ -332,8 +345,11 @@ class WorldBuildingUI(QWidget):
             QWidget: The basic info tab widget.
         """
         tab = QWidget()
+        tab.setObjectName("basicInfoTab")
         main_layout = QHBoxLayout(tab)
+        main_layout.setObjectName("basicInfoLayout")
         form_layout = QFormLayout()
+        form_layout.setObjectName("basicInfoFormLayout")
         form_layout.setSpacing(15)
 
         # Description
@@ -380,6 +396,7 @@ class WorldBuildingUI(QWidget):
             QToolBar: The formatting toolbar.
         """
         toolbar = QToolBar("Formatting")
+        toolbar.setObjectName("formattingToolbar")
         toolbar.setFixedHeight(24)
 
         # Add actions for formatting
@@ -555,6 +572,7 @@ class WorldBuildingUI(QWidget):
         group = QGroupBox("Image")
         group.setObjectName("imageGroupBox")
         layout = QVBoxLayout()
+        layout.setObjectName("imageGroupLayout")
 
         group.setFixedWidth(220)
         group.setFixedHeight(300)
@@ -569,6 +587,7 @@ class WorldBuildingUI(QWidget):
 
         # Image buttons
         button_layout = QHBoxLayout()
+        button_layout.setObjectName("imageButtonLayout")
         button_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.change_image_button = QPushButton("Change")
         self.change_image_button.setObjectName("changeImageButton")
@@ -684,7 +703,9 @@ class WorldBuildingUI(QWidget):
         """
         # Create container widget for centering
         container = QWidget()
+        container.setObjectName("deleteButtonContainer")
         layout = QHBoxLayout(container)
+        layout.setObjectName("deleteButtonLayout")
         layout.setContentsMargins(4, 0, 4, 0)  # Small horizontal margins for spacing
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -844,21 +865,25 @@ class WorldBuildingUI(QWidget):
 
         # Type with validation
         type_item = QTableWidgetItem(rel_type)
+
         self.relationships_table.setItem(row, 0, type_item)
 
         # Target with completion
         target_item = QTableWidgetItem(target)
+
         self.relationships_table.setItem(row, 1, target_item)
         self.controller._add_target_completer_to_row(row)
 
         # Direction ComboBox
         direction_combo = QComboBox()
+
         direction_combo.addItems([">", "<"])
         direction_combo.setCurrentText(direction)
         self.relationships_table.setCellWidget(row, 2, direction_combo)
 
         # Properties with validation
         props_item = QTableWidgetItem(properties)
+
         props_item.setBackground(Qt.GlobalColor.lightGray)
         props_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.relationships_table.setItem(row, 3, props_item)
@@ -869,6 +894,7 @@ class WorldBuildingUI(QWidget):
 
         # Add 'Edit Properties' button
         edit_properties_button = QPushButton("Edit Properties")
+        edit_properties_button.setObjectName("editPropertiesButton")
         edit_properties_button.clicked.connect(
             lambda: self.open_relation_properties_dialog(row)
         )
