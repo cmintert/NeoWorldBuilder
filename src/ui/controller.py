@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
     QTableWidget,
     QLineEdit,
+    QApplication,
 )
 
 from models.completer_model import AutoCompletionUIHandler, CompleterInput
@@ -760,12 +761,26 @@ class WorldBuildingController(QObject):
         )
 
     def change_application_style(self, style_name: str) -> None:
-        """Change the application-wide style."""
-        self.style_manager.apply_style(self.app_instance, style_name)
+        """Change the application-wide style.
+
+        Args:
+            style_name: Name of the style to apply
+        """
+        try:
+            app = QApplication.instance()
+            if app:
+                self.style_manager.apply_style(app, style_name)
+        except Exception as e:
+            logging.error(f"Failed to change style: {e}")
+            raise
 
     def refresh_styles(self) -> None:
-        """Refresh all component styles."""
-        self.style_manager._reapply_widget_styles()
+        """Reload all styles from disk and reapply current style."""
+        try:
+            self.style_manager.reload_styles()
+        except Exception as e:
+            logging.error(f"Failed to refresh styles: {e}")
+            raise
 
     def _create_suggestion_ui_handler(self) -> SuggestionUIHandler:
         class UIHandler:

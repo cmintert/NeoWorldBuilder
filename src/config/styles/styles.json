@@ -21,7 +21,7 @@
             "secondary-color": "#34495E",
             "background-color": "#1E272E",
             "text-color": "#FFFFFF",
-            "danger-color": "#E74C3C",
+            "danger-color": "#BD0101",
             "safe-color": "#2ECC71",
             "tab-color": "#2C3E50",
             "global-background": "#17202A"
@@ -36,5 +36,10 @@
         "file": "style_table.qss",
         "description": "Data table styling",
         "parent": "default"
+    },
+    "tree_dark": {
+        "file": "style_tree_dark.qss",
+        "description": "Tree view styling for dark mode",
+        "parent": "dark"
     }
 }

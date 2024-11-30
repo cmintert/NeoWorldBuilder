@@ -27,28 +27,24 @@ class StyleManager:
     def apply_style(
         self, target: Union[QApplication, QWidget], style_name: str
     ) -> None:
-        """Apply style to target, with enhanced debugging."""
+        """Apply style to target."""
         try:
             print(f"Applying style '{style_name}' to {target.__class__.__name__}")
 
             if isinstance(target, QApplication):
-                print(f"Applying application-wide style: {style_name}")
-                self._current_style = style_name  # Store style name when applying
-                print(
-                    f"Updated current_style to: {self._current_style}"
-                )  # Debug logging
+                self._current_style = style_name
                 stylesheet = self.registry.get_style_content(style_name)
                 if stylesheet:
                     target.setStyleSheet(stylesheet)
                 self._reapply_widget_styles()
             else:
-                # Widget-specific styling logic remains the same
                 target.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
                 stylesheet = self.registry.get_style_content(style_name)
                 if stylesheet:
-                    target.setStyleSheet(stylesheet)
-                self._widget_styles[id(target)] = style_name
-                target.destroyed.connect(lambda: self._cleanup_widget(id(target)))
+                    scoped_stylesheet = self._scope_stylesheet(target, stylesheet)
+                    target.setStyleSheet(scoped_stylesheet)
+                    self._widget_styles[id(target)] = style_name
+                    target.destroyed.connect(lambda: self._cleanup_widget(id(target)))
 
             print(f"Style '{style_name}' applied successfully")
 
@@ -106,3 +102,34 @@ class StyleManager:
         """Remove widget from tracking when destroyed."""
         print(f"Cleaning up widget {widget_id}")
         self._widget_styles.pop(widget_id, None)
+
+    def reload_styles(self) -> None:
+        """Force reload all styles and reapply current styles."""
+        try:
+            print("Forcing style reload...")
+
+            # Store current states
+            widget_styles = self._widget_styles.copy()
+            current_style = self._current_style
+
+            # Reload registry
+            self.registry.reload_styles()
+
+            # Reapply application style
+            if current_style:
+                app = QApplication.instance()
+                if app:
+                    self.apply_style(app, current_style)
+
+            # Reapply widget styles
+            for widget_id, style_name in widget_styles.items():
+                if widget := QWidget.find(widget_id):
+                    print(
+                        f"Reapplying style '{style_name}' to widget {widget.objectName()}"
+                    )
+                    self.apply_style(widget, style_name)
+
+            print("Style reload completed successfully")
+        except Exception as e:
+            print(f"Error during style reload: {str(e)}")
+            raise

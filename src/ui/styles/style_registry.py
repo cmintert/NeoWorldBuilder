@@ -13,6 +13,7 @@ class StyleRegistry(QObject):
     """Enhanced registry for managing application styles."""
 
     style_changed = pyqtSignal(str)
+    styles_reloaded = pyqtSignal()
     error_occurred = pyqtSignal(str)
 
     def __init__(self, config_dir: Union[str, Path]) -> None:
@@ -79,18 +80,18 @@ class StyleRegistry(QObject):
                     raise ValueError(f"Style not found: {style_name}")
 
                 style_config = self.styles[style_name]
+                processed_styles = []
 
-                # Build complete stylesheet with parent styles
-                stylesheet = ""
-                if style_config.parent:
-                    parent_style = self.styles.get(style_config.parent)
-                    if parent_style:
-                        stylesheet += self._load_stylesheet(parent_style)
+                # Process inheritance chain from root to child
+                current_style = style_config
+                while current_style:
+                    processed_styles.insert(0, self._load_stylesheet(current_style))
+                    current_style = self.styles.get(current_style.parent)
 
-                # Add this style's rules
-                stylesheet += self._load_stylesheet(style_config)
+                # Combine styles
+                stylesheet = "\n".join(processed_styles)
 
-                # Process variables
+                # Process variables after combining all styles
                 processed_stylesheet = self._process_variables(stylesheet, style_config)
                 self._cached_stylesheets[style_name] = processed_stylesheet
 
@@ -106,10 +107,15 @@ class StyleRegistry(QObject):
         """Process all variables in stylesheet including inherited ones."""
         variables = {}
 
-        # Collect variables from parent styles
+        # Collect variables from root to child
         current_style = style_config
         while current_style:
-            variables.update(current_style.variables)
+            # Child variables override parent variables
+            new_vars = current_style.variables.copy()
+            new_vars.update(variables)  # Existing (child) vars take precedence
+            variables = new_vars
+
+            # Move up the chain
             if current_style.parent:
                 current_style = self.styles.get(current_style.parent)
             else:
@@ -140,3 +146,23 @@ class StyleRegistry(QObject):
             QMessageBox.warning(
                 widget, "Style Error", f"Failed to apply style: {str(e)}"
             )
+
+    def reload_styles(self) -> None:
+        """Force reload all styles from disk."""
+        try:
+            # Clear the cache
+            self._cached_stylesheets.clear()
+
+            # Clear and reload styles
+            self.styles.clear()
+            self._load_styles()
+
+            # Notify listeners
+            self.styles_reloaded.emit()
+
+            logging.info("Styles successfully reloaded")
+        except Exception as e:
+            error_msg = f"Failed to reload styles: {str(e)}"
+            logging.error(error_msg)
+            self.error_occurred.emit(error_msg)
+            raise

@@ -1,0 +1,3 @@
+QTreeView#treeView {
+    font-size: 12px
+}
