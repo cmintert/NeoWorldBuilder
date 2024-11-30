@@ -13,6 +13,20 @@
             "global-background": "#3D5059"
         }
     },
+    "dark": {
+        "file": "style_dark.qss",
+        "description": "Dark mode theme",
+        "variables": {
+            "primary-color": "#2D3436",
+            "secondary-color": "#34495E",
+            "background-color": "#1E272E",
+            "text-color": "#FFFFFF",
+            "danger-color": "#E74C3C",
+            "safe-color": "#2ECC71",
+            "tab-color": "#2C3E50",
+            "global-background": "#17202A"
+        }
+    },
     "tree": {
         "file": "style_tree.qss",
         "description": "Tree view styling",

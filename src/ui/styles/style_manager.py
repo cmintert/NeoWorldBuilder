@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Union, Optional
+from typing import Dict, Union
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget, QApplication
@@ -13,8 +13,16 @@ class StyleManager:
     def __init__(self, config_dir: Union[str, Path]) -> None:
         print(f"Initializing StyleManager with config dir: {config_dir}")
         self.registry = StyleRegistry(config_dir)
-        self._app_style: Optional[str] = None
+        self._current_style: str = "default"
         self._widget_styles: Dict[int, str] = {}
+
+    @property
+    def current_style(
+        self,
+    ) -> str:  # Renamed from app_style to current_style for clarity
+        """Get the current application style."""
+        print(f"Getting current style: {self._current_style}")  # Debug logging
+        return self._current_style
 
     def apply_style(
         self, target: Union[QApplication, QWidget], style_name: str
@@ -24,35 +32,22 @@ class StyleManager:
             print(f"Applying style '{style_name}' to {target.__class__.__name__}")
 
             if isinstance(target, QApplication):
-                print("Applying application-wide style")
-                self._app_style = style_name
+                print(f"Applying application-wide style: {style_name}")
+                self._current_style = style_name  # Store style name when applying
+                print(
+                    f"Updated current_style to: {self._current_style}"
+                )  # Debug logging
                 stylesheet = self.registry.get_style_content(style_name)
                 if stylesheet:
-                    print(
-                        f"Application stylesheet (first 100 chars): {stylesheet[:100]}"
-                    )
                     target.setStyleSheet(stylesheet)
                 self._reapply_widget_styles()
             else:
-                print(
-                    f"Applying widget-specific style to {target.objectName() or 'unnamed widget'}"
-                )
-                # Force widget to use stylesheet
+                # Widget-specific styling logic remains the same
                 target.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-
-                # Get and apply the stylesheet
                 stylesheet = self.registry.get_style_content(style_name)
                 if stylesheet:
-                    print(f"Widget stylesheet (first 100 chars): {stylesheet[:100]}")
                     target.setStyleSheet(stylesheet)
-                    print(f"Style applied to widget {target.objectName()}")
-                else:
-                    print(f"No stylesheet content found for style '{style_name}'")
-
-                # Store the style
                 self._widget_styles[id(target)] = style_name
-
-                # Connect to widget destruction
                 target.destroyed.connect(lambda: self._cleanup_widget(id(target)))
 
             print(f"Style '{style_name}' applied successfully")
@@ -60,6 +55,11 @@ class StyleManager:
         except Exception as e:
             print(f"Error applying style: {str(e)}")
             self.registry.error_occurred.emit(f"Style application failed: {str(e)}")
+
+    def get_style(self) -> str:
+        """Get the current style with debug information."""
+        print(f"StyleManager.get_style called, returning: {self._current_style}")
+        return self._current_style
 
     def _scope_stylesheet(self, widget: QWidget, stylesheet: str) -> str:
         """Scope stylesheet to specific widget to prevent style leakage."""

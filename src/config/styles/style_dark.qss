@@ -1,0 +1,119 @@
+/* Main Window */
+QMainWindow {
+    background-color: ${background-color};
+    color: ${text-color};
+}
+
+/* Menu Bar */
+QMenuBar {
+    background-color: ${primary-color};
+    color: ${text-color};
+    border-bottom: 1px solid ${secondary-color};
+}
+
+QMenuBar::item:selected {
+    background-color: ${secondary-color};
+}
+
+/* Menu */
+QMenu {
+    background-color: ${primary-color};
+    color: ${text-color};
+    border: 1px solid ${secondary-color};
+}
+
+QMenu::item:selected {
+    background-color: ${secondary-color};
+}
+
+/* Buttons */
+QPushButton {
+    background-color: ${secondary-color};
+    color: ${text-color};
+    border: none;
+    padding: 5px 15px;
+    border-radius: 3px;
+}
+
+QPushButton:hover {
+    background-color: ${primary-color};
+}
+
+QPushButton:pressed {
+    background-color: ${secondary-color};
+}
+
+/* Input Fields */
+QLineEdit, QTextEdit {
+    background-color: ${primary-color};
+    color: ${text-color};
+    border: 1px solid ${secondary-color};
+    border-radius: 3px;
+    padding: 3px;
+}
+
+/* Tables */
+QTableView {
+    background-color: ${primary-color};
+    color: ${text-color};
+    gridline-color: ${secondary-color};
+}
+
+QTableView::item:selected {
+    background-color: ${secondary-color};
+}
+
+QHeaderView::section {
+    background-color: ${primary-color};
+    color: ${text-color};
+    border: 1px solid ${secondary-color};
+}
+
+/* Tabs */
+QTabWidget::pane {
+    border: 1px solid ${secondary-color};
+    background-color: ${primary-color};
+}
+
+QTabBar::tab {
+    background-color: ${tab-color};
+    color: ${text-color};
+    padding: 5px 10px;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+}
+
+QTabBar::tab:selected {
+    background-color: ${primary-color};
+}
+
+/* Scrollbars */
+QScrollBar:vertical {
+    background-color: ${primary-color};
+    width: 12px;
+    margin: 0px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: ${secondary-color};
+    border-radius: 6px;
+    min-height: 20px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: ${tab-color};
+}
+
+/* Status Bar */
+QStatusBar {
+    background-color: ${primary-color};
+    color: ${text-color};
+}
+
+/* Tool Tips */
+QToolTip {
+    background-color: ${primary-color};
+    color: ${text-color};
+    border: 1px solid ${secondary-color};
+    padding: 3px;
+}

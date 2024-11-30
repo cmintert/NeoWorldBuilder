@@ -24,7 +24,7 @@ from services.property_service import PropertyService
 from services.relationship_tree_service import RelationshipTreeService
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
-from ui.dialogs import SuggestionDialog, ConnectionSettingsDialog
+from ui.dialogs import SuggestionDialog, ConnectionSettingsDialog, StyleSettingsDialog
 from ui.styles import StyleManager
 from utils.error_handler import ErrorHandler
 from utils.exporters import Exporter
@@ -701,6 +701,10 @@ class WorldBuildingController(QObject):
 
     def open_connection_settings(self) -> None:
         dialog = ConnectionSettingsDialog(self.config, self.app_instance)
+        dialog.exec()
+
+    def open_style_settings(self) -> None:
+        dialog = StyleSettingsDialog(self.config, self.app_instance)
         dialog.exec()
 
     def save_node(self) -> None:

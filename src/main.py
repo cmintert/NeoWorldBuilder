@@ -340,7 +340,9 @@ class WorldBuildingApp(QMainWindow):
         try:
             self.setObjectName("NeoRealmBuilder")
             self.setCentralWidget(self.components.ui)
-            self.components.ui.style_manager.apply_style(self, "default")
+            self.components.ui.style_manager.apply_style(
+                self, self.components.config.LAST_USED_STYLE
+            )
 
             # Set window title with version
             self.setWindowTitle(f"NeoRealmBuilder {self.components.config.VERSION}")
@@ -380,7 +382,7 @@ class WorldBuildingApp(QMainWindow):
         menu_bar.setObjectName("menuBar")
 
         export_menu = menu_bar.addMenu("Export")
-        database_connect_menu = menu_bar.addMenu("Settings")
+        settings_menue = menu_bar.addMenu("Settings")
 
         export_json_action = QAction("Export as JSON", self)
         export_json_action.triggered.connect(
@@ -406,11 +408,18 @@ class WorldBuildingApp(QMainWindow):
         )
         export_menu.addAction(export_pdf_action)
 
-        open_connection_settings_action = QAction("Open Connection Settings", self)
+        open_connection_settings_action = QAction("Database Connection", self)
         open_connection_settings_action.triggered.connect(
             self.components.controller.open_connection_settings
         )
-        database_connect_menu.addAction(open_connection_settings_action)
+        settings_menue.addAction(open_connection_settings_action)
+
+        open_style_settings_action = QAction("Style", self)
+        open_style_settings_action.triggered.connect(
+            self.components.controller.open_style_settings
+        )
+
+        settings_menue.addAction(open_style_settings_action)
 
     def _handle_initialization_error(self, error: Exception) -> None:
         """
@@ -458,6 +467,7 @@ class WorldBuildingApp(QMainWindow):
         structlog.get_logger().info("Application shutdown initiated")
 
         try:
+
             # Clean up controller resources
             if self.components and self.components.controller:
                 self.components.controller.cleanup()
