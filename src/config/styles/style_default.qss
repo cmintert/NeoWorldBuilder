@@ -23,37 +23,36 @@ QPushButton {
 }
 
 #imageLabel {
-    background-color: #FFFFFF;
+    background-color: ${text-color};
     border: 1px solid #9C9C9C;
     border-radius: 5px;
 }
 
 #changeImageButton {
     background-color: ${danger-color};
-    color: #000000;
+    color: ${background-color};
 }
 
 #deleteImageButton {
     background-color: ${safe-color};
-    color: #000000;
+    color: ${background-color};
 }
 
 #deleteButton {
     background-color: ${danger-color};
-    color: #000000;
+    color: ${background-color};
 }
 
 #mainTabs::pane {
-    /* This affects the content area below the tabs */
     border: 1px solid #9C9C9C;
     border-bottom-left-radius: 5px;
     border-bottom-right-radius: 5px;
-    border-top: none;  /* Remove top border since tabs flow into it */
+    border-top: none;
     background-color: ${tab-color};
 }
 
-QTabWidget#mainTabs{
-    background-color: #CEBDA3;
+QTabWidget#mainTabs {
+    background-color: ${secondary-color};
 }
 
 #mainTabs QTabBar::tab {
@@ -63,25 +62,19 @@ QTabWidget#mainTabs{
     margin-right: 8px;
     border-top-left-radius: 5px;
     border-top-right-radius: 5px;
-
 }
 
 #mainTabs QTabBar::tab:selected {
     background-color: ${tab-color};
-
 }
 
 #labelsInput, #tagsInput, #descriptionInput, #nameInput {
     border: 1px solid #9C9C9C;
     border-radius: 5px;
     padding-left: 5px;
-    background-color: #FFFFFF
+    background-color: ${text-color};
 }
 
-#labelsInput, #tagsInput{
-    font-size: 14px;
-}
-
-#descriptionInput {
+#labelsInput, #tagsInput, #descriptionInput {
     font-size: 14px;
 }

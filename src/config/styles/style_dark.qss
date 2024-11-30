@@ -1,119 +1,80 @@
-/* Main Window */
-QMainWindow {
+QWidget {
+    font-size: 16px;
+    font-family: Segoe UI;
+}
+
+#NeoRealmBuilder {
+    background-color: ${global-background};
+}
+
+#leftPanel, #rightPanel {
     background-color: ${background-color};
-    color: ${text-color};
+    border: 1px solid #9C9C9C;
+    border-radius: 5px;
 }
 
-/* Menu Bar */
-QMenuBar {
-    background-color: ${primary-color};
-    color: ${text-color};
-    border-bottom: 1px solid ${secondary-color};
+#menuBar {
+    background-color: ${tab-color};
 }
 
-QMenuBar::item:selected {
-    background-color: ${secondary-color};
-}
-
-/* Menu */
-QMenu {
-    background-color: ${primary-color};
-    color: ${text-color};
-    border: 1px solid ${secondary-color};
-}
-
-QMenu::item:selected {
-    background-color: ${secondary-color};
-}
-
-/* Buttons */
 QPushButton {
-    background-color: ${secondary-color};
-    color: ${text-color};
-    border: none;
-    padding: 5px 15px;
-    border-radius: 3px;
+    border: 1px solid #9C9C9C;
+    border-radius: 5px;
 }
 
-QPushButton:hover {
-    background-color: ${primary-color};
+#imageLabel {
+    background-color: ${text-color};
+    border: 1px solid #9C9C9C;
+    border-radius: 5px;
 }
 
-QPushButton:pressed {
-    background-color: ${secondary-color};
+#changeImageButton {
+    background-color: ${danger-color};
+    color: ${background-color};
 }
 
-/* Input Fields */
-QLineEdit, QTextEdit {
-    background-color: ${primary-color};
-    color: ${text-color};
-    border: 1px solid ${secondary-color};
-    border-radius: 3px;
-    padding: 3px;
+#deleteImageButton {
+    background-color: ${safe-color};
+    color: ${background-color};
 }
 
-/* Tables */
-QTableView {
-    background-color: ${primary-color};
-    color: ${text-color};
-    gridline-color: ${secondary-color};
+#deleteButton {
+    background-color: ${danger-color};
+    color: ${background-color};
 }
 
-QTableView::item:selected {
-    background-color: ${secondary-color};
-}
-
-QHeaderView::section {
-    background-color: ${primary-color};
-    color: ${text-color};
-    border: 1px solid ${secondary-color};
-}
-
-/* Tabs */
-QTabWidget::pane {
-    border: 1px solid ${secondary-color};
-    background-color: ${primary-color};
-}
-
-QTabBar::tab {
-    background-color: ${tab-color};
-    color: ${text-color};
-    padding: 5px 10px;
-    border-top-left-radius: 3px;
-    border-top-right-radius: 3px;
-}
-
-QTabBar::tab:selected {
-    background-color: ${primary-color};
-}
-
-/* Scrollbars */
-QScrollBar:vertical {
-    background-color: ${primary-color};
-    width: 12px;
-    margin: 0px;
-}
-
-QScrollBar::handle:vertical {
-    background-color: ${secondary-color};
-    border-radius: 6px;
-    min-height: 20px;
-}
-
-QScrollBar::handle:vertical:hover {
+#mainTabs::pane {
+    border: 1px solid #9C9C9C;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    border-top: none;
     background-color: ${tab-color};
 }
 
-/* Status Bar */
-QStatusBar {
-    background-color: ${primary-color};
-    color: ${text-color};
+QTabWidget#mainTabs {
+    background-color: ${secondary-color};
 }
 
-/* Tool Tips */
-QToolTip {
-    background-color: ${primary-color};
-    color: ${text-color};
-    border: 1px solid ${secondary-color};
-    padding: 3px;
+#mainTabs QTabBar::tab {
+    border: 1px solid #9C9C9C;
+    border-bottom: none;
+    padding: 2px 6px;
+    margin-right: 8px;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+}
+
+#mainTabs QTabBar::tab:selected {
+    background-color: ${tab-color};
+}
+
+#labelsInput, #tagsInput, #descriptionInput, #nameInput {
+    border: 1px solid #9C9C9C;
+    border-radius: 5px;
+    padding-left: 5px;
+    background-color: ${text-color};
+}
+
+#labelsInput, #tagsInput, #descriptionInput {
+    font-size: 14px;
 }
