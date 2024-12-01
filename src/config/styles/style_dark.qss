@@ -1,3 +1,33 @@
+/* Global styles */
+QWidget {
+    font-size: 16px;
+    font-family: Segoe UI;
+}
+
+/* Main window styling */
+#NeoRealmBuilder {
+    background-color: ${global-background};
+}
+
+/* Main content area */
+#WorldBuildingContent {
+    background-color: ${background-color};
+}
+
+
+/* Menu bar */
+#menuBar {
+    background-color: ${tab-color};
+}
+
+/* Panel layouts */
+#leftPanel, #rightPanel {
+    background-color: ${background-color};
+    border: 1px solid #9C9C9C;
+    border-radius: 5px;
+}
+
+/* Tree view specific */
 #treeView {
     background-color: ${text-background} !important;
     color: ${text-color} !important;
@@ -9,34 +39,30 @@
     color: ${text-color};
 }
 
-QWidget {
-    font-size: 16px;
-    font-family: Segoe UI;
-}
-
-#NeoRealmBuilder {
-    background-color: ${global-background};
-}
-
-#leftPanel, #rightPanel {
-    background-color: ${background-color};
+/* Input elements */
+#labelsInput, #tagsInput, #descriptionInput, #nameInput {
     border: 1px solid #9C9C9C;
     border-radius: 5px;
+    padding-left: 5px;
+    background-color: ${text-background};
+    color: ${text-color};
 }
 
-#menuBar {
-    background-color: ${tab-color};
+#labelsInput, #tagsInput, #descriptionInput {
+    font-size: 14px;
 }
 
-QPushButton {
-    border: 1px solid #9C9C9C;
-    border-radius: 5px;
-}
-
+/* Image section */
 #imageLabel {
     border: 1px solid #9C9C9C;
     border-radius: 5px;
     background-color: ${text-background};
+}
+
+/* Button styling */
+QPushButton {
+    border: 1px solid #9C9C9C;
+    border-radius: 5px;
 }
 
 #changeImageButton {
@@ -54,16 +80,17 @@ QPushButton {
     color: ${background-color};
 }
 
+/* Tab styling */
+QTabWidget#mainTabs {
+    background-color: ${secondary-color};
+}
+
 #mainTabs::pane {
     border: 1px solid #9C9C9C;
     border-bottom-left-radius: 5px;
     border-bottom-right-radius: 5px;
     border-top: none;
     background-color: ${tab-color};
-}
-
-QTabWidget#mainTabs {
-    background-color: ${secondary-color};
 }
 
 #mainTabs QTabBar::tab {
@@ -78,16 +105,3 @@ QTabWidget#mainTabs {
 #mainTabs QTabBar::tab:selected {
     background-color: ${tab-color};
 }
-
-#labelsInput, #tagsInput, #descriptionInput, #nameInput {
-    border: 1px solid #9C9C9C;
-    border-radius: 5px;
-    padding-left: 5px;
-    background-color: ${text-background};
-    color: ${text-color};
-}
-
-#labelsInput, #tagsInput, #descriptionInput {
-    font-size: 14px;
-}
-

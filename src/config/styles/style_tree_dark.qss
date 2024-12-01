@@ -1,0 +1,83 @@
+/* Tree View Styling - Dark Theme */
+QTreeView {
+    background-color: ${text-background};
+    border: 1px solid ${secondary-color};
+    border-radius: 5px;
+    padding: 5px;
+    font-size: 12px;
+    color: ${text-color};
+}
+
+QTreeView::item {
+    min-height: 25px;
+    border-radius: 3px;
+    padding: 2px;
+    margin: 1px;
+}
+
+QTreeView::item:hover {
+    background-color: #34495E;
+}
+
+QTreeView::item:selected {
+    background-color: ${primary-color};
+    color: ${text-color};
+}
+
+QTreeView::branch {
+    background-color: transparent;
+}
+
+QTreeView::branch:has-siblings:!adjoins-item {
+    border-image: url('src/resources/icons/dark/vline.png') 0;
+}
+
+QTreeView::branch:has-siblings:adjoins-item {
+    border-image: url('src/resources/icons/dark/branch-more.png') 0;
+}
+
+QTreeView::branch:!has-children:!has-siblings:adjoins-item {
+    border-image: url('src/resources/icons/dark/branch-end.png') 0;
+}
+
+QTreeView::branch:has-children:!has-siblings:closed,
+QTreeView::branch:closed:has-children:has-siblings {
+    border-image: none;
+    image: url('src/resources/icons/dark/branch-closed.png');
+}
+
+QTreeView::branch:open:has-children:!has-siblings,
+QTreeView::branch:open:has-children:has-siblings {
+    border-image: none;
+    image: url('src/resources/icons/dark/branch-open.png');
+}
+
+QTreeView QHeaderView::section {
+    background-color: ${secondary-color};
+    color: ${text-color};
+    padding: 5px;
+    border: 1px solid #4A4A4A;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+QTreeView QScrollBar:vertical {
+    background-color: ${background-color};
+    width: 12px;
+    margin: 0px;
+}
+
+QTreeView QScrollBar::handle:vertical {
+    background-color: ${secondary-color};
+    border-radius: 6px;
+    min-height: 20px;
+}
+
+QTreeView QScrollBar::handle:vertical:hover {
+    background-color: ${primary-color};
+}
+
+/* Dark theme specific overrides */
+QTreeView::branch:selected {
+    background-color: ${primary-color};
+}

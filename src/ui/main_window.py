@@ -53,7 +53,7 @@ class WorldBuildingUI(QWidget):
         self.style_manager = StyleManager(Path("src/config/styles"))
 
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setObjectName("CentralWidget")
+        self.setObjectName("WorldBuildingContent")
         self.setAttribute(
             Qt.WidgetAttribute.WA_StyledBackground, True
         )  # Important for QSS styling
