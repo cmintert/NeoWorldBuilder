@@ -118,9 +118,6 @@ class WorldBuildingApp(QMainWindow):
         self.initialize_application()
 
     def initialize_application(self) -> None:
-        """
-        Initialize all application components with comprehensive error handling.
-        """
         try:
             # 1. Load Configuration
             config = self._load_configuration()
@@ -131,30 +128,29 @@ class WorldBuildingApp(QMainWindow):
             # 3. Initialize Database Model
             model = self._initialize_database(config)
 
-            # 4 Setup UI
-            ui = self._setup_ui(None)
+            # 4. Create UI (elements created but signals not connected)
+            ui = WorldBuildingUI(None)
 
             # 5. Initialize Controller
-            controller = self._initialize_controller(ui, model, config)
+            controller = WorldBuildingController(ui, model, config, self)
 
+            # 6. Set controller and connect signals
             ui.controller = controller
+            ui.setup_ui()  # Now connect signals
 
             # Store components for access
             self.components = AppComponents(
                 ui=ui, model=model, controller=controller, config=config
             )
 
-            # 6. Configure Window
+            # Configure window
             self._configure_main_window()
-
-            # 7. Set Background Image
-
             self.set_background_image("src/resources/graphics/background.png")
 
-            # 8 Load last modified node
+            # Load initial data
             controller.load_last_modified_node()
 
-            # 9. Show Window
+            # Show window
             self.show()
 
             structlog.get_logger().info("Application initialized successfully")
@@ -342,8 +338,11 @@ class WorldBuildingApp(QMainWindow):
             RuntimeError: If main window configuration fails.
         """
         try:
-            self.setObjectName("WorldBuildingApp")
+            self.setObjectName("NeoRealmBuilder")
             self.setCentralWidget(self.components.ui)
+            self.components.ui.style_manager.apply_style(
+                self, self.components.config.LAST_USED_STYLE
+            )
 
             # Set window title with version
             self.setWindowTitle(f"NeoRealmBuilder {self.components.config.VERSION}")
@@ -383,7 +382,7 @@ class WorldBuildingApp(QMainWindow):
         menu_bar.setObjectName("menuBar")
 
         export_menu = menu_bar.addMenu("Export")
-        database_connect_menu = menu_bar.addMenu("Connection Settings")
+        settings_menue = menu_bar.addMenu("Settings")
 
         export_json_action = QAction("Export as JSON", self)
         export_json_action.triggered.connect(
@@ -409,11 +408,18 @@ class WorldBuildingApp(QMainWindow):
         )
         export_menu.addAction(export_pdf_action)
 
-        open_connection_settings_action = QAction("Open Connection Settings", self)
+        open_connection_settings_action = QAction("Database Connection", self)
         open_connection_settings_action.triggered.connect(
             self.components.controller.open_connection_settings
         )
-        database_connect_menu.addAction(open_connection_settings_action)
+        settings_menue.addAction(open_connection_settings_action)
+
+        open_style_settings_action = QAction("Style", self)
+        open_style_settings_action.triggered.connect(
+            self.components.controller.open_style_settings
+        )
+
+        settings_menue.addAction(open_style_settings_action)
 
     def _handle_initialization_error(self, error: Exception) -> None:
         """
@@ -461,6 +467,7 @@ class WorldBuildingApp(QMainWindow):
         structlog.get_logger().info("Application shutdown initiated")
 
         try:
+
             # Clean up controller resources
             if self.components and self.components.controller:
                 self.components.controller.cleanup()
@@ -482,6 +489,7 @@ class WorldBuildingApp(QMainWindow):
 if __name__ == "__main__":
     try:
         app = QApplication(sys.argv)
+        # app.setStyle("Fusion")
         ex = WorldBuildingApp()
         sys.exit(app.exec())
     except Exception as e:

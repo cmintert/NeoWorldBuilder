@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
     QTableWidget,
     QLineEdit,
+    QApplication,
 )
 
 from models.completer_model import AutoCompletionUIHandler, CompleterInput
@@ -24,7 +25,8 @@ from services.property_service import PropertyService
 from services.relationship_tree_service import RelationshipTreeService
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
-from ui.dialogs import SuggestionDialog, ConnectionSettingsDialog
+from ui.dialogs import SuggestionDialog, ConnectionSettingsDialog, StyleSettingsDialog
+from ui.styles import StyleManager
 from utils.error_handler import ErrorHandler
 from utils.exporters import Exporter
 
@@ -61,7 +63,7 @@ class WorldBuildingController(QObject):
         self.model = model
         self.config = config
         self.app_instance = app_instance
-        self.exporter = Exporter(self.ui, self.config)
+        self.exporter = Exporter(ui, self.config)
         self.ui.controller = self
         self.error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
 
@@ -69,6 +71,12 @@ class WorldBuildingController(QObject):
         self.property_service = PropertyService(self.config)
         self.image_service = ImageService()
         self.worker_manager = WorkerManagerService(self.error_handler)
+
+        # Initialize the ui
+        self.ui = ui
+        self.ui.controller = self
+
+        # Initialize services that require the ui
         self.auto_completion_service = AutoCompletionService(
             self.model,
             self.config,
@@ -96,6 +104,18 @@ class WorldBuildingController(QObject):
         self.relationship_tree_service = RelationshipTreeService(
             self.tree_model, self.NODE_RELATIONSHIPS_HEADER
         )
+
+        # Initialize style management
+        self.style_manager = StyleManager("src/config/styles")
+        self.style_manager.registry.error_occurred.connect(self._show_error_dialog)
+
+        # Apply default application style
+        self.style_manager.apply_style(app_instance, "default")
+
+        # Apply specific styles to UI components
+        self.style_manager.apply_style(self.ui.tree_view, "tree")
+        self.style_manager.apply_style(self.ui.properties_table, "data-table")
+        self.style_manager.apply_style(self.ui.relationships_table, "data-table")
 
         # Track UI state
         self.current_image_path: Optional[str] = None
@@ -684,6 +704,10 @@ class WorldBuildingController(QObject):
         dialog = ConnectionSettingsDialog(self.config, self.app_instance)
         dialog.exec()
 
+    def open_style_settings(self) -> None:
+        dialog = StyleSettingsDialog(self.config, self.app_instance)
+        dialog.exec()
+
     def save_node(self) -> None:
         """Handle node save request."""
         name = self.ui.name_input.text().strip()
@@ -735,6 +759,28 @@ class WorldBuildingController(QObject):
             relationships=self._collect_table_relationships(),
             image_path=self.current_image_path,
         )
+
+    def change_application_style(self, style_name: str) -> None:
+        """Change the application-wide style.
+
+        Args:
+            style_name: Name of the style to apply
+        """
+        try:
+            app = QApplication.instance()
+            if app:
+                self.style_manager.apply_style(app, style_name)
+        except Exception as e:
+            logging.error(f"Failed to change style: {e}")
+            raise
+
+    def refresh_styles(self) -> None:
+        """Reload all styles from disk and reapply current style."""
+        try:
+            self.style_manager.reload_styles()
+        except Exception as e:
+            logging.error(f"Failed to refresh styles: {e}")
+            raise
 
     def _create_suggestion_ui_handler(self) -> SuggestionUIHandler:
         class UIHandler:

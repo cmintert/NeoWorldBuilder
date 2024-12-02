@@ -14,9 +14,108 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QMessageBox,
+    QRadioButton,
 )
 
 from utils.crypto import SecurityUtility
+
+
+class StyleSettingsDialog(QDialog):
+    """
+    Dialog for managing application styles and themes.
+    Allows users to choose and preview different styles in real-time.
+    """
+
+    def __init__(self, config, app_instance, parent=None):
+        super().__init__(parent)
+        self.config = config
+        self.app_instance = app_instance
+
+        # Get the controller from app_instance.components
+        if not hasattr(app_instance, "components") or not app_instance.components:
+            raise RuntimeError("Application components not initialized")
+
+        self.controller = app_instance.components.controller
+
+        self.setWindowTitle("Style Settings")
+        self.setModal(True)
+        self.init_ui()
+
+    def init_ui(self):
+        """Initialize the dialog UI components."""
+        layout = QVBoxLayout(self)
+
+        # Create style selection group
+        style_group = QGroupBox("Available Styles")
+        style_layout = QVBoxLayout()
+
+        # Get available styles from the registry
+        self.style_buttons = {}
+        current_style = self.controller.style_manager.current_style or "default"
+
+        root_styles = {
+            name: config
+            for name, config in self.controller.style_manager.registry.styles.items()
+            if not hasattr(config, "parent") or not config.parent
+        }
+
+        for (
+            style_name,
+            style_config,
+        ) in root_styles.items():
+            radio = QRadioButton(f"{style_name.title()} - {style_config.description}")
+            radio.setObjectName(f"style_radio_{style_name}")
+            radio.setChecked(style_name == current_style)
+            radio.clicked.connect(
+                lambda checked, name=style_name: self.on_style_selected(name)
+            )
+            self.style_buttons[style_name] = radio
+            style_layout.addWidget(radio)
+
+        style_group.setLayout(style_layout)
+        layout.addWidget(style_group)
+
+        # Add reload button
+        reload_button = QPushButton("Reload Current Style")
+        reload_button.setObjectName("reload_style_button")
+        reload_button.clicked.connect(self.reload_current_style)
+        layout.addWidget(reload_button)
+
+        # Add dialog buttons
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+    def on_style_selected(self, style_name: str):
+        """
+        Handle style selection and apply it immediately.
+
+        Args:
+            style_name: The name of the selected style
+        """
+        try:
+            self.controller.change_application_style(style_name)
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Style Error", f"Failed to apply style '{style_name}': {str(e)}"
+            )
+
+    def reload_current_style(self):
+        """Reload the currently selected style."""
+        try:
+            self.controller.refresh_styles()
+            QMessageBox.information(self, "Success", "Style reloaded successfully")
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Reload Error", f"Failed to reload style: {str(e)}"
+            )
+
+    def accept(self):
+        """Handle dialog acceptance."""
+        super().accept()
 
 
 class SuggestionDialog(QDialog):

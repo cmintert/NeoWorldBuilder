@@ -1,6 +1,5 @@
 import json
-import logging
-import os
+from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, Qt, QPoint
@@ -29,7 +28,10 @@ from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QToolBar,
+    QApplication,
 )
+
+from ui.styles import StyleManager
 
 
 class WorldBuildingUI(QWidget):
@@ -47,20 +49,53 @@ class WorldBuildingUI(QWidget):
         """
         super().__init__()
         self.controller = controller
+
+        self.style_manager = StyleManager(Path("src/config/styles"))
+
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setObjectName("CentralWidget")
+        self.setObjectName("WorldBuildingContent")
         self.setAttribute(
             Qt.WidgetAttribute.WA_StyledBackground, True
         )  # Important for QSS styling
         self.setAttribute(
             Qt.WidgetAttribute.WA_TranslucentBackground, True
         )  # Allow transparency
-        self.init_ui()
+
+        self._create_ui_elements()
 
     def init_ui(self) -> None:
         """
         Initialize the main UI layout with enhanced components.
         """
+        main_layout = QHBoxLayout()
+        main_layout.setObjectName("mainLayout")
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(20)
+
+        # Create splitter for resizable panels
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setObjectName("mainLayoutSplitter")
+
+        # Left panel with search and tree
+        left_panel = self._create_left_panel()
+        splitter.addWidget(left_panel)
+
+        # Right panel with node details and progress
+        right_panel = self._create_right_panel()
+        splitter.addWidget(right_panel)
+
+        # Set stretch factors
+        splitter.setStretchFactor(0, 1)  # Left panel
+        splitter.setStretchFactor(1, 2)  # Right panel gets more space
+
+        main_layout.addWidget(splitter)
+        self.setLayout(main_layout)
+
+        # Apply styles
+        self.apply_styles()
+
+    def _create_ui_elements(self) -> None:
+        """Create all UI elements without connecting signals"""
         main_layout = QHBoxLayout()
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(20)
@@ -82,6 +117,59 @@ class WorldBuildingUI(QWidget):
 
         main_layout.addWidget(splitter)
         self.setLayout(main_layout)
+
+    def _connect_signals(self) -> None:
+        """Connect all UI signals to their handlers"""
+        # Main buttons
+        self.save_button.clicked.connect(self.controller.save_node)
+        self.delete_button.clicked.connect(self.controller.delete_node)
+
+        # Image handling
+        self.change_image_button.clicked.connect(self.controller.change_image)
+        self.delete_image_button.clicked.connect(self.controller.delete_image)
+
+        # Name input
+        self.name_input.editingFinished.connect(self.controller.load_node_data)
+
+        # Table buttons
+        self.add_rel_button.clicked.connect(self.add_relationship_row)
+
+        # connect the suggest button
+        self.suggest_button.clicked.connect(self.controller.show_suggestions_modal)
+
+        # Check for unsaved changes
+        self.name_input.textChanged.connect(
+            self.controller.update_unsaved_changes_indicator
+        )
+        self.description_input.textChanged.connect(
+            self.controller.update_unsaved_changes_indicator
+        )
+        self.labels_input.textChanged.connect(
+            self.controller.update_unsaved_changes_indicator
+        )
+        self.tags_input.textChanged.connect(
+            self.controller.update_unsaved_changes_indicator
+        )
+        self.properties_table.itemChanged.connect(
+            self.controller.update_unsaved_changes_indicator
+        )
+        self.relationships_table.itemChanged.connect(
+            self.controller.update_unsaved_changes_indicator
+        )
+
+        # Depth spinbox change
+        self.depth_spinbox.valueChanged.connect(self.controller.on_depth_changed)
+
+        # Tree view
+        self.tree_view.customContextMenuRequested.connect(self._show_tree_context_menu)
+
+    def setup_ui(self) -> None:
+        """Connect signals and finalize UI setup after controller is set"""
+        if not self.controller:
+            raise RuntimeError("Controller must be set before initializing UI")
+
+        # Connect all signals
+        self._connect_signals()
 
         # Apply styles
         self.apply_styles()
@@ -112,17 +200,22 @@ class WorldBuildingUI(QWidget):
             QWidget: The left panel widget.
         """
         panel = QWidget()
+        panel.setObjectName("leftPanel")
+        panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
+
         layout = QVBoxLayout(panel)
+        layout.setObjectName("leftPanelLayout")
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(10)
 
         # Enhanced tree view
         self.tree_view = QTreeView()
         self.tree_view.setObjectName("treeView")
-        self.tree_view.setHeaderHidden(True)
-        self.tree_view.setAnimated(True)
-        self.tree_view.setAlternatingRowColors(True)
+        # self.tree_view.setHeaderHidden(True)
+        # self.tree_view.setAnimated(True)
+        # self.tree_view.setAlternatingRowColors(True)
         self.tree_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.tree_view.customContextMenuRequested.connect(self._show_tree_context_menu)
 
         layout.addWidget(self.tree_view)
@@ -130,9 +223,14 @@ class WorldBuildingUI(QWidget):
         # Depth selector
 
         depth_layout = QHBoxLayout()
+        depth_layout.setObjectName("depthLayout")
+
         depth_label = QLabel("Relationship Depth:")
+        depth_label.setObjectName("depthLabel")
+
         self.depth_spinbox = QSpinBox()
         self.depth_spinbox.setObjectName("depthSpinBox")
+
         self.depth_spinbox.setFixedWidth(70)
         self.depth_spinbox.setFixedHeight(40)
         self.depth_spinbox.setMinimum(1)
@@ -155,13 +253,16 @@ class WorldBuildingUI(QWidget):
             QWidget: The right panel widget.
         """
         panel = QWidget()
+        panel.setObjectName("rightPanel")
 
         layout = QVBoxLayout(panel)
+        layout.setObjectName("rightPanelLayout")
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(15)
 
         # Header with node name and actions
         header_widget = QWidget()
+        header_widget.setObjectName("headerWidget")
         header_layout = self._create_header_layout()
         header_widget.setLayout(header_layout)
         layout.addWidget(header_widget)
@@ -187,6 +288,7 @@ class WorldBuildingUI(QWidget):
         self.suggest_button.setFixedWidth(250)
         self.suggest_button.setMinimumHeight(30)
         button_layout = QHBoxLayout()
+        button_layout.setObjectName("suggestButtonLayout")
         button_layout.addStretch()
         button_layout.addWidget(self.suggest_button)
         button_layout.addStretch()
@@ -243,8 +345,11 @@ class WorldBuildingUI(QWidget):
             QWidget: The basic info tab widget.
         """
         tab = QWidget()
+        tab.setObjectName("basicInfoTab")
         main_layout = QHBoxLayout(tab)
+        main_layout.setObjectName("basicInfoLayout")
         form_layout = QFormLayout()
+        form_layout.setObjectName("basicInfoFormLayout")
         form_layout.setSpacing(15)
 
         # Description
@@ -291,6 +396,7 @@ class WorldBuildingUI(QWidget):
             QToolBar: The formatting toolbar.
         """
         toolbar = QToolBar("Formatting")
+        toolbar.setObjectName("formattingToolbar")
         toolbar.setFixedHeight(24)
 
         # Add actions for formatting
@@ -401,7 +507,7 @@ class WorldBuildingUI(QWidget):
 
         # Create a standard font
         standard_font = QFont()
-        standard_font.setPointSize(10)  # Default font size
+        standard_font.setPointSize(12)  # Default font size
         standard_font.setWeight(QFont.Weight.Normal)  # Default weight
 
         # Apply the standard font to the selected text
@@ -466,6 +572,7 @@ class WorldBuildingUI(QWidget):
         group = QGroupBox("Image")
         group.setObjectName("imageGroupBox")
         layout = QVBoxLayout()
+        layout.setObjectName("imageGroupLayout")
 
         group.setFixedWidth(220)
         group.setFixedHeight(300)
@@ -480,6 +587,7 @@ class WorldBuildingUI(QWidget):
 
         # Image buttons
         button_layout = QHBoxLayout()
+        button_layout.setObjectName("imageButtonLayout")
         button_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.change_image_button = QPushButton("Change")
         self.change_image_button.setObjectName("changeImageButton")
@@ -595,7 +703,9 @@ class WorldBuildingUI(QWidget):
         """
         # Create container widget for centering
         container = QWidget()
+        container.setObjectName("deleteButtonContainer")
         layout = QHBoxLayout(container)
+        layout.setObjectName("deleteButtonLayout")
         layout.setContentsMargins(4, 0, 4, 0)  # Small horizontal margins for spacing
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -755,21 +865,25 @@ class WorldBuildingUI(QWidget):
 
         # Type with validation
         type_item = QTableWidgetItem(rel_type)
+
         self.relationships_table.setItem(row, 0, type_item)
 
         # Target with completion
         target_item = QTableWidgetItem(target)
+
         self.relationships_table.setItem(row, 1, target_item)
         self.controller._add_target_completer_to_row(row)
 
         # Direction ComboBox
         direction_combo = QComboBox()
+
         direction_combo.addItems([">", "<"])
         direction_combo.setCurrentText(direction)
         self.relationships_table.setCellWidget(row, 2, direction_combo)
 
         # Properties with validation
         props_item = QTableWidgetItem(properties)
+
         props_item.setBackground(Qt.GlobalColor.lightGray)
         props_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.relationships_table.setItem(row, 3, props_item)
@@ -780,6 +894,7 @@ class WorldBuildingUI(QWidget):
 
         # Add 'Edit Properties' button
         edit_properties_button = QPushButton("Edit Properties")
+        edit_properties_button.setObjectName("editPropertiesButton")
         edit_properties_button.clicked.connect(
             lambda: self.open_relation_properties_dialog(row)
         )
@@ -800,27 +915,54 @@ class WorldBuildingUI(QWidget):
         table.setCellWidget(row, 2, delete_button)
 
     def apply_styles(self) -> None:
-        """
-        Apply styles to the UI components.
-        """
-        logging.debug("apply_styles method called")
+        """Apply styles to UI components with enhanced error checking."""
         try:
-            stylesheet_path = os.path.abspath("src/config/style_default.qss")
+            print("\nStarting style application...")
 
-            # Log the paths for debugging
-            logging.info(f"Stylesheet path: {stylesheet_path}")
+            # First, apply the default style to the application
+            print("Applying default style to application")
+            if app := QApplication.instance():
+                self.style_manager.apply_style(app, "default")
 
-            with open(stylesheet_path, "r") as f:
-                stylesheet = f.read()
+            # Then apply styles to specific components
+            components = [
+                (self, "default", "Main Widget"),
+                (self.tree_view, "tree", "Tree View"),
+                (self.properties_table, "data-table", "Properties Table"),
+                (self.relationships_table, "data-table", "Relationships Table"),
+            ]
 
-            self.setStyleSheet(stylesheet)
-            logging.info(f"Stylesheet applied successfully from {stylesheet_path}")
+            for widget, style, name in components:
+                print(f"\nApplying {style} style to {name}")
+                if not widget:
+                    print(f"Warning: {name} widget is None")
+                    continue
+
+                if not widget.objectName():
+                    widget.setObjectName(name.replace(" ", ""))
+
+                # Ensure stylesheet processing is enabled
+                widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+
+                # Apply the style
+                self.style_manager.apply_style(widget, style)
+
+                # Verify style application
+                if not widget.styleSheet():
+                    print(f"Warning: No stylesheet applied to {name}")
+                else:
+                    print(f"Successfully applied style to {name}")
+
+            print("\nStyle application completed")
 
         except Exception as e:
-            error_message = f"Failed to load stylesheet: {e}"
-            logging.error(error_message)
-            QMessageBox.warning(self, "Stylesheet Error", error_message)
-        logging.debug("Completed apply_styles method")
+            print(f"Error during style application: {str(e)}")
+            import traceback
+
+            traceback.print_exc()
+            QMessageBox.warning(
+                self, "Style Error", f"Failed to apply styles: {str(e)}"
+            )
 
     def open_relation_properties_dialog(self, row: int) -> None:
         """
