@@ -1,6 +1,5 @@
 /* Global styles */
 QWidget {
-    font-size: 16px;
     font-family: Segoe UI;
 }
 
@@ -27,6 +26,33 @@ QWidget {
     border-radius: 5px;
 }
 
+/*Properties table*/
+#propertiesTable {
+    background-color: ${text-background};
+    color: ${text-color};
+    font-size: 12px;
+}
+
+#propertiesTable QHeaderView::section {
+    background-color: ${text-background};
+    color: ${text-color};
+    font-size: 12px;
+}
+
+/*Relationships table*/
+#relationshipsTable {
+    background-color: ${text-background};
+    color: ${text-color};
+    font-size: 12px;
+}
+
+#relationshipsTable QHeaderView::section {
+    background-color: ${text-background};
+    color: ${text-color};
+    font-size: 12px;
+}
+
+
 /* Tree view specific */
 #treeView {
     background-color: ${text-background} !important;
@@ -38,6 +64,8 @@ QWidget {
     background-color: ${text-background};
     color: ${text-color};
 }
+
+
 
 /* Input elements */
 #labelsInput, #tagsInput, #descriptionInput, #nameInput {
