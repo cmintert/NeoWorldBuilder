@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List, Tuple, Any, Set
+from typing import Dict, List, Tuple, Any, Set, Union
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
@@ -20,6 +20,9 @@ from PyQt6.QtWidgets import (
     QHeaderView,
     QTableWidget,
     QScrollArea,
+    QListWidget,
+    QInputDialog,
+    QButtonGroup,
 )
 
 from utils.crypto import SecurityUtility
@@ -351,6 +354,7 @@ class FastInjectDialog(QDialog):
             template["content"]["properties"].keys()
         )
         self.modified_property_values: Dict[str, str] = {}
+        self.property_checkboxes: Dict[str, QCheckBox] = {}
 
         self.init_ui()
 
@@ -510,7 +514,6 @@ class FastInjectDialog(QDialog):
         select_all.setChecked(True)
         header_layout.addWidget(select_all)
 
-        # Add search/filter functionality
         filter_input = QLineEdit()
         filter_input.setPlaceholderText("Filter properties...")
         filter_input.textChanged.connect(self._filter_properties)
@@ -518,14 +521,11 @@ class FastInjectDialog(QDialog):
 
         layout.addWidget(header_widget)
 
-        # Create enhanced table with checkboxes
+        # Create table
         props = self.template["content"]["properties"]
         self.props_table = QTableWidget(len(props), 3)
-        self.props_table.setHorizontalHeaderLabels(
-            ["Select", "Property", "Default Value"]
-        )
+        self.props_table.setHorizontalHeaderLabels(["Select", "Property", "Value"])
 
-        # Set table properties
         self.props_table.verticalHeader().setVisible(False)
         header = self.props_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
@@ -534,10 +534,11 @@ class FastInjectDialog(QDialog):
         self.props_table.setColumnWidth(0, 50)
         self.props_table.setColumnWidth(1, 300)
 
-        # Add properties to table with checkboxes
-        self.property_checkboxes: Dict[str, QCheckBox] = {}
+        # Track value widgets for properties
+        self.property_value_widgets: Dict[str, PropertyValueWidget] = {}
+
         for i, (key, value) in enumerate(props.items()):
-            # Checkbox
+            # Checkbox column
             checkbox = QCheckBox()
             checkbox.setChecked(True)
             checkbox.stateChanged.connect(
@@ -546,19 +547,17 @@ class FastInjectDialog(QDialog):
             self.property_checkboxes[key] = checkbox
             self.props_table.setCellWidget(i, 0, checkbox)
 
-            # Property name and value
+            # Property name column
             name_item = QTableWidgetItem(key)
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.props_table.setItem(i, 1, name_item)
 
-            value_item = QTableWidgetItem(str(value))
-            value_item.setFlags(value_item.flags() | Qt.ItemFlag.ItemIsEditable)
-            self.props_table.setItem(i, 2, value_item)
-
-            self.modified_property_values[key] = str(value)
+            # Value column with PropertyValueWidget
+            value_widget = PropertyValueWidget(value)
+            self.property_value_widgets[key] = value_widget
+            self.props_table.setCellWidget(i, 2, value_widget)
 
         # Connect select all functionality
-        self.props_table.itemChanged.connect(self._on_property_value_changed)
         select_all.stateChanged.connect(
             lambda state: self._toggle_all_properties(state)
         )
@@ -586,8 +585,8 @@ class FastInjectDialog(QDialog):
         """Get selected properties with their potentially modified values."""
         result = {}
         for prop_name in self.selected_properties:
-            if prop_name in self.modified_property_values:
-                result[prop_name] = self.modified_property_values[prop_name]
+            if widget := self.property_value_widgets.get(prop_name):
+                result[prop_name] = widget.get_value()
         return result
 
     def _update_label_selection(self, label: str, state: int) -> None:
@@ -626,3 +625,173 @@ class FastInjectDialog(QDialog):
         checked = state == Qt.CheckState.Checked.value
         for checkbox in self.property_checkboxes.values():
             checkbox.setChecked(checked)
+
+
+class ValueEditorDialog(QDialog):
+    """Dialog for editing a list of predefined values."""
+
+    def __init__(self, current_values: List[str], parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Edit Property Values")
+        self.setModal(True)
+        self.values = current_values.copy()
+        self.init_ui()
+
+    def init_ui(self) -> None:
+        """Initialize the dialog UI."""
+        layout = QVBoxLayout(self)
+
+        # Create list widget for values
+        self.list_widget = QListWidget()
+        for value in self.values:
+            self.list_widget.addItem(value)
+        layout.addWidget(self.list_widget)
+
+        # Buttons for manipulating values
+        button_layout = QHBoxLayout()
+
+        add_button = QPushButton("Add Value")
+        add_button.clicked.connect(self.add_value)
+        button_layout.addWidget(add_button)
+
+        edit_button = QPushButton("Edit Selected")
+        edit_button.clicked.connect(self.edit_value)
+        button_layout.addWidget(edit_button)
+
+        remove_button = QPushButton("Remove Selected")
+        remove_button.clicked.connect(self.remove_value)
+        button_layout.addWidget(remove_button)
+
+        layout.addLayout(button_layout)
+
+        # Dialog buttons
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+    def add_value(self) -> None:
+        """Add a new value to the list."""
+        text, ok = QInputDialog.getText(self, "Add Value", "Enter new value:")
+        if ok and text:
+            self.list_widget.addItem(text)
+
+    def edit_value(self) -> None:
+        """Edit the currently selected value."""
+        if current := self.list_widget.currentItem():
+            text, ok = QInputDialog.getText(
+                self, "Edit Value", "Edit value:", text=current.text()
+            )
+            if ok and text:
+                current.setText(text)
+
+    def remove_value(self) -> None:
+        """Remove the currently selected value."""
+        if current := self.list_widget.currentRow():
+            self.list_widget.takeItem(current)
+
+    def get_values(self) -> List[str]:
+        """Get the current list of values."""
+        return [
+            self.list_widget.item(i).text() for i in range(self.list_widget.count())
+        ]
+
+
+class PropertyValueWidget(QWidget):
+    """Widget for displaying property values either as line edit or radio buttons."""
+
+    def __init__(self, value: Union[str, List[str]], parent=None):
+        super().__init__(parent)
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(2)
+
+        # Parse values
+        if isinstance(value, str) and "," in value:
+            self.values = [v.strip() for v in value.split(",")]
+        elif isinstance(value, list):
+            self.values = value
+        else:
+            self.values = [str(value)]
+
+        # Create container for input widgets
+        input_container = QWidget()
+        input_layout = QHBoxLayout(input_container)
+        input_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Create value input widget
+        self.value_container = QWidget()
+        self.value_layout = QHBoxLayout(self.value_container)
+        self.value_layout.setContentsMargins(0, 0, 0, 0)
+        self.value_layout.setSpacing(2)
+
+        self.setup_input_widget(input_layout)
+        self.layout.addWidget(input_container)
+
+    def setup_input_widget(self, input_layout: QHBoxLayout) -> None:
+        """Setup the appropriate input widget based on number of values."""
+        if len(self.values) > 1:
+            # Create radio buttons for multiple values
+            self.button_group = QButtonGroup()
+            for i, val in enumerate(self.values):
+                radio = QRadioButton(str(val))
+                self.button_group.addButton(radio, i)
+                self.value_layout.addWidget(radio)
+                if i == 0:  # Select first option by default
+                    radio.setChecked(True)
+
+            # Add edit button
+            edit_button = QPushButton("✏️")
+            edit_button.setMaximumWidth(30)
+            edit_button.setMinimumWidth(30)
+            edit_button.clicked.connect(self.edit_values)
+            input_layout.addWidget(self.value_container)
+            input_layout.addWidget(edit_button)
+        else:
+            # Use line edit for single value
+            self.line_edit = QLineEdit(str(self.values[0]))
+            self.value_layout.addWidget(self.line_edit)
+            input_layout.addWidget(self.value_container)
+
+    def edit_values(self) -> None:
+        """Open dialog to edit selectable values."""
+        current_values = [b.text() for b in self.button_group.buttons()]
+        dialog = ValueEditorDialog(current_values, self)
+
+        if dialog.exec():
+            new_values = dialog.get_values()
+            if new_values:
+                # Store current selection
+                current_value = self.get_value()
+
+                # Clear existing radio buttons
+                for button in self.button_group.buttons():
+                    self.button_group.removeButton(button)
+                    self.value_layout.removeWidget(button)
+                    button.deleteLater()
+
+                # Create new radio buttons
+                self.values = new_values
+                for i, val in enumerate(new_values):
+                    radio = QRadioButton(str(val))
+                    self.button_group.addButton(radio, i)
+                    self.value_layout.addWidget(radio)
+                    # Try to maintain the previous selection
+                    if val == current_value:
+                        radio.setChecked(True)
+
+                # Select first option if previous value no longer exists
+                if not self.button_group.checkedButton():
+                    first = self.button_group.button(0)
+                    if first:
+                        first.setChecked(True)
+
+    def get_value(self) -> str:
+        """Get the currently selected/entered value."""
+        if hasattr(self, "button_group"):
+            selected = self.button_group.checkedButton()
+            return selected.text() if selected else ""
+        else:
+            return self.line_edit.text()
