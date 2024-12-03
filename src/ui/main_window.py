@@ -163,6 +163,9 @@ class WorldBuildingUI(QWidget):
         # Tree view
         self.tree_view.customContextMenuRequested.connect(self._show_tree_context_menu)
 
+        # FastInject
+        self.fast_inject_button.clicked.connect(self.controller.handle_fast_inject)
+
     def setup_ui(self) -> None:
         """Connect signals and finalize UI setup after controller is set"""
         if not self.controller:
@@ -292,6 +295,13 @@ class WorldBuildingUI(QWidget):
         button_layout.addStretch()
         button_layout.addWidget(self.suggest_button)
         button_layout.addStretch()
+
+        # Fast Inject button
+        self.fast_inject_button = QPushButton("Fast Inject Template")
+        self.fast_inject_button.setObjectName("fastInjectButton")
+        self.fast_inject_button.setFixedWidth(250)
+        self.fast_inject_button.setMinimumHeight(30)
+        button_layout.addWidget(self.fast_inject_button)
 
         layout.addLayout(button_layout)
 

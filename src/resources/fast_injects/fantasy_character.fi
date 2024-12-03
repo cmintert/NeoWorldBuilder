@@ -1,0 +1,19 @@
+{
+    "name": "Fantasy Character Template",
+    "description": "Basic fantasy character properties and tags",
+    "content": {
+        "labels": ["Character", "Fantasy"],
+        "tags": ["player", "adventurer", "humanoid"],
+        "properties": {
+            "strength": "10",
+            "dexterity": "",
+            "constitution": "",
+            "intelligence": "",
+            "wisdom": "",
+            "charisma": "",
+            "class": "",
+            "race": "",
+            "background": ""
+        }
+    }
+}

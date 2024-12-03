@@ -1,6 +1,7 @@
 import json
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Set
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -15,6 +16,9 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QMessageBox,
     QRadioButton,
+    QTableWidgetItem,
+    QHeaderView,
+    QTableWidget,
 )
 
 from utils.crypto import SecurityUtility
@@ -326,3 +330,113 @@ class ConnectionSettingsDialog(QDialog):
             json.dump(existing_settings, config_file, indent=4)
 
         QMessageBox.information(self, "Success", "Settings saved successfully.")
+
+
+class FastInjectDialog(QDialog):
+    """Dialog for previewing Fast Inject template contents with selective application."""
+
+    def __init__(self, template: Dict[str, Any], parent=None) -> None:
+        super().__init__(parent)
+        self.template = template
+        self.setWindowTitle(f"Fast Inject Preview - {template['name']}")
+        self.setModal(True)
+        self.resize(600, 400)
+        self.selected_sections: Set[str] = {
+            "labels",
+            "tags",
+            "properties",
+        }  # All selected by default
+        self.init_ui()
+
+    def init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+
+        # Template name and description
+        name_label = QLabel(f"<b>{self.template['name']}</b>")
+        name_label.setStyleSheet("font-size: 14px;")
+        layout.addWidget(name_label)
+
+        desc_label = QLabel(self.template["description"])
+        desc_label.setWordWrap(True)
+        desc_label.setStyleSheet("margin-bottom: 15px;")
+        layout.addWidget(desc_label)
+
+        # Labels section
+        labels_group = QGroupBox("Labels")
+        labels_layout = QVBoxLayout()
+        self.labels_checkbox = QCheckBox("Include Labels")
+        self.labels_checkbox.setChecked(True)
+        labels_layout.addWidget(self.labels_checkbox)
+        labels_text = ", ".join(self.template["content"]["labels"])
+        labels_label = QLabel(labels_text)
+        labels_label.setWordWrap(True)
+        labels_layout.addWidget(labels_label)
+        labels_group.setLayout(labels_layout)
+        layout.addWidget(labels_group)
+
+        # Tags section
+        tags_group = QGroupBox("Tags")
+        tags_layout = QVBoxLayout()
+        self.tags_checkbox = QCheckBox("Include Tags")
+        self.tags_checkbox.setChecked(True)
+        tags_layout.addWidget(self.tags_checkbox)
+        tags_text = ", ".join(self.template["content"]["tags"])
+        tags_label = QLabel(tags_text)
+        tags_label.setWordWrap(True)
+        tags_layout.addWidget(tags_label)
+        tags_group.setLayout(tags_layout)
+        layout.addWidget(tags_group)
+
+        # Properties section
+        props_group = QGroupBox("Properties")
+        props_layout = QVBoxLayout()
+        self.properties_checkbox = QCheckBox("Include Properties")
+        self.properties_checkbox.setChecked(True)
+        props_layout.addWidget(self.properties_checkbox)
+
+        props = self.template["content"]["properties"]
+        props_table = QTableWidget(len(props), 2)
+        props_table.setHorizontalHeaderLabels(["Property", "Default Value"])
+        header = props_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+
+        for i, (key, value) in enumerate(props.items()):
+            props_table.setItem(i, 0, QTableWidgetItem(key))
+            props_table.setItem(i, 1, QTableWidgetItem(str(value)))
+
+        props_table.setMinimumHeight(200)
+        props_layout.addWidget(props_table)
+        props_group.setLayout(props_layout)
+        layout.addWidget(props_group)
+
+        # Add note about existing properties
+        note_label = QLabel("<i>Note: Existing properties will not be overwritten</i>")
+        note_label.setStyleSheet("color: gray;")
+        layout.addWidget(note_label)
+
+        # Connect checkbox signals
+        self.labels_checkbox.stateChanged.connect(
+            lambda state: self._update_selection("labels", state)
+        )
+        self.tags_checkbox.stateChanged.connect(
+            lambda state: self._update_selection("tags", state)
+        )
+        self.properties_checkbox.stateChanged.connect(
+            lambda state: self._update_selection("properties", state)
+        )
+
+        # Buttons
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+    def _update_selection(self, section: str, state: int) -> None:
+        """Update the selected_sections set based on checkbox state."""
+        if state == Qt.CheckState.Checked.value:
+            self.selected_sections.add(section)
+        else:
+            self.selected_sections.discard(section)

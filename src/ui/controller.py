@@ -1,5 +1,6 @@
 import json
 import logging
+from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 
 from PyQt6.QtCore import QObject, Qt, pyqtSlot, QTimer
@@ -12,6 +13,7 @@ from PyQt6.QtWidgets import (
     QTableWidget,
     QLineEdit,
     QApplication,
+    QFileDialog,
 )
 
 from models.completer_model import AutoCompletionUIHandler, CompleterInput
@@ -19,13 +21,19 @@ from models.property_model import PropertyItem
 from models.suggestion_model import SuggestionUIHandler, SuggestionResult
 from models.worker_model import WorkerOperation
 from services.autocompletion_service import AutoCompletionService
+from services.fast_inject_service import FastInjectService
 from services.image_service import ImageService
 from services.node_operation_service import NodeOperationsService
 from services.property_service import PropertyService
 from services.relationship_tree_service import RelationshipTreeService
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
-from ui.dialogs import SuggestionDialog, ConnectionSettingsDialog, StyleSettingsDialog
+from ui.dialogs import (
+    SuggestionDialog,
+    ConnectionSettingsDialog,
+    StyleSettingsDialog,
+    FastInjectDialog,
+)
 from ui.styles import StyleManager
 from utils.error_handler import ErrorHandler
 from utils.exporters import Exporter
@@ -71,6 +79,7 @@ class WorldBuildingController(QObject):
         self.property_service = PropertyService(self.config)
         self.image_service = ImageService()
         self.worker_manager = WorkerManagerService(self.error_handler)
+        self.fast_inject_service = FastInjectService()
 
         # Initialize the ui
         self.ui = ui
@@ -863,3 +872,24 @@ class WorldBuildingController(QObject):
                 return line_edit
 
         return UIHandler(self)
+
+    def handle_fast_inject(self) -> None:
+        """Handle the Fast Inject button click."""
+        file_path = QFileDialog.getOpenFileName(
+            self.ui, "Select Fast Inject Template", "", "Fast Inject Files (*.fi)"
+        )[0]
+
+        if not file_path:
+            return
+
+        try:
+            template = self.fast_inject_service.load_template(Path(file_path))
+            if template:
+                dialog = FastInjectDialog(template, self.ui)
+                if dialog.exec():
+                    self.fast_inject_service.apply_template(
+                        self.ui, template, dialog.selected_sections
+                    )
+                    self.update_unsaved_changes_indicator()
+        except Exception as e:
+            self.error_handler.handle_error(f"Fast Inject Error: {str(e)}")
