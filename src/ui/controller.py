@@ -887,8 +887,14 @@ class WorldBuildingController(QObject):
             if template:
                 dialog = FastInjectDialog(template, self.ui)
                 if dialog.exec():
+                    selected_properties = dialog.get_selected_properties_with_values()
+
                     self.fast_inject_service.apply_template(
-                        self.ui, template, dialog.selected_sections
+                        self.ui,
+                        template,
+                        dialog.selected_labels,
+                        dialog.selected_tags,
+                        selected_properties,
                     )
                     self.update_unsaved_changes_indicator()
         except Exception as e:

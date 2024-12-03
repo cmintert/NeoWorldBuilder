@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
     QHeaderView,
     QTableWidget,
+    QScrollArea,
 )
 
 from utils.crypto import SecurityUtility
@@ -340,103 +341,288 @@ class FastInjectDialog(QDialog):
         self.template = template
         self.setWindowTitle(f"Fast Inject Preview - {template['name']}")
         self.setModal(True)
-        self.resize(600, 400)
-        self.selected_sections: Set[str] = {
-            "labels",
-            "tags",
-            "properties",
-        }  # All selected by default
+        self.setMinimumWidth(800)
+        self.setMinimumHeight(600)
+
+        # Track selected items
+        self.selected_labels: Set[str] = set(template["content"]["labels"])
+        self.selected_tags: Set[str] = set(template["content"]["tags"])
+        self.selected_properties: Set[str] = set(
+            template["content"]["properties"].keys()
+        )
+        self.modified_property_values: Dict[str, str] = {}
+
         self.init_ui()
 
     def init_ui(self) -> None:
-        layout = QVBoxLayout(self)
+        main_layout = QVBoxLayout(self)
 
-        # Template name and description
+        # Header section with template info
+        header_widget = QWidget()
+        header_layout = QVBoxLayout(header_widget)
+        header_layout.setSpacing(5)
+
         name_label = QLabel(f"<b>{self.template['name']}</b>")
         name_label.setStyleSheet("font-size: 14px;")
-        layout.addWidget(name_label)
 
         desc_label = QLabel(self.template["description"])
         desc_label.setWordWrap(True)
-        desc_label.setStyleSheet("margin-bottom: 15px;")
-        layout.addWidget(desc_label)
+        desc_label.setStyleSheet("color: #666;")
 
-        # Labels section
-        labels_group = QGroupBox("Labels")
-        labels_layout = QVBoxLayout()
-        self.labels_checkbox = QCheckBox("Include Labels")
-        self.labels_checkbox.setChecked(True)
-        labels_layout.addWidget(self.labels_checkbox)
-        labels_text = ", ".join(self.template["content"]["labels"])
-        labels_label = QLabel(labels_text)
-        labels_label.setWordWrap(True)
-        labels_layout.addWidget(labels_label)
-        labels_group.setLayout(labels_layout)
-        layout.addWidget(labels_group)
+        header_layout.addWidget(name_label)
+        header_layout.addWidget(desc_label)
+        main_layout.addWidget(header_widget)
 
-        # Tags section
-        tags_group = QGroupBox("Tags")
-        tags_layout = QVBoxLayout()
-        self.tags_checkbox = QCheckBox("Include Tags")
-        self.tags_checkbox.setChecked(True)
-        tags_layout.addWidget(self.tags_checkbox)
-        tags_text = ", ".join(self.template["content"]["tags"])
-        tags_label = QLabel(tags_text)
-        tags_label.setWordWrap(True)
-        tags_layout.addWidget(tags_label)
-        tags_group.setLayout(tags_layout)
-        layout.addWidget(tags_group)
+        # Create horizontal layout for labels and tags
+        top_section = QWidget()
+        top_layout = QHBoxLayout(top_section)
+        top_layout.setSpacing(10)
 
-        # Properties section
-        props_group = QGroupBox("Properties")
-        props_layout = QVBoxLayout()
-        self.properties_checkbox = QCheckBox("Include Properties")
-        self.properties_checkbox.setChecked(True)
-        props_layout.addWidget(self.properties_checkbox)
+        # Labels section (left side)
+        labels_group = self._create_labels_group()
+        labels_group.setMaximumHeight(150)
+        top_layout.addWidget(labels_group)
 
-        props = self.template["content"]["properties"]
-        props_table = QTableWidget(len(props), 2)
-        props_table.setHorizontalHeaderLabels(["Property", "Default Value"])
-        header = props_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        # Tags section (right side)
+        tags_group = self._create_tags_group()
+        tags_group.setMaximumHeight(150)
+        top_layout.addWidget(tags_group)
 
-        for i, (key, value) in enumerate(props.items()):
-            props_table.setItem(i, 0, QTableWidgetItem(key))
-            props_table.setItem(i, 1, QTableWidgetItem(str(value)))
+        main_layout.addWidget(top_section)
 
-        props_table.setMinimumHeight(200)
-        props_layout.addWidget(props_table)
-        props_group.setLayout(props_layout)
-        layout.addWidget(props_group)
+        # Properties section (expanded)
+        props_group = self._create_properties_group()
+        main_layout.addWidget(props_group, stretch=1)  # Give properties more space
 
-        # Add note about existing properties
+        # Note about existing properties
         note_label = QLabel("<i>Note: Existing properties will not be overwritten</i>")
-        note_label.setStyleSheet("color: gray;")
-        layout.addWidget(note_label)
+        note_label.setStyleSheet("color: #666; padding: 5px;")
+        main_layout.addWidget(note_label)
 
-        # Connect checkbox signals
-        self.labels_checkbox.stateChanged.connect(
-            lambda state: self._update_selection("labels", state)
-        )
-        self.tags_checkbox.stateChanged.connect(
-            lambda state: self._update_selection("tags", state)
-        )
-        self.properties_checkbox.stateChanged.connect(
-            lambda state: self._update_selection("properties", state)
-        )
-
-        # Buttons
+        # Dialog buttons
         button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
+        main_layout.addWidget(button_box)
 
-    def _update_selection(self, section: str, state: int) -> None:
-        """Update the selected_sections set based on checkbox state."""
+    def _create_labels_group(self) -> QGroupBox:
+        """Create compact labels group."""
+        group = QGroupBox("Labels")
+        layout = QVBoxLayout()
+        layout.setSpacing(2)
+
+        # Select All checkbox
+        select_all = QCheckBox("Select All")
+        select_all.setChecked(True)
+        layout.addWidget(select_all)
+
+        # Create scrollable area for labels
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        labels_widget = QWidget()
+        labels_layout = QVBoxLayout(labels_widget)
+        labels_layout.setSpacing(1)
+        labels_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Individual label checkboxes
+        label_checkboxes: List[QCheckBox] = []
+        for label in self.template["content"]["labels"]:
+            checkbox = QCheckBox(label)
+            checkbox.setChecked(True)
+            checkbox.stateChanged.connect(
+                lambda state, l=label: self._update_label_selection(l, state)
+            )
+            labels_layout.addWidget(checkbox)
+            label_checkboxes.append(checkbox)
+
+        labels_layout.addStretch()
+        scroll.setWidget(labels_widget)
+
+        # Connect select all functionality
+        select_all.stateChanged.connect(
+            lambda state: self._toggle_all_labels(state, label_checkboxes)
+        )
+
+        layout.addWidget(scroll)
+        group.setLayout(layout)
+        return group
+
+    def _create_tags_group(self) -> QGroupBox:
+        """Create compact tags group."""
+        group = QGroupBox("Tags")
+        layout = QVBoxLayout()
+        layout.setSpacing(2)
+
+        # Select All checkbox
+        select_all = QCheckBox("Select All")
+        select_all.setChecked(True)
+        layout.addWidget(select_all)
+
+        # Create scrollable area for tags
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        tags_widget = QWidget()
+        tags_layout = QVBoxLayout(tags_widget)
+        tags_layout.setSpacing(1)
+        tags_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Individual tag checkboxes
+        tag_checkboxes: List[QCheckBox] = []
+        for tag in self.template["content"]["tags"]:
+            checkbox = QCheckBox(tag)
+            checkbox.setChecked(True)
+            checkbox.stateChanged.connect(
+                lambda state, t=tag: self._update_tag_selection(t, state)
+            )
+            tags_layout.addWidget(checkbox)
+            tag_checkboxes.append(checkbox)
+
+        tags_layout.addStretch()
+        scroll.setWidget(tags_widget)
+
+        # Connect select all functionality
+        select_all.stateChanged.connect(
+            lambda state: self._toggle_all_tags(state, tag_checkboxes)
+        )
+
+        layout.addWidget(scroll)
+        group.setLayout(layout)
+        return group
+
+    def _create_properties_group(self) -> QGroupBox:
+        """Create expanded properties group with enhanced table."""
+        group = QGroupBox("Properties")
+        layout = QVBoxLayout()
+        layout.setSpacing(5)
+
+        # Header controls
+        header_widget = QWidget()
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(0, 0, 0, 5)
+
+        select_all = QCheckBox("Select All Properties")
+        select_all.setChecked(True)
+        header_layout.addWidget(select_all)
+
+        # Add search/filter functionality
+        filter_input = QLineEdit()
+        filter_input.setPlaceholderText("Filter properties...")
+        filter_input.textChanged.connect(self._filter_properties)
+        header_layout.addWidget(filter_input)
+
+        layout.addWidget(header_widget)
+
+        # Create enhanced table with checkboxes
+        props = self.template["content"]["properties"]
+        self.props_table = QTableWidget(len(props), 3)
+        self.props_table.setHorizontalHeaderLabels(
+            ["Select", "Property", "Default Value"]
+        )
+
+        # Set table properties
+        self.props_table.verticalHeader().setVisible(False)
+        header = self.props_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.props_table.setColumnWidth(0, 50)
+        self.props_table.setColumnWidth(1, 300)
+
+        # Add properties to table with checkboxes
+        self.property_checkboxes: Dict[str, QCheckBox] = {}
+        for i, (key, value) in enumerate(props.items()):
+            # Checkbox
+            checkbox = QCheckBox()
+            checkbox.setChecked(True)
+            checkbox.stateChanged.connect(
+                lambda state, k=key: self._update_property_selection(k, state)
+            )
+            self.property_checkboxes[key] = checkbox
+            self.props_table.setCellWidget(i, 0, checkbox)
+
+            # Property name and value
+            name_item = QTableWidgetItem(key)
+            name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.props_table.setItem(i, 1, name_item)
+
+            value_item = QTableWidgetItem(str(value))
+            value_item.setFlags(value_item.flags() | Qt.ItemFlag.ItemIsEditable)
+            self.props_table.setItem(i, 2, value_item)
+
+            self.modified_property_values[key] = str(value)
+
+        # Connect select all functionality
+        self.props_table.itemChanged.connect(self._on_property_value_changed)
+        select_all.stateChanged.connect(
+            lambda state: self._toggle_all_properties(state)
+        )
+
+        layout.addWidget(self.props_table)
+        group.setLayout(layout)
+        return group
+
+    def _filter_properties(self, text: str) -> None:
+        """Filter properties table based on search text."""
+        search_text = text.lower()
+        for row in range(self.props_table.rowCount()):
+            property_name = self.props_table.item(row, 1).text().lower()
+            property_value = self.props_table.item(row, 2).text().lower()
+            matches = search_text in property_name or search_text in property_value
+            self.props_table.setRowHidden(row, not matches)
+
+    def _on_property_value_changed(self, item: QTableWidgetItem) -> None:
+        """Handle property value changes in the table."""
+        if item.column() == 2:  # Value column
+            prop_name = self.props_table.item(item.row(), 1).text()
+            self.modified_property_values[prop_name] = item.text()
+
+    def get_selected_properties_with_values(self) -> Dict[str, str]:
+        """Get selected properties with their potentially modified values."""
+        result = {}
+        for prop_name in self.selected_properties:
+            if prop_name in self.modified_property_values:
+                result[prop_name] = self.modified_property_values[prop_name]
+        return result
+
+    def _update_label_selection(self, label: str, state: int) -> None:
+        """Update the selected labels set based on checkbox state."""
         if state == Qt.CheckState.Checked.value:
-            self.selected_sections.add(section)
+            self.selected_labels.add(label)
         else:
-            self.selected_sections.discard(section)
+            self.selected_labels.discard(label)
+
+    def _update_tag_selection(self, tag: str, state: int) -> None:
+        """Update the selected tags set based on checkbox state."""
+        if state == Qt.CheckState.Checked.value:
+            self.selected_tags.add(tag)
+        else:
+            self.selected_tags.discard(tag)
+
+    def _update_property_selection(self, prop: str, state: int) -> None:
+        """Update the selected properties set based on checkbox state."""
+        if state == Qt.CheckState.Checked.value:
+            self.selected_properties.add(prop)
+        else:
+            self.selected_properties.discard(prop)
+
+    def _toggle_all_labels(self, state: int, checkboxes: List[QCheckBox]) -> None:
+        """Toggle all label checkboxes."""
+        for checkbox in checkboxes:
+            checkbox.setChecked(state == Qt.CheckState.Checked.value)
+
+    def _toggle_all_tags(self, state: int, checkboxes: List[QCheckBox]) -> None:
+        """Toggle all tag checkboxes."""
+        for checkbox in checkboxes:
+            checkbox.setChecked(state == Qt.CheckState.Checked.value)
+
+    def _toggle_all_properties(self, state: int) -> None:
+        """Toggle all property checkboxes."""
+        checked = state == Qt.CheckState.Checked.value
+        for checkbox in self.property_checkboxes.values():
+            checkbox.setChecked(checked)

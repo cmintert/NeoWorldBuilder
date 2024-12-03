@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Set
 
 from PyQt6.QtWidgets import QTableWidgetItem
 
@@ -64,44 +64,46 @@ class FastInjectService:
         self,
         ui: "WorldBuildingUI",
         template: Dict[str, Any],
-        selected_sections: set[str],
+        selected_labels: Set[str],
+        selected_tags: Set[str],
+        selected_properties: Dict[str, str],
     ) -> None:
         """Apply template data to the current UI state.
 
         Args:
             ui: The main UI instance
             template: Template data to apply
-            selected_sections: Set of sections to apply ('labels', 'tags', 'properties')
+            selected_labels: Set of label names to apply
+            selected_tags: Set of tag names to apply
+            selected_properties: Set of property names to apply
         """
-        content = template["content"]
-
-        # Apply labels if selected
-        if "labels" in selected_sections:
+        # Apply selected labels
+        if selected_labels:
             current_labels = {
                 label.strip()
                 for label in ui.labels_input.text().split(",")
                 if label.strip()
             }
-            new_labels = current_labels.union(content["labels"])
+            new_labels = current_labels.union(selected_labels)
             ui.labels_input.setText(", ".join(new_labels))
 
-        # Apply tags if selected
-        if "tags" in selected_sections:
+        # Apply selected tags
+        if selected_tags:
             current_tags = {
                 tag.strip() for tag in ui.tags_input.text().split(",") if tag.strip()
             }
-            new_tags = current_tags.union(content["tags"])
+            new_tags = current_tags.union(selected_tags)
             ui.tags_input.setText(", ".join(new_tags))
 
-        # Apply properties if selected
-        if "properties" in selected_sections:
+        # Apply selected properties
+        if selected_properties:
             existing_properties = set()
             for row in range(ui.properties_table.rowCount()):
                 if key_item := ui.properties_table.item(row, 0):
                     existing_properties.add(key_item.text())
 
-            # Add new properties
-            for key, value in content["properties"].items():
+            # Add new properties that were selected
+            for key, value in selected_properties.items():
                 if key not in existing_properties:
                     row = ui.properties_table.rowCount()
                     ui.properties_table.insertRow(row)
