@@ -26,6 +26,7 @@ from services.image_service import ImageService
 from services.node_operation_service import NodeOperationsService
 from services.property_service import PropertyService
 from services.relationship_tree_service import RelationshipTreeService
+from services.save_service import SaveService
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
 from ui.dialogs import (
@@ -106,6 +107,12 @@ class WorldBuildingController(QObject):
             self.worker_manager,
             self.error_handler,
             self._create_suggestion_ui_handler(),
+        )
+
+        self.save_service = SaveService(self.node_operations, self.error_handler)
+        self.save_service.start_periodic_check(
+            get_current_data=self._get_current_node_data,
+            on_state_changed=self._handle_save_state_changed,
         )
 
         # Initialize tree model and service
@@ -440,8 +447,18 @@ class WorldBuildingController(QObject):
         return current_data != self.original_node_data
 
     def update_unsaved_changes_indicator(self) -> None:
-        """Update the unsaved changes indicator."""
-        if self.is_node_changed():
+        """Update the unsaved changes indicator based on current state."""
+        current_data = self.node_operations.collect_node_data(
+            name=self.ui.name_input.text().strip(),
+            description=self.ui.description_input.toHtml().strip(),
+            tags=self.ui.tags_input.text(),
+            labels=self.ui.labels_input.text(),
+            properties=self._collect_table_properties(),
+            relationships=self._collect_table_relationships(),
+            image_path=self.current_image_path,
+        )
+
+        if current_data and self.save_service.check_for_changes(current_data):
             self.ui.save_button.setStyleSheet("background-color: #83A00E;")
         else:
             self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
@@ -575,6 +592,7 @@ class WorldBuildingController(QObject):
         """
         Clean up resources.
         """
+        self.save_service.stop_periodic_check()
         self.worker_manager.cancel_all_workers()
         self.model.close()
 
@@ -742,7 +760,6 @@ class WorldBuildingController(QObject):
 
     def _handle_save_success(self, _: Any) -> None:
         """Handle successful node save with proper UI updates."""
-        # Show success message
         msg_box = QMessageBox(self.ui)
         msg_box.setIcon(QMessageBox.Icon.Information)
         msg_box.setWindowTitle("Success")
@@ -753,12 +770,13 @@ class WorldBuildingController(QObject):
         # Auto-close message after 1 second
         QTimer.singleShot(1000, msg_box.accept)
 
-        # Update UI state
+        # Refresh UI state
         self.refresh_tree_view()
         self.load_node_data()
+        self.update_unsaved_changes_indicator()
 
-    def get_current_node_data(self) -> Optional[Dict[str, Any]]:
-        """Get current node data from UI fields."""
+    def _get_current_node_data(self) -> Dict[str, Any]:
+        """Get current node data from UI."""
         return self.node_operations.collect_node_data(
             name=self.ui.name_input.text().strip(),
             description=self.ui.description_input.toHtml().strip(),
@@ -899,3 +917,10 @@ class WorldBuildingController(QObject):
                     self.update_unsaved_changes_indicator()
         except Exception as e:
             self.error_handler.handle_error(f"Fast Inject Error: {str(e)}")
+
+    def _handle_save_state_changed(self, has_changes: bool) -> None:
+        """Handle changes in save state."""
+        if has_changes:
+            self.ui.save_button.setStyleSheet("background-color: #83A00E;")
+        else:
+            self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
