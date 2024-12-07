@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
 )
+
 from models.completer_model import AutoCompletionUIHandler, CompleterInput
 from models.property_model import PropertyItem
 from models.suggestion_model import SuggestionUIHandler, SuggestionResult
@@ -29,9 +30,9 @@ from services.save_service import SaveService
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
 from ui.dialogs import (
-    SuggestionDialog,
-    ConnectionSettingsDialog,
     StyleSettingsDialog,
+    ConnectionSettingsDialog,
+    SuggestionDialog,
     FastInjectDialog,
 )
 from ui.styles import StyleManager
@@ -195,8 +196,8 @@ class WorldBuildingController(QObject):
         self.ui.delete_button.clicked.connect(self.delete_node)
 
         # Image handling
-        self.ui.change_image_button.clicked.connect(self.change_image)
-        self.ui.delete_image_button.clicked.connect(self.delete_image)
+        self.ui.image_group.image_change_requested.connect(self.change_image)
+        self.ui.image_group.image_delete_requested.connect(self.delete_image)
 
         # Name input and autocomplete
 
@@ -515,15 +516,7 @@ class WorldBuildingController(QObject):
 
             # Update image if available
             image_path = node_properties.get("imagepath")
-
-            if image_path:
-                self.image_service.set_current_image(image_path)
-                self.current_image_path = image_path  # Keep controller in sync
-                self.ui.set_image(image_path)
-            else:
-                self.image_service.set_current_image(None)
-                self.current_image_path = None
-                self.ui.set_image(None)
+            self.ui.image_group.set_image(image_path)
 
         except Exception as e:
 
@@ -580,8 +573,7 @@ class WorldBuildingController(QObject):
         result = self.image_service.change_image(self.ui)
         if result.success:
             self.ui.set_image(result.path)
-            self.current_image_path = result.path
-            self.update_unsaved_changes_indicator()  # If you need to track changes
+            self.update_unsaved_changes_indicator()
         else:
             self.error_handler.handle_error(
                 f"Error changing image - {result.error_message}"
@@ -590,9 +582,8 @@ class WorldBuildingController(QObject):
     def delete_image(self) -> None:
         """Handle image deletion request from UI."""
         self.image_service.delete_image()
-        self.current_image_path = None
-        self.ui.set_image(None)
-        self.update_unsaved_changes_indicator()  # If you need to track changes
+        self.ui.image_group.set_image(None)
+        self.update_unsaved_changes_indicator()
 
     def export_to_filetype(self, format_type: str) -> None:
         """
@@ -755,7 +746,7 @@ class WorldBuildingController(QObject):
             labels=self.ui.labels_input.text(),
             properties=self._collect_table_properties(),
             relationships=self._collect_table_relationships(),
-            image_path=self.current_image_path,
+            image_path=self.ui.image_group.get_image_path(),
         )
 
     def change_application_style(self, style_name: str) -> None:

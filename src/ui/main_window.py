@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, Qt, QPoint
-from PyQt6.QtGui import QPixmap, QAction, QFont
+from PyQt6.QtGui import QAction, QFont
 from PyQt6.QtWidgets import (
     QWidget,
     QHBoxLayout,
@@ -31,7 +31,8 @@ from PyQt6.QtWidgets import (
     QApplication,
 )
 
-from ui.styles import StyleManager
+from src.ui.components.image_group import ImageGroup
+from src.ui.styles import StyleManager
 
 
 class WorldBuildingUI(QWidget):
@@ -124,10 +125,6 @@ class WorldBuildingUI(QWidget):
         self.save_button.clicked.connect(self.controller.save_node)
         self.delete_button.clicked.connect(self.controller.delete_node)
 
-        # Image handling
-        self.change_image_button.clicked.connect(self.controller.change_image)
-        self.delete_image_button.clicked.connect(self.controller.delete_image)
-
         # Name input
         self.name_input.editingFinished.connect(self.controller.load_node_data)
 
@@ -170,6 +167,10 @@ class WorldBuildingUI(QWidget):
         """Connect signals and finalize UI setup after controller is set"""
         if not self.controller:
             raise RuntimeError("Controller must be set before initializing UI")
+
+        # Connect image group signals
+        self.image_group.image_change_requested.connect(self.controller.change_image)
+        self.image_group.image_delete_requested.connect(self.controller.delete_image)
 
         # Connect all signals
         self._connect_signals()
@@ -573,48 +574,10 @@ class WorldBuildingUI(QWidget):
         cursor.endEditBlock()
 
     def _create_image_group(self) -> QGroupBox:
-        """
-        Create the image display group.
+        """Create the image display group."""
+        self.image_group = ImageGroup()
 
-        Returns:
-            QGroupBox: The image group box.
-        """
-        group = QGroupBox("Image")
-        group.setObjectName("imageGroupBox")
-        layout = QVBoxLayout()
-        layout.setObjectName("imageGroupLayout")
-
-        group.setFixedWidth(220)
-        group.setFixedHeight(300)
-
-        # Image display
-        self.image_label = QLabel()
-        self.image_label.setObjectName("imageLabel")
-        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label.setFixedSize(200, 200)
-
-        layout.addWidget(self.image_label)
-
-        # Image buttons
-        button_layout = QHBoxLayout()
-        button_layout.setObjectName("imageButtonLayout")
-        button_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.change_image_button = QPushButton("Change")
-        self.change_image_button.setObjectName("changeImageButton")
-        self.delete_image_button = QPushButton("Remove")
-        self.delete_image_button.setObjectName("deleteImageButton")
-
-        for button in [self.change_image_button, self.delete_image_button]:
-            button.setFixedWidth(97)
-            button.setMinimumHeight(30)
-
-        button_layout.addWidget(self.change_image_button)
-        button_layout.addWidget(self.delete_image_button)
-        button_layout.addStretch()
-        layout.addLayout(button_layout)
-
-        group.setLayout(layout)
-        return group
+        return self.image_group
 
     def _create_relationships_tab(self) -> QWidget:
         """
@@ -827,32 +790,11 @@ class WorldBuildingUI(QWidget):
         self.tags_input.clear()
         self.properties_table.setRowCount(0)
         self.relationships_table.setRowCount(0)
-        self.image_label.clear()
+        self.image_group.set_image(None)
 
     def set_image(self, image_path: Optional[str]) -> None:
-        """
-        Set image with proper scaling and error handling.
-
-        Args:
-            image_path (Optional[str]): The path to the image file.
-        """
-        if not image_path:
-            self.image_label.clear()
-            return
-
-        try:
-            pixmap = QPixmap(image_path)
-            if pixmap.isNull():
-                raise ValueError("Failed to load image")
-            scaled_pixmap = pixmap.scaled(
-                self.image_label.size(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            self.image_label.setPixmap(scaled_pixmap)
-        except Exception as e:
-            self.image_label.clear()
-            QMessageBox.warning(self, "Image Error", f"Failed to load image: {str(e)}")
+        """Set image with proper scaling and error handling."""
+        self.image_group.set_image(image_path)
 
     def add_relationship_row(
         self,
