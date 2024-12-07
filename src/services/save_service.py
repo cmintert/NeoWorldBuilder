@@ -4,7 +4,6 @@ from typing import Any, Dict, Optional, Callable
 from typing import List, Tuple
 
 from PyQt6.QtCore import QObject, QTimer
-
 from models.property_model import PropertyItem
 from services.node_operation_service import NodeOperationsService
 from utils.error_handler import ErrorHandler
@@ -66,6 +65,14 @@ class SaveService(QObject):
         """
         self._get_current_data_callback = get_current_data
         self._on_state_changed_callback = on_state_changed
+
+        # Initialize original data state when starting checks
+        try:
+            current_data = get_current_data()
+            self.save_state.original_data = current_data
+        except Exception as e:
+            logging.error(f"Error initializing save state: {e}")
+
         self.check_timer.start()
         logging.debug("Started periodic change checking")
 
@@ -173,9 +180,17 @@ class SaveService(QObject):
         Returns:
             bool: True if there are unsaved changes, False otherwise
         """
-        if not self.save_state.original_data:
-            return bool(current_data)  # True if there's data to save
+        # If no current data, no changes to track
+        if not current_data:
+            return False
 
+        # If we have no original data, treat this as original
+        if not self.save_state.original_data:
+            self.save_state.original_data = current_data
+            self.save_state.has_unsaved_changes = False
+            return False
+
+        # Compare with original data
         has_changes = current_data != self.save_state.original_data
         self.save_state.has_unsaved_changes = has_changes
         return has_changes

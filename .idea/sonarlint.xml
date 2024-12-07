@@ -3,6 +3,6 @@
   <component name="SonarLintProjectSettings">
     <option name="bindingEnabled" value="true" />
     <option name="projectKey" value="cmintert_NeoRealmBuilder" />
-    <option name="serverId" value="NeoRealmBuilder" />
+    <option name="serverId" value="NeoWorldBuilder" />
   </component>
 </project>

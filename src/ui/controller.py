@@ -15,7 +15,6 @@ from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
 )
-
 from models.completer_model import AutoCompletionUIHandler, CompleterInput
 from models.property_model import PropertyItem
 from models.suggestion_model import SuggestionUIHandler, SuggestionResult
@@ -175,17 +174,6 @@ class WorldBuildingController(QObject):
     def _initialize_completers(self) -> None:
         """Initialize auto-completion for node names and relationship targets."""
         self.auto_completion_service.initialize_node_completer(self.ui.name_input)
-
-    def on_completer_activated(self, text: str) -> None:
-        """
-        Handle completer selection.
-
-        Args:
-            text: The selected text from the completer
-        """
-        if text:
-            self.ui.name_input.setText(text)
-            self.load_node_data()
 
     def _add_target_completer_to_row(self, row: int) -> None:
         """
@@ -395,7 +383,7 @@ class WorldBuildingController(QObject):
         """
         Show the suggestions modal dialog.
         """
-        if node_data := self.get_current_node_data():
+        if node_data := self._get_current_node_data():
             self.suggestion_service.show_suggestions_modal(node_data)
 
     def on_completer_activated(self, text: str) -> None:
@@ -419,6 +407,8 @@ class WorldBuildingController(QObject):
         try:
             record = data[0]
             self._populate_node_fields(record)
+
+            # First, update the original data
             self.original_node_data = self.node_operations.collect_node_data(
                 name=self.ui.name_input.text().strip(),
                 description=self.ui.description_input.toHtml().strip(),
@@ -428,23 +418,15 @@ class WorldBuildingController(QObject):
                 relationships=self._collect_table_relationships(),
                 image_path=self.current_image_path,
             )
+
+            # Update the save service's original data
+            self.save_service.update_save_state(self.original_node_data)
+
+            # Reset button to gray
             self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
 
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
-
-    def is_node_changed(self) -> bool:
-        """Check if the node data has changed."""
-        current_data = self.node_operations.collect_node_data(
-            name=self.ui.name_input.text().strip(),
-            description=self.ui.description_input.toHtml().strip(),
-            tags=self.ui.tags_input.text(),
-            labels=self.ui.labels_input.text(),
-            properties=self._collect_table_properties(),
-            relationships=self._collect_table_relationships(),
-            image_path=self.current_image_path,
-        )
-        return current_data != self.original_node_data
 
     def update_unsaved_changes_indicator(self) -> None:
         """Update the unsaved changes indicator based on current state."""
@@ -472,17 +454,6 @@ class WorldBuildingController(QObject):
         """
         QMessageBox.information(self.ui, "Success", "Node deleted successfully")
         self._load_default_state()
-
-    def _update_save_progress(self, current: int, total: int) -> None:
-        """
-        Update progress during save operation.
-
-        Args:
-            current (int): The current progress value.
-            total (int): The total progress value.
-        """
-        # Could be connected to a progress bar in the UI
-        logging.info(f"Save progress: {current}/{total}")
 
     @pyqtSlot(object)
     def _populate_node_fields(self, record: Any) -> None:
@@ -793,21 +764,15 @@ class WorldBuildingController(QObject):
         Args:
             style_name: Name of the style to apply
         """
-        try:
-            app = QApplication.instance()
-            if app:
-                self.style_manager.apply_style(app, style_name)
-        except Exception as e:
-            logging.error(f"Failed to change style: {e}")
-            raise
+
+        app = QApplication.instance()
+        if app:
+            self.style_manager.apply_style(app, style_name)
 
     def refresh_styles(self) -> None:
         """Reload all styles from disk and reapply current style."""
-        try:
-            self.style_manager.reload_styles()
-        except Exception as e:
-            logging.error(f"Failed to refresh styles: {e}")
-            raise
+
+        self.style_manager.reload_styles()
 
     def _create_suggestion_ui_handler(self) -> SuggestionUIHandler:
         class UIHandler:
