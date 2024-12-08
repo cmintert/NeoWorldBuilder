@@ -63,37 +63,6 @@ class WorldBuildingUI(QWidget):
 
         self._create_ui_elements()
 
-    def init_ui(self) -> None:
-        """
-        Initialize the main UI layout with enhanced components.
-        """
-        main_layout = QHBoxLayout()
-        main_layout.setObjectName("mainLayout")
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(20)
-
-        # Create splitter for resizable panels
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setObjectName("mainLayoutSplitter")
-
-        # Left panel with search and tree
-        left_panel = self._create_left_panel()
-        splitter.addWidget(left_panel)
-
-        # Right panel with node details and progress
-        right_panel = self._create_right_panel()
-        splitter.addWidget(right_panel)
-
-        # Set stretch factors
-        splitter.setStretchFactor(0, 1)  # Left panel
-        splitter.setStretchFactor(1, 2)  # Right panel gets more space
-
-        main_layout.addWidget(splitter)
-        self.setLayout(main_layout)
-
-        # Apply styles
-        self.apply_styles()
-
     def _create_ui_elements(self) -> None:
         """Create all UI elements without connecting signals"""
         main_layout = QHBoxLayout()
@@ -214,9 +183,7 @@ class WorldBuildingUI(QWidget):
         # Enhanced tree view
         self.tree_view = QTreeView()
         self.tree_view.setObjectName("treeView")
-        # self.tree_view.setHeaderHidden(True)
-        # self.tree_view.setAnimated(True)
-        # self.tree_view.setAlternatingRowColors(True)
+
         self.tree_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.tree_view.customContextMenuRequested.connect(self._show_tree_context_menu)
@@ -431,6 +398,7 @@ class WorldBuildingUI(QWidget):
 
         layout.addWidget(self.add_rel_button)
         layout.addWidget(self.relationships_table)
+
         return tab
 
     def _create_properties_tab(self) -> QWidget:
@@ -566,41 +534,6 @@ class WorldBuildingUI(QWidget):
 
         # Set fixed width for delete button column
         table.setColumnWidth(2, 38)  # Delete button column
-
-    #############################################
-    # Progress and Status Methods
-    #############################################
-
-    def show_progress(self, visible: bool = True) -> None:
-        """
-        Show or hide progress bar.
-
-        Args:
-            visible (bool): Whether to show the progress bar. Defaults to True.
-        """
-        self.progress_bar.setVisible(visible)
-        if visible:
-            self.progress_bar.setValue(0)
-
-    def set_progress(self, value: int, maximum: int = 100) -> None:
-        """
-        Update progress bar.
-
-        Args:
-            value (int): The current progress value.
-            maximum (int): The maximum progress value. Defaults to 100.
-        """
-        self.progress_bar.setMaximum(maximum)
-        self.progress_bar.setValue(value)
-
-    def set_status(self, message: str) -> None:
-        """
-        Update status message.
-
-        Args:
-            message (str): The status message to display.
-        """
-        self.status_label.setText(message)
 
     #############################################
     # UI Update Methods
