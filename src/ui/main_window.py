@@ -1,9 +1,7 @@
 import json
-from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, Qt, QPoint
-from PyQt6.QtGui import QAction, QFont
 from PyQt6.QtWidgets import (
     QWidget,
     QHBoxLayout,
@@ -27,12 +25,11 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
-    QToolBar,
     QApplication,
 )
 
-from src.ui.components.image_group import ImageGroup
-from src.ui.styles import StyleManager
+from ui.components.formatting_toolbar import FormattingToolbar
+from ui.components.image_group import ImageGroup
 
 
 class WorldBuildingUI(QWidget):
@@ -51,8 +48,6 @@ class WorldBuildingUI(QWidget):
         super().__init__()
         self.controller = controller
 
-        self.style_manager = StyleManager(Path("src/config/styles"))
-
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setObjectName("WorldBuildingContent")
         self.setAttribute(
@@ -63,37 +58,6 @@ class WorldBuildingUI(QWidget):
         )  # Allow transparency
 
         self._create_ui_elements()
-
-    def init_ui(self) -> None:
-        """
-        Initialize the main UI layout with enhanced components.
-        """
-        main_layout = QHBoxLayout()
-        main_layout.setObjectName("mainLayout")
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(20)
-
-        # Create splitter for resizable panels
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setObjectName("mainLayoutSplitter")
-
-        # Left panel with search and tree
-        left_panel = self._create_left_panel()
-        splitter.addWidget(left_panel)
-
-        # Right panel with node details and progress
-        right_panel = self._create_right_panel()
-        splitter.addWidget(right_panel)
-
-        # Set stretch factors
-        splitter.setStretchFactor(0, 1)  # Left panel
-        splitter.setStretchFactor(1, 2)  # Right panel gets more space
-
-        main_layout.addWidget(splitter)
-        self.setLayout(main_layout)
-
-        # Apply styles
-        self.apply_styles()
 
     def _create_ui_elements(self) -> None:
         """Create all UI elements without connecting signals"""
@@ -215,9 +179,7 @@ class WorldBuildingUI(QWidget):
         # Enhanced tree view
         self.tree_view = QTreeView()
         self.tree_view.setObjectName("treeView")
-        # self.tree_view.setHeaderHidden(True)
-        # self.tree_view.setAnimated(True)
-        # self.tree_view.setAlternatingRowColors(True)
+
         self.tree_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.tree_view.customContextMenuRequested.connect(self._show_tree_context_menu)
@@ -370,7 +332,7 @@ class WorldBuildingUI(QWidget):
         self.description_input.setMinimumHeight(100)
 
         # Add formatting toolbar
-        self.formatting_toolbar = self._create_formatting_toolbar()
+        self.formatting_toolbar = FormattingToolbar(self.description_input, self)
 
         # Labels with auto-completion
         self.labels_input = QLineEdit()
@@ -398,180 +360,6 @@ class WorldBuildingUI(QWidget):
         main_layout.addWidget(image_group)
 
         return tab
-
-    def _create_formatting_toolbar(self) -> QToolBar:
-        """
-        Create the formatting toolbar with rich text options.
-
-        Returns:
-            QToolBar: The formatting toolbar.
-        """
-        toolbar = QToolBar("Formatting")
-        toolbar.setObjectName("formattingToolbar")
-        toolbar.setFixedHeight(24)
-
-        # Add actions for formatting
-        self._add_formatting_action(
-            toolbar, "H1", lambda: self._set_heading(1), shortcut="Ctrl+1"
-        )
-        self._add_formatting_action(
-            toolbar, "H2", lambda: self._set_heading(2), shortcut="Ctrl+2"
-        )
-        self._add_formatting_action(
-            toolbar, "H3", lambda: self._set_heading(3), shortcut="Ctrl+3"
-        )
-        self._add_formatting_action(toolbar, "Body", self._set_body, shortcut="Ctrl+0")
-        self._add_formatting_action(
-            toolbar, "Bold", self._set_bold, checkable=True, shortcut="Ctrl+B"
-        )
-        self._add_formatting_action(
-            toolbar, "Italic", self._set_italic, checkable=True, shortcut="Ctrl+I"
-        )
-        self._add_formatting_action(
-            toolbar, "Underline", self._set_underline, checkable=True, shortcut="Ctrl+U"
-        )
-
-        return toolbar
-
-    def _add_formatting_action(
-        self,
-        toolbar: QToolBar,
-        text: str,
-        slot: callable,
-        checkable: bool = False,
-        shortcut: Optional[str] = None,
-    ) -> None:
-        """
-        Add a formatting action to the toolbar.
-
-        Args:
-            toolbar (QToolBar): The toolbar to add the action to.
-            text (str): The text for the action.
-            slot (callable): The slot to connect the action to.
-            checkable (bool): Whether the action is checkable. Defaults to False.
-        """
-        action = QAction(text, self)
-        action.setCheckable(checkable)
-        action.triggered.connect(slot)
-
-        # Set the shortcut if provided
-        if shortcut:
-            action.setShortcut(shortcut)
-            action.setShortcutVisibleInContextMenu(True)
-
-        toolbar.addAction(action)
-        self.addAction(action)
-
-    def _set_heading1(self) -> None:
-        """
-        Set the selected text to heading 1.
-        """
-        self._set_heading(1)
-
-    def _set_heading2(self) -> None:
-        """
-        Set the selected text to heading 2.
-        """
-        self._set_heading(2)
-
-    def _set_heading3(self) -> None:
-        """
-        Set the selected text to heading 3.
-        """
-        self._set_heading(3)
-
-    def _set_heading(self, level: int) -> None:
-        """
-        Set the selected text to the specified heading level.
-
-        Args:
-            level (int): The heading level (1, 2, or 3).
-        """
-        cursor = self.description_input.textCursor()
-        cursor.beginEditBlock()
-
-        # Adjust font size and weight for heading levels
-        font = cursor.charFormat().font()
-        if level == 1:
-            font.setPointSize(16)  # Large size for H1
-            font.setWeight(QFont.Weight.Bold)  # Bold weight
-        elif level == 2:
-            font.setPointSize(14)  # Medium size for H2
-            font.setWeight(QFont.Weight.Medium)  # Medium weight
-        elif level == 3:
-            font.setPointSize(12)  # Smaller size for H3
-            font.setWeight(QFont.Weight.Normal)  # Normal weight
-
-        # Apply the font changes
-        char_format = cursor.charFormat()
-        char_format.setFont(font)
-        cursor.setCharFormat(char_format)
-
-        cursor.endEditBlock()
-
-    def _set_body(self) -> None:
-        """
-        Reset the selected text to standard body text formatting.
-        """
-        cursor = self.description_input.textCursor()
-        cursor.beginEditBlock()
-
-        # Create a standard font
-        standard_font = QFont()
-        standard_font.setPointSize(12)  # Default font size
-        standard_font.setWeight(QFont.Weight.Normal)  # Default weight
-
-        # Apply the standard font to the selected text
-        char_format = cursor.charFormat()
-        char_format.setFont(standard_font)
-        char_format.setFontItalic(False)
-        char_format.setFontUnderline(False)
-        cursor.setCharFormat(char_format)
-
-        cursor.endEditBlock()
-
-    def _set_bold(self) -> None:
-        """
-        Toggle bold formatting for the selected text.
-        """
-        self._toggle_format("bold")
-
-    def _set_italic(self) -> None:
-        """
-        Toggle italic formatting for the selected text.
-        """
-        self._toggle_format("italic")
-
-    def _set_underline(self) -> None:
-        """
-        Toggle underline formatting for the selected text.
-        """
-        self._toggle_format("underline")
-
-    def _toggle_format(self, format_type: str) -> None:
-        """
-        Toggle the specified format for the selected text.
-
-        Args:
-            format_type (str): The format type ('bold', 'italic', 'underline').
-        """
-        cursor = self.description_input.textCursor()
-        cursor.beginEditBlock()
-
-        char_format = cursor.charFormat()
-        if format_type == "bold":
-            char_format.setFontWeight(
-                QFont.Weight.Bold
-                if char_format.fontWeight() != QFont.Weight.Bold
-                else QFont.Weight.Normal
-            )
-        elif format_type == "italic":
-            char_format.setFontItalic(not char_format.fontItalic())
-        elif format_type == "underline":
-            char_format.setFontUnderline(not char_format.fontUnderline())
-
-        cursor.setCharFormat(char_format)
-        cursor.endEditBlock()
 
     def _create_image_group(self) -> QGroupBox:
         """Create the image display group."""
@@ -606,6 +394,7 @@ class WorldBuildingUI(QWidget):
 
         layout.addWidget(self.add_rel_button)
         layout.addWidget(self.relationships_table)
+
         return tab
 
     def _create_properties_tab(self) -> QWidget:
@@ -743,41 +532,6 @@ class WorldBuildingUI(QWidget):
         table.setColumnWidth(2, 38)  # Delete button column
 
     #############################################
-    # Progress and Status Methods
-    #############################################
-
-    def show_progress(self, visible: bool = True) -> None:
-        """
-        Show or hide progress bar.
-
-        Args:
-            visible (bool): Whether to show the progress bar. Defaults to True.
-        """
-        self.progress_bar.setVisible(visible)
-        if visible:
-            self.progress_bar.setValue(0)
-
-    def set_progress(self, value: int, maximum: int = 100) -> None:
-        """
-        Update progress bar.
-
-        Args:
-            value (int): The current progress value.
-            maximum (int): The maximum progress value. Defaults to 100.
-        """
-        self.progress_bar.setMaximum(maximum)
-        self.progress_bar.setValue(value)
-
-    def set_status(self, message: str) -> None:
-        """
-        Update status message.
-
-        Args:
-            message (str): The status message to display.
-        """
-        self.status_label.setText(message)
-
-    #############################################
     # UI Update Methods
     #############################################
 
@@ -871,10 +625,15 @@ class WorldBuildingUI(QWidget):
         try:
             print("\nStarting style application...")
 
-            # First, apply the default style to the application
+            if not self.controller:
+                raise RuntimeError("Controller not initialized when applying styles")
+
+            style_manager = self.controller.style_manager
+
+            # First, apply the default style to the applicationstyle_manager
             print("Applying default style to application")
             if app := QApplication.instance():
-                self.style_manager.apply_style(app, "default")
+                style_manager.apply_style(app, "default")
 
             # Then apply styles to specific components
             components = [
@@ -897,7 +656,7 @@ class WorldBuildingUI(QWidget):
                 widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
                 # Apply the style
-                self.style_manager.apply_style(widget, style)
+                style_manager.apply_style(widget, style)
 
                 # Verify style application
                 if not widget.styleSheet():
