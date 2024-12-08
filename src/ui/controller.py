@@ -72,6 +72,11 @@ class WorldBuildingController(QObject):
         self.model = model
         self.config = config
         self.app_instance = app_instance
+
+        # Initialize style management
+        self.style_manager = StyleManager("src/config/styles")
+        self.style_manager.registry.error_occurred.connect(self._show_error_dialog)
+
         self.exporter = Exporter(ui, self.config)
         self.ui.controller = self
         self.error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
@@ -120,10 +125,6 @@ class WorldBuildingController(QObject):
         self.relationship_tree_service = RelationshipTreeService(
             self.tree_model, self.NODE_RELATIONSHIPS_HEADER
         )
-
-        # Initialize style management
-        self.style_manager = StyleManager("src/config/styles")
-        self.style_manager.registry.error_occurred.connect(self._show_error_dialog)
 
         # Apply default application style
         self.style_manager.apply_style(app_instance, "default")

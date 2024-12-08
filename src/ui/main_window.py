@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, Qt, QPoint
@@ -31,7 +30,6 @@ from PyQt6.QtWidgets import (
 
 from ui.components.formatting_toolbar import FormattingToolbar
 from ui.components.image_group import ImageGroup
-from ui.styles import StyleManager
 
 
 class WorldBuildingUI(QWidget):
@@ -49,8 +47,6 @@ class WorldBuildingUI(QWidget):
         """
         super().__init__()
         self.controller = controller
-
-        self.style_manager = StyleManager(Path("src/config/styles"))
 
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setObjectName("WorldBuildingContent")
@@ -629,10 +625,15 @@ class WorldBuildingUI(QWidget):
         try:
             print("\nStarting style application...")
 
-            # First, apply the default style to the application
+            if not self.controller:
+                raise RuntimeError("Controller not initialized when applying styles")
+
+            style_manager = self.controller.style_manager
+
+            # First, apply the default style to the applicationstyle_manager
             print("Applying default style to application")
             if app := QApplication.instance():
-                self.style_manager.apply_style(app, "default")
+                style_manager.apply_style(app, "default")
 
             # Then apply styles to specific components
             components = [
@@ -655,7 +656,7 @@ class WorldBuildingUI(QWidget):
                 widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
                 # Apply the style
-                self.style_manager.apply_style(widget, style)
+                style_manager.apply_style(widget, style)
 
                 # Verify style application
                 if not widget.styleSheet():
