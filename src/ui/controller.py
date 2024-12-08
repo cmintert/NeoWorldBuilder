@@ -485,6 +485,33 @@ class WorldBuildingController(QObject):
             self.ui.labels_input.setText(", ".join(labels))
             self.ui.tags_input.setText(", ".join(node_tags))
 
+            # 1. First check if "map" label is present
+            is_map_node = "MAP" in {label.upper() for label in labels}
+
+            # 2. Show/hide map tab based on label
+            if is_map_node:
+                if not self.ui.map_tab:
+                    self.ui.map_tab = MapTab()
+                    self.ui.map_tab.map_image_changed.connect(
+                        self.ui._handle_map_image_changed
+                    )
+                    self.ui.tabs.addTab(self.ui.map_tab, "Map")
+            else:
+                if self.ui.map_tab:
+                    map_tab_index = self.ui.tabs.indexOf(self.ui.map_tab)
+                    if map_tab_index != -1:
+                        self.ui.tabs.removeTab(map_tab_index)
+                    self.ui.map_tab = None
+
+            # 3. Load map image if exists and map tab is shown
+            if is_map_node and self.ui.map_tab:
+                map_image_path = properties.get("mapimage")
+                if map_image_path:
+                    self.ui.map_tab.set_map_image(map_image_path)
+                else:
+                    # Clear any existing image if no path is set
+                    self.ui.map_tab.set_map_image(None)
+
             # Update properties table
             self.ui.properties_table.setRowCount(0)
             for key, value in properties.items():
