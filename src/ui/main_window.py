@@ -1,5 +1,5 @@
 import json
-from typing import Optional
+from typing import Optional, Set
 
 from PyQt6.QtCore import pyqtSignal, Qt, QPoint
 from PyQt6.QtWidgets import (
@@ -27,11 +27,14 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QApplication,
 )
+from structlog import get_logger
 
 from ui.components.formatting_toolbar import FormattingToolbar
 from ui.components.image_group import ImageGroup
 from ui.components.map_tab import MapTab
 from utils.converters import NamingConventionConverter
+
+logger = get_logger(__name__)
 
 
 class WorldBuildingUI(QWidget):
@@ -790,47 +793,101 @@ class WorldBuildingUI(QWidget):
         dialog.accept()
 
     def _handle_label_changes(self) -> None:
-        """Handle changes to labels and update map tab visibility."""
+        """
+        Handle changes to labels and update map tab visibility.
+
+        Updates the map tab visibility based on whether the 'Map' label
+        is present in the entity's labels. Creates or removes the map tab
+        and manages associated properties as needed.
+        """
         try:
-            if not hasattr(self, "tabs"):
+            if not self._can_handle_label_changes():
                 return
 
-            labels = {
-                NamingConventionConverter.to_camel_case(label.strip())
-                for label in self.labels_input.text().split(",")
-                if label.strip()
-            }
-            is_map = "Map" in labels
-
-            # Handle map tab visibility
-            if is_map:
-                if not self.map_tab:
-                    # Create and add map tab
-                    self.map_tab = MapTab()
-                    self.map_tab.map_image_changed.connect(
-                        self._handle_map_image_changed
-                    )
-                    self.tabs.addTab(self.map_tab, "Map")
-
-                    # Set map image if it exists in properties
-                    map_image_path = self._get_property_value("mapImage")
-                    if map_image_path:
-                        self.map_tab.set_map_image(map_image_path)
-            else:
-                if self.map_tab:
-                    map_tab_index = self.tabs.indexOf(self.map_tab)
-                    if map_tab_index != -1:
-                        self.tabs.removeTab(map_tab_index)
-                    self.map_tab = None
+            current_labels = self._get_normalized_labels()
+            self._update_map_tab_visibility("Map" in current_labels)
 
         except Exception as e:
-            import logging
+            self._handle_map_tab_error(e)
 
-            logging.error(f"Error in _handle_label_changes: {str(e)}")
-            if hasattr(self, "controller"):
-                self.controller.error_handler.handle_error(
-                    f"Error updating map tab: {str(e)}"
+    def _can_handle_label_changes(self) -> bool:
+        """
+        Check if the UI is ready to handle label changes.
+
+        Returns:
+            bool: True if tabs attribute exists, False otherwise.
+        """
+        return hasattr(self, "tabs")
+
+    def _get_normalized_labels(self) -> Set[str]:
+        """
+        Get normalized set of labels from the input field.
+
+        Returns:
+            Set[str]: Set of normalized label strings.
+        """
+        return {
+            NamingConventionConverter.to_camel_case(label.strip())
+            for label in self.labels_input.text().split(",")
+            if label.strip()
+        }
+
+    def _update_map_tab_visibility(self, should_show_map: bool) -> None:
+        """
+        Update map tab visibility and manage associated resources.
+
+        Args:
+            should_show_map (bool): Whether the map tab should be visible.
+        """
+        if should_show_map:
+            self._ensure_map_tab_exists()
+        else:
+            self._remove_map_tab_if_exists()
+
+    def _ensure_map_tab_exists(self) -> None:
+        """Create and configure map tab if it doesn't exist."""
+        if not hasattr(self, "map_tab") or not self.map_tab:
+            logger.debug("creating_map_tab", widget_id=self.objectName())
+            self.map_tab = MapTab()
+            self.map_tab.map_image_changed.connect(self._handle_map_image_changed)
+            self.tabs.addTab(self.map_tab, "Map")
+
+            # Set initial map image if available in properties
+            map_image_path = self._get_property_value("mapImage")
+            if map_image_path:
+                self.map_tab.set_map_image(map_image_path)
+                logger.info(
+                    "map_image_loaded", path=map_image_path, widget_id=self.objectName()
                 )
+
+    def _remove_map_tab_if_exists(self) -> None:
+        """Remove map tab if it exists."""
+        if hasattr(self, "map_tab") and self.map_tab:
+            map_tab_index = self.tabs.indexOf(self.map_tab)
+            if map_tab_index != -1:
+                self.tabs.removeTab(map_tab_index)
+                self.map_tab = None
+                logger.info("map_tab_removed", widget_id=self.objectName())
+
+    def _handle_map_tab_error(self, error: Exception) -> None:
+        """
+        Handle errors related to map tab management.
+
+        Args:
+            error (Exception): The error that occurred.
+        """
+        logger.error(
+            "map_tab_error",
+            error=str(error),
+            widget_id=self.objectName(),
+            module="world_building_ui",
+            function="_handle_label_changes",
+        )
+
+        if hasattr(self, "controller"):
+            self.controller.error_handler.handle_error(
+                f"Error updating map tab: {str(error)}"
+            )
 
     def _handle_map_image_changed(self, image_path: str) -> None:
         """Handle changes to the map image path."""

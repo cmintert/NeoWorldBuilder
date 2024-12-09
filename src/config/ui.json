@@ -16,5 +16,9 @@
     "MAIN_SPLITTER_LEFT_SIZE": 200,
     "MAIN_SPLITTER_CENTER": 500,
     "MAIN_SPLITTER_RIGHT_SIZE": 300,
-    "LAST_USED_STYLE": "default"
+    "LAST_USED_STYLE": "default",
+    "colors": {
+        "passiveSave": "#d3d3d3",
+        "activeSave": "#83A00E"
+    }
 }
