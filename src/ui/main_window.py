@@ -813,7 +813,7 @@ class WorldBuildingUI(QWidget):
                     self.tabs.addTab(self.map_tab, "Map")
 
                     # Set map image if it exists in properties
-                    map_image_path = self._get_property_value("map_image")
+                    map_image_path = self._get_property_value("mapImage")
                     if map_image_path:
                         self.map_tab.set_map_image(map_image_path)
             else:
@@ -835,7 +835,7 @@ class WorldBuildingUI(QWidget):
     def _handle_map_image_changed(self, image_path: str) -> None:
         """Handle changes to the map image path."""
         # Update or add map_image property
-        self._set_property_value("map_image", image_path)
+        self._set_property_value("mapImage", image_path)
         # Trigger unsaved changes update
         self.controller.update_unsaved_changes_indicator()
 

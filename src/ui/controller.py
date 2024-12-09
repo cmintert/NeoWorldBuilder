@@ -766,6 +766,9 @@ class WorldBuildingController(QObject):
         self.load_node_data()
         self.update_unsaved_changes_indicator()
 
+        # Activate the basic info tab
+        self.ui.tabs.setCurrentIndex(0)
+
     def _get_current_node_data(self) -> Dict[str, Any]:
         """Get current node data from UI."""
         return self.node_operations.collect_node_data(
