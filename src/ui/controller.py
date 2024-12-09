@@ -29,6 +29,7 @@ from services.relationship_tree_service import RelationshipTreeService
 from services.save_service import SaveService
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
+from ui.components.map_tab import MapTab
 from ui.dialogs import (
     StyleSettingsDialog,
     ConnectionSettingsDialog,
