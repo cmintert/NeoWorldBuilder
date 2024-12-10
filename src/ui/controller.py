@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
 )
+from structlog import get_logger
 
 from models.completer_model import AutoCompletionUIHandler, CompleterInput
 from models.property_model import PropertyItem
@@ -29,6 +30,7 @@ from services.relationship_tree_service import RelationshipTreeService
 from services.save_service import SaveService
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
+from ui.components.map_tab import MapTab
 from ui.dialogs import (
     StyleSettingsDialog,
     ConnectionSettingsDialog,
@@ -38,6 +40,8 @@ from ui.dialogs import (
 from ui.styles import StyleManager
 from utils.error_handler import ErrorHandler
 from utils.exporters import Exporter
+
+logger = get_logger(__name__)
 
 
 class WorldBuildingController(QObject):
@@ -195,10 +199,6 @@ class WorldBuildingController(QObject):
         # Main buttons
         self.ui.save_button.clicked.connect(self.save_node)
         self.ui.delete_button.clicked.connect(self.delete_node)
-
-        # Image handling
-        self.ui.image_group.image_change_requested.connect(self.change_image)
-        self.ui.image_group.image_delete_requested.connect(self.delete_image)
 
         # Name input and autocomplete
 
@@ -425,7 +425,7 @@ class WorldBuildingController(QObject):
             self.save_service.update_save_state(self.original_node_data)
 
             # Reset button to gray
-            self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
+            self.ui.save_button.setStyleSheet(self.config.colors.passiveSave)
 
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
@@ -443,9 +443,9 @@ class WorldBuildingController(QObject):
         )
 
         if current_data and self.save_service.check_for_changes(current_data):
-            self.ui.save_button.setStyleSheet("background-color: #83A00E;")
+            self.ui.save_button.setStyleSheet(self.config.colors.activeSave)
         else:
-            self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
+            self.ui.save_button.setStyleSheet(self.config.colors.passiveSave)
 
     def _handle_delete_success(self, _: Any) -> None:
         """
@@ -465,63 +465,150 @@ class WorldBuildingController(QObject):
         Args:
             record: The record containing node data.
         """
-
         try:
-            # Extract data from the record
-            node = record["n"]
-            labels = record["labels"]
-            relationships = record["relationships"]
-            properties = record["all_props"]
-
-            # Ensure node properties are accessed correctly
-            node_properties = dict(node)
-            node_name = node_properties.get("name", "")
-            node_description = node_properties.get("description", "")
-            node_tags = node_properties.get("tags", [])
-
-            # Update UI elements in the main thread
-            self.ui.name_input.setText(node_name)
-            self.ui.description_input.setHtml(node_description)
-            self.ui.labels_input.setText(", ".join(labels))
-            self.ui.tags_input.setText(", ".join(node_tags))
-
-            # Update properties table
-            self.ui.properties_table.setRowCount(0)
-            for key, value in properties.items():
-
-                if key.startswith("_"):
-                    continue
-
-                if key not in self.config.RESERVED_PROPERTY_KEYS:
-
-                    row = self.ui.properties_table.rowCount()
-                    self.ui.properties_table.insertRow(row)
-                    self.ui.properties_table.setItem(row, 0, QTableWidgetItem(key))
-                    self.ui.properties_table.setItem(
-                        row, 1, QTableWidgetItem(str(value))
-                    )
-                    delete_button = self.ui.create_delete_button(
-                        self.ui.properties_table, row
-                    )
-                    self.ui.properties_table.setCellWidget(row, 2, delete_button)
-
-            # Update relationships table
-            self.ui.relationships_table.setRowCount(0)
-            for rel in relationships:
-                rel_type = rel.get("type", "")
-                target = rel.get("end", "")
-                direction = rel.get("dir", ">")
-                props = json.dumps(rel.get("props", {}))
-
-                self.ui.add_relationship_row(rel_type, target, direction, props)
-
-            # Update image if available
-            image_path = node_properties.get("imagepath")
-            self.ui.image_group.set_image(image_path)
-
+            node_data = self._extract_node_data(record)
+            self._populate_basic_info(node_data)
+            self._populate_map_tab(node_data)
+            self._populate_properties(node_data["properties"])
+            self._populate_relationships(node_data["relationships"])
+            self._populate_basic_info_image(node_data["node_properties"])
         except Exception as e:
-
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
+
+    def _extract_node_data(self, record: Any) -> Dict[str, Any]:
+        """
+        Extract and organize node data from the database record.
+
+        Args:
+            record: The raw database record.
+
+        Returns:
+            Dict containing organized node data.
+        """
+        node = record["n"]
+        node_properties = dict(node)
+
+        return {
+            "node_properties": node_properties,
+            "name": node_properties.get("name", ""),
+            "description": node_properties.get("description", ""),
+            "tags": node_properties.get("tags", []),
+            "labels": record["labels"],
+            "relationships": record["relationships"],
+            "properties": record["all_props"],
+        }
+
+    def _populate_basic_info(self, node_data: Dict[str, Any]) -> None:
+        """
+        Populate basic node information fields.
+
+        Args:
+            node_data: Dictionary containing node information.
+        """
+        self.ui.name_input.setText(node_data["name"])
+        self.ui.description_input.setHtml(node_data["description"])
+        self.ui.labels_input.setText(", ".join(node_data["labels"]))
+        self.ui.tags_input.setText(", ".join(node_data["tags"]))
+
+    def _populate_map_tab(self, node_data: Dict[str, Any]) -> None:
+        """
+        Handle map tab visibility and population.
+
+        Args:
+            node_data: Dictionary containing node information.
+        """
+        is_map_node = "MAP" in {label.upper() for label in node_data["labels"]}
+
+        if is_map_node:
+            self._ensure_map_tab_exists()
+            self._update_map_image(node_data["properties"].get("mapimage"))
+        else:
+            self._remove_map_tab()
+
+    def _ensure_map_tab_exists(self) -> None:
+        """Create map tab if it doesn't exist."""
+        if not self.ui.map_tab:
+            self.ui.map_tab = MapTab()
+            self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
+            self.ui.tabs.addTab(self.ui.map_tab, "Map")
+
+    def _remove_map_tab(self) -> None:
+        """Remove map tab if it exists."""
+        if self.ui.map_tab:
+            map_tab_index = self.ui.tabs.indexOf(self.ui.map_tab)
+            if map_tab_index != -1:
+                self.ui.tabs.removeTab(map_tab_index)
+                self.ui.map_tab = None
+
+    def _update_map_image(self, image_path: Optional[str]) -> None:
+        """Update map image if map tab exists."""
+        if self.ui.map_tab:
+            self.ui.map_tab.set_map_image(image_path)
+
+    def _populate_properties(self, properties: Dict[str, Any]) -> None:
+        """
+        Populate properties table.
+
+        Args:
+            properties: Dictionary of node properties.
+        """
+        self.ui.properties_table.setRowCount(0)
+        for key, value in properties.items():
+            if self._should_display_property(key):
+                self._add_property_row(key, value)
+
+    def _should_display_property(self, key: str) -> bool:
+        """
+        Check if a property should be displayed in the properties table.
+
+        Args:
+            key: Property key to check.
+
+        Returns:
+            bool: True if property should be displayed.
+        """
+        return not key.startswith("_") and key not in self.config.RESERVED_PROPERTY_KEYS
+
+    def _add_property_row(self, key: str, value: Any) -> None:
+        """
+        Add a row to the properties table.
+
+        Args:
+            key: Property key.
+            value: Property value.
+        """
+        row = self.ui.properties_table.rowCount()
+        self.ui.properties_table.insertRow(row)
+        self.ui.properties_table.setItem(row, 0, QTableWidgetItem(key))
+        self.ui.properties_table.setItem(row, 1, QTableWidgetItem(str(value)))
+        delete_button = self.ui.create_delete_button(self.ui.properties_table, row)
+        self.ui.properties_table.setCellWidget(row, 2, delete_button)
+
+    def _populate_relationships(self, relationships: List[Dict[str, Any]]) -> None:
+        """
+        Populate relationships table.
+
+        Args:
+            relationships: List of relationship dictionaries.
+        """
+        self.ui.relationships_table.setRowCount(0)
+        for rel in relationships:
+            self.ui.add_relationship_row(
+                rel.get("type", ""),
+                rel.get("end", ""),
+                rel.get("dir", ">"),
+                json.dumps(rel.get("props", {})),
+            )
+
+    def _populate_basic_info_image(self, node_properties: Dict[str, Any]) -> None:
+        """
+        Set the node's image if available.
+
+        Args:
+            node_properties: Dictionary of node properties.
+        """
+        image_path = node_properties.get("imagepath")
+        self.ui.image_group.set_basic_image(image_path)
 
     @pyqtSlot(list)
     def _populate_relationship_tree(self, records: List[Any]) -> None:
@@ -537,6 +624,12 @@ class WorldBuildingController(QObject):
             root_node_name = self.ui.name_input.text().strip()
             root_item = QStandardItem(f"🔵 {root_node_name}")
             root_item.setData(root_node_name, Qt.ItemDataRole.UserRole)
+            root_item.setFlags(
+                Qt.ItemFlag.ItemIsEnabled
+                | Qt.ItemFlag.ItemIsSelectable
+                | Qt.ItemFlag.ItemIsUserCheckable
+            )
+            root_item.setCheckState(Qt.CheckState.Checked)
             self.tree_model.appendRow(root_item)
 
             parent_child_map, _ = (
@@ -569,21 +662,23 @@ class WorldBuildingController(QObject):
     # 8. Utility Methods
     #############################################
 
-    def change_image(self) -> None:
+    def change_basic_image(self) -> None:
         """Handle image change request from UI."""
         result = self.image_service.change_image(self.ui)
         if result.success:
-            self.ui.set_image(result.path)
+            self.current_image_path = result.path
+            self.image_service.set_current_image(result.path)
+            self.ui.image_group.set_basic_image(result.path)
             self.update_unsaved_changes_indicator()
         else:
             self.error_handler.handle_error(
                 f"Error changing image - {result.error_message}"
             )
 
-    def delete_image(self) -> None:
+    def delete_basic_image(self) -> None:
         """Handle image deletion request from UI."""
         self.image_service.delete_image()
-        self.ui.image_group.set_image(None)
+        self.ui.image_group.set_basic_image(None)
         self.update_unsaved_changes_indicator()
 
     def export_to_filetype(self, format_type: str) -> None:
@@ -704,6 +799,12 @@ class WorldBuildingController(QObject):
         if not self.node_operations.validate_node_name(name).is_valid:
             return
 
+        # Debug logging
+        print(f"Current image path before save: {self.current_image_path}")
+        print(
+            f"Image group path before save: {self.ui.image_group.get_basic_image_path()}"
+        )
+
         # Collect properties from UI
         properties = self._collect_table_properties()
         relationships = self._collect_table_relationships()
@@ -715,10 +816,11 @@ class WorldBuildingController(QObject):
             labels=self.ui.labels_input.text(),
             properties=properties,
             relationships=relationships,
-            image_path=self.current_image_path,
+            image_path=self.current_image_path,  # Use the controller's tracked path
         )
 
         if node_data:
+            print(f"Node data being saved: {node_data}")
             self.node_operations.save_node(node_data, self._handle_save_success)
 
     def _handle_save_success(self, _: Any) -> None:
@@ -738,6 +840,9 @@ class WorldBuildingController(QObject):
         self.load_node_data()
         self.update_unsaved_changes_indicator()
 
+        # Activate the basic info tab
+        self.ui.tabs.setCurrentIndex(0)
+
     def _get_current_node_data(self) -> Dict[str, Any]:
         """Get current node data from UI."""
         return self.node_operations.collect_node_data(
@@ -747,7 +852,7 @@ class WorldBuildingController(QObject):
             labels=self.ui.labels_input.text(),
             properties=self._collect_table_properties(),
             relationships=self._collect_table_relationships(),
-            image_path=self.ui.image_group.get_image_path(),
+            image_path=self.ui.image_group.get_basic_image_path(),
         )
 
     def change_application_style(self, style_name: str) -> None:

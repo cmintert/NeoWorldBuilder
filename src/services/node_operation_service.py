@@ -145,28 +145,30 @@ class NodeOperationsService:
         relationships: List[Tuple[str, str, str, str]],
         image_path: Optional[str],
     ) -> Optional[Dict[str, Any]]:
-        """Collect and validate all node data.
-
-        Args:
-            name: Node name
-            description: Node description
-            tags: Comma-separated tags
-            labels: Comma-separated labels
-            properties: List of property items
-            relationships: List of relationship tuples
-            image_path: Optional path to node image
-
-        Returns:
-            Complete node data dictionary or None if validation fails
-        """
+        """Collect and validate all node data."""
         try:
-            # Process properties first
-            additional_properties = self.property_service.process_properties(properties)
+
+            # Process user-visible properties (filter out reserved ones)
+            user_properties = [
+                p for p in properties if p.key not in self.config.RESERVED_PROPERTY_KEYS
+            ]
+            additional_properties = self.property_service.process_properties(
+                user_properties
+            )
             if additional_properties is None:
                 additional_properties = {}
 
-            # Format relationships
-            formatted_relationships = self._format_relationships(relationships)
+            # Preserve any reserved/system properties that were already present
+            reserved_properties = {
+                p.key: p.value
+                for p in properties
+                if p.key in self.config.RESERVED_PROPERTY_KEYS
+            }
+            additional_properties.update(reserved_properties)
+
+            # Add new image path if provided
+            if image_path:
+                additional_properties["imagepath"] = image_path
 
             # Build node data
             node_data = {
@@ -177,14 +179,11 @@ class NodeOperationsService:
                     label.strip().upper().replace(" ", "_")
                     for label in parse_comma_separated(labels)
                 ],
-                "relationships": formatted_relationships,
+                "relationships": self._format_relationships(relationships),
                 "additional_properties": additional_properties,
             }
 
-            # Handle image path
-            node_data["additional_properties"]["imagepath"] = image_path
-
-            logging.debug(f"Collected Node Data: {node_data}")
+            print(f"Final node data: {node_data}")
             return node_data
 
         except Exception as e:

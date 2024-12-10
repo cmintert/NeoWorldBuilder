@@ -1,5 +1,5 @@
 import json
-from typing import Optional
+from typing import Optional, Set
 
 from PyQt6.QtCore import pyqtSignal, Qt, QPoint
 from PyQt6.QtWidgets import (
@@ -27,9 +27,14 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QApplication,
 )
+from structlog import get_logger
 
 from ui.components.formatting_toolbar import FormattingToolbar
 from ui.components.image_group import ImageGroup
+from ui.components.map_tab import MapTab
+from utils.converters import NamingConventionConverter
+
+logger = get_logger(__name__)
 
 
 class WorldBuildingUI(QWidget):
@@ -47,7 +52,7 @@ class WorldBuildingUI(QWidget):
         """
         super().__init__()
         self.controller = controller
-
+        self.map_tab = None
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setObjectName("WorldBuildingContent")
         self.setAttribute(
@@ -56,6 +61,8 @@ class WorldBuildingUI(QWidget):
         self.setAttribute(
             Qt.WidgetAttribute.WA_TranslucentBackground, True
         )  # Allow transparency
+
+        self._signals_connected = False
 
         self._create_ui_elements()
 
@@ -132,12 +139,18 @@ class WorldBuildingUI(QWidget):
         if not self.controller:
             raise RuntimeError("Controller must be set before initializing UI")
 
-        # Connect image group signals
-        self.image_group.image_change_requested.connect(self.controller.change_image)
-        self.image_group.image_delete_requested.connect(self.controller.delete_image)
+        if not self._signals_connected:
+            # Connect image group signals only once
+            self.image_group.image_change_requested.connect(
+                self.controller.change_basic_image
+            )
+            self.image_group.image_delete_requested.connect(
+                self.controller.delete_basic_image
+            )
 
-        # Connect all signals
-        self._connect_signals()
+            # Connect all signals
+            self._connect_signals()
+            self._signals_connected = True
 
         # Apply styles
         self.apply_styles()
@@ -245,6 +258,9 @@ class WorldBuildingUI(QWidget):
         self.tabs.addTab(self._create_basic_info_tab(), "Basic Info")
         self.tabs.addTab(self._create_relationships_tab(), "Relationships")
         self.tabs.addTab(self._create_properties_tab(), "Properties")
+
+        # Add label change monitoring
+        self.labels_input.textChanged.connect(self._handle_label_changes)
 
         layout.addWidget(self.tabs)
 
@@ -544,11 +560,18 @@ class WorldBuildingUI(QWidget):
         self.tags_input.clear()
         self.properties_table.setRowCount(0)
         self.relationships_table.setRowCount(0)
-        self.image_group.set_image(None)
+        self.image_group.set_basic_image(None)
+
+        # Clear map tab if it exists
+        if self.map_tab:
+            map_tab_index = self.tabs.indexOf(self.map_tab)
+            if map_tab_index != -1:
+                self.tabs.removeTab(map_tab_index)
+            self.map_tab = None
 
     def set_image(self, image_path: Optional[str]) -> None:
         """Set image with proper scaling and error handling."""
-        self.image_group.set_image(image_path)
+        self.image_group.set_basic_image(image_path)
 
     def add_relationship_row(
         self,
@@ -776,6 +799,133 @@ class WorldBuildingUI(QWidget):
         properties_json = json.dumps(properties)
         self.relationships_table.item(row, 3).setText(properties_json)
         dialog.accept()
+
+    def _handle_label_changes(self) -> None:
+        """
+        Handle changes to labels and update map tab visibility.
+
+        Updates the map tab visibility based on whether the 'Map' label
+        is present in the entity's labels. Creates or removes the map tab
+        and manages associated properties as needed.
+        """
+        try:
+            if not self._can_handle_label_changes():
+                return
+
+            current_labels = self._get_normalized_labels()
+            self._update_map_tab_visibility("Map" in current_labels)
+
+        except Exception as e:
+            self._handle_map_tab_error(e)
+
+    def _can_handle_label_changes(self) -> bool:
+        """
+        Check if the UI is ready to handle label changes.
+
+        Returns:
+            bool: True if tabs attribute exists, False otherwise.
+        """
+        return hasattr(self, "tabs")
+
+    def _get_normalized_labels(self) -> Set[str]:
+        """
+        Get normalized set of labels from the input field.
+
+        Returns:
+            Set[str]: Set of normalized label strings.
+        """
+        return {
+            NamingConventionConverter.to_camel_case(label.strip())
+            for label in self.labels_input.text().split(",")
+            if label.strip()
+        }
+
+    def _update_map_tab_visibility(self, should_show_map: bool) -> None:
+        """
+        Update map tab visibility and manage associated resources.
+
+        Args:
+            should_show_map (bool): Whether the map tab should be visible.
+        """
+        if should_show_map:
+            self._ensure_map_tab_exists()
+        else:
+            self._remove_map_tab_if_exists()
+
+    def _ensure_map_tab_exists(self) -> None:
+        """Create and configure map tab if it doesn't exist."""
+        if not hasattr(self, "map_tab") or not self.map_tab:
+            logger.debug("creating_map_tab", widget_id=self.objectName())
+            self.map_tab = MapTab()
+            self.map_tab.map_image_changed.connect(self._handle_map_image_changed)
+            self.tabs.addTab(self.map_tab, "Map")
+
+            # Set initial map image if available in properties
+            map_image_path = self._get_property_value("mapimage")
+            if map_image_path:
+                self.map_tab.set_map_image(map_image_path)
+                logger.info(
+                    "map_image_loaded", path=map_image_path, widget_id=self.objectName()
+                )
+
+    def _remove_map_tab_if_exists(self) -> None:
+        """Remove map tab if it exists."""
+        if hasattr(self, "map_tab") and self.map_tab:
+            map_tab_index = self.tabs.indexOf(self.map_tab)
+            if map_tab_index != -1:
+                self.tabs.removeTab(map_tab_index)
+                self.map_tab = None
+                logger.info("map_tab_removed", widget_id=self.objectName())
+
+    def _handle_map_tab_error(self, error: Exception) -> None:
+        """
+        Handle errors related to map tab management.
+
+        Args:
+            error (Exception): The error that occurred.
+        """
+        logger.error(
+            "map_tab_error",
+            error=str(error),
+            widget_id=self.objectName(),
+            module="world_building_ui",
+            function="_handle_label_changes",
+        )
+
+        if hasattr(self, "controller"):
+            self.controller.error_handler.handle_error(
+                f"Error updating map tab: {str(error)}"
+            )
+
+    def _handle_map_image_changed(self, image_path: str) -> None:
+        """Handle changes to the map image path."""
+        # Update or add map_image property
+        self._set_property_value("mapimage", image_path)
+        # Trigger unsaved changes update
+        self.controller.update_unsaved_changes_indicator()
+
+    def _get_property_value(self, key: str) -> Optional[str]:
+        """Get a property value from the properties table."""
+        for row in range(self.properties_table.rowCount()):
+            if self.properties_table.item(row, 0).text() == key:
+                return self.properties_table.item(row, 1).text()
+        return None
+
+    def _set_property_value(self, key: str, value: str) -> None:
+        """Set a property value in the properties table."""
+        # Look for existing property
+        for row in range(self.properties_table.rowCount()):
+            if self.properties_table.item(row, 0).text() == key:
+                self.properties_table.item(row, 1).setText(value)
+                return
+
+        # Add new property if not found
+        row = self.properties_table.rowCount()
+        self.properties_table.insertRow(row)
+        self.properties_table.setItem(row, 0, QTableWidgetItem(key))
+        self.properties_table.setItem(row, 1, QTableWidgetItem(value))
+        delete_button = self.create_delete_button(self.properties_table, row)
+        self.properties_table.setCellWidget(row, 2, delete_button)
 
 
 class ConnectionSettingsDialog(QDialog):
