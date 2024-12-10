@@ -24,13 +24,13 @@ from models.worker_model import WorkerOperation
 from services.autocompletion_service import AutoCompletionService
 from services.fast_inject_service import FastInjectService
 from services.image_service import ImageService
+from services.map_service import MapService
 from services.node_operation_service import NodeOperationsService
 from services.property_service import PropertyService
 from services.relationship_tree_service import RelationshipTreeService
 from services.save_service import SaveService
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
-from ui.components.map_tab import MapTab
 from ui.dialogs import (
     StyleSettingsDialog,
     ConnectionSettingsDialog,
@@ -90,6 +90,7 @@ class WorldBuildingController(QObject):
         self.image_service = ImageService()
         self.worker_manager = WorkerManagerService(self.error_handler)
         self.fast_inject_service = FastInjectService()
+        self.map_service = MapService(self.ui)
 
         # Initialize the ui
         self.ui = ui
@@ -468,7 +469,7 @@ class WorldBuildingController(QObject):
         try:
             node_data = self._extract_node_data(record)
             self._populate_basic_info(node_data)
-            self._populate_map_tab(node_data)
+            self.map_service.populate_map_tab(node_data)
             self._populate_properties(node_data["properties"])
             self._populate_relationships(node_data["relationships"])
             self._populate_basic_info_image(node_data["node_properties"])
@@ -509,41 +510,6 @@ class WorldBuildingController(QObject):
         self.ui.description_input.setHtml(node_data["description"])
         self.ui.labels_input.setText(", ".join(node_data["labels"]))
         self.ui.tags_input.setText(", ".join(node_data["tags"]))
-
-    def _populate_map_tab(self, node_data: Dict[str, Any]) -> None:
-        """
-        Handle map tab visibility and population.
-
-        Args:
-            node_data: Dictionary containing node information.
-        """
-        is_map_node = "MAP" in {label.upper() for label in node_data["labels"]}
-
-        if is_map_node:
-            self._ensure_map_tab_exists()
-            self._update_map_image(node_data["properties"].get("mapimage"))
-        else:
-            self._remove_map_tab()
-
-    def _ensure_map_tab_exists(self) -> None:
-        """Create map tab if it doesn't exist."""
-        if not self.ui.map_tab:
-            self.ui.map_tab = MapTab()
-            self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
-            self.ui.tabs.addTab(self.ui.map_tab, "Map")
-
-    def _remove_map_tab(self) -> None:
-        """Remove map tab if it exists."""
-        if self.ui.map_tab:
-            map_tab_index = self.ui.tabs.indexOf(self.ui.map_tab)
-            if map_tab_index != -1:
-                self.ui.tabs.removeTab(map_tab_index)
-                self.ui.map_tab = None
-
-    def _update_map_image(self, image_path: Optional[str]) -> None:
-        """Update map image if map tab exists."""
-        if self.ui.map_tab:
-            self.ui.map_tab.set_map_image(image_path)
 
     def _populate_properties(self, properties: Dict[str, Any]) -> None:
         """
