@@ -78,9 +78,9 @@ class MapTab(QWidget):
         self.zoom_timer.setSingleShot(True)
         self.zoom_timer.timeout.connect(self._perform_zoom)
         self.pending_scale = None
-        self.setup_ui()
+        self.setup_map_tab_ui()
 
-    def setup_ui(self) -> None:
+    def setup_map_tab_ui(self) -> None:
         """Setup the UI components."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -160,7 +160,7 @@ class MapTab(QWidget):
             return
 
         self.original_pixmap = pixmap
-        self._update_image_display()
+        self._update_map_image_display()
 
     def get_map_image_path(self) -> Optional[str]:
         """Get the current map image path."""
@@ -194,16 +194,16 @@ class MapTab(QWidget):
         """Actually perform the zoom operation after debounce."""
         if self.pending_scale is not None:
             self.current_scale = self.pending_scale
-            self._update_image_display()
+            self._update_map_image_display()
             self.pending_scale = None
 
     def _reset_zoom(self) -> None:
         """Reset zoom to 100%."""
         self.zoom_slider.setValue(100)
         self.current_scale = 1.0
-        self._update_image_display()
+        self._update_map_image_display()
 
-    def _update_image_display(self) -> None:
+    def _update_map_image_display(self) -> None:
         """Update the displayed image with current scale while maintaining the center point."""
         if not hasattr(self, "original_pixmap"):
             return

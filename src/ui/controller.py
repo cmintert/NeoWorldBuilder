@@ -471,7 +471,7 @@ class WorldBuildingController(QObject):
             self._populate_map_tab(node_data)
             self._populate_properties(node_data["properties"])
             self._populate_relationships(node_data["relationships"])
-            self._populate_image(node_data["node_properties"])
+            self._populate_basic_info_image(node_data["node_properties"])
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
 
@@ -600,7 +600,7 @@ class WorldBuildingController(QObject):
                 json.dumps(rel.get("props", {})),
             )
 
-    def _populate_image(self, node_properties: Dict[str, Any]) -> None:
+    def _populate_basic_info_image(self, node_properties: Dict[str, Any]) -> None:
         """
         Set the node's image if available.
 
@@ -608,7 +608,7 @@ class WorldBuildingController(QObject):
             node_properties: Dictionary of node properties.
         """
         image_path = node_properties.get("imagepath")
-        self.ui.image_group.set_image(image_path)
+        self.ui.image_group.set_basic_image(image_path)
 
     @pyqtSlot(list)
     def _populate_relationship_tree(self, records: List[Any]) -> None:
@@ -662,23 +662,23 @@ class WorldBuildingController(QObject):
     # 8. Utility Methods
     #############################################
 
-    def change_image(self) -> None:
+    def change_basic_image(self) -> None:
         """Handle image change request from UI."""
         result = self.image_service.change_image(self.ui)
         if result.success:
             self.current_image_path = result.path
             self.image_service.set_current_image(result.path)
-            self.ui.image_group.set_image(result.path)
+            self.ui.image_group.set_basic_image(result.path)
             self.update_unsaved_changes_indicator()
         else:
             self.error_handler.handle_error(
                 f"Error changing image - {result.error_message}"
             )
 
-    def delete_image(self) -> None:
+    def delete_basic_image(self) -> None:
         """Handle image deletion request from UI."""
         self.image_service.delete_image()
-        self.ui.image_group.set_image(None)
+        self.ui.image_group.set_basic_image(None)
         self.update_unsaved_changes_indicator()
 
     def export_to_filetype(self, format_type: str) -> None:
@@ -801,7 +801,9 @@ class WorldBuildingController(QObject):
 
         # Debug logging
         print(f"Current image path before save: {self.current_image_path}")
-        print(f"Image group path before save: {self.ui.image_group.get_image_path()}")
+        print(
+            f"Image group path before save: {self.ui.image_group.get_basic_image_path()}"
+        )
 
         # Collect properties from UI
         properties = self._collect_table_properties()
@@ -850,7 +852,7 @@ class WorldBuildingController(QObject):
             labels=self.ui.labels_input.text(),
             properties=self._collect_table_properties(),
             relationships=self._collect_table_relationships(),
-            image_path=self.ui.image_group.get_image_path(),
+            image_path=self.ui.image_group.get_basic_image_path(),
         )
 
     def change_application_style(self, style_name: str) -> None:

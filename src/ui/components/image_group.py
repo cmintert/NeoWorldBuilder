@@ -24,9 +24,9 @@ class ImageGroup(QGroupBox):
         super().__init__("Image", parent)
         self.setObjectName("imageGroupBox")
         self._current_image_path: Optional[str] = None
-        self._init_ui()
+        self._init_image_group_ui()
 
-    def _init_ui(self) -> None:
+    def _init_image_group_ui(self) -> None:
         """Initialize the UI layout and widgets."""
         # Set group box size
         self.setFixedWidth(220)
@@ -79,7 +79,7 @@ class ImageGroup(QGroupBox):
         """Internal handler for delete button clicks"""
         self.image_delete_requested.emit()
 
-    def set_image(self, image_path: Optional[str]) -> None:
+    def set_basic_image(self, image_path: Optional[str]) -> None:
         """Set or clear the displayed image."""
         self._current_image_path = image_path
 
@@ -104,6 +104,6 @@ class ImageGroup(QGroupBox):
             self.image_label.clear()
             QMessageBox.warning(self, "Image Error", f"Failed to load image: {str(e)}")
 
-    def get_image_path(self) -> Optional[str]:
+    def get_basic_image_path(self) -> Optional[str]:
         """Get the current image path."""
         return self._current_image_path

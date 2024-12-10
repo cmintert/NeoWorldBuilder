@@ -142,10 +142,10 @@ class WorldBuildingUI(QWidget):
         if not self._signals_connected:
             # Connect image group signals only once
             self.image_group.image_change_requested.connect(
-                self.controller.change_image
+                self.controller.change_basic_image
             )
             self.image_group.image_delete_requested.connect(
-                self.controller.delete_image
+                self.controller.delete_basic_image
             )
 
             # Connect all signals
@@ -560,7 +560,7 @@ class WorldBuildingUI(QWidget):
         self.tags_input.clear()
         self.properties_table.setRowCount(0)
         self.relationships_table.setRowCount(0)
-        self.image_group.set_image(None)
+        self.image_group.set_basic_image(None)
 
         # Clear map tab if it exists
         if self.map_tab:
@@ -571,7 +571,7 @@ class WorldBuildingUI(QWidget):
 
     def set_image(self, image_path: Optional[str]) -> None:
         """Set image with proper scaling and error handling."""
-        self.image_group.set_image(image_path)
+        self.image_group.set_basic_image(image_path)
 
     def add_relationship_row(
         self,
