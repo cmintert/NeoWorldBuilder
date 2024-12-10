@@ -147,23 +147,28 @@ class NodeOperationsService:
     ) -> Optional[Dict[str, Any]]:
         """Collect and validate all node data."""
         try:
-            # Debug logging
-            print(f"Collecting node data with image path: {image_path}")
-            print(f"Initial properties: {properties}")
 
-            # Create a new PropertyItem for the image path
-            if image_path:
-                # Check if imagepath already exists in properties
-                has_image_property = any(p.key == "imagepath" for p in properties)
-                if not has_image_property:
-                    properties.append(PropertyItem("imagepath", image_path))
-
-            # Process properties including the image path
-            additional_properties = self.property_service.process_properties(properties)
-            print(f"Processed additional properties: {additional_properties}")
-
+            # Process user-visible properties (filter out reserved ones)
+            user_properties = [
+                p for p in properties if p.key not in self.config.RESERVED_PROPERTY_KEYS
+            ]
+            additional_properties = self.property_service.process_properties(
+                user_properties
+            )
             if additional_properties is None:
                 additional_properties = {}
+
+            # Preserve any reserved/system properties that were already present
+            reserved_properties = {
+                p.key: p.value
+                for p in properties
+                if p.key in self.config.RESERVED_PROPERTY_KEYS
+            }
+            additional_properties.update(reserved_properties)
+
+            # Add new image path if provided
+            if image_path:
+                additional_properties["imagepath"] = image_path
 
             # Build node data
             node_data = {
