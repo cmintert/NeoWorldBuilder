@@ -62,6 +62,8 @@ class WorldBuildingUI(QWidget):
             Qt.WidgetAttribute.WA_TranslucentBackground, True
         )  # Allow transparency
 
+        self._signals_connected = False
+
         self._create_ui_elements()
 
     def _create_ui_elements(self) -> None:
@@ -137,12 +139,18 @@ class WorldBuildingUI(QWidget):
         if not self.controller:
             raise RuntimeError("Controller must be set before initializing UI")
 
-        # Connect image group signals
-        self.image_group.image_change_requested.connect(self.controller.change_image)
-        self.image_group.image_delete_requested.connect(self.controller.delete_image)
+        if not self._signals_connected:
+            # Connect image group signals only once
+            self.image_group.image_change_requested.connect(
+                self.controller.change_image
+            )
+            self.image_group.image_delete_requested.connect(
+                self.controller.delete_image
+            )
 
-        # Connect all signals
-        self._connect_signals()
+            # Connect all signals
+            self._connect_signals()
+            self._signals_connected = True
 
         # Apply styles
         self.apply_styles()

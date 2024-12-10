@@ -200,10 +200,6 @@ class WorldBuildingController(QObject):
         self.ui.save_button.clicked.connect(self.save_node)
         self.ui.delete_button.clicked.connect(self.delete_node)
 
-        # Image handling
-        self.ui.image_group.image_change_requested.connect(self.change_image)
-        self.ui.image_group.image_delete_requested.connect(self.delete_image)
-
         # Name input and autocomplete
 
         self.ui.name_input.editingFinished.connect(self.load_node_data)
@@ -670,7 +666,9 @@ class WorldBuildingController(QObject):
         """Handle image change request from UI."""
         result = self.image_service.change_image(self.ui)
         if result.success:
-            self.ui.set_image(result.path)
+            self.current_image_path = result.path
+            self.image_service.set_current_image(result.path)
+            self.ui.image_group.set_image(result.path)
             self.update_unsaved_changes_indicator()
         else:
             self.error_handler.handle_error(
@@ -801,6 +799,10 @@ class WorldBuildingController(QObject):
         if not self.node_operations.validate_node_name(name).is_valid:
             return
 
+        # Debug logging
+        print(f"Current image path before save: {self.current_image_path}")
+        print(f"Image group path before save: {self.ui.image_group.get_image_path()}")
+
         # Collect properties from UI
         properties = self._collect_table_properties()
         relationships = self._collect_table_relationships()
@@ -812,10 +814,11 @@ class WorldBuildingController(QObject):
             labels=self.ui.labels_input.text(),
             properties=properties,
             relationships=relationships,
-            image_path=self.current_image_path,
+            image_path=self.current_image_path,  # Use the controller's tracked path
         )
 
         if node_data:
+            print(f"Node data being saved: {node_data}")
             self.node_operations.save_node(node_data, self._handle_save_success)
 
     def _handle_save_success(self, _: Any) -> None:
