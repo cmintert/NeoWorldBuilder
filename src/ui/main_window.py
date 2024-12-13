@@ -899,8 +899,11 @@ class WorldBuildingUI(QWidget):
 
     def _handle_map_image_changed(self, image_path: str) -> None:
         """Handle changes to the map image path."""
-        # Update or add map_image property
-        self._set_property_value("mapimage", image_path)
+        # Directly update all_props in controller
+        self.controller.all_props["mapimage"] = image_path
+        print(
+            f"All props updated: {self.controller.all_props} *********************************"
+        )
         # Trigger unsaved changes update
         self.controller.update_unsaved_changes_indicator()
 

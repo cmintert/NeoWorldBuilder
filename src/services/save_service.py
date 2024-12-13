@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Callable
 from typing import List, Tuple
 
 from PyQt6.QtCore import QObject, QTimer
+
 from models.property_model import PropertyItem
 from services.node_operation_service import NodeOperationsService
 from utils.error_handler import ErrorHandler
@@ -33,7 +34,7 @@ class SaveService(QObject):
         self,
         node_operations: NodeOperationsService,
         error_handler: ErrorHandler,
-        check_interval: int = 1000,  # Default to checking every 1000ms (1 second)
+        check_interval: int = 10000,  # Default to checking every 1000ms (1 second)
     ) -> None:
         super().__init__()
         self.node_operations = node_operations

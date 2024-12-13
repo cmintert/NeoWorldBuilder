@@ -410,6 +410,13 @@ class WorldBuildingController(QObject):
             record = data[0]
             self._populate_node_fields(record)
 
+            # Ensure all_props is a dict
+            self.all_props: Dict[str, Any] = record.get("all_props", {})
+            if not isinstance(self.all_props, dict):
+                self.all_props = {}
+
+            logger.debug("processing_props", all_props=self.all_props)
+
             # First, update the original data
             self.original_node_data = self.node_operations.collect_node_data(
                 name=self.ui.name_input.text().strip(),
@@ -419,6 +426,7 @@ class WorldBuildingController(QObject):
                 properties=self._collect_table_properties(),
                 relationships=self._collect_table_relationships(),
                 image_path=self.current_image_path,
+                all_props=self.all_props,
             )
 
             # Update the save service's original data
@@ -427,8 +435,12 @@ class WorldBuildingController(QObject):
             # Reset button to gray
             self.ui.save_button.setStyleSheet(self.config.colors.passiveSave)
 
+        except AttributeError as e:
+            logger.error("invalid_data_format", error=str(e))
+            self.error_handler.handle_error("Invalid data format in node properties")
         except Exception as e:
-            self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
+            logger.error("node_processing_error", error=str(e))
+            self.error_handler.handle_error(f"Error processing node data: {str(e)}")
 
     def update_unsaved_changes_indicator(self) -> None:
         """Update the unsaved changes indicator based on current state."""
@@ -816,7 +828,8 @@ class WorldBuildingController(QObject):
             labels=self.ui.labels_input.text(),
             properties=properties,
             relationships=relationships,
-            image_path=self.current_image_path,  # Use the controller's tracked path
+            image_path=self.current_image_path,
+            all_props=self.all_props,
         )
 
         if node_data:

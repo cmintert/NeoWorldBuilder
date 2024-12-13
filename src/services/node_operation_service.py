@@ -141,37 +141,52 @@ class NodeOperationsService:
         description: str,
         tags: str,
         labels: str,
-        properties: List[PropertyItem],
+        properties: List[PropertyItem],  # From table
         relationships: List[Tuple[str, str, str, str]],
         image_path: Optional[str],
+        all_props: Optional[Dict[str, Any]] = None,  # From database
     ) -> Optional[Dict[str, Any]]:
         """Collect and validate all node data."""
         try:
-
-            # Process user-visible properties (filter out reserved ones)
-            user_properties = [
-                p for p in properties if p.key not in self.config.RESERVED_PROPERTY_KEYS
-            ]
-            additional_properties = self.property_service.process_properties(
-                user_properties
+            # Convert table properties to dict
+            properties: Dict[str, Any] = self.property_service.process_properties(
+                properties
             )
-            if additional_properties is None:
-                additional_properties = {}
 
-            # Preserve any reserved/system properties that were already present
-            reserved_properties = {
-                p.key: p.value
-                for p in properties
-                if p.key in self.config.RESERVED_PROPERTY_KEYS
-            }
-            additional_properties.update(reserved_properties)
+            # Handle existing properties from database
+            if all_props:
+                # Filter out properties with underscores in keys
+                filtered_props = {
+                    key: value
+                    for key, value in all_props.items()
+                    if not key.startswith("_")
+                }
 
-            # Add new image path if provided
+                # Filter out properties with empty values
+                filtered_props = {
+                    key: value
+                    for key, value in filtered_props.items()
+                    if value is not None and value != ""
+                }
+
+                # Keep properties in config.reserved_properties
+                filtered_props = {
+                    key: value
+                    for key, value in filtered_props.items()
+                    if key in self.config.RESERVED_PROPERTY_KEYS
+                }
+                print("###############################")
+                print(f"all_props: {all_props}")
+                print(f"filtered_props: {filtered_props}")
+                print("###############################")
+
+                properties.update(filtered_props)
+
+            # Add image path if provided
             if image_path:
-                additional_properties["imagepath"] = image_path
+                properties["imagepath"] = image_path
 
-            # Build node data
-            node_data = {
+            return {
                 "name": name.strip(),
                 "description": description.strip(),
                 "tags": parse_comma_separated(tags),
@@ -180,11 +195,8 @@ class NodeOperationsService:
                     for label in parse_comma_separated(labels)
                 ],
                 "relationships": self._format_relationships(relationships),
-                "additional_properties": additional_properties,
+                "additional_properties": properties,
             }
-
-            print(f"Final node data: {node_data}")
-            return node_data
 
         except Exception as e:
             logging.error(f"Error collecting node data: {str(e)}")
