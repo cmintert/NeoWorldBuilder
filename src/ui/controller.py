@@ -4,9 +4,8 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 
 from PyQt6.QtCore import QObject, Qt, pyqtSlot, QTimer
-from PyQt6.QtGui import QStandardItemModel, QStandardItem
+from PyQt6.QtGui import QStandardItem
 from PyQt6.QtWidgets import (
-    QAbstractItemView,
     QCompleter,
     QMessageBox,
     QTableWidgetItem,
@@ -21,15 +20,7 @@ from models.completer_model import AutoCompletionUIHandler, CompleterInput
 from models.property_model import PropertyItem
 from models.suggestion_model import SuggestionUIHandler, SuggestionResult
 from models.worker_model import WorkerOperation
-from services.autocompletion_service import AutoCompletionService
-from services.fast_inject_service import FastInjectService
-from services.image_service import ImageService
-from services.node_operation_service import NodeOperationsService
-from services.property_service import PropertyService
-from services.relationship_tree_service import RelationshipTreeService
-from services.save_service import SaveService
-from services.suggestion_service import SuggestionService
-from services.worker_manager_service import WorkerManagerService
+from services.initialisation_service import InitializationService
 from ui.components.map_tab import MapTab
 from ui.dialogs import (
     StyleSettingsDialog,
@@ -37,9 +28,7 @@ from ui.dialogs import (
     SuggestionDialog,
     FastInjectDialog,
 )
-from ui.styles import StyleManager
 from utils.error_handler import ErrorHandler
-from utils.exporters import Exporter
 
 logger = get_logger(__name__)
 
@@ -77,109 +66,23 @@ class WorldBuildingController(QObject):
         self.config = config
         self.app_instance = app_instance
 
-        # Initialize style management
-        self.style_manager = StyleManager("src/config/styles")
-        self.style_manager.registry.error_occurred.connect(self._show_error_dialog)
-
-        self.exporter = Exporter(ui, self.config)
-        self.ui.controller = self
+        # Initialize error handler first as it's needed by the initialization service
         self.error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
 
-        # Initialize services
-        self.property_service = PropertyService(self.config)
-        self.image_service = ImageService()
-        self.worker_manager = WorkerManagerService(self.error_handler)
-        self.fast_inject_service = FastInjectService()
-
-        # Initialize the ui
-        self.ui = ui
-        self.ui.controller = self
-
-        # Initialize services that require the ui
-        self.auto_completion_service = AutoCompletionService(
-            self.model,
-            self.config,
-            self.worker_manager,
-            self._create_autocompletion_ui_handler(),
-            self.error_handler.handle_error,
-        )
-        self.node_operations = NodeOperationsService(
-            self.model,
-            self.config,
-            self.worker_manager,
-            self.property_service,
-            self.error_handler,
-        )
-        self.suggestion_service = SuggestionService(
-            self.model,
-            self.config,
-            self.worker_manager,
-            self.error_handler,
-            self._create_suggestion_ui_handler(),
-        )
-
-        self.save_service = SaveService(self.node_operations, self.error_handler)
-        self.save_service.start_periodic_check(
-            get_current_data=self._get_current_node_data,
-            on_state_changed=self._handle_save_state_changed,
-        )
-
-        # Initialize tree model and service
-        self.tree_model = QStandardItemModel()
-        self.relationship_tree_service = RelationshipTreeService(
-            self.tree_model, self.NODE_RELATIONSHIPS_HEADER
-        )
-
-        # Apply default application style
-        self.style_manager.apply_style(app_instance, "default")
-
-        # Apply specific styles to UI components
-        self.style_manager.apply_style(self.ui.tree_view, "tree")
-        self.style_manager.apply_style(self.ui.properties_table, "data-table")
-        self.style_manager.apply_style(self.ui.relationships_table, "data-table")
-
-        # Track UI state
         self.current_image_path: Optional[str] = None
         self.original_node_data: Optional[Dict[str, Any]] = None
+        self.all_props: Dict[str, Any] = {}
 
-        # Initialize UI state
-        self._initialize_tree_view()
-        self._initialize_completers()
-        self._connect_signals()
-        self._load_default_state()
-
-    #############################################
-    # 1. Initialization Methods
-    #############################################
-
-    def _initialize_tree_view(self) -> None:
-        """
-        Initialize the tree view model.
-        """
-        self.tree_model = QStandardItemModel()
-        self.tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
-        self.ui.tree_view.setModel(self.tree_model)
-
-        self.ui.tree_view.setSelectionMode(
-            QAbstractItemView.SelectionMode.ExtendedSelection
+        # Initialize the application using the initialization service
+        self.init_service = InitializationService(
+            controller=self,
+            ui=ui,
+            model=model,
+            config=config,
+            app_instance=app_instance,
+            error_handler=self.error_handler,
         )
-        self.ui.tree_view.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectItems
-        )
-
-        # connect selction signals
-        self.ui.tree_view.selectionModel().selectionChanged.connect(
-            self.on_tree_selection_changed
-        )
-
-        self.ui.tree_view.setUniformRowHeights(True)
-        self.ui.tree_view.setItemsExpandable(True)
-        self.ui.tree_view.setAllColumnsShowFocus(True)
-        self.ui.tree_view.setHeaderHidden(False)
-
-    def _initialize_completers(self) -> None:
-        """Initialize auto-completion for node names and relationship targets."""
-        self.auto_completion_service.initialize_node_completer(self.ui.name_input)
+        self.init_service.initialize_application()
 
     def _add_target_completer_to_row(self, row: int) -> None:
         """
@@ -191,57 +94,6 @@ class WorldBuildingController(QObject):
         self.auto_completion_service.add_target_completer_to_row(
             self.ui.relationships_table, row
         )
-
-    def _connect_signals(self) -> None:
-        """
-        Connect all UI signals to handlers.
-        """
-        # Main buttons
-        self.ui.save_button.clicked.connect(self.save_node)
-        self.ui.delete_button.clicked.connect(self.delete_node)
-
-        # Name input and autocomplete
-
-        self.ui.name_input.editingFinished.connect(self.load_node_data)
-
-        # Table buttons
-        self.ui.add_rel_button.clicked.connect(self.ui.add_relationship_row)
-
-        # connect the suggest button
-        self.ui.suggest_button.clicked.connect(self.show_suggestions_modal)
-
-        # Check for unsaved changes
-        self.ui.name_input.textChanged.connect(self.update_unsaved_changes_indicator)
-        self.ui.description_input.textChanged.connect(
-            self.update_unsaved_changes_indicator
-        )
-        self.ui.labels_input.textChanged.connect(self.update_unsaved_changes_indicator)
-        self.ui.tags_input.textChanged.connect(self.update_unsaved_changes_indicator)
-        self.ui.properties_table.itemChanged.connect(
-            self.update_unsaved_changes_indicator
-        )
-        self.ui.relationships_table.itemChanged.connect(
-            self.update_unsaved_changes_indicator
-        )
-
-        # Depth spinbox change
-        self.ui.depth_spinbox.valueChanged.connect(self.on_depth_changed)
-
-    def _load_default_state(self) -> None:
-        """
-        Initialize default UI state.
-        """
-        self.ui.name_input.clear()
-        self.ui.description_input.clear()
-        self.ui.labels_input.clear()
-        self.ui.tags_input.clear()
-        self.ui.properties_table.setRowCount(0)
-        self.ui.relationships_table.setRowCount(0)
-        self.refresh_tree_view()
-
-    #############################################
-    # 2. Node Operations
-    #############################################
 
     def load_node_data(self) -> None:
         """Load node data."""
