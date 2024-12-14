@@ -27,9 +27,6 @@ from PyQt6.QtCore import (
     Qt,
 )
 from PyQt6.QtGui import (
-    QPalette,
-    QBrush,
-    QPixmap,
     QAction,
     QCloseEvent,
 )
@@ -145,7 +142,6 @@ class WorldBuildingApp(QMainWindow):
 
             # Configure window
             self._configure_main_window()
-            self.set_background_image("src/resources/graphics/background.png")
 
             # Load initial data
             controller.load_last_modified_node()
@@ -157,22 +153,6 @@ class WorldBuildingApp(QMainWindow):
 
         except Exception as e:
             self._handle_initialization_error(e)
-
-    def set_background_image(self, image_path: str) -> None:
-        """
-        Set the background image for the main window.
-
-        Args:
-            image_path (str): The path to the background image file.
-        """
-        try:
-            palette = QPalette()
-            pixmap = QPixmap(image_path)
-            palette.setBrush(QPalette.ColorRole.Window, QBrush(pixmap))
-            self.setPalette(palette)
-            structlog.get_logger().info(f"Background image set from {image_path}")
-        except Exception as e:
-            structlog.get_logger().error(f"Failed to set background image: {e}")
 
     def _load_configuration(self) -> Config:
         """

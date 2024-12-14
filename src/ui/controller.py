@@ -69,9 +69,16 @@ class WorldBuildingController(QObject):
         # Initialize error handler first as it's needed by the initialization service
         self.error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
 
-        self.current_image_path: Optional[str] = None
         self.original_node_data: Optional[Dict[str, Any]] = None
         self.all_props: Dict[str, Any] = {}
+
+        # Connect ImageGroup signals
+        self.ui.image_group.basic_image_changed.connect(
+            self._handle_basic_image_changed
+        )
+        self.ui.image_group.basic_image_removed.connect(
+            self._handle_basic_image_removed
+        )
 
         # Initialize the application using the initialization service
         self.init_service = InitializationService(
@@ -82,6 +89,7 @@ class WorldBuildingController(QObject):
             app_instance=app_instance,
             error_handler=self.error_handler,
         )
+
         self.init_service.initialize_application()
 
     def _add_target_completer_to_row(self, row: int) -> None:
@@ -203,15 +211,18 @@ class WorldBuildingController(QObject):
             direction = self.ui.relationships_table.cellWidget(row, 2)
             props = self.ui.relationships_table.item(row, 3)
 
-            if all([rel_type, target, direction]):
-                relationships.append(
-                    (
-                        rel_type.text(),
-                        target.text(),
-                        direction.currentText(),
-                        props.text() if props else "",
-                    )
+            # Skip if any required field is missing
+            if not all([rel_type, isinstance(target, QLineEdit), direction, props]):
+                continue
+
+            relationships.append(
+                (
+                    rel_type.text(),
+                    target.text(),  # Now we know it's a QLineEdit
+                    direction.currentText(),
+                    props.text() if props else "",
                 )
+            )
         return relationships
 
     def _collect_table_properties(self) -> List[PropertyItem]:
@@ -277,7 +288,7 @@ class WorldBuildingController(QObject):
                 labels=self.ui.labels_input.text(),
                 properties=self._collect_table_properties(),
                 relationships=self._collect_table_relationships(),
-                image_path=self.current_image_path,
+                image_path=self.all_props.get("imagepath"),
                 all_props=self.all_props,
             )
 
@@ -303,7 +314,7 @@ class WorldBuildingController(QObject):
             labels=self.ui.labels_input.text(),
             properties=self._collect_table_properties(),
             relationships=self._collect_table_relationships(),
-            image_path=self.current_image_path,
+            image_path=self.all_props.get("imagepath"),
         )
 
         if current_data and self.save_service.check_for_changes(current_data):
@@ -474,6 +485,17 @@ class WorldBuildingController(QObject):
         image_path = node_properties.get("imagepath")
         self.ui.image_group.set_basic_image(image_path)
 
+    def _handle_basic_image_changed(self, image_path: str) -> None:
+        """Handle image change signal from ImageGroup."""
+        self.all_props["imagepath"] = image_path
+        self.update_unsaved_changes_indicator()
+
+    def _handle_basic_image_removed(self) -> None:
+        """Handle image removal signal from ImageGroup."""
+        self.all_props["imagepath"] = None
+        self.ui.image_group.set_basic_image(None)
+        self.update_unsaved_changes_indicator()
+
     @pyqtSlot(list)
     def _populate_relationship_tree(self, records: List[Any]) -> None:
         """
@@ -528,10 +550,9 @@ class WorldBuildingController(QObject):
 
     def change_basic_image(self) -> None:
         """Handle image change request from UI."""
-        result = self.image_service.change_image(self.ui)
+        result = self.image_service.select_image(self.ui)
         if result.success:
-            self.current_image_path = result.path
-            self.image_service.set_current_image(result.path)
+            self.all_props["imagepath"] = result.path
             self.ui.image_group.set_basic_image(result.path)
             self.update_unsaved_changes_indicator()
         else:
@@ -541,7 +562,7 @@ class WorldBuildingController(QObject):
 
     def delete_basic_image(self) -> None:
         """Handle image deletion request from UI."""
-        self.image_service.delete_image()
+        self.all_props["imagepath"] = None
         self.ui.image_group.set_basic_image(None)
         self.update_unsaved_changes_indicator()
 
@@ -663,12 +684,6 @@ class WorldBuildingController(QObject):
         if not self.node_operations.validate_node_name(name).is_valid:
             return
 
-        # Debug logging
-        print(f"Current image path before save: {self.current_image_path}")
-        print(
-            f"Image group path before save: {self.ui.image_group.get_basic_image_path()}"
-        )
-
         # Collect properties from UI
         properties = self._collect_table_properties()
         relationships = self._collect_table_relationships()
@@ -680,7 +695,7 @@ class WorldBuildingController(QObject):
             labels=self.ui.labels_input.text(),
             properties=properties,
             relationships=relationships,
-            image_path=self.current_image_path,
+            image_path=self.ui.image_group.get_basic_image_path(),
             all_props=self.all_props,
         )
 

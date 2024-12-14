@@ -17,13 +17,12 @@ class ImageGroup(QGroupBox):
     A component for displaying and managing an image with change/delete controls.
     """
 
-    image_change_requested = pyqtSignal()
-    image_delete_requested = pyqtSignal()
+    basic_image_changed = pyqtSignal(str)  # Emits the new image path
+    basic_image_removed = pyqtSignal()  # Emits when image is removed
 
     def __init__(self, parent=None):
         super().__init__("Image", parent)
         self.setObjectName("imageGroupBox")
-        self._current_image_path: Optional[str] = None
         self._init_image_group_ui()
 
     def _init_image_group_ui(self) -> None:
@@ -73,18 +72,19 @@ class ImageGroup(QGroupBox):
 
     def _on_change_clicked(self) -> None:
         """Internal handler for change button clicks"""
-        self.image_change_requested.emit()
+        self.basic_image_changed.emit(self.image_label.toolTip())
 
     def _on_delete_clicked(self) -> None:
         """Internal handler for delete button clicks"""
-        self.image_delete_requested.emit()
+        self.basic_image_removed.emit()
+        self.image_label.clear()
+        self.image_label.setToolTip("")
 
     def set_basic_image(self, image_path: Optional[str]) -> None:
         """Set or clear the displayed image."""
-        self._current_image_path = image_path
-
         if not image_path:
             self.image_label.clear()
+            self.image_label.setToolTip("")
             return
 
         try:
@@ -98,12 +98,14 @@ class ImageGroup(QGroupBox):
                 Qt.TransformationMode.SmoothTransformation,
             )
             self.image_label.setPixmap(scaled_pixmap)
+            self.image_label.setToolTip(image_path)  # Store path in toolTip
 
         except Exception as e:
-            self._current_image_path = None
             self.image_label.clear()
+            self.image_label.setToolTip("")
             QMessageBox.warning(self, "Image Error", f"Failed to load image: {str(e)}")
 
     def get_basic_image_path(self) -> Optional[str]:
         """Get the current image path."""
-        return self._current_image_path
+        path = self.image_label.toolTip()
+        return path if path else None

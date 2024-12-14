@@ -141,10 +141,10 @@ class WorldBuildingUI(QWidget):
 
         if not self._signals_connected:
             # Connect image group signals only once
-            self.image_group.image_change_requested.connect(
+            self.image_group.basic_image_changed.connect(
                 self.controller.change_basic_image
             )
-            self.image_group.image_delete_requested.connect(
+            self.image_group.basic_image_removed.connect(
                 self.controller.delete_basic_image
             )
 
