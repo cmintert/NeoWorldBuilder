@@ -66,9 +66,13 @@ class WorldBuildingController(QObject):
         self.config = config
         self.app_instance = app_instance
 
+        # Add name tracking
+        self._previous_name = None
+
         # Initialize error handler first as it's needed by the initialization service
         self.error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
-
+        self._get_image_path = None
+        self.current_image_path = None
         self.original_node_data: Optional[Dict[str, Any]] = None
         self.all_props: Dict[str, Any] = {}
 
@@ -91,6 +95,58 @@ class WorldBuildingController(QObject):
         )
 
         self.init_service.initialize_application()
+        self._setup_name_input_handling()
+
+    def _setup_name_input_handling(self) -> None:
+        """Setup name input field event handling."""
+        # Store initial name if any
+        self._previous_name = self.ui.name_input.text().strip()
+
+        # Override focusOutEvent while preserving any existing handler
+        original_focus_out = self.ui.name_input.focusOutEvent
+
+        def new_focus_out(event):
+            self.on_name_focus_lost()
+            if original_focus_out:
+                original_focus_out(event)
+
+        self.ui.name_input.focusOutEvent = new_focus_out
+
+    def on_name_focus_lost(self) -> None:
+        """Handle name input losing focus."""
+        current_name = self.ui.name_input.text().strip()
+
+        # Only proceed if name actually changed
+        if current_name != self._previous_name:
+            logger.debug(
+                "Name field changed",
+                previous_name=self._previous_name,
+                new_name=current_name,
+            )
+
+            def handle_node_check(data: List[Any]) -> None:
+                if not data:
+                    # Node doesn't exist - this is the ONE place we wipe all_props
+                    logger.info("Wiping all_props for new node", new_name=current_name)
+                    self.all_props = {}
+
+                # Always load/refresh data after check
+                self.load_node_data()
+
+            # Check if new name exists in database
+            worker = self.model.load_node(current_name, handle_node_check)
+            operation = WorkerOperation(
+                worker=worker,
+                success_callback=handle_node_check,
+                error_callback=lambda msg: self.error_handler.handle_error(
+                    f"Error checking node: {msg}"
+                ),
+                operation_name="check_node_exists",
+            )
+            self.worker_manager.execute_worker("check", operation)
+
+        # Update tracker
+        self._previous_name = current_name
 
     def _add_target_completer_to_row(self, row: int) -> None:
         """
@@ -266,6 +322,7 @@ class WorldBuildingController(QObject):
     def _handle_node_data(self, data: List[Any]) -> None:
         """Handle node data fetched by the worker."""
         logging.debug(f"Handling node data: {data}")
+
         if not data:
             return
 
@@ -273,14 +330,14 @@ class WorldBuildingController(QObject):
             record = data[0]
             self._populate_node_fields(record)
 
-            # Ensure all_props is a dict
-            self.all_props: Dict[str, Any] = record.get("all_props", {})
+            # Simple direct all_props update from record
+            self.all_props = record.get("all_props", {})
             if not isinstance(self.all_props, dict):
                 self.all_props = {}
 
             logger.debug("processing_props", all_props=self.all_props)
 
-            # First, update the original data
+            # Update original data for save state tracking
             self.original_node_data = self.node_operations.collect_node_data(
                 name=self.ui.name_input.text().strip(),
                 description=self.ui.description_input.toHtml().strip(),
@@ -288,14 +345,12 @@ class WorldBuildingController(QObject):
                 labels=self.ui.labels_input.text(),
                 properties=self._collect_table_properties(),
                 relationships=self._collect_table_relationships(),
-                image_path=self.all_props.get("imagepath"),
+                image_path=self.current_image_path,
                 all_props=self.all_props,
             )
 
-            # Update the save service's original data
+            # Update save state with new original data
             self.save_service.update_save_state(self.original_node_data)
-
-            # Reset button to gray
             self.ui.save_button.setStyleSheet(self.config.colors.passiveSave)
 
         except AttributeError as e:
@@ -487,6 +542,7 @@ class WorldBuildingController(QObject):
 
     def _handle_basic_image_changed(self, image_path: str) -> None:
         """Handle image change signal from ImageGroup."""
+        self.current_image_path = image_path
         self.all_props["imagepath"] = image_path
         self.update_unsaved_changes_indicator()
 
