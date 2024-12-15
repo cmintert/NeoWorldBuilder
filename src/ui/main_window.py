@@ -853,8 +853,9 @@ class WorldBuildingUI(QWidget):
         """Create and configure map tab if it doesn't exist."""
         if not hasattr(self, "map_tab") or not self.map_tab:
             logger.debug("creating_map_tab", widget_id=self.objectName())
-            self.map_tab = MapTab()
+            self.map_tab = MapTab(controller=self.controller)
             self.map_tab.map_image_changed.connect(self._handle_map_image_changed)
+            self.map_tab.pin_created.connect(self._handle_pin_created)
             self.tabs.addTab(self.map_tab, "Map")
 
             # Set initial map image if available in properties
@@ -926,6 +927,17 @@ class WorldBuildingUI(QWidget):
         self.properties_table.setItem(row, 1, QTableWidgetItem(value))
         delete_button = self.create_delete_button(self.properties_table, row)
         self.properties_table.setCellWidget(row, 2, delete_button)
+
+    def _handle_pin_created(
+        self, target: str, direction: str, properties: dict
+    ) -> None:
+        """Handle creation of new pin relationship."""
+        self.add_relationship_row(
+            rel_type="SHOWS",
+            target=target,
+            direction=direction,
+            properties=json.dumps(properties),
+        )
 
 
 class ConnectionSettingsDialog(QDialog):

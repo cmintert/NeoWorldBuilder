@@ -1,7 +1,14 @@
 from typing import Optional
 
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QTimer
-from PyQt6.QtGui import QPixmap, QTransform, QMouseEvent, QCursor, QWheelEvent
+from PyQt6.QtGui import (
+    QPixmap,
+    QTransform,
+    QMouseEvent,
+    QCursor,
+    QWheelEvent,
+    QKeyEvent,
+)
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -13,24 +20,59 @@ from PyQt6.QtWidgets import (
     QFileDialog,
 )
 
+from ui.dialogs import PinPlacementDialog
+
 
 class PannableLabel(QLabel):
     """Custom QLabel that supports panning with click and drag."""
 
     zoom_requested = pyqtSignal(float)  # Signal for zoom requests
+    pin_placed = pyqtSignal(int, int)  # Signal for pin placement
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMouseTracking(True)
         self.is_panning = False
         self.last_mouse_pos = QPoint()
+        self.pin_placement_active = False
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        """Handle mouse press events to initiate panning."""
-        if event.button() == Qt.MouseButton.LeftButton:
+        """
+        Handle mouse press events on the graphical interface.
+
+        This method responds to mouse press actions, either initiating a pin placement
+        operation or enabling the panning mode on the widget, depending on the state
+        of the `pin_placement_active` flag and the type of mouse button clicked. Pin
+        placement emits the pin's position, while panning starts by capturing the mouse
+        position and changing the cursor shape to indicate activity.
+
+        Parameters:
+            event (QMouseEvent): The mouse event containing information about the
+            mouse interaction, such as the button pressed and its position.
+
+        Returns:
+            None
+        """
+        if self.pin_placement_active and event.button() == Qt.MouseButton.LeftButton:
+            # Pin placement takes precedence when active
+            pos = event.pos()
+            self.pin_placed.emit(pos.x(), pos.y())
+        elif (
+            not self.pin_placement_active
+            and event.button() == Qt.MouseButton.LeftButton
+        ):
+            # Original panning behavior
             self.is_panning = True
             self.last_mouse_pos = event.pos()
             self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Handle key press events."""
+        if event.key() == Qt.Key.Key_Escape and self.pin_placement_active:
+            self.pin_placement_active = False
+            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+        else:
+            super().keyPressEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Handle mouse release events to stop panning."""
@@ -68,12 +110,19 @@ class MapTab(QWidget):
     """Map tab component for displaying and interacting with map images."""
 
     map_image_changed = pyqtSignal(str)  # Signal when map image path changes
+    pin_mode_toggled = pyqtSignal(bool)  # Signal for pin mode changes
+    pin_created = pyqtSignal(
+        str, str, dict
+    )  # Signal target_node, direction, properties
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: Optional[QWidget] = None, controller=None) -> None:
         """Initialize the map tab."""
         super().__init__(parent)
         self.current_scale = 1.0
         self.map_image_path = None
+        self.pin_placement_active = False
+        self.controller = controller
+
         self.zoom_timer = QTimer()
         self.zoom_timer.setSingleShot(True)
         self.zoom_timer.timeout.connect(self._perform_zoom)
@@ -97,8 +146,15 @@ class MapTab(QWidget):
         self.clear_map_btn = QPushButton("Clear Map Image")
         self.clear_map_btn.clicked.connect(self._clear_map_image)
 
+        # Pin toggle button
+        self.pin_toggle_btn = QPushButton("📍 Place Pin")
+        self.pin_toggle_btn.setCheckable(True)
+        self.pin_toggle_btn.toggled.connect(self.toggle_pin_placement)
+        self.pin_toggle_btn.setToolTip("Toggle pin placement mode (ESC to cancel)")
+
         image_controls.addWidget(self.change_map_btn)
         image_controls.addWidget(self.clear_map_btn)
+        image_controls.addWidget(self.pin_toggle_btn)
         image_controls.addStretch()
 
         # Zoom controls
@@ -126,6 +182,7 @@ class MapTab(QWidget):
         self.image_label = PannableLabel()
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image_label.zoom_requested.connect(self._handle_wheel_zoom)
+        self.image_label.pin_placed.connect(self._handle_pin_placement)
         self.scroll_area.setWidget(self.image_label)
 
         # Add all components to layout
@@ -267,3 +324,33 @@ class MapTab(QWidget):
 
         h_bar.setValue(x)
         v_bar.setValue(y)
+
+    def toggle_pin_placement(self, active: bool) -> None:
+        """Toggle pin placement mode."""
+        self.pin_placement_active = active
+        self.image_label.pin_placement_active = active
+
+        # Update cursor based on mode
+        if active:
+            self.image_label.setCursor(QCursor(Qt.CursorShape.CrossCursor))
+        else:
+            self.image_label.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+
+        # Emit signal for other components
+        self.pin_mode_toggled.emit(active)
+
+    def _handle_pin_placement(self, x: int, y: int) -> None:
+        """Handle pin placement at the specified coordinates."""
+        dialog = PinPlacementDialog(x, y, self, self.controller)
+        dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+
+        if dialog.exec():
+            target_node = dialog.get_target_node()
+            if target_node:
+                # Create relationship data
+                properties = {"x": x, "y": y}
+
+                self.pin_created.emit(target_node, ">", properties)
+
+                # Exit pin placement mode
+                self.pin_toggle_btn.setChecked(False)
