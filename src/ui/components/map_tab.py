@@ -36,6 +36,14 @@ class PannableLabel(QLabel):
         self.last_mouse_pos = QPoint()
         self.pin_placement_active = False
 
+        # Coordinate Label for cursor pos
+        self.cursor_pos = QPoint()
+        self.coordinate_label = QLabel(self)
+        self.coordinate_label.setStyleSheet(
+            "QLabel { background-color: rgba(0, 0, 0, 150); color: white; padding: 5px; border-radius: 3px; }"
+        )
+        self.coordinate_label.hide()
+
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """
         Handle mouse press events on the graphical interface.
@@ -71,6 +79,7 @@ class PannableLabel(QLabel):
         if event.key() == Qt.Key.Key_Escape and self.pin_placement_active:
             self.pin_placement_active = False
             self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+            self.coordinate_label.hide()
         else:
             super().keyPressEvent(event)
 
@@ -78,10 +87,35 @@ class PannableLabel(QLabel):
         """Handle mouse release events to stop panning."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.is_panning = False
-            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+            if not self.pin_placement_active:
+                self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+                self.coordinate_label.hide()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         """Handle mouse move events to perform panning."""
+
+        self.cursor_pos = event.pos()
+
+        if self.pin_placement_active:  # Add this block
+            # Update coordinate label position and text
+            self.coordinate_label.setText(
+                f"X: {self.cursor_pos.x()}, Y: {self.cursor_pos.y()}"
+            )
+
+            # Position the label near the cursor but avoid edge conflicts
+            label_x = self.cursor_pos.x() + 15
+            label_y = self.cursor_pos.y() + 15
+
+            # Adjust if too close to widget edges
+            if label_x + self.coordinate_label.width() > self.width():
+                label_x = self.cursor_pos.x() - self.coordinate_label.width() - 5
+            if label_y + self.coordinate_label.height() > self.height():
+                label_y = self.cursor_pos.y() - self.coordinate_label.height() - 5
+
+            self.coordinate_label.move(label_x, label_y)
+            self.coordinate_label.show()
+            self.coordinate_label.raise_()
+
         if self.is_panning:
             delta = event.pos() - self.last_mouse_pos
             self.last_mouse_pos = event.pos()
