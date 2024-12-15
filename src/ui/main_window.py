@@ -99,9 +99,6 @@ class WorldBuildingUI(QWidget):
         # Name input
         self.name_input.editingFinished.connect(self.controller.load_node_data)
 
-        # Table buttons
-        self.add_rel_button.clicked.connect(self.add_relationship_row)
-
         # connect the suggest button
         self.suggest_button.clicked.connect(self.controller.show_suggestions_modal)
 
