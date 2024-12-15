@@ -45,43 +45,43 @@ class PannableLabel(QLabel):
         self.coordinate_label.hide()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        """Handle mouse clicks and map to image-relative coordinates."""
+        """Handle mouse press events for panning and pin placement."""
         pixmap = self.pixmap()
         if pixmap:
-            # Get the displayed image dimensions (accounting for zoom)
+            # Get the displayed image dimensions
             pixmap_size = pixmap.size()
-
-            # Calculate offsets for centering
             widget_width, widget_height = self.width(), self.height()
             offset_x = max(0, (widget_width - pixmap_size.width()) // 2)
             offset_y = max(0, (widget_height - pixmap_size.height()) // 2)
 
-            # Mouse position relative to widget
+            # Mouse position relative to the widget
             widget_pos = event.pos()
 
             # Calculate image-relative position
             scaled_x = widget_pos.x() - offset_x
             scaled_y = widget_pos.y() - offset_y
+            current_scale = self.parent_map_tab.current_scale
+            original_x = scaled_x / current_scale
+            original_y = scaled_y / current_scale
 
-            # Map to original image coordinates
-            original_x = scaled_x / self.parent_map_tab.current_scale
-            original_y = scaled_y / self.parent_map_tab.current_scale
-
+            # Handle pin placement
             if (
-                0 <= scaled_x <= pixmap_size.width()
-                and 0 <= scaled_y <= pixmap_size.height()
+                self.pin_placement_active
+                and event.button() == Qt.MouseButton.LeftButton
             ):
-                print(f"Image Coordinates: ({original_x}, {original_y})")
                 if (
-                    self.pin_placement_active
-                    and event.button() == Qt.MouseButton.LeftButton
+                    0 <= scaled_x <= pixmap_size.width()
+                    and 0 <= scaled_y <= pixmap_size.height()
                 ):
                     self.pin_placed.emit(int(original_x), int(original_y))
 
-            # Handle panning if not pin placement
-            elif event.button() == Qt.MouseButton.LeftButton:
+            # Handle panning
+            elif (
+                not self.pin_placement_active
+                and event.button() == Qt.MouseButton.LeftButton
+            ):
                 self.is_panning = True
-                self.last_mouse_pos = event.pos()
+                self.last_mouse_pos = widget_pos
                 self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
@@ -99,41 +99,51 @@ class PannableLabel(QLabel):
             self.is_panning = False
             if not self.pin_placement_active:
                 self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
-                self.coordinate_label.hide()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        """Update cursor position and display image-relative coordinates."""
+        """Handle mouse movement for panning and cursor updates."""
         pixmap = self.pixmap()
         if pixmap:
-            # Get the displayed image dimensions
-            pixmap_size = pixmap.size()
+            # Handle panning
+            if self.is_panning:
+                delta = event.pos() - self.last_mouse_pos
+                self.last_mouse_pos = event.pos()
 
-            # Calculate offsets for centering
-            widget_width, widget_height = self.width(), self.height()
-            offset_x = max(0, (widget_width - pixmap_size.width()) // 2)
-            offset_y = max(0, (widget_height - pixmap_size.height()) // 2)
+                # Adjust scroll bars to pan the image
+                h_bar = self.parent_map_tab.scroll_area.horizontalScrollBar()
+                v_bar = self.parent_map_tab.scroll_area.verticalScrollBar()
+                h_bar.setValue(h_bar.value() - delta.x())
+                v_bar.setValue(v_bar.value() - delta.y())
 
-            # Mouse position relative to widget
-            widget_pos = event.pos()
-
-            # Calculate image-relative position
-            scaled_x = widget_pos.x() - offset_x
-            scaled_y = widget_pos.y() - offset_y
-            original_x = scaled_x / self.parent_map_tab.current_scale
-            original_y = scaled_y / self.parent_map_tab.current_scale
-
-            if (
-                0 <= scaled_x <= pixmap_size.width()
-                and 0 <= scaled_y <= pixmap_size.height()
-            ):
-                # Update coordinate label
-                self.coordinate_label.setText(
-                    f"X: {int(original_x)}, Y: {int(original_y)}"
-                )
-                self.coordinate_label.move(widget_pos.x() + 15, widget_pos.y() + 15)
-                self.coordinate_label.show()
             else:
-                self.coordinate_label.hide()
+                # Get the displayed image dimensions
+                pixmap_size = pixmap.size()
+                widget_width, widget_height = self.width(), self.height()
+                offset_x = max(0, (widget_width - pixmap_size.width()) // 2)
+                offset_y = max(0, (widget_height - pixmap_size.height()) // 2)
+
+                # Mouse position relative to the widget
+                widget_pos = event.pos()
+
+                # Calculate image-relative position
+                scaled_x = widget_pos.x() - offset_x
+                scaled_y = widget_pos.y() - offset_y
+                current_scale = self.parent_map_tab.current_scale
+                original_x = scaled_x / current_scale
+                original_y = scaled_y / current_scale
+
+                # Update cursor coordinates if within image bounds
+                if (
+                    0 <= scaled_x <= pixmap_size.width()
+                    and 0 <= scaled_y <= pixmap_size.height()
+                ):
+                    self.coordinate_label.setText(
+                        f"X: {int(original_x)}, Y: {int(original_y)}"
+                    )
+                    self.coordinate_label.move(widget_pos.x() + 15, widget_pos.y() + 15)
+                    self.coordinate_label.show()
+                else:
+                    self.coordinate_label.hide()
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         """Handle mouse wheel events for zooming."""
