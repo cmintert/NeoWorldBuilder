@@ -71,8 +71,7 @@ class WorldBuildingController(QObject):
 
         # Initialize error handler first as it's needed by the initialization service
         self.error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
-        self._get_image_path = None
-        self.current_image_path = None
+
         self.original_node_data: Optional[Dict[str, Any]] = None
         self.all_props: Dict[str, Any] = {}
 
@@ -345,7 +344,6 @@ class WorldBuildingController(QObject):
                 labels=self.ui.labels_input.text(),
                 properties=self._collect_table_properties(),
                 relationships=self._collect_table_relationships(),
-                image_path=self.current_image_path,
                 all_props=self.all_props,
             )
 
@@ -369,7 +367,7 @@ class WorldBuildingController(QObject):
             labels=self.ui.labels_input.text(),
             properties=self._collect_table_properties(),
             relationships=self._collect_table_relationships(),
-            image_path=self.all_props.get("imagepath"),
+            all_props=self.all_props,
         )
 
         if current_data and self.save_service.check_for_changes(current_data):
@@ -542,14 +540,12 @@ class WorldBuildingController(QObject):
 
     def _handle_basic_image_changed(self, image_path: str) -> None:
         """Handle image change signal from ImageGroup."""
-        self.current_image_path = image_path
         self.all_props["imagepath"] = image_path
         self.update_unsaved_changes_indicator()
 
     def _handle_basic_image_removed(self) -> None:
         """Handle image removal signal from ImageGroup."""
         self.all_props["imagepath"] = None
-        self.ui.image_group.set_basic_image(None)
         self.update_unsaved_changes_indicator()
 
     @pyqtSlot(list)
@@ -706,7 +702,7 @@ class WorldBuildingController(QObject):
         Returns:
             Optional[Dict[str, Any]]: The collected node data.
         """
-        image_path = self.image_service.get_current_image()
+
         return self.node_operations.collect_node_data(
             name=node_name,
             description=self.ui.description_input.toPlainText().strip(),
@@ -714,7 +710,7 @@ class WorldBuildingController(QObject):
             labels=self.ui.labels_input.text(),
             properties=self._collect_table_properties(),
             relationships=self._collect_table_relationships(),
-            image_path=image_path,
+            all_props=self.all_props,
         )
 
     def load_last_modified_node(self) -> None:
@@ -751,7 +747,6 @@ class WorldBuildingController(QObject):
             labels=self.ui.labels_input.text(),
             properties=properties,
             relationships=relationships,
-            image_path=self.ui.image_group.get_basic_image_path(),
             all_props=self.all_props,
         )
 
@@ -788,7 +783,7 @@ class WorldBuildingController(QObject):
             labels=self.ui.labels_input.text(),
             properties=self._collect_table_properties(),
             relationships=self._collect_table_relationships(),
-            image_path=self.ui.image_group.get_basic_image_path(),
+            all_props=self.all_props,
         )
 
     def change_application_style(self, style_name: str) -> None:

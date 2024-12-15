@@ -146,7 +146,7 @@ class SaveService(QObject):
                 labels=labels,
                 properties=properties,
                 relationships=relationships,
-                image_path=image_path,
+                all_props=self.controller.all_props,
             )
 
             if node_data:

@@ -143,7 +143,6 @@ class NodeOperationsService:
         labels: str,
         properties: List[PropertyItem],  # From table
         relationships: List[Tuple[str, str, str, str]],
-        image_path: Optional[str],
         all_props: Optional[Dict[str, Any]] = None,  # From database
     ) -> Optional[Dict[str, Any]]:
         """Collect and validate all node data."""
@@ -181,10 +180,6 @@ class NodeOperationsService:
                 print("###############################")
 
                 properties.update(filtered_props)
-
-            # Add image path if provided
-            if image_path:
-                properties["imagepath"] = image_path
 
             return {
                 "name": name.strip(),
