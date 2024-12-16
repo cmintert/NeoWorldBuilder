@@ -47,7 +47,7 @@ class PannableLabel(QLabel):
         self.coordinate_label.hide()
 
         self.pin_container = QWidget(self)
-        self.pin_container.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
         self.pin_container.setGeometry(0, 0, self.width(), self.height())
         self.pins: Dict[str, QLabel] = {}
 
@@ -183,7 +183,16 @@ class PannableLabel(QLabel):
         font = QFont()
         font.setPointSize(14)
         pin.setFont(font)
-        pin.setStyleSheet("background: transparent;")
+        pin.setStyleSheet(
+            """
+            QToolTip {
+            background-color: #D9CD9C ;
+            color: #42413E;
+            border: 1px solid #555555;
+            padding: 3px;
+            font-size: 10pt;  }
+            """
+        )
         pin.adjustSize()
         print(f"Pin {target_node} created with size: {pin.width()}x{pin.height()}")
         self.pins[target_node] = pin
