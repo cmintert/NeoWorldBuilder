@@ -172,7 +172,7 @@ class PannableLabel(QLabel):
 
     def create_pin(self, target_node: str, x: int, y: int) -> None:
         """Create and position a pin with tooltip."""
-        print(f"\nCreating pin for {target_node} at ({x}, {y})")
+
         if target_node in self.pins:
             print(f"Removing existing pin for {target_node}")
             self.pins[target_node].deleteLater()
@@ -194,7 +194,7 @@ class PannableLabel(QLabel):
             """
         )
         pin.adjustSize()
-        print(f"Pin {target_node} created with size: {pin.width()}x{pin.height()}")
+
         self.pins[target_node] = pin
         pin.show()
         self.update_pin_position(target_node, x, y)
