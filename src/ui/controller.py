@@ -396,10 +396,11 @@ class WorldBuildingController(QObject):
         try:
             node_data = self._extract_node_data(record)
             self._populate_basic_info(node_data)
-            self._populate_map_tab(node_data)
             self._populate_properties(node_data["properties"])
             self._populate_relationships(node_data["relationships"])
             self._populate_basic_info_image(node_data["node_properties"])
+            self._populate_map_tab(node_data)
+
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
 

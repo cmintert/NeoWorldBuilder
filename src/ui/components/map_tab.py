@@ -359,26 +359,32 @@ class MapTab(QWidget):
         self.load_pins()
 
     def load_pins(self) -> None:
-        """Load pins from relationships table."""
+        """
+        Processes and loads pin data onto an image label. It retrieves the necessary data
+        from a relationships table in the controller and creates pins on the image label
+        based on the information.
+        """
+
         self.image_label.clear_pins()
 
         if not self.controller:
-            print("No Controller")
+
             return
 
         relationships_table = self.controller.ui.relationships_table
         if not relationships_table:
-            print("No relationships table")
+
             return
 
         for row in range(relationships_table.rowCount()):
+
             rel_type = relationships_table.item(row, 0)
-            target_widget = relationships_table.cellWidget(row, 1)
+            target_item = relationships_table.item(row, 1)
             props_item = relationships_table.item(row, 3)
 
-            if rel_type and rel_type.text() == "SHOWS" and target_widget and props_item:
+            if rel_type and rel_type.text() == "SHOWS" and target_item and props_item:
                 try:
-                    target_text = target_widget.text()
+                    target_text = target_item.text()
                     properties = json.loads(props_item.text())
                     x = properties.get("x")
                     y = properties.get("y")
