@@ -1,4 +1,5 @@
-from typing import Optional
+import json
+from typing import Optional, Dict
 
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QTimer
 from PyQt6.QtGui import (
@@ -8,6 +9,7 @@ from PyQt6.QtGui import (
     QCursor,
     QWheelEvent,
     QKeyEvent,
+    QFont,
 )
 from PyQt6.QtWidgets import (
     QWidget,
@@ -43,6 +45,17 @@ class PannableLabel(QLabel):
             "QLabel { background-color: rgba(0, 0, 0, 150); color: white; padding: 5px; border-radius: 3px; }"
         )
         self.coordinate_label.hide()
+
+        self.pin_container = QWidget(self)
+        self.pin_container.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.pin_container.setGeometry(0, 0, self.width(), self.height())
+        self.pins: Dict[str, QLabel] = {}
+
+    def resizeEvent(self, event):
+        """Handle resize events to keep pin container matched to size."""
+        super().resizeEvent(event)
+        self.pin_container.setGeometry(0, 0, self.width(), self.height())
+        self.pin_container.raise_()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Handle mouse press events for panning and pin placement."""
@@ -157,6 +170,77 @@ class PannableLabel(QLabel):
         # Emit the zoom request signal
         self.zoom_requested.emit(zoom_factor)
 
+    def create_pin(self, target_node: str, x: int, y: int) -> None:
+        """Create and position a pin with tooltip."""
+        print(f"\nCreating pin for {target_node} at ({x}, {y})")
+        if target_node in self.pins:
+            print(f"Removing existing pin for {target_node}")
+            self.pins[target_node].deleteLater()
+            del self.pins[target_node]
+
+        pin = QLabel("📍", self.pin_container)
+        pin.setToolTip(target_node)
+        font = QFont()
+        font.setPointSize(14)
+        pin.setFont(font)
+        pin.setStyleSheet("background: transparent;")
+        pin.adjustSize()
+        print(f"Pin {target_node} created with size: {pin.width()}x{pin.height()}")
+        self.pins[target_node] = pin
+        pin.show()
+        self.update_pin_position(target_node, x, y)
+
+    def update_pin_position(self, target_node: str, x: int, y: int) -> None:
+        """Update position of a single pin."""
+        if target_node not in self.pins:
+            return
+
+        pin = self.pins[target_node]
+
+        if not hasattr(pin, "original_x"):
+            pin.original_x = x
+            pin.original_y = y
+
+        # Store original coordinates as custom properties on the pin
+        if not hasattr(pin, "original_x"):
+            pin.original_x = x
+            pin.original_y = y
+
+        # Calculate scaled position using stored original coordinates
+        current_scale = self.parent_map_tab.current_scale
+        scaled_x = pin.original_x * current_scale
+        scaled_y = pin.original_y * current_scale
+
+        # Account for pin dimensions - align bottom center of pin with point
+        pin_x = int(scaled_x - (pin.width() / 2))
+        pin_y = int(scaled_y - pin.height())
+
+        pin.move(pin_x, pin_y)
+        pin.raise_()
+        pin.show()
+
+    def update_pin_positions(self) -> None:
+        """Update all pin positions."""
+        if pixmap := self.pixmap():
+            for target_node, pin in self.pins.items():
+                # Extract original x,y from pin's current position and scale
+                current_scale = self.parent_map_tab.current_scale
+                widget_width, widget_height = self.width(), self.height()
+                offset_x = max(0, (widget_width - pixmap.size().width()) // 2)
+                offset_y = max(0, (widget_height - pixmap.size().height()) // 2)
+
+                # Calculate back to original coordinates
+                orig_x = (pin.x() + (pin.width() // 2) - offset_x) / current_scale
+                orig_y = (pin.y() + pin.height() - offset_y) / current_scale
+
+                self.update_pin_position(target_node, int(orig_x), int(orig_y))
+
+    def clear_pins(self) -> None:
+        """Remove all pins."""
+        for pin in self.pins.values():
+            pin.deleteLater()
+        self.pins.clear()
+
 
 class MapTab(QWidget):
     """Map tab component for displaying and interacting with map images."""
@@ -259,17 +343,50 @@ class MapTab(QWidget):
         """Set the map image path and display the image."""
         self.map_image_path = image_path
         if not image_path:
+            self.image_label.clear_pins()
             self.image_label.clear()
             self.image_label.setText("No map image set")
             return
 
         pixmap = QPixmap(image_path)
         if pixmap.isNull():
+            self.image_label.clear_pins()
             self.image_label.setText(f"Error loading map image: {image_path}")
             return
 
         self.original_pixmap = pixmap
         self._update_map_image_display()
+        self.load_pins()
+
+    def load_pins(self) -> None:
+        """Load pins from relationships table."""
+        self.image_label.clear_pins()
+
+        if not self.controller:
+            print("No Controller")
+            return
+
+        relationships_table = self.controller.ui.relationships_table
+        if not relationships_table:
+            print("No relationships table")
+            return
+
+        for row in range(relationships_table.rowCount()):
+            rel_type = relationships_table.item(row, 0)
+            target_widget = relationships_table.cellWidget(row, 1)
+            props_item = relationships_table.item(row, 3)
+
+            if rel_type and rel_type.text() == "SHOWS" and target_widget and props_item:
+                try:
+                    target_text = target_widget.text()
+                    properties = json.loads(props_item.text())
+                    x = properties.get("x")
+                    y = properties.get("y")
+                    if x is not None and y is not None:
+                        self.image_label.create_pin(target_text, int(x), int(y))
+                except (json.JSONDecodeError, AttributeError) as e:
+                    print(f"Error loading pin: {e}")
+                    continue
 
     def get_map_image_path(self) -> Optional[str]:
         """Get the current map image path."""
@@ -302,8 +419,12 @@ class MapTab(QWidget):
     def _perform_zoom(self) -> None:
         """Actually perform the zoom operation after debounce."""
         if self.pending_scale is not None:
+
             self.current_scale = self.pending_scale
             self._update_map_image_display()
+
+            self.image_label.pin_container.raise_()
+            self.image_label.update_pin_positions()
             self.pending_scale = None
 
     def _reset_zoom(self) -> None:
@@ -407,6 +528,9 @@ class MapTab(QWidget):
                 properties = {"x": x, "y": y}
 
                 self.pin_created.emit(target_node, ">", properties)
+
+                # Create pin immediately after dialog success
+                self.image_label.create_pin(target_node, x, y)
 
                 # Exit pin placement mode
                 self.pin_toggle_btn.setChecked(False)

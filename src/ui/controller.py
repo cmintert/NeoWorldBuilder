@@ -438,6 +438,13 @@ class WorldBuildingController(QObject):
         self.ui.labels_input.setText(", ".join(node_data["labels"]))
         self.ui.tags_input.setText(", ".join(node_data["tags"]))
 
+    def _ensure_map_tab_exists(self) -> None:
+        """Create map tab if it doesn't exist."""
+        if not self.ui.map_tab:
+            self.ui.map_tab = MapTab()
+            self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
+            self.ui.tabs.addTab(self.ui.map_tab, "Map")
+
     def _populate_map_tab(self, node_data: Dict[str, Any]) -> None:
         """
         Handle map tab visibility and population.
@@ -450,15 +457,9 @@ class WorldBuildingController(QObject):
         if is_map_node:
             self._ensure_map_tab_exists()
             self._update_map_image(node_data["properties"].get("mapimage"))
+            self.ui.map_tab.load_pins()
         else:
             self._remove_map_tab()
-
-    def _ensure_map_tab_exists(self) -> None:
-        """Create map tab if it doesn't exist."""
-        if not self.ui.map_tab:
-            self.ui.map_tab = MapTab()
-            self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
-            self.ui.tabs.addTab(self.ui.map_tab, "Map")
 
     def _remove_map_tab(self) -> None:
         """Remove map tab if it exists."""
@@ -769,6 +770,8 @@ class WorldBuildingController(QObject):
         # Refresh UI state
         self.refresh_tree_view()
         self.load_node_data()
+        if self.ui.map_tab:
+            self.ui.map_tab.load_pins()
         self.update_unsaved_changes_indicator()
 
         # Activate the basic info tab
