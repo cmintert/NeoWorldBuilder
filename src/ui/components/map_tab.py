@@ -561,7 +561,7 @@ class PinContainer(QWidget):
 
     pin_clicked = pyqtSignal(str)
 
-    PIN_SVG = "src/resources/graphics/NWB_Map_Pin.svg"
+    PIN_SVG_SOURCE = "src/resources/graphics/NWB_Map_Pin.svg"
     BASE_PIN_WIDTH = 24  # Base width at 1.0 scale
     BASE_PIN_HEIGHT = 32  # Base height at 1.0 scale
     MIN_PIN_WIDTH = 12  # Minimum width when zoomed out
@@ -583,17 +583,17 @@ class PinContainer(QWidget):
 
         # Create SVG pin with error handling
         try:
-            if not os.path.exists(self.PIN_SVG):
-                print(f"SVG file not found: {self.PIN_SVG}")
-                raise FileNotFoundError(f"SVG file not found: {self.PIN_SVG}")
+            if not os.path.exists(self.PIN_SVG_SOURCE):
+                print(f"SVG file not found: {self.PIN_SVG_SOURCE}")
+                raise FileNotFoundError(f"SVG file not found: {self.PIN_SVG_SOURCE}")
 
             self.pin_svg = QSvgWidget(self)
-            self.pin_svg.load(self.PIN_SVG)
+            self.pin_svg.load(self.PIN_SVG_SOURCE)
 
             # Verify the widget has valid dimensions after loading
             if self.pin_svg.width() == 0 or self.pin_svg.height() == 0:
-                print(f"Failed to load SVG properly: {self.PIN_SVG}")
-                raise RuntimeError(f"Failed to load SVG properly: {self.PIN_SVG}")
+                print(f"Failed to load SVG properly: {self.PIN_SVG_SOURCE}")
+                raise RuntimeError(f"Failed to load SVG properly: {self.PIN_SVG_SOURCE}")
 
             self.update_pin_size()
 
