@@ -177,8 +177,11 @@ class PannableLabel(QLabel):
             self.pins[target_node].deleteLater()
             del self.pins[target_node]
 
-            # Create pin container with both pin and label
+        # Create pin container with both pin and label
         pin_container = PinContainer(target_node, self.pin_container)
+
+        # Set initial scale
+        pin_container.set_scale(self.parent_map_tab.current_scale)
 
         # Store original coordinates
         pin_container.original_x = x
@@ -189,7 +192,7 @@ class PannableLabel(QLabel):
         self.update_pin_position(target_node, x, y)
 
     def update_pin_position(self, target_node: str, x: int, y: int) -> None:
-        """Update position of a single pin."""
+        """Update position of a pin container."""
         if target_node not in self.pins:
             return
 
@@ -198,6 +201,9 @@ class PannableLabel(QLabel):
         if not hasattr(pin_container, "original_x"):
             pin_container.original_x = x
             pin_container.original_y = y
+
+        # Update the container's scale
+        pin_container.set_scale(self.parent_map_tab.current_scale)
 
         # Calculate scaled position using stored original coordinates
         current_scale = self.parent_map_tab.current_scale
@@ -216,6 +222,7 @@ class PannableLabel(QLabel):
         """Update all pin positions."""
         if pixmap := self.pixmap():
             for target_node, pin in self.pins.items():
+
                 # Extract original x,y from pin's current position and scale
                 current_scale = self.parent_map_tab.current_scale
                 widget_width, widget_height = self.width(), self.height()
@@ -534,9 +541,14 @@ class PinContainer(QWidget):
     """Container widget that holds both a pin and its label."""
 
     PIN_SVG = "src/resources/graphics/NWB_Map_Pin.svg"
+    BASE_PIN_WIDTH = 24  # Base width at 1.0 scale
+    BASE_PIN_HEIGHT = 32  # Base height at 1.0 scale
+    MIN_PIN_WIDTH = 12  # Minimum width when zoomed out
+    MIN_PIN_HEIGHT = 16  # Minimum height when zoomed out
 
     def __init__(self, target_node: str, parent=None):
         super().__init__(parent)
+        self._scale = 1.0  # Initialize scale attribute
 
         # Create layout
         layout = QVBoxLayout(self)
@@ -557,28 +569,19 @@ class PinContainer(QWidget):
                 print(f"Failed to load SVG properly: {self.PIN_SVG}")
                 raise RuntimeError(f"Failed to load SVG properly: {self.PIN_SVG}")
 
-            self.pin_svg.setFixedSize(QSize(24, 32))
+            self.update_pin_size()
 
         except Exception as e:
             print(f"Error loading SVG, falling back to emoji: {e}")
             # Fallback to emoji if SVG fails
             self.pin_svg = QLabel("📍", self)
-            self.pin_svg.setFixedSize(QSize(24, 32))
+            self.pin_svg.setFixedSize(
+                QSize(self.BASE_PIN_WIDTH, self.BASE_PIN_HEIGHT)
+            )  # Set initial size for emoji
 
         # Create text label
         self.text_label = QLabel(target_node)
-        self.text_label.setStyleSheet(
-            """
-            QLabel {
-                background-color: rgba(0, 0, 0, 50);
-                color: white;
-                padding: 2px 4px;
-                border-radius: 3px;
-                font-size: 8pt;
-            }
-        """
-        )
-        self.text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.update_label_style()
 
         # Add widgets to layout
         layout.addWidget(self.pin_svg)
@@ -589,3 +592,47 @@ class PinContainer(QWidget):
 
         # Adjust size
         self.adjustSize()
+
+    def update_pin_size(self) -> None:
+        """Update pin size based on current scale."""
+        # Calculate size based on scale, but don't go below minimum
+        width = max(int(self.BASE_PIN_WIDTH * self._scale), self.MIN_PIN_WIDTH)
+        height = max(int(self.BASE_PIN_HEIGHT * self._scale), self.MIN_PIN_HEIGHT)
+
+        # Check if we're using SVG or emoji fallback
+        if isinstance(self.pin_svg, QSvgWidget):
+            self.pin_svg.setFixedSize(QSize(width, height))
+        else:
+            # For emoji label, just update the font size
+            font_size = max(int(14 * self._scale), 8)  # Minimum font size for emoji
+            font = self.pin_svg.font()
+            font.setPointSize(font_size)
+            self.pin_svg.setFont(font)
+
+    def update_label_style(self) -> None:
+        """Update label style based on current scale."""
+        # Adjust font size based on scale
+        font_size = max(int(8 * self._scale), 6)  # Minimum font size of 6pt
+        self.text_label.setStyleSheet(
+            f"""
+            QLabel {{
+                background-color: rgba(0, 0, 0, 50);
+                color: white;
+                padding: {max(int(2 * self._scale), 1)}px {max(int(4 * self._scale), 2)}px;
+                border-radius: 3px;
+                font-size: {font_size}pt;
+            }}
+        """
+        )
+
+    def set_scale(self, scale: float) -> None:
+        """Set the current scale and update sizes."""
+        self._scale = scale
+        self.update_pin_size()
+        self.update_label_style()
+        self.adjustSize()
+
+    @property
+    def pin_height(self) -> int:
+        """Get the height of the pin."""
+        return self.pin_svg.height()
