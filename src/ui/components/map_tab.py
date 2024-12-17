@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple, List
 
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QTimer, QSize, QThread
 from PyQt6.QtGui import (
@@ -207,6 +207,32 @@ class PannableLabel(QLabel):
         self.pins[target_node] = pin_container
         pin_container.show()
         self.update_pin_position(target_node, x, y)
+
+    def batch_create_pins(self, pin_data: List[Tuple[str, int, int]]) -> None:
+        """Create multiple pins efficiently."""
+        # Pre-allocate widgets to minimize layout recalculations
+        for target_node, x, y in pin_data:
+            if target_node in self.pins:
+                self.pins[target_node].deleteLater()
+                del self.pins[target_node]
+
+        # Temporarily disable updates
+        self.pin_container.setUpdatesEnabled(False)
+
+        try:
+            for target_node, x, y in pin_data:
+                pin_container = PinContainer(target_node, self.pin_container)
+                pin_container.pin_clicked.connect(self.pin_clicked.emit)
+                pin_container.set_scale(self.parent_map_tab.current_scale)
+                pin_container.original_x = x
+                pin_container.original_y = y
+                self.pins[target_node] = pin_container
+                self.update_pin_position(target_node, x, y)
+                pin_container.show()
+        finally:
+            # Re-enable updates and force a single update
+            self.pin_container.setUpdatesEnabled(True)
+            self.pin_container.update()
 
     def update_pin_position(self, target_node: str, x: int, y: int) -> None:
         """Update position of a pin container."""
@@ -419,32 +445,39 @@ class MapTab(QWidget):
 
         self.image_label.clear_pins()
 
-        if not self.controller:
-
+        if not self.controller or not self.controller.ui.relationships_table:
             return
 
+        # Batch collect all pin data first
+        pin_data = []
         relationships_table = self.controller.ui.relationships_table
-        if not relationships_table:
 
-            return
-
+        # Use bulk data extraction
         for row in range(relationships_table.rowCount()):
-
-            rel_type = relationships_table.item(row, 0)
-            target_item = relationships_table.item(row, 1)
-            props_item = relationships_table.item(row, 3)
-
-            if rel_type and rel_type.text() == "SHOWS" and target_item and props_item:
-                try:
-                    target_text = target_item.text()
-                    properties = json.loads(props_item.text())
-                    x = properties.get("x")
-                    y = properties.get("y")
-                    if x is not None and y is not None:
-                        self.image_label.create_pin(target_text, int(x), int(y))
-                except (json.JSONDecodeError, AttributeError) as e:
-                    print(f"Error loading pin: {e}")
+            try:
+                rel_type = relationships_table.item(row, 0)
+                if not rel_type or rel_type.text() != "SHOWS":
                     continue
+
+                target_item = relationships_table.item(row, 1)
+                props_item = relationships_table.item(row, 3)
+
+                if not (target_item and props_item):
+                    continue
+
+                properties = json.loads(props_item.text())
+                x, y = properties.get("x"), properties.get("y")
+
+                if x is not None and y is not None:
+                    pin_data.append((target_item.text(), int(x), int(y)))
+
+            except (json.JSONDecodeError, AttributeError) as e:
+                print(f"Error loading pin: {e}")
+                continue
+
+        # Batch create all pins at once
+        if pin_data:
+            self.image_label.batch_create_pins(pin_data)
 
     def get_map_image_path(self) -> Optional[str]:
         """Get the current map image path."""

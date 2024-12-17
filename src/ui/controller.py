@@ -407,11 +407,24 @@ class WorldBuildingController(QObject):
         """
         try:
             node_data = self._extract_node_data(record)
+
+            # Start map data processing in parallel with basic info
+            is_map_node = "MAP" in {label.upper() for label in node_data["labels"]}
+            if is_map_node:
+                self._ensure_map_tab_exists()
+                # Start map image loading asynchronously
+                QTimer.singleShot(
+                    0,
+                    lambda: self._update_map_image(
+                        node_data["properties"].get("mapimage")
+                    ),
+                )
+
+            # Populate basic info immediately
             self._populate_basic_info(node_data)
             self._populate_properties(node_data["properties"])
             self._populate_relationships(node_data["relationships"])
             self._populate_basic_info_image(node_data["node_properties"])
-            self._populate_map_tab(node_data)
 
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
