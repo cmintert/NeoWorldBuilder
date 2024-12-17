@@ -206,7 +206,7 @@ class PannableLabel(QLabel):
 
         self.pins[target_node] = pin_container
         pin_container.show()
-        self.update_pin_position(target_node, x, y)
+        self.update_pin_container_position(target_node, x, y)
 
     def batch_create_pins(self, pin_data: List[Tuple[str, int, int]]) -> None:
         """Create multiple pins efficiently."""
@@ -227,17 +227,20 @@ class PannableLabel(QLabel):
                 pin_container.original_x = x
                 pin_container.original_y = y
                 self.pins[target_node] = pin_container
-                self.update_pin_position(target_node, x, y)
+                self.update_pin_container_position(target_node, x, y)
                 pin_container.show()
         finally:
             # Re-enable updates and force a single update
             self.pin_container.setUpdatesEnabled(True)
             self.pin_container.update()
 
-    def update_pin_position(self, target_node: str, x: int, y: int) -> None:
+    def update_pin_container_position(self, target_node: str, x: int, y: int) -> None:
         """Update position of a pin container."""
         if target_node not in self.pins:
             return
+
+        viewport_width = self.parent_map_tab.scroll_area.viewport().width()
+        viewport_height = self.parent_map_tab.scroll_area.viewport().height()
 
         pin_container = self.pins[target_node]
 
@@ -253,6 +256,15 @@ class PannableLabel(QLabel):
         scaled_x = pin_container.original_x * current_scale
         scaled_y = pin_container.original_y * current_scale
 
+        # Account for Widget and scaled image size
+        if pixmap := self.pixmap():
+            image_width = pixmap.width()
+            image_height = pixmap.height()
+            if image_width < viewport_width:
+                scaled_x += (viewport_width - image_width) / 2
+            if image_height < viewport_height:
+                scaled_y += (viewport_height - image_height) / 2
+
         # Account for container dimensions - align bottom of pin with point
         pin_x = int(scaled_x - (pin_container.pin_svg.width() / 2))
         pin_y = int(scaled_y - pin_container.pin_svg.height())
@@ -262,21 +274,14 @@ class PannableLabel(QLabel):
         pin_container.show()
 
     def update_pin_positions(self) -> None:
-        """Update all pin positions."""
-        if pixmap := self.pixmap():
-            for target_node, pin in self.pins.items():
+        """Update all pin positions using stored original coordinates."""
 
-                # Extract original x,y from pin's current position and scale
-                current_scale = self.parent_map_tab.current_scale
-                widget_width, widget_height = self.width(), self.height()
-                offset_x = max(0, (widget_width - pixmap.size().width()) // 2)
-                offset_y = max(0, (widget_height - pixmap.size().height()) // 2)
-
-                # Calculate back to original coordinates
-                orig_x = (pin.x() + (pin.width() // 2) - offset_x) / current_scale
-                orig_y = (pin.y() + pin.height() - offset_y) / current_scale
-
-                self.update_pin_position(target_node, int(orig_x), int(orig_y))
+        for target_node, pin in self.pins.items():
+            # Use the stored original coordinates rather than trying to calculate back
+            if hasattr(pin, "original_x") and hasattr(pin, "original_y"):
+                self.update_pin_container_position(
+                    target_node, pin.original_x, pin.original_y
+                )
 
     def clear_pins(self) -> None:
         """Remove all pins."""
