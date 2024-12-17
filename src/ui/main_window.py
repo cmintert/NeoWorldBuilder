@@ -899,9 +899,7 @@ class WorldBuildingUI(QWidget):
         """Handle changes to the map image path."""
         # Directly update all_props in controller
         self.controller.all_props["mapimage"] = image_path
-        print(
-            f"All props updated: {self.controller.all_props} *********************************"
-        )
+
         # Trigger unsaved changes update
         self.controller.update_unsaved_changes_indicator()
 

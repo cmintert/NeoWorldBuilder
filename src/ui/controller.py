@@ -320,8 +320,6 @@ class WorldBuildingController(QObject):
     @pyqtSlot(list)
     def _handle_node_data(self, data: List[Any]) -> None:
         """Handle node data fetched by the worker."""
-        logging.debug(f"Handling node data: {data}")
-
         if not data:
             return
 
@@ -333,8 +331,6 @@ class WorldBuildingController(QObject):
             self.all_props = record.get("all_props", {})
             if not isinstance(self.all_props, dict):
                 self.all_props = {}
-
-            logger.debug("processing_props", all_props=self.all_props)
 
             # Update original data for save state tracking
             self.original_node_data = self.node_operations.collect_node_data(
@@ -449,16 +445,13 @@ class WorldBuildingController(QObject):
     def _ensure_map_tab_exists(self) -> None:
         """Create map tab if it doesn't exist."""
         if not self.ui.map_tab:
-            print("7. Controller: Creating MapTab")
+
             self.ui.map_tab = MapTab(controller=self)
-            print(f"Controller on MapTab: {self.ui.map_tab.controller}")  # Debug
 
             self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
             self.ui.map_tab.pin_clicked.connect(self._handle_pin_click)
-            print("Signal pin_clicked connected to handler")  # Debug
 
             self.ui.tabs.addTab(self.ui.map_tab, "Map")
-            print("Map tab added to tabs")  # Debug
 
     def _handle_pin_click(self, target_node: str) -> None:
         """Handle pin click by loading the target node."""
@@ -775,7 +768,6 @@ class WorldBuildingController(QObject):
         )
 
         if node_data:
-            print(f"Node data being saved: {node_data}")
             self.node_operations.save_node(node_data, self._handle_save_success)
 
     def _handle_save_success(self, _: Any) -> None:

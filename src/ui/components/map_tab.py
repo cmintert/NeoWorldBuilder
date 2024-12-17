@@ -181,9 +181,6 @@ class PannableLabel(QLabel):
         pin_container = PinContainer(target_node, self.pin_container)
 
         # Add this line to connect the pin's click signal
-        pin_container.pin_clicked.connect(
-            lambda name: print(f"4. PannableLabel: Received pin_clicked for {name}")
-        )
         pin_container.pin_clicked.connect(self.pin_clicked.emit)
 
         # Set initial scale
@@ -332,10 +329,6 @@ class MapTab(QWidget):
             self.image_label.pin_clicked.connect(self.controller._handle_pin_click)
         else:
             print("Warning: No controller present for pin clicks")
-
-        self.pin_clicked.connect(
-            lambda name: print(f"6. MapTab: Emitting final pin_clicked for {name}")
-        )
 
         self.scroll_area.setWidget(self.image_label)
 
@@ -593,7 +586,9 @@ class PinContainer(QWidget):
             # Verify the widget has valid dimensions after loading
             if self.pin_svg.width() == 0 or self.pin_svg.height() == 0:
                 print(f"Failed to load SVG properly: {self.PIN_SVG_SOURCE}")
-                raise RuntimeError(f"Failed to load SVG properly: {self.PIN_SVG_SOURCE}")
+                raise RuntimeError(
+                    f"Failed to load SVG properly: {self.PIN_SVG_SOURCE}"
+                )
 
             self.update_pin_size()
 
@@ -664,7 +659,7 @@ class PinContainer(QWidget):
         return self.pin_svg.height()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        print(f"Mouse press on pin: {self.text_label.text()}")  # Debug print
+
         if event.button() == Qt.MouseButton.LeftButton:
             self.pin_clicked.emit(self.text_label.text())
         event.accept()  # Make sure we handle the event

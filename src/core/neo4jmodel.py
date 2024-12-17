@@ -153,16 +153,7 @@ class Neo4jModel:
         params = {"name": name}
         worker = QueryWorker(self._uri, self._auth, query, params)
 
-        def inner_callback(result):
-            logger.info(
-                "Node relationships retrieved.",
-                relationships=result,
-                module="Neo4jModel",
-                function="get_node_relationships",
-            )
-            callback(result)
-
-        worker.query_finished.connect(inner_callback)
+        worker.query_finished.connect(callback)
         return worker
 
     def save_node(self, node_data: Dict[str, Any], callback: Callable) -> WriteWorker:
