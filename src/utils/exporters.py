@@ -1,8 +1,12 @@
+import html
 import json
-from typing import List, Dict, Callable, Tuple, Any
+from typing import Callable, Tuple
+from typing import Dict, Any, List
 
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
-from fpdf import FPDF
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 
 
 class Exporter:
@@ -199,39 +203,14 @@ class Exporter:
 
     def _handle_pdf(self, file_name: str, nodes_data: List[Dict[str, Any]]) -> None:
         """
-        Handle PDF export.
+        Handle PDF export using PDFExporter.
 
         Args:
             file_name (str): The name of the file to save.
             nodes_data (List[Dict[str, Any]]): The list of node data to export.
         """
-        pdf = FPDF()
-        pdf.set_font("Arial", size=12)
-
-        for node_data in nodes_data:
-            pdf.add_page()
-            self._write_pdf_node(pdf, node_data)
-
-        pdf.output(file_name)
-
-    def _write_pdf_node(self, pdf: FPDF, node_data: Dict[str, Any]) -> None:
-        """
-        Write a single node's data in PDF format.
-
-        Args:
-            pdf (FPDF): The PDF object to write to.
-            node_data (Dict[str, Any]): The node data to write.
-        """
-        pdf.cell(200, 10, text=f"Name: {node_data['name']}", ln=True)
-        pdf.cell(200, 10, text=f"Description: {node_data['description']}", ln=True)
-        pdf.cell(200, 10, text=f"Tags: {', '.join(node_data['tags'])}", ln=True)
-        pdf.cell(200, 10, text=f"Labels: {', '.join(node_data['labels'])}", ln=True)
-        pdf.cell(200, 10, text="Relationships:", ln=True)
-        for rel in node_data["relationships"]:
-            pdf.cell(200, 10, text=f"  - {self._format_relationship(rel)}", ln=True)
-        pdf.cell(200, 10, text="Additional Properties:", ln=True)
-        for key, value in node_data["additional_properties"].items():
-            pdf.cell(200, 10, text=f"  - {key}: {value}", ln=True)
+        pdf_exporter = PDFExporter()
+        pdf_exporter.export_to_pdf(file_name, nodes_data)
 
     def _show_success_message(self, format_type: str) -> None:
         """
@@ -254,3 +233,221 @@ class Exporter:
             error_message (str): The error message to display.
         """
         QMessageBox.critical(self.ui, "Error", error_message)
+
+
+class PDFExporter:
+    def __init__(self):
+        self.styles = getSampleStyleSheet()
+        self._setup_custom_styles()
+
+    def _setup_custom_styles(self):
+        """Setup custom paragraph styles for better formatting"""
+        self.styles.add(
+            ParagraphStyle(
+                name="CustomNormal",
+                parent=self.styles["Normal"],
+                fontSize=10,
+                leading=14,
+                leftIndent=0,
+                rightIndent=0,
+            )
+        )
+        self.styles.add(
+            ParagraphStyle(
+                name="CustomHeading1",
+                parent=self.styles["Heading1"],
+                fontSize=14,
+                leading=18,
+                spaceAfter=10,
+            )
+        )
+        self.styles.add(
+            ParagraphStyle(
+                name="CustomHeading2",
+                parent=self.styles["Heading2"],
+                fontSize=12,
+                leading=16,
+                spaceBefore=10,
+                spaceAfter=6,
+            )
+        )
+        self.styles.add(
+            ParagraphStyle(
+                name="IndentedText",
+                parent=self.styles["Normal"],
+                leftIndent=20,
+                fontSize=10,
+                leading=14,
+            )
+        )
+
+    def _escape_text(self, text: Any) -> str:
+        """
+        Safely convert any input to string and escape HTML entities.
+
+        Args:
+            text: Any input that needs to be converted to safe string
+
+        Returns:
+            str: HTML-escaped string safe for PDF
+        """
+        return html.escape(str(text))
+
+    def _format_relationship(self, rel: tuple) -> str:
+        """
+        Format relationship data safely for PDF.
+
+        Args:
+            rel: Tuple containing (type, target, direction, properties)
+
+        Returns:
+            str: Formatted relationship string
+        """
+        try:
+            rel_type, target, direction, properties = rel
+            props_str = ", ".join(f"{k}: {v}" for k, v in properties.items())
+            return self._escape_text(
+                f"Type: {rel_type}, Target: {target}, "
+                f"Direction: {direction}, Properties: {{{props_str}}}"
+            )
+        except Exception as e:
+            return f"Error formatting relationship: {str(e)}"
+
+    def _add_section(
+        self,
+        elements: List,
+        title: str,
+        content: Any,
+        style: str = "CustomNormal",
+        indented: bool = False,
+    ) -> None:
+        """
+        Add a section to the PDF with proper formatting.
+
+        Args:
+            elements: List of PDF elements
+            title: Section title
+            content: Content to add
+            style: Style to apply to content
+            indented: Whether to indent the content
+        """
+        elements.append(Paragraph(title, self.styles["CustomHeading2"]))
+
+        if isinstance(content, list):
+            for item in content:
+                elements.append(
+                    Paragraph(
+                        f"• {self._escape_text(item)}",
+                        self.styles["IndentedText" if indented else style],
+                    )
+                )
+        else:
+            elements.append(
+                Paragraph(
+                    self._escape_text(content),
+                    self.styles["IndentedText" if indented else style],
+                )
+            )
+        elements.append(Spacer(1, 6))
+
+    def export_to_pdf(self, file_name: str, nodes_data: List[Dict[str, Any]]) -> None:
+        """
+        Export nodes data to a PDF file.
+
+        Args:
+            file_name: Name of the PDF file to create
+            nodes_data: List of node data dictionaries to export
+
+        Raises:
+            ValueError: If file_name is empty or nodes_data is empty
+            IOError: If there are issues writing to the file
+        """
+        if not file_name or not nodes_data:
+            raise ValueError("File name and nodes data are required")
+
+        # Create PDF document
+        doc = SimpleDocTemplate(
+            file_name,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72,
+        )
+
+        elements = []
+
+        # Add title
+        elements.append(Paragraph("Node Export Report", self.styles["Title"]))
+        elements.append(Spacer(1, 30))
+
+        # Process each node
+        for i, node_data in enumerate(nodes_data):
+            if i > 0:
+                elements.append(PageBreak())
+
+            try:
+                # Node name as header
+                elements.append(
+                    Paragraph(
+                        f"Node: {self._escape_text(node_data.get('name', 'Unnamed'))}",
+                        self.styles["CustomHeading1"],
+                    )
+                )
+                elements.append(Spacer(1, 12))
+
+                # Description
+                self._add_section(
+                    elements,
+                    "Description:",
+                    node_data.get("description", "No description available"),
+                )
+
+                # Tags
+                self._add_section(
+                    elements, "Tags:", ", ".join(node_data.get("tags", []))
+                )
+
+                # Labels
+                self._add_section(
+                    elements, "Labels:", ", ".join(node_data.get("labels", []))
+                )
+
+                # Relationships
+                elements.append(
+                    Paragraph("Relationships:", self.styles["CustomHeading2"])
+                )
+                for rel in node_data.get("relationships", []):
+                    elements.append(
+                        Paragraph(
+                            f"• {self._format_relationship(rel)}",
+                            self.styles["IndentedText"],
+                        )
+                    )
+                elements.append(Spacer(1, 12))
+
+                # Additional Properties
+                elements.append(
+                    Paragraph("Additional Properties:", self.styles["CustomHeading2"])
+                )
+                for key, value in node_data.get("additional_properties", {}).items():
+                    elements.append(
+                        Paragraph(
+                            f"• {self._escape_text(key)}: {self._escape_text(value)}",
+                            self.styles["IndentedText"],
+                        )
+                    )
+                elements.append(Spacer(1, 12))
+
+            except Exception as e:
+                elements.append(
+                    Paragraph(
+                        f"Error processing node: {str(e)}", self.styles["CustomNormal"]
+                    )
+                )
+
+        try:
+            # Build the PDF
+            doc.build(elements)
+        except Exception as e:
+            raise IOError(f"Failed to create PDF: {str(e)}")
