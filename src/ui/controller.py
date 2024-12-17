@@ -455,10 +455,11 @@ class WorldBuildingController(QObject):
 
     def _handle_pin_click(self, target_node: str) -> None:
         """Handle pin click by loading the target node."""
-        print(f"Controller handling pin click for {target_node}")  # Debug
+
         self.ui.name_input.setText(target_node)
-        print("Loading node data...")  # Debug
+
         self.load_node_data()
+        self.ui.tabs.setCurrentIndex(0)
 
     def _populate_map_tab(self, node_data: Dict[str, Any]) -> None:
         """
