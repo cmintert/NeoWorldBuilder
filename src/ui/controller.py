@@ -347,6 +347,13 @@ class WorldBuildingController(QObject):
                 all_props=self.all_props,
             )
 
+            labels = self.original_node_data.get("labels", [])
+            index_of_map_tab = self.ui.tabs.indexOf(self.ui.map_tab)
+            if "MAP" in labels:
+                self.ui.tabs.setCurrentIndex(index_of_map_tab)
+            else:
+                self.ui.tabs.setCurrentIndex(0)
+
             # Update save state with new original data
             self.save_service.update_save_state(self.original_node_data)
             self.ui.save_button.setStyleSheet(self.config.colors.passiveSave)
@@ -396,10 +403,11 @@ class WorldBuildingController(QObject):
         try:
             node_data = self._extract_node_data(record)
             self._populate_basic_info(node_data)
-            self._populate_map_tab(node_data)
             self._populate_properties(node_data["properties"])
             self._populate_relationships(node_data["relationships"])
             self._populate_basic_info_image(node_data["node_properties"])
+            self._populate_map_tab(node_data)
+
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
 
@@ -438,6 +446,28 @@ class WorldBuildingController(QObject):
         self.ui.labels_input.setText(", ".join(node_data["labels"]))
         self.ui.tags_input.setText(", ".join(node_data["tags"]))
 
+    def _ensure_map_tab_exists(self) -> None:
+        """Create map tab if it doesn't exist."""
+        if not self.ui.map_tab:
+            print("7. Controller: Creating MapTab")
+            self.ui.map_tab = MapTab(controller=self)
+            print(f"Controller on MapTab: {self.ui.map_tab.controller}")  # Debug
+
+            self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
+            self.ui.map_tab.pin_clicked.connect(self._handle_pin_click)
+            print("Signal pin_clicked connected to handler")  # Debug
+
+            self.ui.tabs.addTab(self.ui.map_tab, "Map")
+            print("Map tab added to tabs")  # Debug
+
+    def _handle_pin_click(self, target_node: str) -> None:
+        """Handle pin click by loading the target node."""
+
+        self.ui.name_input.setText(target_node)
+
+        self.load_node_data()
+        self.ui.tabs.setCurrentIndex(0)
+
     def _populate_map_tab(self, node_data: Dict[str, Any]) -> None:
         """
         Handle map tab visibility and population.
@@ -450,15 +480,9 @@ class WorldBuildingController(QObject):
         if is_map_node:
             self._ensure_map_tab_exists()
             self._update_map_image(node_data["properties"].get("mapimage"))
+            self.ui.map_tab.load_pins()
         else:
             self._remove_map_tab()
-
-    def _ensure_map_tab_exists(self) -> None:
-        """Create map tab if it doesn't exist."""
-        if not self.ui.map_tab:
-            self.ui.map_tab = MapTab()
-            self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
-            self.ui.tabs.addTab(self.ui.map_tab, "Map")
 
     def _remove_map_tab(self) -> None:
         """Remove map tab if it exists."""
@@ -769,6 +793,8 @@ class WorldBuildingController(QObject):
         # Refresh UI state
         self.refresh_tree_view()
         self.load_node_data()
+        if self.ui.map_tab:
+            self.ui.map_tab.load_pins()
         self.update_unsaved_changes_indicator()
 
         # Activate the basic info tab

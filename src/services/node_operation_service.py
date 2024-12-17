@@ -174,10 +174,6 @@ class NodeOperationsService:
                     for key, value in filtered_props.items()
                     if key in self.config.RESERVED_PROPERTY_KEYS
                 }
-                print("###############################")
-                print(f"all_props: {all_props}")
-                print(f"filtered_props: {filtered_props}")
-                print("###############################")
 
                 properties.update(filtered_props)
 
