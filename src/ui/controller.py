@@ -386,7 +386,16 @@ class WorldBuildingController(QObject):
             _: The result of the delete operation.
         """
         QMessageBox.information(self.ui, "Success", "Node deleted successfully")
-        self._load_default_state()
+        self._load_empty_state()
+
+    def _load_empty_state(self):
+
+        self.ui.name_input.setText("")
+        self.ui.description_input.clear()
+        self.ui.tags_input.clear()
+        self.ui.labels_input.clear()
+        self.ui.properties_table.clear()
+        self.ui.relationships_table.clear()
 
     @pyqtSlot(object)
     def _populate_node_fields(self, record: Any) -> None:

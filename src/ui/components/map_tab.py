@@ -2,7 +2,7 @@ import json
 import os
 from typing import Optional, Dict
 
-from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QTimer, QSize
+from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QTimer, QSize, QThread
 from PyQt6.QtGui import (
     QPixmap,
     QTransform,
@@ -24,6 +24,20 @@ from PyQt6.QtWidgets import (
 )
 
 from ui.dialogs import PinPlacementDialog
+
+
+class MapImageLoader(QThread):
+    """Thread for loading map images."""
+
+    loaded = pyqtSignal(QPixmap)
+
+    def __init__(self, image_path: str):
+        super().__init__()
+        self.image_path = image_path
+
+    def run(self):
+        pixmap = QPixmap(self.image_path)
+        self.loaded.emit(pixmap)
 
 
 class PannableLabel(QLabel):
@@ -267,6 +281,10 @@ class MapTab(QWidget):
         self.zoom_timer.setSingleShot(True)
         self.zoom_timer.timeout.connect(self._perform_zoom)
         self.pending_scale = None
+
+        self._pixmap_cache = {}
+        self.current_loader = None
+
         self.setup_map_tab_ui()
 
     def setup_map_tab_ui(self) -> None:
@@ -353,18 +371,41 @@ class MapTab(QWidget):
     def set_map_image(self, image_path: Optional[str]) -> None:
         """Set the map image path and display the image."""
         self.map_image_path = image_path
+
+        # Early exit for no image
         if not image_path:
             self.image_label.clear_pins()
             self.image_label.clear()
             self.image_label.setText("No map image set")
             return
 
-        pixmap = QPixmap(image_path)
-        if pixmap.isNull():
-            self.image_label.clear_pins()
-            self.image_label.setText(f"Error loading map image: {image_path}")
+        # Check cache first
+        if image_path in self._pixmap_cache:
+            pixmap = self._pixmap_cache[image_path]
+            self.original_pixmap = pixmap
+            self._update_map_image_display()
+            self.load_pins()
             return
 
+        # Show loading state
+        self.image_label.setText("Loading map...")
+
+        # Start loading in background
+        self.current_loader = MapImageLoader(image_path)
+        self.current_loader.loaded.connect(self._on_image_loaded)
+        self.current_loader.start()
+
+    def _on_image_loaded(self, pixmap: QPixmap) -> None:
+        """Handle when image has finished loading."""
+        if pixmap.isNull():
+            self.image_label.clear_pins()
+            self.image_label.setText(f"Error loading map image: {self.map_image_path}")
+            return
+
+        # Cache the successfully loaded pixmap
+        self._pixmap_cache[self.map_image_path] = pixmap
+
+        # Update display
         self.original_pixmap = pixmap
         self._update_map_image_display()
         self.load_pins()
