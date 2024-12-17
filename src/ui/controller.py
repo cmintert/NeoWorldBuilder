@@ -347,6 +347,13 @@ class WorldBuildingController(QObject):
                 all_props=self.all_props,
             )
 
+            labels = self.original_node_data.get("labels", [])
+            index_of_map_tab = self.ui.tabs.indexOf(self.ui.map_tab)
+            if "MAP" in labels:
+                self.ui.tabs.setCurrentIndex(index_of_map_tab)
+            else:
+                self.ui.tabs.setCurrentIndex(0)
+
             # Update save state with new original data
             self.save_service.update_save_state(self.original_node_data)
             self.ui.save_button.setStyleSheet(self.config.colors.passiveSave)
