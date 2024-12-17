@@ -297,6 +297,7 @@ class MapTab(QWidget):
 
         image_controls.addWidget(self.change_map_btn)
         image_controls.addWidget(self.clear_map_btn)
+        image_controls.addStretch()
         image_controls.addWidget(self.pin_toggle_btn)
         image_controls.addStretch()
 
@@ -528,9 +529,10 @@ class MapTab(QWidget):
         # Update cursor based on mode
         if active:
             self.image_label.setCursor(QCursor(Qt.CursorShape.CrossCursor))
+            self.pin_toggle_btn.setStyleSheet("background: white")
         else:
             self.image_label.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
-
+            self.pin_toggle_btn.setStyleSheet("background: grey")
         # Emit signal for other components
         self.pin_mode_toggled.emit(active)
 
