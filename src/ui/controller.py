@@ -442,9 +442,23 @@ class WorldBuildingController(QObject):
     def _ensure_map_tab_exists(self) -> None:
         """Create map tab if it doesn't exist."""
         if not self.ui.map_tab:
-            self.ui.map_tab = MapTab()
+            print("7. Controller: Creating MapTab")
+            self.ui.map_tab = MapTab(controller=self)
+            print(f"Controller on MapTab: {self.ui.map_tab.controller}")  # Debug
+
             self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
+            self.ui.map_tab.pin_clicked.connect(self._handle_pin_click)
+            print("Signal pin_clicked connected to handler")  # Debug
+
             self.ui.tabs.addTab(self.ui.map_tab, "Map")
+            print("Map tab added to tabs")  # Debug
+
+    def _handle_pin_click(self, target_node: str) -> None:
+        """Handle pin click by loading the target node."""
+        print(f"Controller handling pin click for {target_node}")  # Debug
+        self.ui.name_input.setText(target_node)
+        print("Loading node data...")  # Debug
+        self.load_node_data()
 
     def _populate_map_tab(self, node_data: Dict[str, Any]) -> None:
         """

@@ -31,6 +31,7 @@ class PannableLabel(QLabel):
 
     zoom_requested = pyqtSignal(float)  # Signal for zoom requests
     pin_placed = pyqtSignal(int, int)  # Signal for pin placement
+    pin_clicked = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__()
@@ -173,12 +174,17 @@ class PannableLabel(QLabel):
         """Create and position a pin with tooltip."""
 
         if target_node in self.pins:
-            print(f"Removing existing pin for {target_node}")
             self.pins[target_node].deleteLater()
             del self.pins[target_node]
 
         # Create pin container with both pin and label
         pin_container = PinContainer(target_node, self.pin_container)
+
+        # Add this line to connect the pin's click signal
+        pin_container.pin_clicked.connect(
+            lambda name: print(f"4. PannableLabel: Received pin_clicked for {name}")
+        )
+        pin_container.pin_clicked.connect(self.pin_clicked.emit)
 
         # Set initial scale
         pin_container.set_scale(self.parent_map_tab.current_scale)
@@ -250,6 +256,7 @@ class MapTab(QWidget):
     pin_created = pyqtSignal(
         str, str, dict
     )  # Signal target_node, direction, properties
+    pin_clicked = pyqtSignal(str)
 
     def __init__(self, parent: Optional[QWidget] = None, controller=None) -> None:
         """Initialize the map tab."""
@@ -319,6 +326,16 @@ class MapTab(QWidget):
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image_label.zoom_requested.connect(self._handle_wheel_zoom)
         self.image_label.pin_placed.connect(self._handle_pin_placement)
+
+        if self.controller:
+            self.image_label.pin_clicked.connect(self.controller._handle_pin_click)
+        else:
+            print("Warning: No controller present for pin clicks")
+
+        self.pin_clicked.connect(
+            lambda name: print(f"6. MapTab: Emitting final pin_clicked for {name}")
+        )
+
         self.scroll_area.setWidget(self.image_label)
 
         # Add all components to layout
@@ -540,6 +557,8 @@ class MapTab(QWidget):
 class PinContainer(QWidget):
     """Container widget that holds both a pin and its label."""
 
+    pin_clicked = pyqtSignal(str)
+
     PIN_SVG = "src/resources/graphics/NWB_Map_Pin.svg"
     BASE_PIN_WIDTH = 24  # Base width at 1.0 scale
     BASE_PIN_HEIGHT = 32  # Base height at 1.0 scale
@@ -549,6 +568,11 @@ class PinContainer(QWidget):
     def __init__(self, target_node: str, parent=None):
         super().__init__(parent)
         self._scale = 1.0  # Initialize scale attribute
+
+        # Make mouse interactive
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        self.setMouseTracking(True)
+        self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
 
         # Create layout
         layout = QVBoxLayout(self)
@@ -636,3 +660,9 @@ class PinContainer(QWidget):
     def pin_height(self) -> int:
         """Get the height of the pin."""
         return self.pin_svg.height()
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        print(f"Mouse press on pin: {self.text_label.text()}")  # Debug print
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.pin_clicked.emit(self.text_label.text())
+        event.accept()  # Make sure we handle the event
