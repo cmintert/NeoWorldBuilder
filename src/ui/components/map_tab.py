@@ -1,7 +1,8 @@
 import json
+import os
 from typing import Optional, Dict
 
-from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QTimer
+from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QTimer, QSize
 from PyQt6.QtGui import (
     QPixmap,
     QTransform,
@@ -9,8 +10,8 @@ from PyQt6.QtGui import (
     QCursor,
     QWheelEvent,
     QKeyEvent,
-    QFont,
 )
+from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -204,10 +205,8 @@ class PannableLabel(QLabel):
         scaled_y = pin_container.original_y * current_scale
 
         # Account for container dimensions - align bottom of pin with point
-        pin_x = int(scaled_x - (pin_container.width() / 2))
-        pin_y = int(
-            scaled_y - pin_container.pin_label.height()
-        )  # Only offset by pin height, not full container
+        pin_x = int(scaled_x - (pin_container.pin_svg.width() / 2))
+        pin_y = int(scaled_y - pin_container.pin_svg.height())
 
         pin_container.move(pin_x, pin_y)
         pin_container.raise_()
@@ -534,7 +533,7 @@ class MapTab(QWidget):
 class PinContainer(QWidget):
     """Container widget that holds both a pin and its label."""
 
-    PIN_SVG = "resources/graphics/NWB_Map_Pin.svg"
+    PIN_SVG = "src/resources/graphics/NWB_Map_Pin.svg"
 
     def __init__(self, target_node: str, parent=None):
         super().__init__(parent)
@@ -544,12 +543,27 @@ class PinContainer(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
 
-        # Create pin label (emoji)
-        self.pin_label = QLabel("📍")
-        font = QFont()
-        font.setPointSize(14)
-        self.pin_label.setFont(font)
-        self.pin_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Create SVG pin with error handling
+        try:
+            if not os.path.exists(self.PIN_SVG):
+                print(f"SVG file not found: {self.PIN_SVG}")
+                raise FileNotFoundError(f"SVG file not found: {self.PIN_SVG}")
+
+            self.pin_svg = QSvgWidget(self)
+            self.pin_svg.load(self.PIN_SVG)
+
+            # Verify the widget has valid dimensions after loading
+            if self.pin_svg.width() == 0 or self.pin_svg.height() == 0:
+                print(f"Failed to load SVG properly: {self.PIN_SVG}")
+                raise RuntimeError(f"Failed to load SVG properly: {self.PIN_SVG}")
+
+            self.pin_svg.setFixedSize(QSize(24, 32))
+
+        except Exception as e:
+            print(f"Error loading SVG, falling back to emoji: {e}")
+            # Fallback to emoji if SVG fails
+            self.pin_svg = QLabel("📍", self)
+            self.pin_svg.setFixedSize(QSize(24, 32))
 
         # Create text label
         self.text_label = QLabel(target_node)
@@ -567,7 +581,7 @@ class PinContainer(QWidget):
         self.text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Add widgets to layout
-        layout.addWidget(self.pin_label)
+        layout.addWidget(self.pin_svg)
         layout.addWidget(self.text_label)
 
         # Set container to be transparent
