@@ -163,9 +163,7 @@ class PannableLabel(QLabel):
         # Get the number of degrees rotated (usually 120 or -120)
         delta = event.angleDelta().y()
 
-        # Calculate zoom factor (smaller for smoother zoom)
-        # 120 degrees = standard wheel step
-        zoom_factor = 1.0 + (delta / 1200.0)  # 10% zoom per full wheel step
+        zoom_factor = 1.0 + (delta / 1200.0)
 
         # Emit the zoom request signal
         self.zoom_requested.emit(zoom_factor)
@@ -178,25 +176,15 @@ class PannableLabel(QLabel):
             self.pins[target_node].deleteLater()
             del self.pins[target_node]
 
-        pin = QLabel("📍", self.pin_container)
-        pin.setToolTip(target_node)
-        font = QFont()
-        font.setPointSize(14)
-        pin.setFont(font)
-        pin.setStyleSheet(
-            """
-            QToolTip {
-            background-color: #D9CD9C ;
-            color: #42413E;
-            border: 1px solid #555555;
-            padding: 3px;
-            font-size: 10pt;  }
-            """
-        )
-        pin.adjustSize()
+            # Create pin container with both pin and label
+        pin_container = PinContainer(target_node, self.pin_container)
 
-        self.pins[target_node] = pin
-        pin.show()
+        # Store original coordinates
+        pin_container.original_x = x
+        pin_container.original_y = y
+
+        self.pins[target_node] = pin_container
+        pin_container.show()
         self.update_pin_position(target_node, x, y)
 
     def update_pin_position(self, target_node: str, x: int, y: int) -> None:
@@ -204,29 +192,26 @@ class PannableLabel(QLabel):
         if target_node not in self.pins:
             return
 
-        pin = self.pins[target_node]
+        pin_container = self.pins[target_node]
 
-        if not hasattr(pin, "original_x"):
-            pin.original_x = x
-            pin.original_y = y
-
-        # Store original coordinates as custom properties on the pin
-        if not hasattr(pin, "original_x"):
-            pin.original_x = x
-            pin.original_y = y
+        if not hasattr(pin_container, "original_x"):
+            pin_container.original_x = x
+            pin_container.original_y = y
 
         # Calculate scaled position using stored original coordinates
         current_scale = self.parent_map_tab.current_scale
-        scaled_x = pin.original_x * current_scale
-        scaled_y = pin.original_y * current_scale
+        scaled_x = pin_container.original_x * current_scale
+        scaled_y = pin_container.original_y * current_scale
 
-        # Account for pin dimensions - align bottom center of pin with point
-        pin_x = int(scaled_x - (pin.width() / 2))
-        pin_y = int(scaled_y - pin.height())
+        # Account for container dimensions - align bottom of pin with point
+        pin_x = int(scaled_x - (pin_container.width() / 2))
+        pin_y = int(
+            scaled_y - pin_container.pin_label.height()
+        )  # Only offset by pin height, not full container
 
-        pin.move(pin_x, pin_y)
-        pin.raise_()
-        pin.show()
+        pin_container.move(pin_x, pin_y)
+        pin_container.raise_()
+        pin_container.show()
 
     def update_pin_positions(self) -> None:
         """Update all pin positions."""
@@ -488,11 +473,6 @@ class MapTab(QWidget):
             QTransform().scale(self.current_scale, self.current_scale),
             Qt.TransformationMode.SmoothTransformation,
         )
-
-        print(
-            f"Viewport: ({viewport_width}, {viewport_height}), Rel: ({rel_x}, {rel_y})"
-        )
-
         # Update the image
         self.image_label.setPixmap(scaled_pixmap)
 
@@ -549,3 +529,49 @@ class MapTab(QWidget):
 
                 # Exit pin placement mode
                 self.pin_toggle_btn.setChecked(False)
+
+
+class PinContainer(QWidget):
+    """Container widget that holds both a pin and its label."""
+
+    PIN_SVG = "resources/graphics/NWB_Map_Pin.svg"
+
+    def __init__(self, target_node: str, parent=None):
+        super().__init__(parent)
+
+        # Create layout
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+
+        # Create pin label (emoji)
+        self.pin_label = QLabel("📍")
+        font = QFont()
+        font.setPointSize(14)
+        self.pin_label.setFont(font)
+        self.pin_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Create text label
+        self.text_label = QLabel(target_node)
+        self.text_label.setStyleSheet(
+            """
+            QLabel {
+                background-color: rgba(0, 0, 0, 50);
+                color: white;
+                padding: 2px 4px;
+                border-radius: 3px;
+                font-size: 8pt;
+            }
+        """
+        )
+        self.text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Add widgets to layout
+        layout.addWidget(self.pin_label)
+        layout.addWidget(self.text_label)
+
+        # Set container to be transparent
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+        # Adjust size
+        self.adjustSize()
