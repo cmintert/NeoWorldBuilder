@@ -473,7 +473,33 @@ class WorldBuildingController(QObject):
             self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
             self.ui.map_tab.pin_clicked.connect(self._handle_pin_click)
 
+            # Add new connection for pin creation
+            self.ui.map_tab.pin_created.connect(self._handle_pin_created)
+
             self.ui.tabs.addTab(self.ui.map_tab, "Map")
+
+    def _handle_pin_created(
+        self, target_node: str, direction: str, properties: dict
+    ) -> None:
+        """Handle creation of a new map pin relationship.
+
+        Args:
+            target_node: The node to link to
+            direction: Relationship direction
+            properties: Properties including x,y coordinates
+        """
+        # Get current node name (the map node)
+        source_node = self.ui.name_input.text().strip()
+        if not source_node:
+            return
+
+        # Add new relationship row with SHOWS type
+        self.ui.add_relationship_row(
+            "SHOWS", target_node, direction, json.dumps(properties)
+        )
+
+        # Update save state to reflect changes
+        self.update_unsaved_changes_indicator()
 
     def _handle_pin_click(self, target_node: str) -> None:
         """Handle pin click by loading the target node."""
