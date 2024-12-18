@@ -288,19 +288,49 @@ class Neo4jModel:
         # Create/update relationships
         for rel in relationships:
             rel_type, rel_name, direction, properties = rel
+
+            # Prepare stump node properties
+            stump_props = {
+                "name": rel_name,
+                "_author": "System",
+                "_created": datetime.now().isoformat(),
+                "_modified": datetime.now().isoformat(),
+            }
+
             if direction == ">":
                 query_rel = (
-                    f"MATCH (n {{name: $name}}), (m {{name: $rel_name}}) "
-                    f"MERGE (n)-[r:`{rel_type}`]->(m) "
-                    "SET r = $properties"
+                    """
+                        MATCH (n {name: $name})
+                        MERGE (m {name: $rel_name})
+                            ON CREATE 
+                                SET m = $stump_props
+                                SET m:STUMP
+                        MERGE (n)-[r:`%s`]->(m)
+                        SET r = $properties
+                    """
+                    % rel_type
                 )
             else:
                 query_rel = (
-                    f"MATCH (n {{name: $name}}), (m {{name: $rel_name}}) "
-                    f"MERGE (n)<-[r:`{rel_type}`]-(m) "
-                    "SET r = $properties"
+                    """
+                        MATCH (n {name: $name})
+                        MERGE (m {name: $rel_name})
+                            ON CREATE 
+                                SET m = $stump_props
+                                SET m:STUMP
+                        MERGE (n)<-[r:`%s`]-(m)
+                        SET r = $properties
+                    """
+                    % rel_type
                 )
-            tx.run(query_rel, name=name, rel_name=rel_name, properties=properties)
+
+            tx.run(
+                query_rel,
+                name=name,
+                rel_name=rel_name,
+                properties=properties,
+                stump_props=stump_props,
+            )
 
         logger.debug(
             "Finished Save Node Transaction",
