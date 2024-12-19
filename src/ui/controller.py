@@ -1,5 +1,7 @@
 import json
 import logging
+import time
+from datetime import time
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 
@@ -61,6 +63,12 @@ class WorldBuildingController(QObject):
             config (Config): The configuration instance.
         """
         super().__init__()
+
+        # Operation Flags
+        self._delete_in_progress = False
+        self._last_delete_timestamp = 0.0
+
+        # Main references
         self.ui = ui
         self.model = model
         self.config = config
@@ -173,20 +181,43 @@ class WorldBuildingController(QObject):
 
     def delete_node(self) -> None:
         """Handle node deletion request."""
-        name = self.ui.name_input.text().strip()
-        if not name:
+
+        if self._delete_in_progress:
+            logger.warning("delete_operation_already_in_progress")
             return
 
-        reply = QMessageBox.question(
-            self.ui,
-            "Confirm Deletion",
-            f'Are you sure you want to delete node "{name}"?',
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
+            # Guard against rapid successive calls (debounce)
+        current_time = time.time()
+        if current_time - self._last_delete_timestamp < 0.5:  # 500ms debounce
+            logger.warning("delete_operation_debounced")
+            return
 
-        if reply == QMessageBox.StandardButton.Yes:
-            self.node_operations.delete_node(name, self._handle_delete_success)
+        try:
+            self._delete_in_progress = True
+            self._last_delete_timestamp = current_time
+
+            name = self.ui.name_input.text().strip()
+            if not name:
+                self._delete_in_progress = False
+                return
+
+            reply = QMessageBox.question(
+                self.ui,
+                "Confirm Deletion",
+                f'Are you sure you want to delete node "{name}"?',
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                self.node_operations.delete_node(name, self._handle_delete_success)
+            else:
+                self._cleanup_delete_operation()
+
+        except Exception as e:
+            logger.error("delete_operation_failed", error=str(e))
+            self._cleanup_delete_operation()
+            raise
 
     #############################################
     # 3. Tree and Relationship Management
@@ -385,17 +416,63 @@ class WorldBuildingController(QObject):
         Args:
             _: The result of the delete operation.
         """
-        QMessageBox.information(self.ui, "Success", "Node deleted successfully")
-        self._load_empty_state()
+        try:
+            QMessageBox.information(self.ui, "Success", "Node deleted successfully")
+            self._load_empty_state()
+        finally:
+            self._cleanup_delete_operation()
+
+    def _cleanup_delete_operation(self) -> None:
+        """Clean up delete operation state."""
+        self._delete_in_progress = False
+        self.ui.delete_button.setEnabled(True)
 
     def _load_empty_state(self):
+        """Reset all UI components to their empty state while preserving headers and structure."""
 
+        # Clear basic info fields
         self.ui.name_input.setText("")
         self.ui.description_input.clear()
         self.ui.tags_input.clear()
         self.ui.labels_input.clear()
-        self.ui.properties_table.clear()
-        self.ui.relationships_table.clear()
+
+        # Clear and reset properties table
+        self.ui.properties_table.setRowCount(0)
+        self.ui.properties_table.setHorizontalHeaderLabels(["Key", "Value", ""])
+
+        # Clear and reset relationships table
+        self.ui.relationships_table.setRowCount(0)
+        self.ui.relationships_table.setHorizontalHeaderLabels(
+            ["Type", "Related Node", "Direction", "Properties", " ", " "]
+        )
+
+        # Clear tree view
+        tree_model = self.ui.tree_view.model()
+        if tree_model:
+            tree_model.clear()
+            tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
+
+        # Reset map tab if it exists
+        if self.ui.map_tab:
+            map_tab_index = self.ui.tabs.indexOf(self.ui.map_tab)
+            if map_tab_index != -1:
+                self.ui.tabs.removeTab(map_tab_index)
+                self.ui.map_tab = None
+
+        # Reset save state
+        if hasattr(self, "save_service"):
+            self.save_service.update_save_state(None)
+            self.ui.save_button.setStyleSheet(self.config.colors.passiveSave)
+
+        # Reset operation flags
+        self._delete_in_progress = False
+        self._last_delete_time = 0.0
+
+        # Ensure all buttons are enabled
+        self.ui.save_button.setEnabled(True)
+        self.ui.delete_button.setEnabled(True)
+
+        logger.debug("UI reset to empty state")
 
     @pyqtSlot(object)
     def _populate_node_fields(self, record: Any) -> None:
