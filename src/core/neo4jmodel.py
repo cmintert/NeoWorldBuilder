@@ -296,40 +296,41 @@ class Neo4jModel:
                 "_modified": datetime.now().isoformat(),
             }
 
+            # First check if target exists
+            check_query = "MATCH (target {name: $rel_name}) RETURN target"
+            result = tx.run(check_query, rel_name=rel_name)
+            target_exists = result.single() is not None
+
+            # Handle target node
+            if not target_exists:
+                # Create new node with STUMP label
+                create_query = """
+                    CREATE (target:STUMP)
+                    SET target = $stump_props
+                """
+                tx.run(create_query, stump_props=stump_props)
+
+            # Create the relationship
             if direction == ">":
                 query_rel = (
                     """
-                        MATCH (n {name: $name})
-                        MERGE (target {name: $rel_name})
-                        ON CREATE 
-                            SET target = $stump_props
-                            SET target:STUMP
-                        MERGE (n)-[r:`%s`]->(target)
-                        SET r = $properties
-                        """
+                    MATCH (n {name: $name}), (target {name: $rel_name})
+                    MERGE (n)-[r:`%s`]->(target)
+                    SET r = $properties
+                """
                     % rel_type
                 )
             else:
                 query_rel = (
                     """
-                        MATCH (n {name: $name})
-                        MERGE (target {name: $rel_name})
-                        ON CREATE 
-                            SET target = $stump_props
-                            SET target:STUMP
-                        MERGE (n)<-[r:`%s`]-(target)
-                        SET r = $properties
-                        """
+                    MATCH (n {name: $name}), (target {name: $rel_name})
+                    MERGE (n)<-[r:`%s`]-(target)
+                    SET r = $properties
+                """
                     % rel_type
                 )
 
-            tx.run(
-                query_rel,
-                name=name,
-                rel_name=rel_name,
-                properties=properties,
-                stump_props=stump_props,
-            )
+            tx.run(query_rel, name=name, rel_name=rel_name, properties=properties)
 
         logger.debug(
             "Finished Save Node Transaction",
