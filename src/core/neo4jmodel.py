@@ -250,10 +250,9 @@ class Neo4jModel:
         result = tx.run("MATCH (n {name: $name}) RETURN labels(n) AS labels", name=name)
         record = result.single()
         existing_labels = record["labels"] if record else []
-        existing_labels = [label for label in existing_labels if label != "Node"]
 
         # Determine labels to add and remove
-        input_labels_set = set(labels) - {"Node"}
+        input_labels_set = set(labels)
         existing_labels_set = set(existing_labels)
         labels_to_add = input_labels_set - existing_labels_set
         labels_to_remove = existing_labels_set - input_labels_set
@@ -301,26 +300,26 @@ class Neo4jModel:
                 query_rel = (
                     """
                         MATCH (n {name: $name})
-                        MERGE (m {name: $rel_name})
-                            ON CREATE 
-                                SET m = $stump_props
-                                SET m:STUMP
-                        MERGE (n)-[r:`%s`]->(m)
+                        MERGE (target {name: $rel_name})
+                        ON CREATE 
+                            SET target = $stump_props
+                            SET target:STUMP
+                        MERGE (n)-[r:`%s`]->(target)
                         SET r = $properties
-                    """
+                        """
                     % rel_type
                 )
             else:
                 query_rel = (
                     """
                         MATCH (n {name: $name})
-                        MERGE (m {name: $rel_name})
-                            ON CREATE 
-                                SET m = $stump_props
-                                SET m:STUMP
-                        MERGE (n)<-[r:`%s`]-(m)
+                        MERGE (target {name: $rel_name})
+                        ON CREATE 
+                            SET target = $stump_props
+                            SET target:STUMP
+                        MERGE (n)<-[r:`%s`]-(target)
                         SET r = $properties
-                    """
+                        """
                     % rel_type
                 )
 
@@ -429,7 +428,7 @@ class Neo4jModel:
         with self.get_session() as session:
             result = session.run(
                 """
-                MATCH (n:Node)
+                MATCH (n)
                 WITH n, labels(n) AS labels
                 WHERE size(labels) > 1
                 RETURN DISTINCT head(labels) as category, 
