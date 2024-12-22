@@ -54,6 +54,7 @@ class InitializationService:
         self._initialize_tree_view()
         self._initialize_completers()
         self._connect_signals()
+        self._initialize_save_service()
         self._load_default_state()
 
     def _initialize_style_management(self) -> None:
@@ -82,8 +83,6 @@ class InitializationService:
 
         # 3. Feature services
         self.fast_inject_service = FastInjectService()
-
-        # 4. Exporter (was missing)
         self.exporter = Exporter(self.ui, self.config)
 
         # Services requiring UI
@@ -111,17 +110,21 @@ class InitializationService:
             self._create_suggestion_ui_handler(),
         )
 
-        # Initialize save service
-        self.save_service = SaveService(self.node_operations, self.error_handler)
-        self.save_service.start_periodic_check(
-            get_current_data=self.controller._get_current_node_data,
-            on_state_changed=self.controller._handle_save_state_changed,
-        )
-
         # Initialize tree model and service
         self.tree_model = QStandardItemModel()
         self.relationship_tree_service = RelationshipTreeService(
             self.tree_model, self.controller.NODE_RELATIONSHIPS_HEADER
+        )
+
+    def _initialize_save_service(self) -> None:
+        """Initialize and start the save service after all other components are ready."""
+        self.save_service = SaveService(self.node_operations, self.error_handler)
+        self.controller.save_service = self.save_service
+
+        # Start periodic checking only after everything is properly initialized
+        self.save_service.start_periodic_check(
+            get_current_data=self.controller._get_current_node_data,
+            on_state_changed=self.controller._handle_save_state_changed,
         )
 
     def _initialize_ui_components(self) -> None:
@@ -138,7 +141,6 @@ class InitializationService:
         self.controller.auto_completion_service = self.auto_completion_service
         self.controller.node_operations = self.node_operations
         self.controller.suggestion_service = self.suggestion_service
-        self.controller.save_service = self.save_service
         self.controller.tree_model = self.tree_model
         self.controller.relationship_tree_service = self.relationship_tree_service
 
