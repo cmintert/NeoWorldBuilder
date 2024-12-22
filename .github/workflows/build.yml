@@ -1,0 +1,24 @@
+name: Basic Build
+
+on:
+  push:
+    branches: [ master ]  # Triggers when you push to main branch
+  workflow_dispatch:    # Allows manual trigger from GitHub interface
+
+jobs:
+  build:
+    runs-on: windows-latest  # Using Windows since it's a Windows app
+
+    steps:
+    - name: Checkout code  # Gets your code from GitHub
+      uses: actions/checkout@v4
+
+    - name: Set up Python  # Installs Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies  # Installs your project dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
