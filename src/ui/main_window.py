@@ -96,9 +96,6 @@ class WorldBuildingUI(QWidget):
         self.save_button.clicked.connect(self.controller.save_node)
         self.delete_button.clicked.connect(self.controller.delete_node)
 
-        # Name input
-        self.name_input.editingFinished.connect(self.controller.load_node_data)
-
         # connect the suggest button
         self.suggest_button.clicked.connect(self.controller.show_suggestions_modal)
 

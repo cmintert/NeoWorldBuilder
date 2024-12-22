@@ -106,54 +106,63 @@ class WorldBuildingController(QObject):
 
     def _setup_name_input_handling(self) -> None:
         """Setup name input field event handling."""
-        # Store initial name if any
+        # Remove all focus event handling
         self._previous_name = self.ui.name_input.text().strip()
+        # Add text changed handler
+        self.ui.name_input.textChanged.connect(self._on_name_changed)
 
-        # Override focusOutEvent while preserving any existing handler
-        original_focus_out = self.ui.name_input.focusOutEvent
+    def _on_name_changed(self, text: str) -> None:
+        """Handle name input changes and load node data if it exists."""
+        current_name = text.strip()
 
-        def new_focus_out(event):
-            self.on_name_focus_lost()
-            if original_focus_out:
-                original_focus_out(event)
+        # Skip if name hasn't actually changed
+        if current_name == self._previous_name:
+            return
 
-        self.ui.name_input.focusOutEvent = new_focus_out
-
-    def on_name_focus_lost(self) -> None:
-        """Handle name input losing focus."""
-        current_name = self.ui.name_input.text().strip()
-
-        # Only proceed if name actually changed
-        if current_name != self._previous_name:
-            logger.debug(
-                "Name field changed",
-                previous_name=self._previous_name,
-                new_name=current_name,
-            )
-
-            def handle_node_check(data: List[Any]) -> None:
-                if not data:
-                    # Node doesn't exist - this is the ONE place we wipe all_props
-                    logger.info("Wiping all_props for new node", new_name=current_name)
-                    self.all_props = {}
-
-                # Always load/refresh data after check
-                self.load_node_data()
-
-            # Check if new name exists in database
-            worker = self.model.load_node(current_name, handle_node_check)
-            operation = WorkerOperation(
-                worker=worker,
-                success_callback=handle_node_check,
-                error_callback=lambda msg: self.error_handler.handle_error(
-                    f"Error checking node: {msg}"
-                ),
-                operation_name="check_node_exists",
-            )
-            self.worker_manager.execute_worker("check", operation)
-
-        # Update tracker
         self._previous_name = current_name
+
+        # Skip empty names
+        if not current_name:
+            self.ui.clear_all_fields()
+            return
+
+        logger.debug(
+            "Name field changed",
+            previous_name=self._previous_name,
+            new_name=current_name,
+        )
+
+        def create_check_callback(name: str):
+            """Create a callback that knows about the name being checked."""
+
+            def callback(data: List[Any]) -> None:
+                if data:  # Node exists
+                    # Only load data if this is still the current name
+                    if name == self.ui.name_input.text().strip():
+                        self.load_node_data()
+                else:
+                    # Only clear if this is still the current name
+                    if name == self.ui.name_input.text().strip():
+                        logger.info("Wiping all_props for new node", new_name=name)
+                        self.all_props = {}
+                        self.ui.clear_all_fields()
+
+            return callback
+
+        # Create callback with closure over current_name
+        callback = create_check_callback(current_name)
+
+        # Check if node exists in database
+        worker = self.model.load_node(current_name, callback)
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=callback,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Error checking node: {msg}"
+            ),
+            operation_name="check_node_exists",
+        )
+        self.worker_manager.execute_worker("check", operation)
 
     def _add_target_completer_to_row(self, row: int) -> None:
         """
