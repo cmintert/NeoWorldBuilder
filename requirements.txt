@@ -1,0 +1,6 @@
+PyQt6~=6.7.1
+structlog~=24.4.0
+neo4j~=5.25.0
+pandas~=2.2.3
+cryptography~=43.0.3
+reportlab~=4.2.5
