@@ -36,6 +36,8 @@ from PyQt6.QtWidgets import (
     QMainWindow,
 )
 
+from ui.dialogs import ConnectionSettingsDialog
+
 try:
     from config.config import Config
 except ImportError as e:
@@ -120,27 +122,68 @@ class WorldBuildingApp(QMainWindow):
         self.initialize_application()
 
     def initialize_application(self) -> None:
+        """Initialize the application with improved error handling."""
         try:
-            # 1. Load Configuration
+            # Load configuration first
             config = self._load_configuration()
 
-            # 2. Setup Logging
+            # Setup logging
             self._setup_logging(config)
 
-            # 3. Initialize Database Model
-            model = self._initialize_database(config)
+            # Initialize database connection with error handling
+            try:
+                model = self._initialize_database(config)
+            except Exception as db_error:
+                # Handle database connection failure
+                error_msg = str(db_error).lower()
 
-            # 4. Create UI (elements created but signals not connected)
-            ui = WorldBuildingUI(None)
+                if "authentication" in error_msg:
+                    message = (
+                        "Invalid database credentials. Would you like to update them?"
+                    )
+                elif "connection refused" in error_msg:
+                    message = "Database server not accessible. Please check if Neo4j is running."
+                else:
+                    message = f"Database connection failed: {str(db_error)}\n\nWould you like to update connection settings?"
 
-            # 5. Initialize Controller
-            controller = WorldBuildingController(ui, model, config, self)
+                response = QMessageBox.question(
+                    self,
+                    "Database Connection Error",
+                    message,
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                )
 
-            # 6. Set controller and connect signals
+                if response == QMessageBox.StandardButton.Yes:
+                    dialog = ConnectionSettingsDialog(config, self)
+                    if dialog.exec():
+                        # Retry connection with new settings
+                        config = self._load_configuration()  # Reload config
+                        try:
+                            model = self._initialize_database(config)
+                        except Exception as retry_error:
+                            raise RuntimeError(
+                                f"Failed to connect with new settings: {str(retry_error)}"
+                            )
+                    else:
+                        raise RuntimeError(
+                            "Database configuration required to run the application"
+                        )
+                else:
+                    raise RuntimeError(
+                        "Database connection required to run the application"
+                    )
+
+            # Create UI (elements created but signals not connected)
+            ui = self._setup_ui(None)
+
+            # Initialize Controller
+            controller = self._initialize_controller(ui, model, config)
+
+            # Set controller and connect signals
             ui.controller = controller
-            ui.setup_ui()  # Now connect signals
+            ui.setup_ui()
 
-            # Store components for access
+            # Store components
             self.components = AppComponents(
                 ui=ui, model=model, controller=controller, config=config
             )
@@ -158,6 +201,25 @@ class WorldBuildingApp(QMainWindow):
 
         except Exception as e:
             self._handle_initialization_error(e)
+
+    def _handle_initialization_error(self, error: Exception) -> None:
+        """Handle initialization errors with improved user feedback."""
+        error_message = str(error)
+        detailed_message = ""
+
+        if "database configuration required" in error_message.lower():
+            detailed_message = "The application needs valid database settings to run.\n\nPlease configure the connection settings and try again."
+        elif "connection required" in error_message.lower():
+            detailed_message = "The application requires a working database connection.\n\nPlease ensure Neo4j is running and try again."
+        else:
+            detailed_message = f"Failed to initialize the application:\n\n{error_message}\n\nPlease check the logs for more details."
+
+        QMessageBox.critical(self, "Initialization Error", detailed_message)
+
+        # Clean up any partially initialized resources
+        self._cleanup_resources()
+
+        sys.exit(1)
 
     def _load_configuration(self) -> Config:
         """

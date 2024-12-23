@@ -1,20 +1,12 @@
-import json
 from typing import Dict, List, Tuple, Any, Set, Union, Optional
 
-from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
     QTabWidget,
-    QDialogButtonBox,
     QWidget,
     QCheckBox,
-    QLabel,
     QHBoxLayout,
     QGroupBox,
-    QLineEdit,
-    QPushButton,
-    QMessageBox,
     QRadioButton,
     QTableWidgetItem,
     QHeaderView,
@@ -23,9 +15,9 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QInputDialog,
     QButtonGroup,
+    QApplication,
 )
 
-from core.neo4jmodel import Neo4jModel
 from utils.crypto import SecurityUtility
 
 
@@ -249,115 +241,202 @@ class SuggestionDialog(QDialog):
         super().accept()
 
 
+from PyQt6.QtCore import Qt, pyqtSlot
+from PyQt6.QtWidgets import (
+    QDialog,
+    QVBoxLayout,
+    QFormLayout,
+    QLineEdit,
+    QPushButton,
+    QMessageBox,
+    QLabel,
+    QProgressBar,
+    QDialogButtonBox,
+)
+from neo4j.exceptions import AuthError, ServiceUnavailable
+import json
+from pathlib import Path
+
+
 class ConnectionSettingsDialog(QDialog):
     def __init__(self, config, app_instance, parent=None):
         super().__init__(parent)
-
         self.config = config
         self.app_instance = app_instance
+        self.test_succeeded = False
 
-        self.setWindowTitle("Manage Connection Settings")
-        self.layout = QVBoxLayout()
+        self.setup_ui()
+        self.load_existing_settings()
 
-        self.uri_label = QLabel("URI:", self)
-        self.uri_input = QLineEdit(config.URI, self)
-        self.uri_label.setBuddy(self.uri_input)
-        self.layout.addWidget(self.uri_label)
-        self.layout.addWidget(self.uri_input)
+    def setup_ui(self):
+        self.setWindowTitle("Database Connection Settings")
+        self.setModal(True)
+        self.setMinimumWidth(400)
 
-        self.username_label = QLabel("Username:", self)
-        self.username_input = QLineEdit(config.USERNAME, self)
-        self.username_label.setBuddy(self.username_input)
-        self.layout.addWidget(self.username_label)
-        self.layout.addWidget(self.username_input)
+        layout = QVBoxLayout(self)
+        form_layout = QFormLayout()
 
-        self.password_label = QLabel("Password:", self)
-        self.password_input = QLineEdit(config.PASSWORD, self)
-        self.password_label.setBuddy(self.password_input)
+        # Create input fields
+        self.uri_input = QLineEdit()
+        self.uri_input.setPlaceholderText("bolt://localhost:7687")
+
+        self.username_input = QLineEdit()
+        self.username_input.setPlaceholderText("neo4j")
+
+        self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.layout.addWidget(self.password_label)
-        self.layout.addWidget(self.password_input)
 
-        self.test_button = QPushButton("Establish Connection", self)
-        self.test_button.setObjectName("establish_connect_button")
+        # Add fields to form
+        form_layout.addRow("Database URI:", self.uri_input)
+        form_layout.addRow("Username:", self.username_input)
+        form_layout.addRow("Password:", self.password_input)
 
-        self.save_button = QPushButton("Save", self)
-        self.save_button.setObjectName("save_button")
+        layout.addLayout(form_layout)
 
-        self.layout.addWidget(self.test_button)
-        self.layout.addWidget(self.save_button)
-        self.setLayout(self.layout)
+        # Add status indicator
+        self.status_label = QLabel()
+        self.status_label.setVisible(False)
+        layout.addWidget(self.status_label)
 
-        self.test_button.clicked.connect(self.establish_connection)
-        self.save_button.clicked.connect(self.save_settings)
+        # Add progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
 
-    def establish_connection(self):
-        """Test database connection with provided credentials."""
+        # Create button box
+        button_box = QDialogButtonBox()
+        self.test_button = QPushButton("Test Connection")
+        self.test_button.clicked.connect(self.test_connection)
+        button_box.addButton(self.test_button, QDialogButtonBox.ButtonRole.ActionRole)
+
+        button_box.addButton(QDialogButtonBox.StandardButton.Save)
+        button_box.addButton(QDialogButtonBox.StandardButton.Cancel)
+
+        button_box.accepted.connect(self.save_settings)
+        button_box.rejected.connect(self.reject)
+
+        layout.addWidget(button_box)
+
+    def load_existing_settings(self):
+        """Load existing connection settings if available."""
         try:
-            uri = self.uri_input.text()
-            username = self.username_input.text()
-            password = self.password_input.text()
+            self.uri_input.setText(self.config.URI)
+            self.username_input.setText(self.config.USERNAME)
+            if hasattr(self.config, "PASSWORD") and self.config.PASSWORD:
+                self.password_input.setText(self.config.PASSWORD)
+        except Exception as e:
+            self.show_error("Failed to load existing settings", str(e))
 
+    def show_status(self, message, is_error=False):
+        """Display status message with appropriate styling."""
+        self.status_label.setText(message)
+        color = "#FF0000" if is_error else "#008000"
+        self.status_label.setStyleSheet(f"color: {color};")
+        self.status_label.setVisible(True)
+
+    @pyqtSlot()
+    def test_connection(self):
+        """Test the database connection with provided credentials."""
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setRange(0, 0)  # Indeterminate progress
+        self.test_button.setEnabled(False)
+        self.status_label.setVisible(False)
+
+        uri = self.uri_input.text().strip()
+        username = self.username_input.text().strip()
+        password = self.password_input.text()
+
+        if not all([uri, username, password]):
+            self.show_status("Please fill in all fields", True)
+            self.progress_bar.setVisible(False)
+            self.test_button.setEnabled(True)
+            return
+
+        try:
             # Create temporary model to test connection
+            from core.neo4jmodel import Neo4jModel
+
             test_model = Neo4jModel(uri, username, password)
 
             try:
-                # Verify connectivity including auth
                 test_model._driver.verify_connectivity()
-                QMessageBox.information(
-                    self, "Success", "Connection successful and credentials verified."
-                )
+                self.show_status("Connection successful!")
+                self.test_succeeded = True
 
+            except AuthError:
+                self.show_status("Invalid username or password", True)
+            except ServiceUnavailable:
+                self.show_status("Database server not accessible", True)
             except Exception as e:
-                if "authentication" in str(e).lower():
-                    QMessageBox.critical(
-                        self, "Authentication Error", "Invalid username or password."
-                    )
-                else:
-                    QMessageBox.critical(
-                        self, "Connection Error", f"Failed to connect: {str(e)}"
-                    )
+                self.show_status(f"Connection failed: {str(e)}", True)
             finally:
                 test_model.close()
 
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to establish connection: {str(e)}"
-            )
+            self.show_status(f"Failed to establish connection: {str(e)}", True)
+
+        self.progress_bar.setVisible(False)
+        self.test_button.setEnabled(True)
 
     def save_settings(self):
-        # Retrieve the input values
-        uri = self.uri_input.text()
-        username = self.username_input.text()
-        password = self.password_input.text()
+        """Save the connection settings."""
+        if not self.test_succeeded:
+            response = QMessageBox.warning(
+                self,
+                "Untested Connection",
+                "Connection hasn't been successfully tested. Save anyway?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if response == QMessageBox.StandardButton.No:
+                return
 
-        # Encrypt the password
-        encryption_key = self.config.KEY
-        security_utility = SecurityUtility(encryption_key)
-        encrypted_password = security_utility.encrypt(password)
-
-        # Prepare the new settings dictionary
-        new_settings = {
-            "URI": uri,
-            "USERNAME": username,
-            "PASSWORD": encrypted_password,
-        }
-
-        # Load existing settings from the JSON file
         try:
-            with open("src/config/database.json", "r") as config_file:
-                existing_settings = json.load(config_file)
-        except FileNotFoundError:
-            existing_settings = {}
+            # Encrypt password
+            security_utility = SecurityUtility(self.config.KEY)
+            encrypted_password = security_utility.encrypt(self.password_input.text())
 
-        # Update the existing settings with the new settings
-        existing_settings |= new_settings
+            # Prepare new settings
+            new_settings = {
+                "URI": self.uri_input.text().strip(),
+                "USERNAME": self.username_input.text().strip(),
+                "PASSWORD": encrypted_password,
+            }
 
-        # Save the updated settings back to the JSON file
-        with open("src/config/database.json", "w") as config_file:
-            json.dump(existing_settings, config_file, indent=4)
+            # Save to config file
+            config_path = Path("src/config/database.json")
+            if config_path.exists():
+                with config_path.open("r", encoding="utf-8") as file:
+                    current_config = json.load(file)
+            else:
+                current_config = {}
 
-        QMessageBox.information(self, "Success", "Settings saved successfully.")
+            current_config.update(new_settings)
+
+            with config_path.open("w", encoding="utf-8") as file:
+                json.dump(current_config, file, indent=4)
+
+            # Show success message with restart prompt
+            response = QMessageBox.information(
+                self,
+                "Success",
+                "Database settings have been saved. The application needs to restart for changes to take effect. "
+                "Would you like to quit the application now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+
+            if response == QMessageBox.StandardButton.Yes:
+                # Close the application properly
+                QApplication.quit()
+            else:
+                self.accept()
+
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to save settings: {str(e)}\n\nPlease check file permissions and try again.",
+            )
 
 
 class FastInjectDialog(QDialog):
