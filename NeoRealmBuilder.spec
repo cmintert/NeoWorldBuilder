@@ -1,5 +1,38 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import json
+import os
+from pathlib import Path
+
+# Create clean configuration files while preserving other settings
+def create_clean_configs():
+    # Read and update system.json
+    system_config_path = Path('src/config/system.json')
+    with open(system_config_path, 'r') as f:
+        system_config = json.load(f)
+
+    # Remove KEY for clean installation
+    if "KEY" in system_config:
+        del system_config["KEY"]
+
+    # Read and update database.json
+    database_config_path = Path('src/config/database.json')
+    with open(database_config_path, 'r') as f:
+        database_config = json.load(f)
+
+    # Set empty password while preserving other settings
+    database_config["PASSWORD"] = ""
+
+    # Write updated configs
+    with open(system_config_path, 'w') as f:
+        json.dump(system_config, f, indent=4)
+
+    with open(database_config_path, 'w') as f:
+        json.dump(database_config, f, indent=4)
+
+# Create clean configs before building
+create_clean_configs()
+
 block_cipher = None
 
 excluded_binaries = [

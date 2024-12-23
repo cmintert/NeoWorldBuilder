@@ -1,0 +1,47 @@
+{
+    "default": {
+        "file": "style_default.qss",
+        "description": "Default application theme",
+        "variables": {
+            "primary-color": "#74A0AA",
+            "secondary-color": "#4682B4",
+            "background-color": "#cfe2ea",
+            "text-background": "#FFFFFF",
+            "text-color": "#000000",
+            "danger-color": "#B73327",
+            "safe-color": "#75AC37",
+            "tab-color": "#ADBAC1",
+            "global-background": "#3D5059"
+        }
+    },
+    "dark": {
+        "file": "style_dark.qss",
+        "description": "Dark mode theme",
+        "variables": {
+            "primary-color": "#2D3436",
+            "secondary-color": "#34495E",
+            "background-color": "#1E272E",
+            "text-background": "#2C3E50",
+            "text-color": "#FFFFFF",
+            "danger-color": "#BD0101",
+            "safe-color": "#2ECC71",
+            "tab-color": "#2C3E50",
+            "global-background": "#17202A"
+        }
+    },
+    "tree": {
+        "file": "style_tree.qss",
+        "description": "Tree view styling",
+        "parent": "default"
+    },
+    "data-table": {
+        "file": "style_table.qss",
+        "description": "Data table styling",
+        "parent": "default"
+    },
+    "tree_dark": {
+        "file": "style_tree_dark.qss",
+        "description": "Tree view styling for dark mode",
+        "parent": "dark"
+    }
+}
