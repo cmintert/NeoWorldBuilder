@@ -7,6 +7,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QMessageBox
 
 from models.styleconfig_model import StyleConfig
+from utils.path_helper import get_resource_path
 
 
 class StyleRegistry(QObject):
@@ -18,7 +19,9 @@ class StyleRegistry(QObject):
 
     def __init__(self, config_dir: Union[str, Path]) -> None:
         super().__init__()
-        self.config_dir = Path(config_dir)
+        # Convert the config_dir to use get_resource_path
+        self.config_dir = Path(get_resource_path(str(config_dir)))
+        print(f"StyleRegistry initialized with config_dir: {self.config_dir}")
         self.styles: Dict[str, StyleConfig] = {}
         self._cached_stylesheets: Dict[str, str] = {}
         self._load_styles()
@@ -27,6 +30,8 @@ class StyleRegistry(QObject):
         """Load all style configurations from the config directory."""
         try:
             style_config_path = self.config_dir / "styles.json"
+            print(f"Looking for styles.json at: {style_config_path}")
+
             if not style_config_path.exists():
                 raise FileNotFoundError(
                     f"Style configuration not found at {style_config_path}"
@@ -38,14 +43,17 @@ class StyleRegistry(QObject):
 
             for style_name, style_info in style_data.items():
                 style_path = self.config_dir / style_info["file"]
+                print(f"Processing style {style_name} from {style_path}")
+
                 if not style_path.exists():
+                    print(f"Warning: Style file not found: {style_path}")
                     logging.warning(f"Style file not found: {style_path}")
                     continue
 
                 with style_path.open() as f:
                     content = f.read()
                     print(
-                        f"Style content for {style_name} (first 100 chars): {content[:100]}"
+                        f"Loaded style content for {style_name} (length: {len(content)})"
                     )
 
                 self.styles[style_name] = StyleConfig(
@@ -58,6 +66,7 @@ class StyleRegistry(QObject):
 
         except Exception as e:
             error_msg = f"Failed to load styles: {str(e)}"
+            print(f"Error in _load_styles: {error_msg}")
             logging.error(error_msg)
             self.error_occurred.emit(error_msg)
             raise

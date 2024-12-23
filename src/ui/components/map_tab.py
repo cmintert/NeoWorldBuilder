@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ui.dialogs import PinPlacementDialog
+from utils.path_helper import get_resource_path
 
 
 class MapImageLoader(QThread):
@@ -47,13 +48,14 @@ class PannableLabel(QLabel):
     pin_placed = pyqtSignal(int, int)  # Signal for pin placement
     pin_clicked = pyqtSignal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, config=None):
         super().__init__()
         self.setMouseTracking(True)
         self.is_panning = False
         self.last_mouse_pos = QPoint()
         self.pin_placement_active = False
         self.parent_map_tab = parent
+        self.config = config
         # Coordinate Label for cursor pos
         self.cursor_pos = QPoint()
         self.coordinate_label = QLabel(self)
@@ -192,7 +194,9 @@ class PannableLabel(QLabel):
             del self.pins[target_node]
 
         # Create pin container with both pin and label
-        pin_container = PinContainer(target_node, self.pin_container)
+        pin_container = PinContainer(
+            target_node, self.pin_container, config=self.config
+        )
 
         # Add this line to connect the pin's click signal
         pin_container.pin_clicked.connect(self.pin_clicked.emit)
@@ -221,7 +225,9 @@ class PannableLabel(QLabel):
 
         try:
             for target_node, x, y in pin_data:
-                pin_container = PinContainer(target_node, self.pin_container)
+                pin_container = PinContainer(
+                    target_node, self.pin_container, config=self.config
+                )
                 pin_container.pin_clicked.connect(self.pin_clicked.emit)
                 pin_container.set_scale(self.parent_map_tab.current_scale)
                 pin_container.original_x = x
@@ -307,6 +313,7 @@ class MapTab(QWidget):
         self.map_image_path = None
         self.pin_placement_active = False
         self.controller = controller
+        self.config = controller.config
 
         self.zoom_timer = QTimer()
         self.zoom_timer.setSingleShot(True)
@@ -369,7 +376,7 @@ class MapTab(QWidget):
         self.scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Image display using PannableLabel
-        self.image_label = PannableLabel(self)
+        self.image_label = PannableLabel(self, config=self.config)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image_label.zoom_requested.connect(self._handle_wheel_zoom)
         self.image_label.pin_placed.connect(self._handle_pin_placement)
@@ -633,15 +640,10 @@ class PinContainer(QWidget):
 
     pin_clicked = pyqtSignal(str)
 
-    PIN_SVG_SOURCE = "src/resources/graphics/NWB_Map_Pin.svg"
-    BASE_PIN_WIDTH = 24  # Base width at 1.0 scale
-    BASE_PIN_HEIGHT = 32  # Base height at 1.0 scale
-    MIN_PIN_WIDTH = 12  # Minimum width when zoomed out
-    MIN_PIN_HEIGHT = 16  # Minimum height when zoomed out
-
-    def __init__(self, target_node: str, parent=None):
+    def __init__(self, target_node: str, parent=None, config=None):
         super().__init__(parent)
         self._scale = 1.0  # Initialize scale attribute
+        self.config = config
 
         # Make mouse interactive
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
@@ -654,20 +656,21 @@ class PinContainer(QWidget):
         layout.setSpacing(2)
 
         # Create SVG pin with error handling
+
+        svg_path = get_resource_path(self.config.map.PIN_SVG_SOURCE)
+
         try:
-            if not os.path.exists(self.PIN_SVG_SOURCE):
-                print(f"SVG file not found: {self.PIN_SVG_SOURCE}")
-                raise FileNotFoundError(f"SVG file not found: {self.PIN_SVG_SOURCE}")
+            if not os.path.exists(svg_path):
+                print(f"SVG file not found: {svg_path}")
+                raise FileNotFoundError(f"SVG file not found: {svg_path}")
 
             self.pin_svg = QSvgWidget(self)
-            self.pin_svg.load(self.PIN_SVG_SOURCE)
+            self.pin_svg.load(svg_path)
 
             # Verify the widget has valid dimensions after loading
             if self.pin_svg.width() == 0 or self.pin_svg.height() == 0:
-                print(f"Failed to load SVG properly: {self.PIN_SVG_SOURCE}")
-                raise RuntimeError(
-                    f"Failed to load SVG properly: {self.PIN_SVG_SOURCE}"
-                )
+                print(f"Failed to load SVG properly: {svg_path}")
+                raise RuntimeError(f"Failed to load SVG properly: {svg_path}")
 
             self.update_pin_size()
 
@@ -676,7 +679,7 @@ class PinContainer(QWidget):
             # Fallback to emoji if SVG fails
             self.pin_svg = QLabel("📍", self)
             self.pin_svg.setFixedSize(
-                QSize(self.BASE_PIN_WIDTH, self.BASE_PIN_HEIGHT)
+                QSize(self.config.map.BASE_PIN_WIDTH, self.config.map.BASE_PIN_HEIGHT)
             )  # Set initial size for emoji
 
         # Create text label
@@ -696,8 +699,14 @@ class PinContainer(QWidget):
     def update_pin_size(self) -> None:
         """Update pin size based on current scale."""
         # Calculate size based on scale, but don't go below minimum
-        width = max(int(self.BASE_PIN_WIDTH * self._scale), self.MIN_PIN_WIDTH)
-        height = max(int(self.BASE_PIN_HEIGHT * self._scale), self.MIN_PIN_HEIGHT)
+        width = max(
+            int(self.config.map.BASE_PIN_WIDTH * self._scale),
+            self.config.map.MIN_PIN_WIDTH,
+        )
+        height = max(
+            int(self.config.map.BASE_PIN_HEIGHT * self._scale),
+            self.config.map.MIN_PIN_HEIGHT,
+        )
 
         # Check if we're using SVG or emoji fallback
         if isinstance(self.pin_svg, QSvgWidget):

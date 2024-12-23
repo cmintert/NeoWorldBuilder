@@ -36,11 +36,16 @@ from PyQt6.QtWidgets import (
     QMainWindow,
 )
 
-from config.config import Config
+try:
+    from config.config import Config
+except ImportError as e:
+    print(f"Failed to import config: {e}")
+    sys.exit(1)
 from core.neo4jmodel import Neo4jModel
 from ui.controller import WorldBuildingController
 from ui.main_window import WorldBuildingUI
 from utils.crypto import SecurityUtility
+from utils.path_helper import get_resource_path
 
 # Configure logging
 structlog.configure(
@@ -157,45 +162,44 @@ class WorldBuildingApp(QMainWindow):
     def _load_configuration(self) -> Config:
         """
         Load application configuration with error handling.
-
-        Returns:
-            config.config.Config: The loaded configuration.
-
-        Raises:
-            RuntimeError: If the configuration file is not found or invalid.
         """
-
-        # Load system.json configuration
-        with open("src/config/system.json", "r") as config_file:
-            system_config = json.load(config_file)
-
-        print(system_config)
-
-        # Check if system.json contains the encryption key:value pair. If not, generate a new
-        # one using SecurityUtility.generate_encryption_key() and save it to the file.
-        if "KEY" not in system_config:
-            encryption_key = SecurityUtility.generate_key()
-            system_config["KEY"] = encryption_key
-            with open("src/config/system.json", "w") as config_file:
-                json.dump(system_config, config_file, indent=4)
-
         try:
-            config_files = [
-                "src/config/database.json",
-                "src/config/logging.json",
-                "src/config/limits.json",
-                "src/config/ui.json",
-                "src/config/system.json",
-            ]
-            config = Config(config_files)
+            # Load system.json configuration
+            system_json_path = get_resource_path("src/config/system.json")
+            print(f"Loading system config from: {system_json_path}")
 
+            with open(system_json_path, "r") as config_file:
+                system_config = json.load(config_file)
+
+            print(system_config)
+
+            # Check if system.json contains the encryption key
+            if "KEY" not in system_config:
+                encryption_key = SecurityUtility.generate_key()
+                system_config["KEY"] = encryption_key
+                with open(system_json_path, "w") as config_file:
+                    json.dump(system_config, config_file, indent=4)
+
+            # Load all config files
+            config_files = [
+                get_resource_path("src/config/database.json"),
+                get_resource_path("src/config/logging.json"),
+                get_resource_path("src/config/limits.json"),
+                get_resource_path("src/config/ui.json"),
+                get_resource_path("src/config/system.json"),
+            ]
+
+            config = Config(config_files)
             structlog.get_logger().info("Configuration loaded successfully")
             return config
-        except FileNotFoundError:
-            raise RuntimeError("Configuration file 'config.database.json' not found")
-        except json.JSONDecodeError:
+
+        except FileNotFoundError as e:
+            print(f"File not found error: {e}")  # Add debug print
+            raise RuntimeError(f"Configuration file not found: {e}")
+        except json.JSONDecodeError as e:
             raise RuntimeError("Invalid JSON in configuration file")
         except Exception as e:
+            print(f"Unexpected error: {e}")  # Add debug print
             raise RuntimeError(f"Error loading configuration: {str(e)}")
 
     def _setup_logging(self, config: Config) -> None:

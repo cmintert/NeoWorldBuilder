@@ -20,5 +20,12 @@
     "colors": {
         "passiveSave": "#d3d3d3",
         "activeSave": "#83A00E"
+    },
+    "map": {
+        "PIN_SVG_SOURCE": "src/resources/graphics/NWB_Map_Pin.svg",
+        "BASE_PIN_WIDTH": 24,
+        "BASE_PIN_HEIGHT": 32,
+        "MIN_PIN_WIDTH": 12,
+        "MIN_PIN_HEIGHT": 16
     }
 }
