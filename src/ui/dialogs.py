@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
     QButtonGroup,
 )
 
+from core.neo4jmodel import Neo4jModel
 from utils.crypto import SecurityUtility
 
 
@@ -291,14 +292,37 @@ class ConnectionSettingsDialog(QDialog):
         self.save_button.clicked.connect(self.save_settings)
 
     def establish_connection(self):
-        # Logic to test database connection
+        """Test database connection with provided credentials."""
         try:
-            # Attempt to initialize the database connection using the main application instance
-            self.app_instance._initialize_database(self.config)
-            QMessageBox.information(self, "Success", "Connection successful.")
-        except RuntimeError as e:
+            uri = self.uri_input.text()
+            username = self.username_input.text()
+            password = self.password_input.text()
+
+            # Create temporary model to test connection
+            test_model = Neo4jModel(uri, username, password)
+
+            try:
+                # Verify connectivity including auth
+                test_model._driver.verify_connectivity()
+                QMessageBox.information(
+                    self, "Success", "Connection successful and credentials verified."
+                )
+
+            except Exception as e:
+                if "authentication" in str(e).lower():
+                    QMessageBox.critical(
+                        self, "Authentication Error", "Invalid username or password."
+                    )
+                else:
+                    QMessageBox.critical(
+                        self, "Connection Error", f"Failed to connect: {str(e)}"
+                    )
+            finally:
+                test_model.close()
+
+        except Exception as e:
             QMessageBox.critical(
-                self, "Error", f"Failed to connect to the database: {e}"
+                self, "Error", f"Failed to establish connection: {str(e)}"
             )
 
     def save_settings(self):
