@@ -30,7 +30,9 @@ class Neo4jModel:
         password (str): The password for authentication.
     """
 
-    def __init__(self, uri: str, username: str, password: str) -> None:
+    def __init__(
+        self, uri: str, username: str, password: str, config: "Config"
+    ) -> None:
         """
         Initialize Neo4j connection parameters and establish connection.
 
@@ -38,10 +40,12 @@ class Neo4jModel:
             uri (str): The URI of the Neo4j database.
             username (str): The username for authentication.
             password (str): The password for authentication.
+            config (Config): Configuration object containing application settings.
         """
         self._uri = uri
         self._auth = (username, password)
         self._driver = None
+        self._config = config
         self.connect()
         logger.info(
             "Neo4jModel initialized and connected to the database.",
@@ -500,7 +504,7 @@ class Neo4jModel:
             suggestions_callback (callable): The function to call with the suggestions when ready.
             error_callback (callable): The function to call in case of errors.
         """
-        worker = SuggestionWorker(self._uri, self._auth, node_data)
+        worker = SuggestionWorker(self._uri, self._auth, node_data, self._config)
         worker.suggestions_ready.connect(suggestions_callback)
         worker.error_occurred.connect(error_callback)
 

@@ -315,7 +315,7 @@ class WorldBuildingApp(QMainWindow):
         last_error = None
         for attempt in range(max_retries):
             try:
-                model = Neo4jModel(config.URI, config.USERNAME, plain)
+                model = Neo4jModel(config.URI, config.USERNAME, plain, config)
                 structlog.get_logger().info("Database connection established")
                 return model
             except (AuthError, ServiceUnavailable) as e:

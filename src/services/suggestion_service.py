@@ -44,7 +44,9 @@ class SuggestionService(QObject):
             return
 
         self.ui_handler.show_loading(True)
-        worker = SuggestionWorker(self.model._uri, self.model._auth, node_data)
+        worker = SuggestionWorker(
+            self.model._uri, self.model._auth, node_data, self.config
+        )
         worker.suggestions_ready.connect(suggestions_callback)
 
         operation = WorkerOperation(
