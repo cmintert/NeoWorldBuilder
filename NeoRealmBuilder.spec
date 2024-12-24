@@ -35,17 +35,10 @@ create_clean_configs()
 
 block_cipher = None
 
-excluded_binaries = [
-    'opengl32sw.dll',
-    'd3dcompiler_47.dll',
-]
-
+# Separate our data files that we want to keep external
 a = Analysis(
     ['src/main.py'],
-    pathex=[
-        '.',
-        'src',
-    ],
+    pathex=['.', 'src'],
     binaries=[],
     datas=[
         ('src/config', 'config'),
@@ -65,39 +58,36 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-    'tkinter',
-    '_tkinter',
-    'sphinx',
-    'test',
-    'matplotlib',
-    'notebook',
-    'black'
+        'tkinter',
+        '_tkinter',
+        'sphinx',
+        'test',
+        'matplotlib',
+        'notebook',
+        'black'
     ],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure, a.zipped_data)
 
+# Create only the collected version
 exe = EXE(
     pyz,
     a.scripts,
-    [],
-    exclude_binaries=True,
+    exclude_binaries=True,    # Keep binaries separate
     name='NeoRealmBuilder',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,  # Keep True for debugging
+    console=True,
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
 )
 
+# Collect everything in one directory
 coll = COLLECT(
     exe,
     a.binaries,
