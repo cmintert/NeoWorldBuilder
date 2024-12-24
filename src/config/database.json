@@ -1,6 +1,6 @@
 {
     "URI": "bolt://192.168.178.84:7687",
     "USERNAME": "neo4j",
-    "PASSWORD": "",
-    "MATCH_NODE_LIMIT": 200
+    "MATCH_NODE_LIMIT": 200,
+    "PASSWORD": "gAAAAABnanfaQqd6oXKVM15R3UkhMSRgx2phhmLsLpOs3O8REHIOEB-DxYXHCFWeNCls7-jW-qngq3CJauHLPajqylElwcpiag=="
 }

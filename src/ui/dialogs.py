@@ -1,20 +1,15 @@
 import json
+import sys
+from pathlib import Path
 from typing import Dict, List, Tuple, Any, Set, Union, Optional
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSlot, QTimer
 from PyQt6.QtWidgets import (
-    QDialog,
-    QVBoxLayout,
     QTabWidget,
-    QDialogButtonBox,
     QWidget,
     QCheckBox,
-    QLabel,
     QHBoxLayout,
     QGroupBox,
-    QLineEdit,
-    QPushButton,
-    QMessageBox,
     QRadioButton,
     QTableWidgetItem,
     QHeaderView,
@@ -23,10 +18,23 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QInputDialog,
     QButtonGroup,
+    QApplication,
+    QDialog,
+    QVBoxLayout,
+    QFormLayout,
+    QLineEdit,
+    QPushButton,
+    QMessageBox,
+    QLabel,
+    QProgressBar,
+    QDialogButtonBox,
 )
+from neo4j.exceptions import AuthError, ServiceUnavailable
+from structlog import get_logger
 
-from core.neo4jmodel import Neo4jModel
 from utils.crypto import SecurityUtility
+
+logger = get_logger(__name__)
 
 
 class StyleSettingsDialog(QDialog):
@@ -250,114 +258,211 @@ class SuggestionDialog(QDialog):
 
 
 class ConnectionSettingsDialog(QDialog):
+
     def __init__(self, config, app_instance, parent=None):
         super().__init__(parent)
-
         self.config = config
         self.app_instance = app_instance
+        self.test_succeeded = False
 
-        self.setWindowTitle("Manage Connection Settings")
-        self.layout = QVBoxLayout()
+        self.setup_ui()
+        self.load_existing_settings()
 
-        self.uri_label = QLabel("URI:", self)
-        self.uri_input = QLineEdit(config.URI, self)
-        self.uri_label.setBuddy(self.uri_input)
-        self.layout.addWidget(self.uri_label)
-        self.layout.addWidget(self.uri_input)
+    def setup_ui(self):
+        self.setWindowTitle("Database Connection Settings")
+        self.setModal(True)
+        self.setMinimumWidth(400)
 
-        self.username_label = QLabel("Username:", self)
-        self.username_input = QLineEdit(config.USERNAME, self)
-        self.username_label.setBuddy(self.username_input)
-        self.layout.addWidget(self.username_label)
-        self.layout.addWidget(self.username_input)
+        layout = QVBoxLayout(self)
+        form_layout = QFormLayout()
 
-        self.password_label = QLabel("Password:", self)
-        self.password_input = QLineEdit(config.PASSWORD, self)
-        self.password_label.setBuddy(self.password_input)
+        # Create input fields
+        self.uri_input = QLineEdit()
+        self.uri_input.setPlaceholderText("bolt://localhost:7687")
+
+        self.username_input = QLineEdit()
+        self.username_input.setPlaceholderText("neo4j")
+
+        self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.layout.addWidget(self.password_label)
-        self.layout.addWidget(self.password_input)
 
-        self.test_button = QPushButton("Establish Connection", self)
-        self.test_button.setObjectName("establish_connect_button")
+        # Add fields to form
+        form_layout.addRow("Database URI:", self.uri_input)
+        form_layout.addRow("Username:", self.username_input)
+        form_layout.addRow("Password:", self.password_input)
 
-        self.save_button = QPushButton("Save", self)
-        self.save_button.setObjectName("save_button")
+        layout.addLayout(form_layout)
 
-        self.layout.addWidget(self.test_button)
-        self.layout.addWidget(self.save_button)
-        self.setLayout(self.layout)
+        # Add status indicator
+        self.status_label = QLabel()
+        self.status_label.setVisible(False)
+        layout.addWidget(self.status_label)
 
-        self.test_button.clicked.connect(self.establish_connection)
-        self.save_button.clicked.connect(self.save_settings)
+        # Add progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
 
-    def establish_connection(self):
-        """Test database connection with provided credentials."""
+        # Create button box
+        button_box = QDialogButtonBox()
+        self.test_button = QPushButton("Test Connection")
+        self.test_button.clicked.connect(self.test_connection)
+        button_box.addButton(self.test_button, QDialogButtonBox.ButtonRole.ActionRole)
+
+        button_box.addButton(QDialogButtonBox.StandardButton.Save)
+        button_box.addButton(QDialogButtonBox.StandardButton.Cancel)
+
+        button_box.accepted.connect(self.save_settings)
+        button_box.rejected.connect(self.reject)
+
+        layout.addWidget(button_box)
+
+    def load_existing_settings(self):
+        """Load existing connection settings if available."""
         try:
-            uri = self.uri_input.text()
-            username = self.username_input.text()
-            password = self.password_input.text()
+            self.uri_input.setText(self.config.URI)
+            self.username_input.setText(self.config.USERNAME)
+            if hasattr(self.config, "PASSWORD") and self.config.PASSWORD:
+                self.password_input.setText(self.config.PASSWORD)
+        except Exception as e:
+            self.show_error("Failed to load existing settings", str(e))
 
+    def show_status(self, message, is_error=False):
+        """Display status message with appropriate styling."""
+        self.status_label.setText(message)
+        color = "#FF0000" if is_error else "#008000"
+        self.status_label.setStyleSheet(f"color: {color};")
+        self.status_label.setVisible(True)
+
+    @pyqtSlot()
+    def test_connection(self):
+        """Test the database connection with provided credentials."""
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setRange(0, 0)  # Indeterminate progress
+        self.test_button.setEnabled(False)
+        self.status_label.setVisible(False)
+
+        uri = self.uri_input.text().strip()
+        username = self.username_input.text().strip()
+        password = self.password_input.text()
+
+        if not all([uri, username, password]):
+            self.show_status("Please fill in all fields", True)
+            self.progress_bar.setVisible(False)
+            self.test_button.setEnabled(True)
+            return
+
+        try:
             # Create temporary model to test connection
+            from core.neo4jmodel import Neo4jModel
+
             test_model = Neo4jModel(uri, username, password)
 
             try:
-                # Verify connectivity including auth
                 test_model._driver.verify_connectivity()
-                QMessageBox.information(
-                    self, "Success", "Connection successful and credentials verified."
-                )
+                self.show_status("Connection successful!")
+                self.test_succeeded = True
 
+            except AuthError:
+                self.show_status("Invalid username or password", True)
+            except ServiceUnavailable:
+                self.show_status("Database server not accessible", True)
             except Exception as e:
-                if "authentication" in str(e).lower():
-                    QMessageBox.critical(
-                        self, "Authentication Error", "Invalid username or password."
-                    )
-                else:
-                    QMessageBox.critical(
-                        self, "Connection Error", f"Failed to connect: {str(e)}"
-                    )
+                self.show_status(f"Connection failed: {str(e)}", True)
             finally:
                 test_model.close()
 
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to establish connection: {str(e)}"
-            )
+            self.show_status(f"Failed to establish connection: {str(e)}", True)
+
+        self.progress_bar.setVisible(False)
+        self.test_button.setEnabled(True)
 
     def save_settings(self):
-        # Retrieve the input values
-        uri = self.uri_input.text()
-        username = self.username_input.text()
-        password = self.password_input.text()
+        """Save the connection settings with proper application exit handling."""
+        if not self.test_succeeded:
+            response = QMessageBox.warning(
+                self,
+                "Untested Connection",
+                "Connection hasn't been successfully tested. Save anyway?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if response == QMessageBox.StandardButton.No:
+                return
 
-        # Encrypt the password
-        encryption_key = self.config.KEY
-        security_utility = SecurityUtility(encryption_key)
-        encrypted_password = security_utility.encrypt(password)
-
-        # Prepare the new settings dictionary
-        new_settings = {
-            "URI": uri,
-            "USERNAME": username,
-            "PASSWORD": encrypted_password,
-        }
-
-        # Load existing settings from the JSON file
         try:
-            with open("src/config/database.json", "r") as config_file:
-                existing_settings = json.load(config_file)
-        except FileNotFoundError:
-            existing_settings = {}
+            # Encrypt password
+            security_utility = SecurityUtility(self.config.KEY)
+            encrypted_password = security_utility.encrypt(self.password_input.text())
 
-        # Update the existing settings with the new settings
-        existing_settings |= new_settings
+            # Prepare new settings
+            new_settings = {
+                "URI": self.uri_input.text().strip(),
+                "USERNAME": self.username_input.text().strip(),
+                "PASSWORD": encrypted_password,
+            }
 
-        # Save the updated settings back to the JSON file
-        with open("src/config/database.json", "w") as config_file:
-            json.dump(existing_settings, config_file, indent=4)
+            # Save to config file
+            config_path = Path("src/config/database.json")
+            if config_path.exists():
+                with config_path.open("r", encoding="utf-8") as file:
+                    current_config = json.load(file)
+            else:
+                current_config = {}
 
-        QMessageBox.information(self, "Success", "Settings saved successfully.")
+            current_config.update(new_settings)
+
+            with config_path.open("w", encoding="utf-8") as file:
+                json.dump(current_config, file, indent=4)
+
+            # Show success message with restart prompt
+            response = QMessageBox.information(
+                self,
+                "Success",
+                "Database settings have been saved. The application needs to restart for changes to take effect. "
+                "Would you like to quit the application now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+
+            if response == QMessageBox.StandardButton.Yes:
+                logger.info(
+                    "User requested application restart after saving database settings"
+                )
+
+                # First accept the dialog
+                self.accept()
+
+                # Schedule the application exit
+                QTimer.singleShot(0, lambda: self._perform_application_exit())
+            else:
+                self.accept()
+
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to save settings: {str(e)}\n\nPlease check file permissions and try again.",
+            )
+
+    def _perform_application_exit(self):
+        """Perform a clean application exit."""
+        try:
+            # Get the main window instance
+            main_window = self.app_instance
+
+            # Cleanup if possible
+            if hasattr(main_window, "cleanup"):
+                main_window.cleanup()
+
+            # Quit the application
+            QApplication.instance().quit()
+
+            # Force exit if needed
+            sys.exit(0)
+        except Exception as e:
+            logger.error(f"Error during application exit: {e}")
+            sys.exit(1)
 
 
 class FastInjectDialog(QDialog):
@@ -780,37 +885,88 @@ class PropertyValueWidget(QWidget):
             input_layout.addWidget(self.value_container)
 
     def edit_values(self) -> None:
-        """Open dialog to edit selectable values."""
+        """Open dialog to edit selectable values.
+
+        Shows a dialog allowing the user to edit the available radio button values.
+        Updates the UI with the new values while preserving the current selection
+        if possible.
+        """
+        # Get user's new values through dialog
+        new_values = self._get_new_values_from_dialog()
+        if not new_values:
+            return
+
+        # Remember current selection before modifying UI
+        current_value = self.get_value()
+
+        # Update the radio button interface
+        self._update_radio_buttons(new_values, current_value)
+
+    def _get_new_values_from_dialog(self) -> Optional[List[str]]:
+        """Show dialog to get new values from user.
+
+        Returns:
+            List of new values if dialog was accepted, None otherwise.
+        """
         current_values = [b.text() for b in self.button_group.buttons()]
         dialog = ValueEditorDialog(current_values, self)
 
         if dialog.exec():
-            new_values = dialog.get_values()
-            if new_values:
-                # Store current selection
-                current_value = self.get_value()
+            return dialog.get_values()
+        return None
 
-                # Clear existing radio buttons
-                for button in self.button_group.buttons():
-                    self.button_group.removeButton(button)
-                    self.value_layout.removeWidget(button)
-                    button.deleteLater()
+    def _update_radio_buttons(self, new_values: List[str], previous_value: str) -> None:
+        """Update radio buttons with new values.
 
-                # Create new radio buttons
-                self.values = new_values
-                for i, val in enumerate(new_values):
-                    radio = QRadioButton(str(val))
-                    self.button_group.addButton(radio, i)
-                    self.value_layout.addWidget(radio)
-                    # Try to maintain the previous selection
-                    if val == current_value:
-                        radio.setChecked(True)
+        Replaces existing radio buttons with new ones based on provided values.
+        Attempts to maintain the previous selection if the value still exists.
 
-                # Select first option if previous value no longer exists
-                if not self.button_group.checkedButton():
-                    first = self.button_group.button(0)
-                    if first:
-                        first.setChecked(True)
+        Args:
+            new_values: List of new values for radio buttons
+            previous_value: Previously selected value to preserve if possible
+        """
+        self._clear_existing_buttons()
+        self._create_new_buttons(new_values)
+        self._restore_selection(previous_value)
+
+    def _clear_existing_buttons(self) -> None:
+        """Remove all existing radio buttons from the group and layout."""
+        for button in self.button_group.buttons():
+            self.button_group.removeButton(button)
+            self.value_layout.removeWidget(button)
+            button.deleteLater()
+
+    def _create_new_buttons(self, values: List[str]) -> None:
+        """Create new radio buttons for the given values.
+
+        Args:
+            values: List of values to create radio buttons for
+        """
+        self.values = values
+        for i, val in enumerate(values):
+            radio = QRadioButton(str(val))
+            self.button_group.addButton(radio, i)
+            self.value_layout.addWidget(radio)
+
+    def _restore_selection(self, previous_value: str) -> None:
+        """Restore previous selection or select first button.
+
+        Attempts to select the radio button matching the previous value.
+        If not found, selects the first button as default.
+
+        Args:
+            previous_value: The previously selected value to restore
+        """
+        # Try to find and select the button with previous value
+        for button in self.button_group.buttons():
+            if button.text() == previous_value:
+                button.setChecked(True)
+                return
+
+        # Select first button if previous value not found
+        first_button = self.button_group.button(0)
+        if first_button:
+            first_button.setChecked(True)
 
     def get_value(self) -> str:
         """Get the currently selected/entered value."""
