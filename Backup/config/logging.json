@@ -1,6 +1,0 @@
-{
-  "LOGGING_FILE": "logs.log",
-  "LOGGING_LEVEL": "DEBUG",
-  "LOGGING_FORMAT": "json",
-  "LOGGING_TAGS": ["severity", "module", "function", "timestamp", "user_action", "transaction_id", "environment"]
-}
