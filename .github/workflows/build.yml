@@ -61,9 +61,8 @@ jobs:
         # Create a zip file of our build
         Compress-Archive -Path "dist/NeoRealmBuilder/*" -DestinationPath "NeoRealmBuilder-release.zip"
 
-    - name: Upload Build Artifact
+    - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
         name: NeoRealmBuilder
-        path: NeoRealmBuilder-release.zip
-        if-no-files-found: error  # Fail if we don't have our expected files
+        path: dist/NeoRealmBuilder/
