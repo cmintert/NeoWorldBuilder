@@ -290,7 +290,6 @@ class WorldBuildingController(QObject):
                 node_name = selected_item.data(Qt.ItemDataRole.UserRole)
                 if node_name and node_name != self.ui.name_input.text():
                     self.ui.name_input.setText(node_name)
-                    self.load_node_data()
 
     def _collect_table_relationships(self) -> List[Tuple[str, str, str, str]]:
         """Get relationships from the relationships table.
