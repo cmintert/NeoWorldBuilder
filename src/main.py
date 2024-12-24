@@ -35,6 +35,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QMainWindow,
 )
+from neo4j.exceptions import AuthError, ServiceUnavailable
 
 from ui.dialogs import ConnectionSettingsDialog
 
@@ -130,48 +131,42 @@ class WorldBuildingApp(QMainWindow):
             # Setup logging
             self._setup_logging(config)
 
-            # Initialize database connection with error handling
-            try:
-                model = self._initialize_database(config)
-            except Exception as db_error:
-                # Handle database connection failure
-                error_msg = str(db_error).lower()
-
-                if "authentication" in error_msg:
-                    message = (
-                        "Invalid database credentials. Would you like to update them?"
+            # Initialize database connection with enhanced error handling
+            while True:  # Keep trying until successful connection or user cancels
+                try:
+                    model = self._initialize_database(config)
+                    break  # Successfully connected
+                except AuthError:
+                    response = QMessageBox.question(
+                        self,
+                        "Database Authentication Error",
+                        "Invalid database credentials. Would you like to update them?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     )
-                elif "connection refused" in error_msg:
-                    message = "Database server not accessible. Please check if Neo4j is running."
-                else:
-                    message = f"Database connection failed: {str(db_error)}\n\nWould you like to update connection settings?"
 
-                response = QMessageBox.question(
-                    self,
-                    "Database Connection Error",
-                    message,
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                )
-
-                if response == QMessageBox.StandardButton.Yes:
-                    dialog = ConnectionSettingsDialog(config, self)
-                    if dialog.exec():
-                        # Retry connection with new settings
-                        config = self._load_configuration()  # Reload config
-                        try:
-                            model = self._initialize_database(config)
-                        except Exception as retry_error:
+                    if response == QMessageBox.StandardButton.Yes:
+                        dialog = ConnectionSettingsDialog(config, self)
+                        if dialog.exec():
+                            # Reload configuration with new credentials
+                            config = self._load_configuration()
+                            continue  # Try connection again
+                        else:
+                            # User cancelled the settings dialog
                             raise RuntimeError(
-                                f"Failed to connect with new settings: {str(retry_error)}"
+                                "Database configuration required to run the application"
                             )
                     else:
+                        # User chose not to update credentials
                         raise RuntimeError(
-                            "Database configuration required to run the application"
+                            "Database connection required to run the application"
                         )
-                else:
-                    raise RuntimeError(
-                        "Database connection required to run the application"
+                except ServiceUnavailable:
+                    QMessageBox.critical(
+                        self,
+                        "Database Connection Error",
+                        "Cannot connect to the database server. Please ensure Neo4j is running.",
                     )
+                    raise RuntimeError("Database server not available")
 
             # Create UI (elements created but signals not connected)
             ui = self._setup_ui(None)
@@ -295,7 +290,7 @@ class WorldBuildingApp(QMainWindow):
 
     def _initialize_database(self, config: Config) -> Neo4jModel:
         """
-        Initialize database connection with retry logic.
+        Initialize database connection with retry logic and improved error handling.
 
         Args:
             config (Config): The configuration instance.
@@ -305,6 +300,8 @@ class WorldBuildingApp(QMainWindow):
 
         Raises:
             RuntimeError: If database connection fails after retries.
+            AuthError: If authentication fails.
+            ServiceUnavailable: If database service is not available.
         """
         max_retries = 3
         retry_delay = 2  # seconds
@@ -315,15 +312,20 @@ class WorldBuildingApp(QMainWindow):
         if config.PASSWORD != "":
             plain = security_utility.decrypt(config.PASSWORD)
 
+        last_error = None
         for attempt in range(max_retries):
             try:
                 model = Neo4jModel(config.URI, config.USERNAME, plain)
                 structlog.get_logger().info("Database connection established")
                 return model
+            except (AuthError, ServiceUnavailable) as e:
+                # Don't retry auth or service errors - propagate immediately
+                raise
             except Exception as e:
+                last_error = e
                 if attempt >= max_retries - 1:
                     raise RuntimeError(
-                        f"Failed to connect to database after {max_retries} attempts: {str(e)}"
+                        f"Failed to connect to database after {max_retries} attempts: {str(last_error)}"
                     )
                 structlog.get_logger().warning(
                     f"Database connection attempt {attempt + 1} failed: {e}"

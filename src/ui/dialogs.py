@@ -1,7 +1,10 @@
+import json
+import sys
+from pathlib import Path
 from typing import Dict, List, Tuple, Any, Set, Union, Optional
 
+from PyQt6.QtCore import Qt, pyqtSlot, QTimer
 from PyQt6.QtWidgets import (
-    QDialog,
     QTabWidget,
     QWidget,
     QCheckBox,
@@ -16,9 +19,22 @@ from PyQt6.QtWidgets import (
     QInputDialog,
     QButtonGroup,
     QApplication,
+    QDialog,
+    QVBoxLayout,
+    QFormLayout,
+    QLineEdit,
+    QPushButton,
+    QMessageBox,
+    QLabel,
+    QProgressBar,
+    QDialogButtonBox,
 )
+from neo4j.exceptions import AuthError, ServiceUnavailable
+from structlog import get_logger
 
 from utils.crypto import SecurityUtility
+
+logger = get_logger(__name__)
 
 
 class StyleSettingsDialog(QDialog):
@@ -241,24 +257,8 @@ class SuggestionDialog(QDialog):
         super().accept()
 
 
-from PyQt6.QtCore import Qt, pyqtSlot
-from PyQt6.QtWidgets import (
-    QDialog,
-    QVBoxLayout,
-    QFormLayout,
-    QLineEdit,
-    QPushButton,
-    QMessageBox,
-    QLabel,
-    QProgressBar,
-    QDialogButtonBox,
-)
-from neo4j.exceptions import AuthError, ServiceUnavailable
-import json
-from pathlib import Path
-
-
 class ConnectionSettingsDialog(QDialog):
+
     def __init__(self, config, app_instance, parent=None):
         super().__init__(parent)
         self.config = config
@@ -379,7 +379,7 @@ class ConnectionSettingsDialog(QDialog):
         self.test_button.setEnabled(True)
 
     def save_settings(self):
-        """Save the connection settings."""
+        """Save the connection settings with proper application exit handling."""
         if not self.test_succeeded:
             response = QMessageBox.warning(
                 self,
@@ -426,8 +426,15 @@ class ConnectionSettingsDialog(QDialog):
             )
 
             if response == QMessageBox.StandardButton.Yes:
-                # Close the application properly
-                QApplication.quit()
+                logger.info(
+                    "User requested application restart after saving database settings"
+                )
+
+                # First accept the dialog
+                self.accept()
+
+                # Schedule the application exit
+                QTimer.singleShot(0, lambda: self._perform_application_exit())
             else:
                 self.accept()
 
@@ -437,6 +444,25 @@ class ConnectionSettingsDialog(QDialog):
                 "Error",
                 f"Failed to save settings: {str(e)}\n\nPlease check file permissions and try again.",
             )
+
+    def _perform_application_exit(self):
+        """Perform a clean application exit."""
+        try:
+            # Get the main window instance
+            main_window = self.app_instance
+
+            # Cleanup if possible
+            if hasattr(main_window, "cleanup"):
+                main_window.cleanup()
+
+            # Quit the application
+            QApplication.instance().quit()
+
+            # Force exit if needed
+            sys.exit(0)
+        except Exception as e:
+            logger.error(f"Error during application exit: {e}")
+            sys.exit(1)
 
 
 class FastInjectDialog(QDialog):
@@ -859,37 +885,88 @@ class PropertyValueWidget(QWidget):
             input_layout.addWidget(self.value_container)
 
     def edit_values(self) -> None:
-        """Open dialog to edit selectable values."""
+        """Open dialog to edit selectable values.
+
+        Shows a dialog allowing the user to edit the available radio button values.
+        Updates the UI with the new values while preserving the current selection
+        if possible.
+        """
+        # Get user's new values through dialog
+        new_values = self._get_new_values_from_dialog()
+        if not new_values:
+            return
+
+        # Remember current selection before modifying UI
+        current_value = self.get_value()
+
+        # Update the radio button interface
+        self._update_radio_buttons(new_values, current_value)
+
+    def _get_new_values_from_dialog(self) -> Optional[List[str]]:
+        """Show dialog to get new values from user.
+
+        Returns:
+            List of new values if dialog was accepted, None otherwise.
+        """
         current_values = [b.text() for b in self.button_group.buttons()]
         dialog = ValueEditorDialog(current_values, self)
 
         if dialog.exec():
-            new_values = dialog.get_values()
-            if new_values:
-                # Store current selection
-                current_value = self.get_value()
+            return dialog.get_values()
+        return None
 
-                # Clear existing radio buttons
-                for button in self.button_group.buttons():
-                    self.button_group.removeButton(button)
-                    self.value_layout.removeWidget(button)
-                    button.deleteLater()
+    def _update_radio_buttons(self, new_values: List[str], previous_value: str) -> None:
+        """Update radio buttons with new values.
 
-                # Create new radio buttons
-                self.values = new_values
-                for i, val in enumerate(new_values):
-                    radio = QRadioButton(str(val))
-                    self.button_group.addButton(radio, i)
-                    self.value_layout.addWidget(radio)
-                    # Try to maintain the previous selection
-                    if val == current_value:
-                        radio.setChecked(True)
+        Replaces existing radio buttons with new ones based on provided values.
+        Attempts to maintain the previous selection if the value still exists.
 
-                # Select first option if previous value no longer exists
-                if not self.button_group.checkedButton():
-                    first = self.button_group.button(0)
-                    if first:
-                        first.setChecked(True)
+        Args:
+            new_values: List of new values for radio buttons
+            previous_value: Previously selected value to preserve if possible
+        """
+        self._clear_existing_buttons()
+        self._create_new_buttons(new_values)
+        self._restore_selection(previous_value)
+
+    def _clear_existing_buttons(self) -> None:
+        """Remove all existing radio buttons from the group and layout."""
+        for button in self.button_group.buttons():
+            self.button_group.removeButton(button)
+            self.value_layout.removeWidget(button)
+            button.deleteLater()
+
+    def _create_new_buttons(self, values: List[str]) -> None:
+        """Create new radio buttons for the given values.
+
+        Args:
+            values: List of values to create radio buttons for
+        """
+        self.values = values
+        for i, val in enumerate(values):
+            radio = QRadioButton(str(val))
+            self.button_group.addButton(radio, i)
+            self.value_layout.addWidget(radio)
+
+    def _restore_selection(self, previous_value: str) -> None:
+        """Restore previous selection or select first button.
+
+        Attempts to select the radio button matching the previous value.
+        If not found, selects the first button as default.
+
+        Args:
+            previous_value: The previously selected value to restore
+        """
+        # Try to find and select the button with previous value
+        for button in self.button_group.buttons():
+            if button.text() == previous_value:
+                button.setChecked(True)
+                return
+
+        # Select first button if previous value not found
+        first_button = self.button_group.button(0)
+        if first_button:
+            first_button.setChecked(True)
 
     def get_value(self) -> str:
         """Get the currently selected/entered value."""

@@ -10,6 +10,7 @@ from typing import Dict, Any, Callable, Optional
 
 import structlog
 from neo4j import GraphDatabase
+from neo4j.exceptions import AuthError
 
 from core.neo4jworkers import QueryWorker, WriteWorker, DeleteWorker, SuggestionWorker
 from utils.converters import NamingConventionConverter as ncc
@@ -50,18 +51,38 @@ class Neo4jModel:
 
     def connect(self) -> None:
         """
-        Establish a connection to the Neo4j database.
+        Establish a connection to the Neo4j database with proper authentication verification.
+
+        Raises:
+            AuthError: If authentication fails
+            ServiceUnavailable: If database is not accessible
         """
         if not self._driver:
             self._driver = GraphDatabase.driver(self._uri, auth=self._auth)
-        logger.info(
-            "Connected to Neo4j database.", module="Neo4jModel", function="connect"
-        )
+
+            # Immediately verify connectivity and authentication
+            try:
+                self._driver.verify_connectivity()
+            except Exception:
+                # Close the driver on failure
+                if self._driver:
+                    self._driver.close()
+                    self._driver = None
+                # Re-raise the exception
+                raise
+
+            logger.info(
+                "Connected to Neo4j database.", module="Neo4jModel", function="connect"
+            )
 
     def ensure_connection(self) -> None:
         """
         Ensure that the connection to the Neo4j database is valid.
         Reconnect if the connection is not valid.
+
+        Raises:
+            AuthError: If authentication fails
+            ServiceUnavailable: If database is not accessible
         """
         try:
             if self._driver:
@@ -74,6 +95,9 @@ class Neo4jModel:
                 module="Neo4jModel",
                 function="ensure_connection",
             )
+            # Don't try to reconnect on authentication failure
+            if isinstance(e, AuthError):
+                raise
             self.connect()
 
     def get_session(self) -> Any:
