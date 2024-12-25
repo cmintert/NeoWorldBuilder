@@ -96,9 +96,6 @@ class WorldBuildingUI(QWidget):
         self.save_button.clicked.connect(self.controller.save_node)
         self.delete_button.clicked.connect(self.controller.delete_node)
 
-        # connect the suggest button
-        self.suggest_button.clicked.connect(self.controller.show_suggestions_modal)
-
         # Check for unsaved changes
         self.name_input.textChanged.connect(
             self.controller.update_unsaved_changes_indicator

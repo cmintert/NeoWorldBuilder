@@ -1,6 +1,7 @@
 from typing import Dict, Any, Callable
 
 from PyQt6.QtCore import QObject
+from structlog import get_logger
 
 from config.config import Config
 from core.neo4jmodel import Neo4jModel
@@ -9,6 +10,8 @@ from models.suggestion_model import SuggestionUIHandler
 from models.worker_model import WorkerOperation
 from services.worker_manager_service import WorkerManagerService
 from utils.error_handler import ErrorHandler
+
+logger = get_logger(__name__)
 
 
 class SuggestionService(QObject):
@@ -47,15 +50,18 @@ class SuggestionService(QObject):
         worker = SuggestionWorker(
             self.model._uri, self.model._auth, node_data, self.config
         )
-        worker.suggestions_ready.connect(suggestions_callback)
 
+        # Use operation's success_callback directly
         operation = WorkerOperation(
             worker=worker,
-            success_callback=None,  # Using direct signal connection instead
+            success_callback=suggestions_callback,  # Connect directly to our callback
             error_callback=self._handle_error,
             finished_callback=lambda: self.ui_handler.show_loading(False),
             operation_name="suggestions",
         )
+
+        # Connect the signal to the operation's success callback
+        worker.suggestions_ready.connect(operation.success_callback)
 
         self.worker_manager.execute_worker("suggestions", operation)
 
