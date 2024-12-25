@@ -173,13 +173,17 @@ class SuggestionDialog(QDialog):
 
         self.tags_checkboxes: List[Tuple[QCheckBox, str]] = []
         for tag, confidence in self.suggestions.get("tags", []):
+
             checkbox = QCheckBox(f"{tag}")
             confidence_label = QLabel(f"Confidence: {confidence:.2f}%")
+
             h_layout = QHBoxLayout()
             h_layout.addWidget(checkbox)
             h_layout.addWidget(confidence_label)
+
             self.tags_checkboxes.append((checkbox, tag))
             layout.addLayout(h_layout)
+        layout.addStretch()
 
         return widget
 
