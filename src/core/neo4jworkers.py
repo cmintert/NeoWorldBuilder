@@ -11,6 +11,7 @@ import structlog
 from PyQt6.QtCore import QThread, pyqtSignal
 from neo4j import GraphDatabase
 
+from config.config import Config
 from utils.converters import DataFrameBuilder
 
 logger = structlog.get_logger()
@@ -313,7 +314,7 @@ class SuggestionWorker(BaseNeo4jWorker):
     suggestions_ready = pyqtSignal(dict)
 
     def __init__(
-        self, uri: str, auth: Tuple[str, str], node_data: Dict[str, Any]
+        self, uri: str, auth: Tuple[str, str], node_data: Dict[str, Any], config: Config
     ) -> None:
         """
         Initialize the worker with node data.
@@ -325,6 +326,7 @@ class SuggestionWorker(BaseNeo4jWorker):
         """
         super().__init__(uri, auth)
         self.node_data = node_data
+        self.config = config
 
     #####  The following methods are used to fetch data from the Neo4j database  #####
 
@@ -534,118 +536,6 @@ class SuggestionWorker(BaseNeo4jWorker):
     logger = logging.getLogger(__name__)
     logging.basicConfig(level=logging.DEBUG)
 
-    def suggest_properties(
-        self,
-        self_node_pd: Dict[str, pd.DataFrame],
-        label_based_pd: Dict[str, pd.DataFrame],
-        full_data_pd: Dict[str, pd.DataFrame],
-        top_n: int = 10,
-    ) -> Dict[str, Any]:
-        """
-        Suggest properties to add to the active node based on label-based and global data.
-
-        Args:
-            self_node_pd (Dict[str, pd.DataFrame]): DataFrames related to the active node.
-            label_based_pd (Dict[str, pd.DataFrame]): DataFrames related to nodes sharing the same labels.
-            full_data_pd (Dict[str, pd.DataFrame]): DataFrames related to all nodes in the dataset.
-            top_n (int): Maximum number of properties to suggest.
-
-        Returns:
-            Dict[str, Any]: Dictionary containing property suggestions compatible with SuggestionDialog.
-        """
-        logger.debug("Starting enhanced suggest_properties method with global data.")
-
-        # Validate presence of 'properties' DataFrame
-        if (
-            "properties" not in self_node_pd
-            or "properties" not in label_based_pd
-            or "properties" not in full_data_pd
-        ):
-            logger.error(
-                "Properties DataFrame missing in one of the provided data sources."
-            )
-            return {}
-
-        # Extract existing properties in the active node
-        active_properties = set(
-            self_node_pd["properties"]["property"].dropna().unique()
-        )
-        logger.debug(f"Active node properties: {active_properties}")
-
-        # Extract label-based properties, excluding those already present
-        label_properties = label_based_pd["properties"]
-        filtered_label_properties = label_properties[
-            ~label_properties["property"].isin(active_properties)
-        ]
-        logger.debug(
-            f"Filtered label-based properties count: {filtered_label_properties.shape[0]}"
-        )
-
-        # Calculate frequencies in label-based data
-        label_property_counts = (
-            filtered_label_properties.groupby("property")["value"]
-            .agg(["count", lambda x: x.mode().iloc[0] if not x.mode().empty else None])
-            .reset_index()
-        )
-        label_property_counts.rename(
-            columns={"<lambda_0>": "common_value"}, inplace=True
-        )
-
-        # Incorporate full data: Identify globally frequent properties
-        global_properties = full_data_pd["properties"]
-        filtered_global_properties = global_properties[
-            ~global_properties["property"].isin(active_properties)
-        ]
-        global_property_counts = (
-            filtered_global_properties.groupby("property")["value"]
-            .agg(["count", lambda x: x.mode().iloc[0] if not x.mode().empty else None])
-            .reset_index()
-        )
-        global_property_counts.rename(
-            columns={"<lambda_0>": "common_value"}, inplace=True
-        )
-
-        # Calculate confidence for label-based properties
-        total_label_nodes = label_based_pd["nodes"]["name"].nunique()
-        label_property_counts["confidence"] = (
-            label_property_counts["count"] / total_label_nodes
-        ) * 100
-
-        # Calculate confidence for global properties
-        total_global_nodes = full_data_pd["nodes"]["name"].nunique()
-        global_property_counts["confidence"] = (
-            global_property_counts["count"] / total_global_nodes
-        ) * 50  # Lower weight for global
-
-        # Merge and prioritize label-based over global properties
-        combined_properties = pd.concat(
-            [label_property_counts, global_property_counts], ignore_index=True
-        )
-        combined_properties = (
-            combined_properties.groupby("property")
-            .agg({"common_value": "first", "confidence": "sum"})
-            .reset_index()
-        )
-        combined_properties = combined_properties.sort_values(
-            by="confidence", ascending=False
-        ).head(top_n)
-
-        # Prepare suggestions in the expected format
-        suggestions = {}
-        for _, row in combined_properties.iterrows():
-            property_name = row["property"]
-            value = row["common_value"]
-            confidence = round(row["confidence"], 2)
-
-            # Ensure property is added as a list of tuples
-            if property_name not in suggestions:
-                suggestions[property_name] = []
-            suggestions[property_name].append((value, confidence))
-
-        logger.debug(f"Enhanced property suggestions for dialog: {suggestions}")
-
-        return suggestions
-
     def suggest_relationships(
         self,
         self_node_pd: Dict[str, pd.DataFrame],
@@ -850,6 +740,7 @@ class SuggestionWorker(BaseNeo4jWorker):
     ) -> Dict[str, Any]:
         """
         Suggest properties to add to the active node based on label-based and global data.
+        Filters out system properties and reserved properties.
 
         Args:
             self_node_pd (Dict[str, pd.DataFrame]): DataFrames related to the active node.
@@ -860,9 +751,11 @@ class SuggestionWorker(BaseNeo4jWorker):
         Returns:
             Dict[str, Any]: Dictionary containing property suggestions compatible with SuggestionDialog.
         """
-        logger.debug("Starting enhanced suggest_properties method with global data.")
+        logger.debug(
+            "Starting enhanced suggest_properties method with global data and filtering."
+        )
 
-        # Ensure 'properties' DataFrame is present
+        # Validate presence of 'properties' DataFrame
         if (
             "properties" not in self_node_pd
             or "properties" not in label_based_pd
@@ -879,11 +772,24 @@ class SuggestionWorker(BaseNeo4jWorker):
         )
         logger.debug(f"Active node properties: {active_properties}")
 
+        # Helper function to filter properties with access to config
+        def is_valid_property(prop: str) -> bool:
+            """Check if a property is valid for suggestion."""
+            if prop.startswith("_"):  # Filter system properties
+                logger.debug(f"Filtering system property: {prop}")
+                return False
+            if prop in self.config.RESERVED_PROPERTY_KEYS:  # Filter reserved properties
+                logger.debug(f"Filtering reserved property: {prop}")
+                return False
+            return True
+
         # Extract and filter label-based properties
         label_properties = label_based_pd["properties"]
         filtered_label_properties = label_properties[
-            ~label_properties["property"].isin(active_properties)
+            (~label_properties["property"].isin(active_properties))
+            & (label_properties["property"].apply(is_valid_property))
         ]
+
         logger.debug(
             f"Filtered label-based properties count: {filtered_label_properties.shape[0]}"
         )
@@ -891,7 +797,8 @@ class SuggestionWorker(BaseNeo4jWorker):
         # Extract and filter global properties
         global_properties = full_data_pd["properties"]
         filtered_global_properties = global_properties[
-            ~global_properties["property"].isin(active_properties)
+            (~global_properties["property"].isin(active_properties))
+            & (global_properties["property"].apply(is_valid_property))
         ]
         logger.debug(
             f"Filtered global properties count: {filtered_global_properties.shape[0]}"
