@@ -192,9 +192,11 @@ class SuggestionDialog(QDialog):
             group_box = QGroupBox(f"Property: {key}")
             v_layout = QVBoxLayout()
             for value, confidence in values:
+
                 checkbox = QCheckBox("Value:")
                 value_edit = QLineEdit(str(value))
                 confidence_label = QLabel(f"Confidence: {confidence:.2f}%")
+
                 h_layout = QHBoxLayout()
                 h_layout.addWidget(checkbox)
                 h_layout.addWidget(value_edit)
@@ -202,8 +204,11 @@ class SuggestionDialog(QDialog):
                 v_layout.addLayout(h_layout)
                 # Store the QLineEdit widget instead of its value
                 self.properties_checkboxes.append((checkbox, key, value_edit))
+
             group_box.setLayout(v_layout)
+            group_box.setFixedHeight(60)
             layout.addWidget(group_box)
+        layout.addStretch()
 
         return widget
 
