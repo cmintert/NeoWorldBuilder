@@ -32,13 +32,17 @@ class QuickRelationDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
 
+        # Relationship Section
+
+        relationship_layout = QHBoxLayout()
+
         # Target node (from selected text)
         target_layout = QHBoxLayout()
         target_label = QLabel("Target Node:")
         self.target_input = QLineEdit(self.selected_text)
         target_layout.addWidget(target_label)
         target_layout.addWidget(self.target_input)
-        layout.addLayout(target_layout)
+        relationship_layout.addLayout(target_layout)
 
         # Relationship type
         rel_layout = QHBoxLayout()
@@ -49,7 +53,7 @@ class QuickRelationDialog(QDialog):
         self.rel_type.addItems(["HAS", "CONTAINS", "RELATES_TO", "REFERENCES"])
         rel_layout.addWidget(rel_label)
         rel_layout.addWidget(self.rel_type)
-        layout.addLayout(rel_layout)
+        relationship_layout.addLayout(rel_layout)
 
         # Direction
         dir_layout = QHBoxLayout()
@@ -58,7 +62,9 @@ class QuickRelationDialog(QDialog):
         self.direction.addItems([">", "<"])
         dir_layout.addWidget(dir_label)
         dir_layout.addWidget(self.direction)
-        layout.addLayout(dir_layout)
+        relationship_layout.addLayout(dir_layout)
+
+        layout.addLayout(relationship_layout)
 
         # Properties section
         props_group = self._create_properties_section()
