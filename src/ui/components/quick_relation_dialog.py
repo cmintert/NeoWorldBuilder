@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QWidget,
+    QHeaderView,
 )
 
 
@@ -79,44 +80,41 @@ class QuickRelationDialog(QDialog):
         layout.addWidget(button_box)
 
     def _create_properties_section(self) -> QWidget:
-        """Create the properties editing section."""
-        # Create properties table
-        self.props_table = QTableWidget(0, 3)  # Initially empty, 3 columns
-        self.props_table.setHorizontalHeaderLabels(["Key", "Value", ""])
-        self.props_table.horizontalHeader().setStretchLastSection(True)
+        self.props_table = QTableWidget(0, 3)
+        self.props_table.setHorizontalHeaderLabels(
+            ["Relationship Property", "Value", ""]
+        )
+        self.props_table.verticalHeader().hide()
+        self.props_table.setFixedHeight(102)
 
-        # Add property button
-        add_button = QPushButton("Add Property")
+        # Configure stretching
+        header = self.props_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self.props_table.setColumnWidth(2, 25)
+
+        add_button = QPushButton("Add Relationship Property")
         add_button.clicked.connect(self._add_property_row)
 
-        # Layout
         container = QWidget()
         layout = QVBoxLayout(container)
         layout.addWidget(add_button)
         layout.addWidget(self.props_table)
-
         return container
 
     def _add_property_row(self) -> None:
-        """Add a new row to the properties table."""
         row = self.props_table.rowCount()
         self.props_table.insertRow(row)
-
         self.props_table.setRowHeight(row, 25)
 
-        # Delete button
         delete_button = QPushButton("-")
         delete_button.setFixedWidth(25)
         delete_button.clicked.connect(lambda: self.props_table.removeRow(row))
-        self.props_table.setCellWidget(row, 2, delete_button)
 
-        # Key and value cells
         self.props_table.setItem(row, 0, QTableWidgetItem(""))
         self.props_table.setItem(row, 1, QTableWidgetItem(""))
         self.props_table.setCellWidget(row, 2, delete_button)
-
-        # Set column 2 to fixed width
-        self.props_table.setColumnWidth(2, 25)
 
     def get_values(self) -> Tuple[str, str, str, str]:
         """Get the values from the dialog.
