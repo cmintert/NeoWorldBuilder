@@ -4,20 +4,18 @@ It includes methods for connecting to the database, performing CRUD operations o
 """
 
 import datetime
-import logging
 from datetime import datetime
 from typing import Dict, Any, Callable, Optional
 
-import structlog
 from neo4j import GraphDatabase
 from neo4j.exceptions import AuthError
+from structlog import get_logger
 
 from core.neo4jworkers import QueryWorker, WriteWorker, DeleteWorker, SuggestionWorker
 from utils.converters import NamingConventionConverter as ncc
 
 # Configure the standard logging
-logging.basicConfig(level=logging.INFO)
-logger = structlog.get_logger()
+logger = get_logger(__name__)
 
 
 class Neo4jModel:

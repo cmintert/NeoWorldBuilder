@@ -506,6 +506,7 @@ class WorldBuildingController(QObject):
 
             # Populate basic info immediately
             self._populate_basic_info(node_data)
+            self.ui.description_input.setHtml(node_data.get("description", ""))
             self._populate_properties(node_data["properties"])
             self._populate_relationships(node_data["relationships"])
             self._populate_basic_info_image(node_data["node_properties"])
