@@ -332,7 +332,7 @@ class WorldBuildingUI(QWidget):
         form_layout.setSpacing(15)
 
         # Description
-        self.description_input = TextEditor()
+        self.description_input = TextEditor(main_ui=self)
         self.description_input.setObjectName("descriptionEditor")
 
         # Labels with auto-completion

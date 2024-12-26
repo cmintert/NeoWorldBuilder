@@ -22,13 +22,13 @@ from models.property_model import PropertyItem
 from models.suggestion_model import SuggestionUIHandler, SuggestionResult
 from models.worker_model import WorkerOperation
 from services.initialisation_service import InitializationService
-from ui.components.map_tab import MapTab
-from ui.dialogs import (
+from ui.components.dialogs import (
     StyleSettingsDialog,
     ConnectionSettingsDialog,
     SuggestionDialog,
     FastInjectDialog,
 )
+from ui.components.map_tab import MapTab
 from utils.error_handler import ErrorHandler
 
 logger = get_logger(__name__)

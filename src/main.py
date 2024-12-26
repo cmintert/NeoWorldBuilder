@@ -37,7 +37,7 @@ from PyQt6.QtWidgets import (
 )
 from neo4j.exceptions import AuthError, ServiceUnavailable
 
-from ui.dialogs import ConnectionSettingsDialog
+from ui.components.dialogs import ConnectionSettingsDialog
 
 try:
     from config.config import Config

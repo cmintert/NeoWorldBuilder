@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
     QFileDialog,
 )
 
-from ui.dialogs import PinPlacementDialog
+from ui.components.dialogs import PinPlacementDialog
 from utils.path_helper import get_resource_path
 
 
