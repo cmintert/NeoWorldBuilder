@@ -98,13 +98,20 @@ class AutoCompletionService:
 
         # Use cached names
         cached_names = self.name_cache_service.get_cached_names()
+        logger.debug("cached_names", names=cached_names)
         logger.debug(
             "fetching_matches",
             text=text,
             cache_size=len(cached_names),
             matches=len([n for n in cached_names if text in n.lower()]),
         )
-        matching_names = [name for name in cached_names if text in name.lower()]
+
+        # Algorythm that matches partial inputs to cached names
+        matching_names: List = []
+        text_length = len(text)
+        for name in cached_names:
+            if text.lower() in name[:text_length].lower():
+                matching_names.append(name)
 
         model.setStringList(matching_names)
 
