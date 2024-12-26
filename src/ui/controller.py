@@ -52,6 +52,7 @@ class WorldBuildingController(QObject):
         model: "Neo4jModel",
         config: "Config",
         app_instance: "WorldBuildingApp",
+        name_cache_service: "NameCacheService",
     ) -> None:
         """
         Initialize the controller with UI, model, and configuration.
@@ -72,6 +73,7 @@ class WorldBuildingController(QObject):
         self.model = model
         self.config = config
         self.app_instance = app_instance
+        self.name_cache_service = name_cache_service
 
         # Add name tracking
         self._previous_name = None
@@ -98,6 +100,7 @@ class WorldBuildingController(QObject):
             config=config,
             app_instance=app_instance,
             error_handler=self.error_handler,
+            name_cache_service=name_cache_service,
         )
 
         self.init_service.initialize_application()
@@ -424,8 +427,13 @@ class WorldBuildingController(QObject):
             _: The result of the delete operation.
         """
         try:
+            # Invalidate and rebuild name cache
+            self.name_cache_service.invalidate_cache()
+            self.name_cache_service.rebuild_cache()
+
             QMessageBox.information(self.ui, "Success", "Node deleted successfully")
             self._load_empty_state()
+
         finally:
             self._cleanup_delete_operation()
 
@@ -913,7 +921,11 @@ class WorldBuildingController(QObject):
         msg_box.show()
 
         # Auto-close message after 1 second
-        QTimer.singleShot(1000, msg_box.accept)
+        QTimer.singleShot(500, msg_box.accept)
+
+        # Invalidate and rebuild name cache
+        self.name_cache_service.invalidate_cache()
+        self.name_cache_service.rebuild_cache()
 
         # Refresh UI state
         self.refresh_tree_view()

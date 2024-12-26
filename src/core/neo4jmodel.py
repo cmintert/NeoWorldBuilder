@@ -5,7 +5,7 @@ It includes methods for connecting to the database, performing CRUD operations o
 
 import datetime
 from datetime import datetime
-from typing import Dict, Any, Callable, Optional
+from typing import Dict, Any, Callable, Optional, List
 
 from neo4j import GraphDatabase
 from neo4j.exceptions import AuthError
@@ -534,3 +534,25 @@ class Neo4jModel:
             result = session.run(query)
             record = result.single()
             return dict(record) if record else None
+
+    def get_all_node_names(self, callback: Callable[[List[str]], None]) -> QueryWorker:
+        """Get all node names from the database.
+
+        Args:
+            callback: Function to handle query results
+
+        Returns:
+            QueryWorker instance
+        """
+        query = """
+        MATCH (n) 
+        WHERE n.name IS NOT NULL
+        RETURN n.name AS name
+        ORDER BY n.name
+        """
+
+        worker = QueryWorker(self._uri, self._auth, query)
+        worker.query_finished.connect(
+            lambda records: callback([r["name"] for r in records])
+        )
+        return worker

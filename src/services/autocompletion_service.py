@@ -3,12 +3,15 @@ from typing import Any, List, Optional, Callable
 
 from PyQt6.QtCore import QTimer, QStringListModel
 from PyQt6.QtWidgets import QLineEdit, QTableWidget
+from structlog import get_logger
 
 from config.config import Config
 from core.neo4jmodel import Neo4jModel
 from models.completer_model import AutoCompletionUIHandler, CompleterInput
-from models.worker_model import WorkerOperation
+from services.name_cache_service import NameCacheService
 from services.worker_manager_service import WorkerManagerService
+
+logger = get_logger(__name__)
 
 
 class AutoCompletionService:
@@ -22,11 +25,13 @@ class AutoCompletionService:
         config: Config,
         worker_manager: WorkerManagerService,
         ui_handler: AutoCompletionUIHandler,
+        name_cache_service: NameCacheService,
         error_handler: Optional[Callable[[str], None]] = None,
     ) -> None:
         self.model = model
         self.config = config
         self.worker_manager = worker_manager
+        self.name_cache_service = name_cache_service
         self.ui_handler = ui_handler
         self.error_handler = error_handler or self._default_error_handler
 
@@ -91,20 +96,17 @@ class AutoCompletionService:
         text = self._current_completion_text.strip()
         model = self.target_name_model if self._for_target else self.node_name_model
 
-        worker = self.model.fetch_matching_node_names(
-            text,
-            self.config.MATCH_NODE_LIMIT,
-            lambda records: self._handle_results(records, model),
+        # Use cached names
+        cached_names = self.name_cache_service.get_cached_names()
+        logger.debug(
+            "fetching_matches",
+            text=text,
+            cache_size=len(cached_names),
+            matches=len([n for n in cached_names if text in n.lower()]),
         )
+        matching_names = [name for name in cached_names if text in name.lower()]
 
-        operation = WorkerOperation(
-            worker=worker,
-            success_callback=lambda records: self._handle_results(records, model),
-            error_callback=self._handle_error,
-            operation_name="node_search",
-        )
-
-        self.worker_manager.execute_worker("search", operation)
+        model.setStringList(matching_names)
 
     def _setup_debounce_timer(self) -> QTimer:
         """Setup and return the debounce timer."""

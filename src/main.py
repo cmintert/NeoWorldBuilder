@@ -38,6 +38,7 @@ from PyQt6.QtWidgets import (
 from neo4j.exceptions import AuthError, ServiceUnavailable
 
 from ui.components.dialogs import ConnectionSettingsDialog
+from utils.error_handler import ErrorHandler
 
 try:
     from config.config import Config
@@ -49,6 +50,9 @@ from ui.controller import WorldBuildingController
 from ui.main_window import WorldBuildingUI
 from utils.crypto import SecurityUtility
 from utils.path_helper import get_resource_path
+
+from services.worker_manager_service import WorkerManagerService
+from services.name_cache_service import NameCacheService
 
 # Configure logging
 structlog.configure(
@@ -359,20 +363,30 @@ class WorldBuildingApp(QMainWindow):
     ) -> WorldBuildingController:
         """
         Initialize application controller with error handling.
-
-        Args:
-            ui (WorldBuildingUI): The UI instance.
-            model (Neo4jModel): The Neo4j model instance.
-            config (Config): The configuration instance.
-
-        Returns:
-            WorldBuildingController: The initialized controller instance.
-
-        Raises:
-            RuntimeError: If controller initialization fails.
         """
         try:
-            controller = WorldBuildingController(ui, model, config, self)
+            # Create error handler first
+            error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
+
+            # Create worker manager with error handler
+            worker_manager = WorkerManagerService(error_handler)
+
+            # Initialize name cache service
+            name_cache_service = NameCacheService(
+                model=model,
+                worker_manager=worker_manager,
+                error_handler=error_handler.handle_error,
+            )
+
+            # Create controller with all dependencies
+            controller = WorldBuildingController(
+                ui=ui,
+                model=model,
+                config=config,
+                app_instance=self,
+                name_cache_service=name_cache_service,
+            )
+
             structlog.get_logger().info("Controller initialized successfully")
             return controller
         except Exception as e:
@@ -529,6 +543,10 @@ class WorldBuildingApp(QMainWindow):
         except Exception as e:
             structlog.get_logger().error(f"Error during application shutdown: {e}")
             event.accept()  # Still close the application
+
+    def _show_error_dialog(self, title: str, message: str) -> None:
+        """Show error dialog to user."""
+        QMessageBox.critical(self, title, message)
 
 
 if __name__ == "__main__":
