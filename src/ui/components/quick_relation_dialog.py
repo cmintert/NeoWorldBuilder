@@ -96,14 +96,21 @@ class QuickRelationDialog(QDialog):
         row = self.props_table.rowCount()
         self.props_table.insertRow(row)
 
-        # Key and value cells
-        self.props_table.setItem(row, 0, QTableWidgetItem(""))
-        self.props_table.setItem(row, 1, QTableWidgetItem(""))
+        self.props_table.setRowHeight(row, 25)
 
         # Delete button
         delete_button = QPushButton("-")
+        delete_button.setFixedWidth(25)
         delete_button.clicked.connect(lambda: self.props_table.removeRow(row))
         self.props_table.setCellWidget(row, 2, delete_button)
+
+        # Key and value cells
+        self.props_table.setItem(row, 0, QTableWidgetItem(""))
+        self.props_table.setItem(row, 1, QTableWidgetItem(""))
+        self.props_table.setCellWidget(row, 2, delete_button)
+
+        # Set column 2 to fixed width
+        self.props_table.setColumnWidth(2, 25)
 
     def get_values(self) -> Tuple[str, str, str, str]:
         """Get the values from the dialog.
