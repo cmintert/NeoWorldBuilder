@@ -2,6 +2,7 @@ import re
 from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, Qt, QTimer
+from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import QTextEdit, QWidget, QVBoxLayout
 from structlog import get_logger
 
@@ -11,6 +12,39 @@ from ui.components.text_editor.text_toolbar import TextToolbar
 logger = get_logger(__name__)
 
 
+class LinkableTextEdit(QTextEdit):
+    """Custom QTextEdit that supports clickable links."""
+
+    linkClicked = pyqtSignal(str)  # Emit the node name when clicked
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMouseTracking(True)
+        self._clickable_links = {}  # Maps positions to node names
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        """Handle mouse press events to detect link clicks."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            cursor = self.cursorForPosition(event.pos())
+            char_format = cursor.charFormat()
+            if char_format.isAnchor():
+                node_name = char_format.anchorHref()
+                if node_name:
+                    self.linkClicked.emit(node_name)
+                    return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        """Handle mouse movement to update cursor."""
+        cursor = self.cursorForPosition(event.pos())
+        char_format = cursor.charFormat()
+
+        if char_format.isAnchor():
+            self.viewport().setCursor(Qt.CursorShape.PointingHandCursor)
+        else:
+            self.viewport().setCursor(Qt.CursorShape.IBeamCursor)
+
+        super().mouseMoveEvent(event)
 
 
 class TextEditor(QWidget):
@@ -53,17 +87,14 @@ class TextEditor(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Create text edit
-        self.text_edit = QTextEdit(self)
+        # Create text edit with link support
+        self.text_edit = LinkableTextEdit(self)
         self.text_edit.setObjectName("descriptionInput")
         self.text_edit.setPlaceholderText("Enter description...")
         self.text_edit.setMinimumHeight(100)
         self.text_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.text_edit.customContextMenuRequested.connect(self._show_context_menu)
-
-        # Enable link clicking
-        self.text_edit.setOpenLinks(False)
-        self.text_edit.anchorClicked.connect(self._handle_node_click)
+        self.text_edit.linkClicked.connect(self._handle_node_click)
 
         # Add formatting toolbar
         self.formatting_toolbar = TextToolbar(self.text_edit, self)
@@ -114,74 +145,101 @@ class TextEditor(QWidget):
 
     def _handle_node_click(self, url) -> None:
         """Handle clicks on node name links."""
-        node_name = url.toString()
-        if node_name:
-            # Load the clicked node using main UI's name input
-            self.main_ui.name_input.setText(node_name)
+        """Handle clicks on node name links."""
+        if url:
+            self.main_ui.name_input.setText(url)
 
     def _scan_for_node_names(self) -> None:
-        """Scan the text content for node names and format them."""
+        """Scan the text content for node names and format them while preserving rich text."""
         if not self.name_cache_service:
             logger.warning("scan_skipped_service_not_initialized")
             return
 
         try:
-            # Get current cursor position
+            # Get current cursor position and selection
             cursor = self.text_edit.textCursor()
-            current_position = cursor.position()
+            has_selection = cursor.hasSelection()
+            selection_start = cursor.selectionStart()  # equals cursor pos
+            selection_end = cursor.selectionEnd()
 
-            # Get cached node names
+            # Get cached node names and verify cache
             node_names = self.name_cache_service.get_cached_names()
             if not node_names:
                 return
 
             # Create regex pattern from node names
-            # Sort by length descending to handle overlapping matches
             sorted_names = sorted(node_names, key=len, reverse=True)
             pattern = (
                 r"\b(" + "|".join(re.escape(name) for name in sorted_names) + r")\b"
             )
 
-            # Get current text
-            current_text = self.text_edit.toPlainText()
+            # Instead of using toPlainText(), get the HTML content
+            current_html = self.text_edit.toHtml()
 
-            # Find all matches
-            matches = list(re.finditer(pattern, current_text))
-            if not matches:
+            # First, remove any existing node-reference spans to avoid nested highlighting
+            current_html = re.sub(
+                r'<span class="node-reference"[^>]*>([^<]+)</span>', r"\1", current_html
+            )
+
+            # Find the body content - everything between <body ...> and </body>
+            body_match = re.search(r"<body[^>]*>(.*?)</body>", current_html, re.DOTALL)
+            if not body_match:
                 return
 
-            # Create HTML with links
-            last_end = 0
-            formatted_parts = []
+            body_content = body_match.group(1)
 
-            for match in matches:
-                start, end = match.span()
-                node_name = match.group(0)
+            # Split content into HTML tags and text
+            parts = re.split(r"(<[^>]+>)", body_content)
 
-                # Add text before match
-                formatted_parts.append(current_text[last_end:start])
+            # Process each part
+            processed_parts = []
+            for part in parts:
+                if part.startswith("<"):
+                    processed_parts.append(part)  # Keep HTML tags as-is
+                else:
+                    # Apply node name highlighting only to text content
+                    processed = re.sub(
+                        pattern,
+                        lambda m: (
+                            f'<a href="{m.group(0)}" class="node-reference" '
+                            f'style="background-color: #e0e0e0; '
+                            f"border-radius: 3px; padding: 0 2px; "
+                            f'text-decoration: none; color: inherit;">'
+                            f"{m.group(0)}</a>"
+                        ),
+                        part,
+                    )
+                    processed_parts.append(processed)
 
-                # Add formatted node name
-                formatted_parts.append(
-                    f'<a href="{node_name}" style="background-color: #e0e0e0; '
-                    f"text-decoration: none; color: inherit; border-radius: 3px; "
-                    f'padding: 0 2px;">{node_name}</a>'
-                )
+            # Join processed parts back together
+            processed_body = "".join(processed_parts)
 
-                last_end = end
+            # Reconstruct the full HTML document
+            new_html = re.sub(
+                r"<body[^>]*>.*?</body>",
+                f"<body>{processed_body}</body>",
+                current_html,
+                flags=re.DOTALL,
+            )
 
-            # Add remaining text
-            formatted_parts.append(current_text[last_end:])
+            self.text_edit.blockSignals(True)
+            try:
+                # Update the content
+                self.text_edit.setHtml(new_html)
 
-            # Combine all parts
-            formatted_text = "".join(formatted_parts)
-
-            # Update text edit with formatted content
-            self.text_edit.setHtml(formatted_text)
-
-            # Restore cursor position
-            cursor.setPosition(current_position)
-            self.cursor = self.text_edit.setTextCursor(cursor)
+                # Restore selection
+                cursor = self.text_edit.textCursor()
+                if has_selection:
+                    cursor.setPosition(selection_start)
+                    cursor.setPosition(selection_end, cursor.MoveMode.KeepAnchor)
+                else:
+                    cursor.setPosition(
+                        selection_start
+                    )  # Use selection_start as it equals the cursor position when no selection
+                self.text_edit.setTextCursor(cursor)
+            finally:
+                # Always re-enable signals
+                self.text_edit.blockSignals(False)
 
         except Exception as e:
             logger.error("scan_failed", error=str(e))
