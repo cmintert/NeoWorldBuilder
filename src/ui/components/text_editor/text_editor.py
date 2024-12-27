@@ -120,6 +120,78 @@ class TextEditor(QWidget):
 
         menu.exec(self.text_edit.mapToGlobal(position))
 
+    def _scan_for_node_names(self) -> None:
+        """Scan the text content for node names and format them while preserving rich text."""
+        if not self.name_cache_service:
+            logger.warning("scan_skipped_service_not_initialized")
+            return
+
+        try:
+            # Get current cursor and selection state
+            cursor = self.text_edit.textCursor()
+            has_selection = cursor.hasSelection()
+            selection_start = cursor.selectionStart()
+            selection_end = cursor.selectionEnd()
+
+            # Store current content before formatting
+            original_content = self.text_edit.toHtml()
+
+            # Get cached node names and verify cache
+            node_names = self.name_cache_service.get_cached_names()
+            if not node_names:
+                return
+
+            # Create regex pattern from node names
+            sorted_names = sorted(node_names, key=len, reverse=True)
+            pattern = (
+                r"\b(" + "|".join(re.escape(name) for name in sorted_names) + r")\b"
+            )
+
+            # Split content into HTML tags and text
+            parts = re.split(r"(<[^>]+>)", original_content)
+
+            # Process each part
+            processed_parts = []
+            for part in parts:
+                if part.startswith("<"):
+                    processed_parts.append(part)  # Keep HTML tags as-is
+                else:
+                    # Apply node name highlighting only to text content
+                    processed = re.sub(
+                        pattern,
+                        lambda m: (
+                            f'<a href="{m.group(0)}" class="node-reference" '
+                            f'style="background-color: #e0e0e0; '
+                            f"border-radius: 3px; padding: 0 2px; "
+                            f'text-decoration: none; color: inherit;">'
+                            f"{m.group(0)}</a>"
+                        ),
+                        part,
+                    )
+                    processed_parts.append(processed)
+
+            # Join processed parts back together
+            processed_content = "".join(processed_parts)
+
+            # Block signals during HTML update to prevent recursion
+            self.text_edit.blockSignals(True)
+            try:
+                self.text_edit.setHtml(processed_content)
+
+                # Restore selection
+                cursor = self.text_edit.textCursor()
+                if has_selection:
+                    cursor.setPosition(selection_start)
+                    cursor.setPosition(selection_end, cursor.MoveMode.KeepAnchor)
+                else:
+                    cursor.setPosition(selection_start)
+                self.text_edit.setTextCursor(cursor)
+            finally:
+                self.text_edit.blockSignals(False)
+
+        except Exception as e:
+            logger.error("scan_failed", error=str(e))
+
     def _handle_create_node_request(self) -> None:
         """Handle request to create node from selected text."""
         cursor = self.text_edit.textCursor()
@@ -149,108 +221,26 @@ class TextEditor(QWidget):
         if url:
             self.main_ui.name_input.setText(url)
 
-    def _scan_for_node_names(self) -> None:
-        """Scan the text content for node names and format them while preserving rich text."""
-        if not self.name_cache_service:
-            logger.warning("scan_skipped_service_not_initialized")
-            return
-
-        try:
-            # Get current cursor position and selection
-            cursor = self.text_edit.textCursor()
-            has_selection = cursor.hasSelection()
-            selection_start = cursor.selectionStart()  # equals cursor pos
-            selection_end = cursor.selectionEnd()
-
-            # Get cached node names and verify cache
-            node_names = self.name_cache_service.get_cached_names()
-            if not node_names:
-                return
-
-            # Create regex pattern from node names
-            sorted_names = sorted(node_names, key=len, reverse=True)
-            pattern = (
-                r"\b(" + "|".join(re.escape(name) for name in sorted_names) + r")\b"
-            )
-
-            # Instead of using toPlainText(), get the HTML content
-            current_html = self.text_edit.toHtml()
-
-            # First, remove any existing node-reference spans to avoid nested highlighting
-            current_html = re.sub(
-                r'<span class="node-reference"[^>]*>([^<]+)</span>', r"\1", current_html
-            )
-
-            # Find the body content - everything between <body ...> and </body>
-            body_match = re.search(r"<body[^>]*>(.*?)</body>", current_html, re.DOTALL)
-            if not body_match:
-                return
-
-            body_content = body_match.group(1)
-
-            # Split content into HTML tags and text
-            parts = re.split(r"(<[^>]+>)", body_content)
-
-            # Process each part
-            processed_parts = []
-            for part in parts:
-                if part.startswith("<"):
-                    processed_parts.append(part)  # Keep HTML tags as-is
-                else:
-                    # Apply node name highlighting only to text content
-                    processed = re.sub(
-                        pattern,
-                        lambda m: (
-                            f'<a href="{m.group(0)}" class="node-reference" '
-                            f'style="background-color: #e0e0e0; '
-                            f"border-radius: 3px; padding: 0 2px; "
-                            f'text-decoration: none; color: inherit;">'
-                            f"{m.group(0)}</a>"
-                        ),
-                        part,
-                    )
-                    processed_parts.append(processed)
-
-            # Join processed parts back together
-            processed_body = "".join(processed_parts)
-
-            # Reconstruct the full HTML document
-            new_html = re.sub(
-                r"<body[^>]*>.*?</body>",
-                f"<body>{processed_body}</body>",
-                current_html,
-                flags=re.DOTALL,
-            )
-
-            self.text_edit.blockSignals(True)
-            try:
-                # Update the content
-                self.text_edit.setHtml(new_html)
-
-                # Restore selection
-                cursor = self.text_edit.textCursor()
-                if has_selection:
-                    cursor.setPosition(selection_start)
-                    cursor.setPosition(selection_end, cursor.MoveMode.KeepAnchor)
-                else:
-                    cursor.setPosition(
-                        selection_start
-                    )  # Use selection_start as it equals the cursor position when no selection
-                self.text_edit.setTextCursor(cursor)
-            finally:
-                # Always re-enable signals
-                self.text_edit.blockSignals(False)
-
-        except Exception as e:
-            logger.error("scan_failed", error=str(e))
-
     def setHtml(self, text: str) -> None:
         """Set the HTML content of the editor."""
         self.text_edit.setHtml(text)
 
     def toHtml(self) -> str:
-        """Get the content as HTML."""
-        return self.text_edit.toHtml()
+        """Get the content as HTML, cleaned for saving."""
+        """Get the content as HTML, cleaned for saving."""
+        current_html = self.text_edit.toHtml()
+
+        # First remove our link formatting
+        cleaned = re.sub(
+            r'<a href="[^"]*" class="node-reference"[^>]*style="[^"]*">([^<]+)</a>',
+            r"\1",  # Keep just the text content
+            current_html,
+        )
+
+        # Then remove any empty paragraphs that might have been created
+        cleaned = re.sub(r"<p[^>]*>\s*<br\s*/?>\s*</p>", "", cleaned)
+
+        return cleaned if cleaned else ""
 
     def toPlainText(self) -> str:
         """Get the content as plain text."""
