@@ -149,6 +149,7 @@ class InitializationService:
         self.controller.suggestion_service = self.suggestion_service
         self.controller.tree_model = self.tree_model
         self.controller.relationship_tree_service = self.relationship_tree_service
+        self.ui.description_input.name_cache_service = self.name_cache_service
 
     def _initialize_tree_view(self) -> None:
         """Initialize the tree view model."""
