@@ -27,6 +27,7 @@ class InitializationService:
         config: "Config",
         app_instance: "WorldBuildingApp",
         error_handler: "ErrorHandler",
+        name_cache_service: "NameCacheService",
     ) -> None:
         """
         Initialize the service with required dependencies.
@@ -45,6 +46,7 @@ class InitializationService:
         self.config = config
         self.app_instance = app_instance
         self.error_handler = error_handler
+        self.name_cache_service = name_cache_service
 
     def initialize_application(self) -> None:
         """Initialize all application components."""
@@ -85,12 +87,16 @@ class InitializationService:
         self.fast_inject_service = FastInjectService()
         self.exporter = Exporter(self.ui, self.config)
 
+        # Initialize the name cache for the first time
+        self.name_cache_service.rebuild_cache()
+
         # Services requiring UI
         self.auto_completion_service = AutoCompletionService(
             self.model,
             self.config,
             self.worker_manager,
             self._create_autocompletion_ui_handler(),
+            self.name_cache_service,
             self.error_handler.handle_error,
         )
 
@@ -143,6 +149,7 @@ class InitializationService:
         self.controller.suggestion_service = self.suggestion_service
         self.controller.tree_model = self.tree_model
         self.controller.relationship_tree_service = self.relationship_tree_service
+        self.ui.description_input.name_cache_service = self.name_cache_service
 
     def _initialize_tree_view(self) -> None:
         """Initialize the tree view model."""

@@ -15,7 +15,6 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QFormLayout,
-    QTextEdit,
     QGroupBox,
     QTableWidget,
     QMenu,
@@ -29,9 +28,9 @@ from PyQt6.QtWidgets import (
 )
 from structlog import get_logger
 
-from ui.components.formatting_toolbar import FormattingToolbar
 from ui.components.image_group import ImageGroup
 from ui.components.map_tab import MapTab
+from ui.components.text_editor.text_editor import TextEditor
 from utils.converters import NamingConventionConverter
 
 logger = get_logger(__name__)
@@ -333,13 +332,8 @@ class WorldBuildingUI(QWidget):
         form_layout.setSpacing(15)
 
         # Description
-        self.description_input = QTextEdit()
-        self.description_input.setObjectName("descriptionInput")
-        self.description_input.setPlaceholderText("Enter description...")
-        self.description_input.setMinimumHeight(100)
-
-        # Add formatting toolbar
-        self.formatting_toolbar = FormattingToolbar(self.description_input, self)
+        self.description_input = TextEditor(main_ui=self)
+        self.description_input.setObjectName("descriptionEditor")
 
         # Labels with auto-completion
         self.labels_input = QLineEdit()
@@ -358,7 +352,6 @@ class WorldBuildingUI(QWidget):
         # Image section
         image_group = self._create_image_group()
 
-        form_layout.addRow("", self.formatting_toolbar)
         form_layout.addRow("Description:", self.description_input)
         form_layout.addRow("Labels:", self.labels_input)
         form_layout.addRow("Tags:", self.tags_input)

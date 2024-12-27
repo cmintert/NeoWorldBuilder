@@ -4,7 +4,7 @@ from PyQt6.QtGui import QFont, QAction
 from PyQt6.QtWidgets import QToolBar, QWidget, QTextEdit
 
 
-class FormattingToolbar(QToolBar):
+class TextToolbar(QToolBar):
     """A toolbar for text formatting operations."""
 
     def __init__(self, text_edit: QTextEdit, parent: Optional[QWidget] = None) -> None:
