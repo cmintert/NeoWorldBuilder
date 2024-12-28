@@ -10,6 +10,7 @@ from services.node_operation_service import NodeOperationsService
 from services.property_service import PropertyService
 from services.relationship_tree_service import RelationshipTreeService
 from services.save_service import SaveService
+from services.search_analysis_service import SearchAnalysisService
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
 from ui.styles import StyleManager
@@ -116,6 +117,14 @@ class InitializationService:
             self._create_suggestion_ui_handler(),
         )
 
+        # Initialize search and analysis service
+        self.search_service = SearchAnalysisService(
+            self.model,
+            self.config,
+            self.worker_manager,
+            self.error_handler.handle_error,
+        )
+
         # Initialize tree model and service
         self.tree_model = QStandardItemModel()
         self.relationship_tree_service = RelationshipTreeService(
@@ -149,7 +158,11 @@ class InitializationService:
         self.controller.suggestion_service = self.suggestion_service
         self.controller.tree_model = self.tree_model
         self.controller.relationship_tree_service = self.relationship_tree_service
+        self.controller.search_service = self.search_service
         self.ui.description_input.name_cache_service = self.name_cache_service
+
+        # Initialize search panel handlers
+        self._setup_search_handlers()
 
     def _initialize_tree_view(self) -> None:
         """Initialize the tree view model."""
@@ -234,3 +247,17 @@ class InitializationService:
     def _create_suggestion_ui_handler(self) -> SuggestionUIHandler:
         """Create and return the UI handler for suggestions."""
         return self.controller._create_suggestion_ui_handler()
+
+    def _setup_search_handlers(self) -> None:
+        """Setup search panel signal connections."""
+        if hasattr(self.ui, "search_panel"):
+            # Connect search panel signals to controller handlers
+            self.ui.search_panel.search_requested.connect(
+                self.controller._handle_search_request
+            )
+            self.ui.search_panel.result_selected.connect(
+                self.controller._handle_search_result_selected
+            )
+
+            # Initialize search related UI elements
+            self.style_manager.apply_style(self.ui.search_panel, "default")

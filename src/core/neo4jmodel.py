@@ -556,3 +556,68 @@ class Neo4jModel:
             lambda records: callback([r["name"] for r in records])
         )
         return worker
+
+    def execute_read_query(
+        self, query: str, params: Optional[Dict[str, Any]] = None
+    ) -> QueryWorker:
+        """
+        Execute a read-only Cypher query using a QueryWorker.
+
+        Args:
+            query: The Cypher query to execute. Must be a read-only query.
+            params: Optional parameters for the query
+
+        Returns:
+            QueryWorker: Worker that will execute the read-only query
+
+        Raises:
+            ValueError: If the query appears to be a write operation
+        """
+        # Convert query to uppercase for easier checking
+        query_upper = query.upper().strip()
+
+        # Define write operations more precisely
+        write_operations = {
+            # Data modification
+            "CREATE": "node or relationship creation",
+            "MERGE": "node or relationship merging",
+            "DELETE": "node or relationship deletion",
+            "REMOVE": "property removal",
+            "SET": "property modification",
+            "DROP": "schema modification",
+            # Administrative
+            "CREATE INDEX": "index creation",
+            "DROP INDEX": "index deletion",
+            "CREATE CONSTRAINT": "constraint creation",
+            "DROP CONSTRAINT": "constraint deletion",
+        }
+
+        # Check each operation and provide specific error message
+        for op, description in write_operations.items():
+            if op in query_upper:
+                raise ValueError(
+                    f"Write operation '{op}' ({description}) not allowed in read-only query"
+                )
+
+        # Check for unsafe procedure calls
+        unsafe_calls = [
+            "CALL db.",  # Database procedures
+            "CALL apoc.",  # APOC procedures
+            "CALL graph.",  # Graph procedures
+        ]
+
+        for call in unsafe_calls:
+            if call.upper() in query_upper:
+                raise ValueError(
+                    f"Unsafe procedure call '{call}' not allowed in read-only query"
+                )
+
+        # Create worker with basic parameters
+        worker = QueryWorker(self._uri, self._auth, query, params or {})
+
+        logger.debug(
+            "query_worker_created",
+            has_signal=hasattr(worker, "query_finished"),
+        )
+
+        return worker
