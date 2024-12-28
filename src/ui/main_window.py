@@ -30,6 +30,7 @@ from structlog import get_logger
 
 from ui.components.image_group import ImageGroup
 from ui.components.map_tab import MapTab
+from ui.components.search_component.search_panel import SearchPanel
 from ui.components.text_editor.text_editor import TextEditor
 from utils.converters import NamingConventionConverter
 
@@ -82,9 +83,9 @@ class WorldBuildingUI(QWidget):
         right_panel = self._create_right_panel()
         splitter.addWidget(right_panel)
 
-        # Set stretch factors
-        splitter.setStretchFactor(0, 1)  # Left panel
-        splitter.setStretchFactor(1, 2)  # Right panel gets more space
+        # Search panel
+        self.search_panel = SearchPanel()
+        splitter.addWidget(self.search_panel)
 
         main_layout.addWidget(splitter)
         self.setLayout(main_layout)
