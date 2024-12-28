@@ -649,6 +649,7 @@ class WorldBuildingUI(QWidget):
                 (self.tree_view, "tree", "Tree View"),
                 (self.properties_table, "data-table", "Properties Table"),
                 (self.relationships_table, "data-table", "Relationships Table"),
+                (self.search_panel, "default", "Search Panel"),
             ]
 
             for widget, style, name in components:

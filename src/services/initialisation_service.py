@@ -1,5 +1,6 @@
 from PyQt6.QtGui import QStandardItemModel
 from PyQt6.QtWidgets import QAbstractItemView
+from structlog import get_logger
 
 from models.completer_model import AutoCompletionUIHandler
 from models.suggestion_model import SuggestionUIHandler
@@ -15,6 +16,8 @@ from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
 from ui.styles import StyleManager
 from utils.exporters import Exporter
+
+logger = get_logger(__name__)
 
 
 class InitializationService:
@@ -58,6 +61,7 @@ class InitializationService:
         self._initialize_completers()
         self._connect_signals()
         self._initialize_save_service()
+        self._setup_search_handlers()
         self._load_default_state()
 
     def _initialize_style_management(self) -> None:
@@ -162,7 +166,6 @@ class InitializationService:
         self.ui.description_input.name_cache_service = self.name_cache_service
 
         # Initialize search panel handlers
-        self._setup_search_handlers()
 
     def _initialize_tree_view(self) -> None:
         """Initialize the tree view model."""
@@ -249,9 +252,18 @@ class InitializationService:
         return self.controller._create_suggestion_ui_handler()
 
     def _setup_search_handlers(self) -> None:
-        """Setup search panel signal connections."""
+        """Setup search panel signal connections and initialization."""
         if hasattr(self.ui, "search_panel"):
-            # Connect search panel signals to controller handlers
+
+            if not hasattr(self.ui, "search_panel"):
+                logger.warning("search_panel_not_found", module="InitializationService")
+                return
+
+            if not self.ui.search_panel:
+                logger.warning("search_panel_is_none", module="InitializationService")
+                return
+
+            # Connect enhanced search panel signals
             self.ui.search_panel.search_requested.connect(
                 self.controller._handle_search_request
             )
@@ -259,5 +271,10 @@ class InitializationService:
                 self.controller._handle_search_result_selected
             )
 
-            # Initialize search related UI elements
+            # Apply styling to search panel
             self.style_manager.apply_style(self.ui.search_panel, "default")
+            logger.debug("search_handlers_setup_complete")
+            # Initialize any search panel specific settings
+            self.ui.search_panel.filters.has_relationships.setCurrentIndex(
+                0
+            )  # Set to "Any"

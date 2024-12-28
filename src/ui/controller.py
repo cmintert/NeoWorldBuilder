@@ -1082,19 +1082,21 @@ class WorldBuildingController(QObject):
         else:
             self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
 
-    def _handle_search_request(self, search_text: str) -> None:
+    def _handle_search_request(self, criteria: SearchCriteria) -> None:
         """
-        Handle search request from search panel.
+        Handle enhanced search request from search panel.
 
         Args:
-            search_text: The text to search for
+            criteria: The enhanced search criteria
         """
-        logger.debug("handling_search_request", search_text=search_text)
-
-        # Create search criteria
-        criteria = SearchCriteria(search_text)
-        criteria.case_sensitive = False  # Default to case-insensitive search
-        criteria.include_relationships = False  # Start with simple search
+        logger.debug(
+            "handling_search_request",
+            field_searches=[
+                (fs.field.value, fs.text) for fs in criteria.field_searches
+            ],
+            label_filters=criteria.label_filters,
+            required_properties=criteria.required_properties,
+        )
 
         def handle_results(results: List[Dict[str, Any]]) -> None:
             """Handle search results callback."""
@@ -1102,7 +1104,7 @@ class WorldBuildingController(QObject):
 
         # Execute search using search service
         self.search_service.search_nodes(
-            criteria=criteria,
+            criteria=criteria,  # Now using the enhanced criteria directly
             result_callback=handle_results,
             error_callback=lambda msg: self.ui.search_panel.handle_error(
                 f"Search failed: {msg}"
@@ -1117,5 +1119,13 @@ class WorldBuildingController(QObject):
             node_name: The name of the selected node
         """
         logger.debug("search_result_selected", node_name=node_name)
+
+        # Update the name input field
         self.ui.name_input.setText(node_name)
-        # This will trigger node loading through existing mechanisms
+
+        # Load the selected node
+        self.load_node_data()
+
+        # Switch to the main tab if we're in search
+        if self.ui.tabs.currentWidget() == self.ui.search_panel:
+            self.ui.tabs.setCurrentIndex(0)  # Assuming 0 is the main node editing tab

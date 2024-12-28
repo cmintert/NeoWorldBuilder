@@ -1,50 +1,88 @@
+from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Optional, List, Dict, Any, Callable
 
-import networkx as nx
 from structlog import get_logger
 
-from config.config import Config
-from core.neo4jmodel import Neo4jModel
 from models.worker_model import WorkerOperation
 from services.worker_manager_service import WorkerManagerService
 from ui.components.search_component.query_builder import (
     Neo4jQueryBuilder,
-    PropertyOperator,
-    PropertyCondition,
-    RelationshipPattern,
-    RelationshipDirection,
 )
 
 logger = get_logger(__name__)
 
 
-class SearchCriteria:
-    """
-    Container for search criteria configuration.
-    Supports building both simple and complex searches.
-    """
+class SearchField(Enum):
+    """Enum defining searchable fields"""
 
-    def __init__(self, text: str) -> None:
-        self.text = text
-        self.labels: Optional[List[str]] = None
-        self.properties: List[PropertyCondition] = []
-        self.relationship_patterns: List[RelationshipPattern] = []
-        self.include_relationships: bool = False
-        self.case_sensitive: bool = False
-        self.limit: Optional[int] = None
+    NAME = "name"
+    DESCRIPTION = "description"
+    TAGS = "tags"
+    PROPERTIES = "properties"
+    LABELS = "labels"
+
+
+@dataclass
+class FieldSearch:
+    """Configuration for searching a specific field"""
+
+    field: SearchField
+    text: str
+    exact_match: bool = False
+    case_sensitive: bool = False
+
+
+@dataclass
+class SearchCriteria:
+    """Enhanced search criteria configuration."""
+
+    # Field searches
+    field_searches: List[FieldSearch] = field(default_factory=list)
+
+    # Label filters
+    label_filters: Optional[List[str]] = None
+    exclude_labels: Optional[List[str]] = None
+
+    # Property filters
+    required_properties: Optional[List[str]] = None
+    excluded_properties: Optional[List[str]] = None
+
+    # Relationship filters
+    has_relationships: Optional[bool] = None
+    relationship_types: Optional[List[str]] = None
+
+    # Search options
+    case_sensitive: bool = False
+    limit: Optional[int] = None
+
+    @classmethod
+    def create_simple_search(cls, text: str) -> "SearchCriteria":
+        """Create a simple search across name and description."""
+        criteria = cls()
+        if text:
+            criteria.field_searches = [
+                FieldSearch(SearchField.NAME, text),
+                FieldSearch(SearchField.DESCRIPTION, text),
+                FieldSearch(SearchField.TAGS, text),
+            ]
+        return criteria
+
+    def add_field_search(
+        self, field: SearchField, text: str, exact_match: bool = False
+    ) -> None:
+        """Add a field search criteria."""
+        self.field_searches.append(FieldSearch(field, text, exact_match))
 
 
 class SearchAnalysisService:
-    """
-    Service for handling search and analysis operations.
-    Uses QueryBuilder for flexible query construction and NetworkX for analysis.
-    """
+    """Enhanced service for handling search and analysis operations."""
 
     def __init__(
         self,
-        model: Neo4jModel,
-        config: Config,
+        model: "Neo4jModel",
+        config: "Config",
         worker_manager: WorkerManagerService,
         error_handler: Optional[Callable[[str], None]] = None,
     ) -> None:
@@ -56,9 +94,6 @@ class SearchAnalysisService:
 
         # Cache for recent search results and graphs
         self._search_cache: Dict[str, List[Dict[str, Any]]] = {}
-        self._graph_cache: Dict[str, nx.Graph] = {}
-
-        # Cache timestamp tracking
         self._cache_timestamps: Dict[str, datetime] = {}
 
     def search_nodes(
@@ -68,43 +103,53 @@ class SearchAnalysisService:
         error_callback: Optional[Callable[[str], None]] = None,
     ) -> None:
         """
-        Search for nodes based on search criteria.
+        Search for nodes based on enhanced search criteria.
 
         Args:
-            criteria: Search criteria configuration
+            criteria: SearchCriteria configuration with field searches and filters
             result_callback: Callback for search results
             error_callback: Optional error callback
         """
         logger.debug(
             "initiating_search",
-            search_text=criteria.text,
-            labels=criteria.labels,
-            include_relationships=criteria.include_relationships,
+            field_searches=[
+                (fs.field.value, fs.text) for fs in criteria.field_searches
+            ],
+            label_filters=criteria.label_filters,
+            required_properties=criteria.required_properties,
+            has_relationships=criteria.has_relationships,
         )
 
-        # Check cache first if it's a simple text search
+        # Check cache for simple searches
         cache_key = self._get_cache_key(criteria)
-        if cached_results := self._get_from_cache(cache_key):
-            logger.debug("cache_hit", search_text=criteria.text)
-            result_callback(cached_results)
-            return
+        if (
+            not criteria.label_filters
+            and not criteria.required_properties
+            and len(criteria.field_searches) <= 2
+        ):
+            if cached_results := self._get_from_cache(cache_key):
+                logger.debug("cache_hit", field_searches=criteria.field_searches)
+                result_callback(cached_results)
+                return
 
         # Build query using QueryBuilder
-        query, params = self._build_search_query(criteria)
+        try:
+            query, params = self._build_search_query(criteria)
+        except ValueError as e:
+            logger.error("query_build_error", error=str(e))
+            if error_callback:
+                error_callback(str(e))
+            return
 
         def handle_results(results: List[Dict[str, Any]]) -> None:
             """Process and cache search results."""
-
             logger.debug("search_results_received", count=len(results))
             try:
                 processed_results = self._process_search_results(results)
 
-                # Cache results
-                self._cache_results(cache_key, processed_results)
-
-                # Convert to NetworkX graph if needed
-                if criteria.include_relationships:
-                    self._build_and_cache_graph(cache_key, processed_results)
+                # Cache simple search results
+                if not criteria.label_filters and not criteria.required_properties:
+                    self._cache_results(cache_key, processed_results)
 
                 result_callback(processed_results)
             except Exception as e:
@@ -112,13 +157,9 @@ class SearchAnalysisService:
                 if error_callback:
                     error_callback(f"Error processing search results: {str(e)}")
 
-        # Create worker operation
+        # Execute query through worker
         worker = self.model.execute_read_query(query, params)
-
-        # Connect the signal before creating the operation
         worker.query_finished.connect(handle_results)
-
-        logger.debug("worker_setup", operation_name="node_search")
 
         operation = WorkerOperation(
             worker=worker,
@@ -129,94 +170,63 @@ class SearchAnalysisService:
 
         self.worker_manager.execute_worker("search", operation)
 
-    def analyze_patterns(
-        self,
-        node_names: List[str],
-        analysis_callback: Callable[[Dict[str, Any]], None],
-        error_callback: Optional[Callable[[str], None]] = None,
-    ) -> None:
-        """
-        Analyze patterns between specified nodes using NetworkX.
-
-        Args:
-            node_names: List of node names to analyze
-            analysis_callback: Callback for analysis results
-            error_callback: Optional error callback
-        """
-        logger.debug("starting_pattern_analysis", nodes=node_names)
-
-        # Build query to get subgraph for analysis
-        builder = Neo4jQueryBuilder()
-        builder.match_node("n").with_property(
-            PropertyCondition("name", PropertyOperator.IN, node_names)
-        )
-        builder.with_relationship(
-            RelationshipPattern(type="*", direction=RelationshipDirection.ANY)
-        )
-        builder.return_nodes(["n"]).return_relationships(include_props=True)
-
-        query, params = builder.build()
-
-        def handle_results(results: List[Dict[str, Any]]) -> None:
-            """Convert results to NetworkX graph and analyze."""
-            try:
-                graph = self._build_networkx_graph(results)
-                analysis = self._analyze_graph(graph)
-                analysis_callback(analysis)
-            except Exception as e:
-                logger.error("analysis_error", error=str(e))
-                if error_callback:
-                    error_callback(f"Error in pattern analysis: {str(e)}")
-
-        # Create worker operation
-        worker = self.model.execute_query(query, params)
-        operation = WorkerOperation(
-            worker=worker,
-            success_callback=handle_results,
-            error_callback=error_callback or self.error_handler,
-            operation_name="pattern_analysis",
-        )
-
-        self.worker_manager.execute_worker("analysis", operation)
-
     def _build_search_query(
         self, criteria: SearchCriteria
     ) -> tuple[str, Dict[str, Any]]:
-        """Build search query using QueryBuilder with improved error handling."""
+        """Build enhanced search query using QueryBuilder."""
         builder = Neo4jQueryBuilder()
         logger.debug("building_search_query", criteria=criteria)
+
         try:
             # Start with basic node match
-            builder.match_node("n", labels=criteria.labels)
+            builder.match_node("n", labels=criteria.label_filters)
 
-            # Add text search condition using OR between multiple fields with null checks
-            if criteria.text:
-                where_clauses = []
+            # Handle field searches
+            where_clauses = []
+            for idx, field_search in enumerate(criteria.field_searches):
+                field_clause = self._build_field_search_clause(field_search, idx)
+                if field_clause:
+                    where_clauses.append(field_clause)
+                    builder._parameters[f"search_{idx}"] = field_search.text
 
-                # Name search condition
-                name_check = (
-                    "n.name IS NOT NULL AND toLower(n.name) "
-                    f"CONTAINS toLower($prop_1)"
+            # Handle excluded labels
+            if criteria.exclude_labels:
+                labels_str = ":".join(criteria.exclude_labels)
+                where_clauses.append(f"NOT n:{labels_str}")
+
+            # Handle property filters
+            if criteria.required_properties:
+                for prop in criteria.required_properties:
+                    where_clauses.append(f"EXISTS(n.{prop})")
+
+            if criteria.excluded_properties:
+                for prop in criteria.excluded_properties:
+                    where_clauses.append(f"NOT EXISTS(n.{prop})")
+
+            # Handle relationship filters
+            if criteria.has_relationships is not None:
+                rel_clause = (
+                    "EXISTS((n)--())"
+                    if criteria.has_relationships
+                    else "NOT EXISTS((n)--())"
                 )
-                where_clauses.append(name_check)
-                builder._parameters["prop_1"] = criteria.text
+                where_clauses.append(rel_clause)
 
-                # Description search condition
-                desc_check = (
-                    "n.description IS NOT NULL AND toLower(n.description) "
-                    f"CONTAINS toLower($prop_2)"
-                )
-                where_clauses.append(desc_check)
-                builder._parameters["prop_2"] = criteria.text
+            if criteria.relationship_types:
+                rel_patterns = []
+                for rel_type in criteria.relationship_types:
+                    rel_patterns.append(f"EXISTS((n)-[:{rel_type}]-())")
+                where_clauses.append(f"({' OR '.join(rel_patterns)})")
 
-                # Combine conditions
-                builder._where_conditions.append(f"({' OR '.join(where_clauses)})")
+            # Combine all WHERE clauses with AND
+            if where_clauses:
+                builder._where_conditions.extend(where_clauses)
 
             # Configure return values
             builder.return_nodes(["n"], include_labels=True, include_props=True)
 
             # Add limit for safety
-            builder.limit(1000)
+            builder.limit(criteria.limit or 1000)
 
             return builder.build()
 
@@ -224,35 +234,138 @@ class SearchAnalysisService:
             logger.error("query_build_error", error=str(e))
             raise ValueError(f"Error building search query: {str(e)}")
 
-    def _build_networkx_graph(self, results: List[Dict[str, Any]]) -> nx.Graph:
-        """Convert Neo4j results to NetworkX graph."""
-        nx_graph = nx.Graph()
+    def _build_field_search_clause(
+        self, field_search: FieldSearch, idx: int
+    ) -> Optional[str]:
+        """Build WHERE clause for a field search."""
+        if not field_search.text:
+            return None
 
-        # Add nodes and edges from results
-        for _ in results:
-            # Implementation details depend on result structure
-            pass
+        param_name = f"$search_{idx}"
 
-        return nx_graph
+        if field_search.field == SearchField.NAME:
+            return self._build_text_search_clause("n.name", param_name, field_search)
 
-    def _analyze_graph(self, nx_graph: nx.Graph) -> Dict[str, Any]:
-        """Perform graph analysis using NetworkX."""
-        analysis = {
-            "centrality": nx.degree_centrality(nx_graph),
-            "communities": list(nx.community.greedy_modularity_communities(nx_graph)),
-            "density": nx.density(nx_graph),
-            "average_clustering": nx.average_clustering(nx_graph),
+        elif field_search.field == SearchField.DESCRIPTION:
+            return self._build_text_search_clause(
+                "n.description", param_name, field_search
+            )
+
+        elif field_search.field == SearchField.TAGS:
+            return f"ANY(tag IN n.tags WHERE {self._build_text_search_clause('tag', param_name, field_search)})"
+
+        elif field_search.field == SearchField.PROPERTIES:
+            # Search both property keys and values
+            return (
+                f"ANY(prop_key IN keys(n) WHERE "
+                f"{self._build_text_search_clause('prop_key', param_name, field_search)} OR "
+                f"{self._build_text_search_clause('toString(n[prop_key])', param_name, field_search)})"
+            )
+
+        return None
+
+    def _build_text_search_clause(
+        self, field: str, param_name: str, field_search: FieldSearch
+    ) -> str:
+        """Build the appropriate text matching clause based on search options."""
+        if not field_search.case_sensitive:
+            field = f"toLower({field})"
+            param_name = f"toLower({param_name})"
+
+        if field_search.exact_match:
+            return f"{field} = {param_name}"
+        else:
+            return f"{field} CONTAINS {param_name}"
+
+    def _process_search_results(
+        self, results: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Process raw search results with enhanced property and relationship handling."""
+        processed_results = []
+
+        for result in results:
+            try:
+                # Extract and validate base node properties
+                node_props = result.get("n_props", {}) or {}
+                node_labels = result.get("n_labels", []) or []
+
+                # Type validation
+                if not isinstance(node_props, dict) or not isinstance(
+                    node_labels, list
+                ):
+                    logger.warning(
+                        "invalid_result_format",
+                        props_type=type(node_props),
+                        labels_type=type(node_labels),
+                    )
+                    continue
+
+                # Enhanced property processing
+                filtered_props = self._filter_system_properties(node_props)
+
+                # Create standardized result entry
+                processed_result = {
+                    "name": node_props.get("name", "Unnamed Node"),
+                    "type": ", ".join(label for label in node_labels if label),
+                    "properties": filtered_props,
+                }
+
+                # Validate required fields
+                if not processed_result["name"]:
+                    logger.warning("missing_node_name", original_props=node_props)
+                    continue
+
+                processed_results.append(processed_result)
+
+            except Exception as e:
+                logger.error("result_processing_error", error=str(e), result=result)
+                continue
+
+        # Sort results for consistency
+        processed_results.sort(key=lambda x: x["name"])
+        return processed_results
+
+    def _filter_system_properties(self, properties: Dict[str, Any]) -> Dict[str, Any]:
+        """Filter out system properties and format values."""
+        return {
+            k: v
+            for k, v in properties.items()
+            if (
+                k  # Ensure key exists
+                and not k.startswith("_")  # Skip system properties
+                and k not in self.config.RESERVED_PROPERTY_KEYS  # Skip reserved
+                and v is not None  # Skip null values
+            )
         }
-        return analysis
 
     def _get_cache_key(self, criteria: SearchCriteria) -> str:
-        """Generate cache key from search criteria."""
-        components = [
-            criteria.text,
-            str(criteria.labels),
-            str(criteria.include_relationships),
-            str(criteria.case_sensitive),
-        ]
+        """Generate cache key from enhanced search criteria."""
+        components = []
+
+        # Add field searches to key
+        for fs in criteria.field_searches:
+            components.append(
+                f"{fs.field.value}:{fs.text}:{fs.exact_match}:{fs.case_sensitive}"
+            )
+
+        # Add filters to key
+        if criteria.label_filters:
+            components.append(f"labels:{','.join(sorted(criteria.label_filters))}")
+        if criteria.exclude_labels:
+            components.append(
+                f"exclude_labels:{','.join(sorted(criteria.exclude_labels))}"
+            )
+        if criteria.required_properties:
+            components.append(
+                f"required_props:{','.join(sorted(criteria.required_properties))}"
+            )
+        if criteria.has_relationships is not None:
+            components.append(f"has_rels:{criteria.has_relationships}")
+        if criteria.relationship_types:
+            components.append(
+                f"rel_types:{','.join(sorted(criteria.relationship_types))}"
+            )
+
         return "|".join(components)
 
     def _get_from_cache(self, cache_key: str) -> Optional[List[Dict[str, Any]]]:
@@ -273,81 +386,16 @@ class SearchAnalysisService:
         self._search_cache[cache_key] = results
         self._cache_timestamps[cache_key] = datetime.now()
 
-    def _build_and_cache_graph(
-        self, cache_key: str, results: List[Dict[str, Any]]
-    ) -> None:
-        """Build and cache NetworkX graph from results."""
-        graph = self._build_networkx_graph(results)
-        self._graph_cache[cache_key] = graph
-
     def _clear_cache_entry(self, cache_key: str) -> None:
         """Clear a specific cache entry and its associated data."""
         self._search_cache.pop(cache_key, None)
-        self._graph_cache.pop(cache_key, None)
         self._cache_timestamps.pop(cache_key, None)
 
     def clear_cache(self) -> None:
         """Clear all caches."""
         self._search_cache.clear()
-        self._graph_cache.clear()
         self._cache_timestamps.clear()
         logger.debug("cache_cleared")
-
-    def _process_search_results(
-        self, results: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
-        """Process raw search results into standard format with robust error handling."""
-        processed_results = []
-
-        for result in results:
-            try:
-                # Extract base node properties with defaults
-                node_props = result.get("n_props", {}) or {}
-                node_labels = result.get("n_labels", []) or []
-
-                # Basic validation
-                if not isinstance(node_props, dict) or not isinstance(
-                    node_labels, list
-                ):
-                    logger.warning(
-                        "invalid_result_format",
-                        props_type=type(node_props),
-                        labels_type=type(node_labels),
-                    )
-                    continue
-
-                # Create standardized result entry
-                processed_result = {
-                    "name": node_props.get("name", "Unnamed Node"),
-                    "type": ", ".join(label for label in node_labels if label),
-                    "properties": {
-                        k: v
-                        for k, v in node_props.items()
-                        if (
-                            k  # Ensure key exists
-                            and not k.startswith("_")  # Skip system properties
-                            and k
-                            not in self.config.RESERVED_PROPERTY_KEYS  # Skip reserved
-                            and v is not None
-                        )  # Skip null values
-                    },
-                }
-
-                # Validate required fields
-                if not processed_result["name"]:
-                    logger.warning("missing_node_name", original_props=node_props)
-                    continue
-
-                processed_results.append(processed_result)
-
-            except Exception as e:
-                logger.error("result_processing_error", error=str(e), result=result)
-                continue
-
-        # Sort results for consistency
-        processed_results.sort(key=lambda x: x["name"])
-
-        return processed_results
 
     def _default_error_handler(self, error_message: str) -> None:
         """Default error handler that logs errors."""
