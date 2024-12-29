@@ -57,24 +57,6 @@ class SearchCriteria:
     case_sensitive: bool = False
     limit: Optional[int] = None
 
-    @classmethod
-    def create_simple_search(cls, text: str) -> "SearchCriteria":
-        """Create a simple search across name and description."""
-        criteria = cls()
-        if text:
-            criteria.field_searches = [
-                FieldSearch(SearchField.NAME, text),
-                FieldSearch(SearchField.DESCRIPTION, text),
-                FieldSearch(SearchField.TAGS, text),
-            ]
-        return criteria
-
-    def add_field_search(
-        self, field: SearchField, text: str, exact_match: bool = False
-    ) -> None:
-        """Add a field search criteria."""
-        self.field_searches.append(FieldSearch(field, text, exact_match))
-
 
 class SearchAnalysisService:
     """Enhanced service for handling search and analysis operations."""
@@ -183,11 +165,49 @@ class SearchAnalysisService:
 
             # Handle field searches
             where_clauses = []
-            for idx, field_search in enumerate(criteria.field_searches):
-                field_clause = self._build_field_search_clause(field_search, idx)
-                if field_clause:
-                    where_clauses.append(field_clause)
-                    builder._parameters[f"search_{idx}"] = field_search.text
+            param_idx = 0
+
+            # Group all quick search conditions with OR
+            quick_search_clauses = []
+            other_clauses = []
+
+            for field_search in criteria.field_searches:
+                param_name = f"search_{param_idx}"
+                builder._parameters[param_name] = field_search.text
+
+                if field_search.field == SearchField.NAME:
+                    clause = self._build_text_search_clause(
+                        "n.name", f"${param_name}", field_search
+                    )
+                elif field_search.field == SearchField.DESCRIPTION:
+                    clause = self._build_text_search_clause(
+                        "n.description", f"${param_name}", field_search
+                    )
+                elif field_search.field == SearchField.TAGS:
+                    clause = f"ANY(tag IN n.tags WHERE {self._build_text_search_clause('tag', f'${param_name}', field_search)})"
+                elif field_search.field == SearchField.LABELS:
+                    clause = f"ANY(label IN labels(n) WHERE {self._build_text_search_clause('label', f'${param_name}', field_search)})"
+                elif field_search.field == SearchField.PROPERTIES:
+                    clause = (
+                        f"ANY(prop_key IN keys(n) WHERE "
+                        f"{self._build_text_search_clause('prop_key', f'${param_name}', field_search)} OR "
+                        f"{self._build_text_search_clause('toString(n[prop_key])', f'${param_name}', field_search)})"
+                    )
+
+                # For quick search, use OR between conditions
+                if not field_search.exact_match and not field_search.case_sensitive:
+                    quick_search_clauses.append(clause)
+                else:
+                    other_clauses.append(clause)
+
+                param_idx += 1
+
+            # Combine quick search clauses with OR
+            if quick_search_clauses:
+                where_clauses.append(f"({' OR '.join(quick_search_clauses)})")
+
+            # Add other clauses with AND
+            where_clauses.extend(other_clauses)
 
             # Handle excluded labels
             if criteria.exclude_labels:
@@ -220,10 +240,13 @@ class SearchAnalysisService:
 
             # Combine all WHERE clauses with AND
             if where_clauses:
-                builder._where_conditions.extend(where_clauses)
+                builder._where_conditions.append(f"({' AND '.join(where_clauses)})")
 
             # Configure return values
             builder.return_nodes(["n"], include_labels=True, include_props=True)
+
+            # Add ordering for consistent results
+            builder.order_by(["n.name"])
 
             # Add limit for safety
             builder.limit(criteria.limit or 1000)

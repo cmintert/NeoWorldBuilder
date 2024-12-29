@@ -222,13 +222,24 @@ class SearchPanel(QWidget):
         # Create search criteria based on UI state
         criteria = SearchCriteria()
 
-        # Handle quick search
+        # Handle quick search - search across all fields with smart defaults
         if quick_text := self.quick_search.text().strip():
-            criteria = SearchCriteria.create_simple_search(quick_text)
+            # Add searches for each field type with appropriate settings
+            for field in SearchField:
+                # Skip PROPERTIES field for quick search performance unless specifically needed
+                if field != SearchField.PROPERTIES:
+                    criteria.field_searches.append(
+                        FieldSearch(
+                            field=field,
+                            text=quick_text,
+                            exact_match=False,  # Always use contains for quick search
+                            case_sensitive=False,  # Default to case-insensitive
+                        )
+                    )
 
         # If advanced search is visible, add those criteria
         if self.advanced_container.isVisible():
-            # Add field searches
+            # Add field searches from advanced search widgets
             for field_widget in self.field_searches.values():
                 if field_search := field_widget.get_search_value():
                     criteria.field_searches.append(field_search)
@@ -259,14 +270,22 @@ class SearchPanel(QWidget):
                     r.strip() for r in rel_types.split(",") if r.strip()
                 ]
 
+        # Only emit search if we have criteria
         if (
             criteria.field_searches
             or criteria.label_filters
             or criteria.required_properties
         ):
-            logger.debug("search_requested", criteria=criteria)
+            logger.debug(
+                "search_requested",
+                quick_search=bool(quick_text),
+                advanced_search=self.advanced_container.isVisible(),
+                criteria=criteria,
+            )
             self.search_requested.emit(criteria)
             self.set_loading_state(True)
+        else:
+            self.status_label.setText("Please enter search criteria")
 
     def _handle_result_selected(self, item: QTreeWidgetItem, column: int) -> None:
         """Handle result item selection."""
