@@ -217,25 +217,25 @@ class SearchAnalysisService:
             # Handle property filters
             if criteria.required_properties:
                 for prop in criteria.required_properties:
-                    where_clauses.append(f"EXISTS(n.{prop})")
+                    where_clauses.append(f"(n.{prop}) IS NOT NULL")
 
             if criteria.excluded_properties:
                 for prop in criteria.excluded_properties:
-                    where_clauses.append(f"NOT EXISTS(n.{prop})")
+                    where_clauses.append(f"(n.{prop}) IS NULL")
 
             # Handle relationship filters
             if criteria.has_relationships is not None:
                 rel_clause = (
-                    "EXISTS((n)--())"
+                    "((n)--()) IS NOT NULL"
                     if criteria.has_relationships
-                    else "NOT EXISTS((n)--())"
+                    else "((n)--()) IS NULL"
                 )
                 where_clauses.append(rel_clause)
 
             if criteria.relationship_types:
                 rel_patterns = []
                 for rel_type in criteria.relationship_types:
-                    rel_patterns.append(f"EXISTS((n)-[:{rel_type}]-())")
+                    rel_patterns.append(f"((n)-[:{rel_type}]-()) IS NOT NULL")
                 where_clauses.append(f"({' OR '.join(rel_patterns)})")
 
             # Combine all WHERE clauses with AND

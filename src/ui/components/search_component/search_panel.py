@@ -143,14 +143,13 @@ class SearchPanel(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setObjectName("searchPanelLayout")
         main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(8)
+        main_layout.setSpacing(0)  # Remove spacing between elements
 
-        # Fixed header section
-        header_widget = QWidget()
-        header_widget.setObjectName("searchHeader")
-        header_layout = QVBoxLayout(header_widget)
-        header_layout.setContentsMargins(0, 0, 0, 0)
-        header_layout.setSpacing(4)
+        # Top search container
+        top_container = QWidget()
+        top_layout = QVBoxLayout(top_container)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(4)
 
         # Quick search container
         quick_search_frame = QFrame()
@@ -167,7 +166,7 @@ class SearchPanel(QWidget):
         self.quick_search.setPlaceholderText("Search across all fields...")
         self.quick_search.setObjectName("quickSearchInput")
 
-        # Clear button (only shown when text exists)
+        # Clear button
         self.clear_button = QPushButton("✕")
         self.clear_button.setObjectName("clearSearchButton")
         self.clear_button.setFixedSize(20, 20)
@@ -177,12 +176,12 @@ class SearchPanel(QWidget):
         quick_search_layout.addWidget(self.quick_search)
         quick_search_layout.addWidget(self.clear_button)
 
-        header_layout.addWidget(quick_search_frame)
+        top_layout.addWidget(quick_search_frame)
 
-        # Advanced search toggle
+        # Advanced search toggle - centered
         toggle_container = QWidget()
         toggle_layout = QHBoxLayout(toggle_container)
-        toggle_layout.setContentsMargins(4, 0, 4, 4)
+        toggle_layout.setContentsMargins(0, 0, 0, 0)
         toggle_layout.setSpacing(0)
 
         self.advanced_toggle = QPushButton("Advanced Search")
@@ -194,31 +193,34 @@ class SearchPanel(QWidget):
         self.toggle_icon.setObjectName("toggleIcon")
         self.toggle_icon.setFixedWidth(16)
 
+        # Center the toggle button
+        toggle_layout.addStretch()
         toggle_layout.addWidget(self.advanced_toggle)
         toggle_layout.addWidget(self.toggle_icon)
         toggle_layout.addStretch()
 
-        header_layout.addWidget(toggle_container)
-        main_layout.addWidget(header_widget)
+        top_layout.addWidget(toggle_container)
+        main_layout.addWidget(top_container)
 
-        # Scrollable content area
+        # Create expandable section
+        self.expandable_widget = QWidget()
+        expandable_layout = QVBoxLayout(self.expandable_widget)
+        expandable_layout.setContentsMargins(0, 0, 0, 0)
+        expandable_layout.setSpacing(0)
+
+        # Scrollable advanced search area
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
         self.scroll_area.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
+        self.scroll_area.setVisible(False)
 
-        content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setSpacing(12)
-
-        # Advanced search section
-        self.advanced_container = QFrame()
-        self.advanced_container.setObjectName("advancedContainer")
-        self.advanced_container.setFrameShape(QFrame.Shape.StyledPanel)
-        advanced_layout = QVBoxLayout(self.advanced_container)
-        advanced_layout.setSpacing(16)
+        # Advanced search content
+        advanced_content = QWidget()
+        advanced_layout = QVBoxLayout(advanced_content)
+        advanced_layout.setSpacing(12)
 
         # Group search fields logically
         field_groups = {
@@ -246,16 +248,14 @@ class SearchPanel(QWidget):
         advanced_layout.addWidget(self.filters)
         advanced_layout.addStretch()
 
-        # Hide advanced section initially
-        self.advanced_container.setVisible(False)
-        content_layout.addWidget(self.advanced_container)
-        self.scroll_area.setWidget(content_widget)
-        main_layout.addWidget(self.scroll_area)
+        self.scroll_area.setWidget(advanced_content)
+        expandable_layout.addWidget(self.scroll_area)
+        main_layout.addWidget(self.expandable_widget)
 
         # Results section
-        results_container = QWidget()
-        results_container.setObjectName("resultsContainer")
-        results_layout = QVBoxLayout(results_container)
+        self.results_widget = QWidget()
+        self.results_widget.setMinimumHeight(150)  # Minimum height as specified
+        results_layout = QVBoxLayout(self.results_widget)
         results_layout.setContentsMargins(0, 8, 0, 0)
         results_layout.setSpacing(8)
 
@@ -278,8 +278,7 @@ class SearchPanel(QWidget):
         self.results_tree.setUniformRowHeights(True)
         results_layout.addWidget(self.results_tree)
 
-        # Add results container
-        main_layout.addWidget(results_container)
+        main_layout.addWidget(self.results_widget, 1)  # Give it stretch factor of 1
 
         # Status bar
         self.status_label = QLabel("")
@@ -319,7 +318,7 @@ class SearchPanel(QWidget):
                     )
 
         # If advanced search is visible, add those criteria
-        if self.advanced_container.isVisible():
+        if self.scroll_area.isVisible():
             # Add field searches from advanced search widgets
             for field_widget in self.field_searches.values():
                 if field_search := field_widget.get_search_value():
@@ -360,7 +359,7 @@ class SearchPanel(QWidget):
             logger.debug(
                 "search_requested",
                 quick_search=bool(quick_text),
-                advanced_search=self.advanced_container.isVisible(),
+                advanced_search=self.scroll_area.isVisible(),
                 criteria=criteria,
             )
             self.search_requested.emit(criteria)
@@ -387,8 +386,26 @@ class SearchPanel(QWidget):
         # Update icon
         self.toggle_icon.setText("▼" if checked else "▶")
 
-        # Show/hide the container (we'll animate this in a future update)
-        self.advanced_container.setVisible(checked)
+        if not checked:
+            # Clear any active advanced search fields when hiding
+            for field_widget in self.field_searches.values():
+                field_widget.search_input.clear()
+                field_widget.exact_match.setChecked(False)
+
+            # Clear filters
+            self.filters.include_labels.clear()
+            self.filters.exclude_labels.clear()
+            self.filters.required_props.clear()
+            self.filters.has_props.setChecked(False)
+            self.filters.has_relationships.setCurrentIndex(0)
+            self.filters.rel_types.clear()
+
+        # Show/hide the scroll area
+        self.scroll_area.setVisible(checked)
+
+        # Trigger a new search if we're closing advanced search and have quick search text
+        if not checked and self.quick_search.text().strip():
+            self._handle_search_clicked()
 
     def _handle_result_selected(self, item: QTreeWidgetItem, column: int) -> None:
         """Handle result item selection."""
@@ -403,7 +420,8 @@ class SearchPanel(QWidget):
         self.clear_button.setEnabled(not is_loading)
         self.advanced_toggle.setEnabled(not is_loading)
 
-        if hasattr(self, "advanced_container"):
+        # Control advanced search fields if visible
+        if self.scroll_area.isVisible():
             for field_widget in self.field_searches.values():
                 field_widget.setEnabled(not is_loading)
             self.filters.setEnabled(not is_loading)
