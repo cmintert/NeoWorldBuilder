@@ -296,7 +296,7 @@ class SearchPanel(QWidget):
 
         # Advanced search toggle with animation
         self.advanced_toggle.toggled.connect(self._toggle_advanced_search)
-        self.results_tree.itemDoubleClicked.connect(self._handle_result_selected)
+        self.results_tree.itemClicked.connect(self._handle_result_selected)
 
     def _handle_search_clicked(self) -> None:
         """Handle search button click or return pressed."""
