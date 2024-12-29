@@ -74,6 +74,7 @@ class SearchFilterWidget(QWidget):
 
         # Label filters
         label_group = QGroupBox("Label Filters")
+        label_group.setObjectName("labelFiltersGroup")
         label_layout = QVBoxLayout()
 
         # Include labels
@@ -91,6 +92,7 @@ class SearchFilterWidget(QWidget):
 
         # Property filters
         prop_group = QGroupBox("Property Filters")
+        prop_group.setObjectName("propertyFiltersGroup")
         prop_layout = QVBoxLayout()
 
         # Required properties
@@ -107,6 +109,7 @@ class SearchFilterWidget(QWidget):
 
         # Relationship filters
         rel_group = QGroupBox("Relationship Filters")
+        rel_group.setObjectName("relationshipFiltersGroup")
         rel_layout = QVBoxLayout()
 
         # Has relationships
@@ -210,6 +213,7 @@ class SearchPanel(QWidget):
 
         # Scrollable advanced search area
         self.scroll_area = QScrollArea()
+        self.scroll_area.setObjectName("advancedSearchScrollArea")
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
         self.scroll_area.setHorizontalScrollBarPolicy(
