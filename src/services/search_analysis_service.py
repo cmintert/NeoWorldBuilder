@@ -188,10 +188,11 @@ class SearchAnalysisService:
                 elif field_search.field == SearchField.LABELS:
                     clause = f"ANY(label IN labels(n) WHERE {self._build_text_search_clause('label', f'${param_name}', field_search)})"
                 elif field_search.field == SearchField.PROPERTIES:
+                    # Modified to support partial property name matches
                     clause = (
                         f"ANY(prop_key IN keys(n) WHERE "
-                        f"{self._build_text_search_clause('prop_key', f'${param_name}', field_search)} OR "
-                        f"{self._build_text_search_clause('toString(n[prop_key])', f'${param_name}', field_search)})"
+                        f"{self._build_text_search_clause('toLower(prop_key)', f'toLower(${param_name})', field_search)} OR "
+                        f"{self._build_text_search_clause('toLower(toString(n[prop_key]))', f'toLower(${param_name})', field_search)})"
                     )
 
                 # For quick search, use OR between conditions
@@ -214,14 +215,16 @@ class SearchAnalysisService:
                 labels_str = ":".join(criteria.exclude_labels)
                 where_clauses.append(f"NOT n:{labels_str}")
 
-            # Handle property filters
+            # Handle property filters with partial matching
             if criteria.required_properties:
                 for prop in criteria.required_properties:
-                    where_clauses.append(f"(n.{prop}) IS NOT NULL")
+                    prop_clause = f"ANY(prop_key IN keys(n) WHERE toLower(prop_key) CONTAINS toLower('{prop}'))"
+                    where_clauses.append(prop_clause)
 
             if criteria.excluded_properties:
                 for prop in criteria.excluded_properties:
-                    where_clauses.append(f"(n.{prop}) IS NULL")
+                    prop_clause = f"NOT ANY(prop_key IN keys(n) WHERE toLower(prop_key) CONTAINS toLower('{prop}'))"
+                    where_clauses.append(prop_clause)
 
             # Handle relationship filters
             if criteria.has_relationships is not None:
