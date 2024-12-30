@@ -22,7 +22,7 @@ from models.property_model import PropertyItem
 from models.suggestion_model import SuggestionUIHandler, SuggestionResult
 from models.worker_model import WorkerOperation
 from services.initialisation_service import InitializationService
-from services.search_analysis_service import SearchCriteria
+from services.search_analysis_service.search_analysis_service import SearchCriteria
 from ui.components.dialogs import (
     StyleSettingsDialog,
     ConnectionSettingsDialog,

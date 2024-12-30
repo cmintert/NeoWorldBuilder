@@ -19,7 +19,11 @@ from PyQt6.QtWidgets import (
 )
 from structlog import get_logger
 
-from services.search_analysis_service import SearchCriteria, SearchField, FieldSearch
+from services.search_analysis_service.search_analysis_service import (
+    SearchCriteria,
+    SearchField,
+    FieldSearch,
+)
 from ui.components.search_component.debounced_search_mixin import DebouncedSearchMixin
 
 logger = get_logger(__name__)

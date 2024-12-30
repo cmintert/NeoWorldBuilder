@@ -1,15 +1,13 @@
+from abc import abstractmethod, ABC
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List, Dict, Any, Callable
+from typing import Optional, List, Dict, Any, Callable, Tuple
 
 from structlog import get_logger
 
 from models.worker_model import WorkerOperation
 from services.worker_manager_service import WorkerManagerService
-from ui.components.search_component.query_builder import (
-    Neo4jQueryBuilder,
-)
 
 logger = get_logger(__name__)
 
@@ -22,6 +20,14 @@ class SearchField(Enum):
     TAGS = "tags"
     PROPERTIES = "properties"
     LABELS = "labels"
+
+
+@dataclass
+class QueryComponent:
+    """Base class for query components with parameters"""
+
+    text: str
+    parameters: Dict[str, Any]
 
 
 @dataclass
@@ -155,153 +161,9 @@ class SearchAnalysisService:
     def _build_search_query(
         self, criteria: SearchCriteria
     ) -> tuple[str, Dict[str, Any]]:
-        """Build enhanced search query using QueryBuilder."""
-        builder = Neo4jQueryBuilder()
-        logger.debug("building_search_query", criteria=criteria)
-
-        try:
-            # Start with basic node match
-            builder.match_node("n", labels=criteria.label_filters)
-
-            # Handle field searches
-            where_clauses = []
-            param_idx = 0
-
-            # Group all quick search conditions with OR
-            quick_search_clauses = []
-            other_clauses = []
-
-            for field_search in criteria.field_searches:
-                param_name = f"search_{param_idx}"
-                builder._parameters[param_name] = field_search.text
-
-                if field_search.field == SearchField.NAME:
-                    clause = self._build_text_search_clause(
-                        "n.name", f"${param_name}", field_search
-                    )
-                elif field_search.field == SearchField.DESCRIPTION:
-                    clause = self._build_text_search_clause(
-                        "n.description", f"${param_name}", field_search
-                    )
-                elif field_search.field == SearchField.TAGS:
-                    clause = f"ANY(tag IN n.tags WHERE {self._build_text_search_clause('tag', f'${param_name}', field_search)})"
-                elif field_search.field == SearchField.LABELS:
-                    clause = f"ANY(label IN labels(n) WHERE {self._build_text_search_clause('label', f'${param_name}', field_search)})"
-                elif field_search.field == SearchField.PROPERTIES:
-                    # Modified to support partial property name matches
-                    clause = (
-                        f"ANY(prop_key IN keys(n) WHERE "
-                        f"{self._build_text_search_clause('toLower(prop_key)', f'toLower(${param_name})', field_search)} OR "
-                        f"{self._build_text_search_clause('toLower(toString(n[prop_key]))', f'toLower(${param_name})', field_search)})"
-                    )
-
-                # For quick search, use OR between conditions
-                if not field_search.exact_match and not field_search.case_sensitive:
-                    quick_search_clauses.append(clause)
-                else:
-                    other_clauses.append(clause)
-
-                param_idx += 1
-
-            # Combine quick search clauses with OR
-            if quick_search_clauses:
-                where_clauses.append(f"({' OR '.join(quick_search_clauses)})")
-
-            # Add other clauses with AND
-            where_clauses.extend(other_clauses)
-
-            # Handle excluded labels
-            if criteria.exclude_labels:
-                labels_str = ":".join(criteria.exclude_labels)
-                where_clauses.append(f"NOT n:{labels_str}")
-
-            # Handle property filters with partial matching
-            if criteria.required_properties:
-                for prop in criteria.required_properties:
-                    prop_clause = f"ANY(prop_key IN keys(n) WHERE toLower(prop_key) CONTAINS toLower('{prop}'))"
-                    where_clauses.append(prop_clause)
-
-            if criteria.excluded_properties:
-                for prop in criteria.excluded_properties:
-                    prop_clause = f"NOT ANY(prop_key IN keys(n) WHERE toLower(prop_key) CONTAINS toLower('{prop}'))"
-                    where_clauses.append(prop_clause)
-
-            # Handle relationship filters
-            if criteria.has_relationships is not None:
-                rel_clause = (
-                    "((n)--()) IS NOT NULL"
-                    if criteria.has_relationships
-                    else "((n)--()) IS NULL"
-                )
-                where_clauses.append(rel_clause)
-
-            if criteria.relationship_types:
-                rel_patterns = []
-                for rel_type in criteria.relationship_types:
-                    rel_patterns.append(f"((n)-[:{rel_type}]-()) IS NOT NULL")
-                where_clauses.append(f"({' OR '.join(rel_patterns)})")
-
-            # Combine all WHERE clauses with AND
-            if where_clauses:
-                builder._where_conditions.append(f"({' AND '.join(where_clauses)})")
-
-            # Configure return values
-            builder.return_nodes(["n"], include_labels=True, include_props=True)
-
-            # Add ordering for consistent results
-            builder.order_by(["n.name"])
-
-            # Add limit for safety
-            builder.limit(criteria.limit or 1000)
-
-            return builder.build()
-
-        except Exception as e:
-            logger.error("query_build_error", error=str(e))
-            raise ValueError(f"Error building search query: {str(e)}")
-
-    def _build_field_search_clause(
-        self, field_search: FieldSearch, idx: int
-    ) -> Optional[str]:
-        """Build WHERE clause for a field search."""
-        if not field_search.text:
-            return None
-
-        param_name = f"$search_{idx}"
-
-        if field_search.field == SearchField.NAME:
-            return self._build_text_search_clause("n.name", param_name, field_search)
-
-        elif field_search.field == SearchField.DESCRIPTION:
-            return self._build_text_search_clause(
-                "n.description", param_name, field_search
-            )
-
-        elif field_search.field == SearchField.TAGS:
-            return f"ANY(tag IN n.tags WHERE {self._build_text_search_clause('tag', param_name, field_search)})"
-
-        elif field_search.field == SearchField.PROPERTIES:
-            # Search both property keys and values
-            return (
-                f"ANY(prop_key IN keys(n) WHERE "
-                f"{self._build_text_search_clause('prop_key', param_name, field_search)} OR "
-                f"{self._build_text_search_clause('toString(n[prop_key])', param_name, field_search)})"
-            )
-
-        return None
-
-    def _build_text_search_clause(
-        self, field: str, param_name: str, field_search: FieldSearch
-    ) -> str:
-        """Build the appropriate text matching clause based on search options."""
-        if not field_search.case_sensitive:
-            field = f"toLower({field})"
-            param_name = f"toLower({param_name})"
-
-        if field_search.exact_match:
-            return f"{field} = {param_name}"
-        else:
-            return f"{field} CONTAINS {param_name}"
+        """Build enhanced search query using SearchQueryBuilder."""
+        builder = SearchQueryBuilder()
+        return builder.build_search_query(criteria)
 
     def _process_search_results(
         self, results: List[Dict[str, Any]]
@@ -426,3 +288,196 @@ class SearchAnalysisService:
     def _default_error_handler(self, error_message: str) -> None:
         """Default error handler that logs errors."""
         logger.error("search_analysis_error", error=error_message)
+
+
+class ClauseBuilder(ABC):
+    """Abstract base class for clause builders"""
+
+    @abstractmethod
+    def build(self) -> QueryComponent:
+        pass
+
+
+class MatchClauseBuilder(ClauseBuilder):
+    """Builds the MATCH clause based on label filters"""
+
+    def __init__(self, label_filters: Optional[List[str]]):
+        self.label_filters = label_filters
+
+    def build(self) -> QueryComponent:
+        if self.label_filters:
+            labels = ":".join(self.label_filters)
+            return QueryComponent(f"MATCH (n:{labels})", {})
+        return QueryComponent("MATCH (n)", {})
+
+
+class TextSearchBuilder:
+    """Handles building text search conditions"""
+
+    @staticmethod
+    def build_condition(
+        field: str, param_name: str, case_sensitive: bool, exact_match: bool
+    ) -> str:
+        field_expr = field if case_sensitive else f"toLower({field})"
+        param_expr = param_name if case_sensitive else f"toLower({param_name})"
+
+        return (
+            f"{field_expr} = {param_expr}"
+            if exact_match
+            else f"{field_expr} CONTAINS {param_expr}"
+        )
+
+
+class FieldSearchBuilder:
+    """Builds search conditions for different field types"""
+
+    def __init__(self, field_searches: List[FieldSearch]):
+        self.field_searches = field_searches
+        self._parameters: Dict[str, Any] = {}
+
+    def build(self) -> QueryComponent:
+        quick_searches = []
+        exact_searches = []
+
+        for idx, search in enumerate(self.field_searches):
+            param_name = f"search_{idx}"
+            self._parameters[param_name] = search.text
+            param_ref = f"${param_name}"
+
+            clause = self._build_field_clause(search, param_ref)
+            if clause:
+                if not search.exact_match and not search.case_sensitive:
+                    quick_searches.append(clause)
+                else:
+                    exact_searches.append(clause)
+
+        where_parts = []
+        if quick_searches:
+            where_parts.append(f"({' OR '.join(quick_searches)})")
+        where_parts.extend(exact_searches)
+
+        where_clause = " AND ".join(where_parts) if where_parts else ""
+        return QueryComponent(where_clause, self._parameters)
+
+    def _build_field_clause(
+        self, field_search: FieldSearch, param_ref: str
+    ) -> Optional[str]:
+        if not field_search.text:
+            return None
+
+        field_builders = {
+            SearchField.NAME: lambda: TextSearchBuilder.build_condition(
+                "n.name",
+                param_ref,
+                field_search.case_sensitive,
+                field_search.exact_match,
+            ),
+            SearchField.DESCRIPTION: lambda: TextSearchBuilder.build_condition(
+                "n.description",
+                param_ref,
+                field_search.case_sensitive,
+                field_search.exact_match,
+            ),
+            SearchField.TAGS: lambda: f"ANY(tag IN n.tags WHERE {TextSearchBuilder.build_condition('tag', param_ref, field_search.case_sensitive, field_search.exact_match)})",
+            SearchField.LABELS: lambda: f"ANY(label IN labels(n) WHERE {TextSearchBuilder.build_condition('label', param_ref, field_search.case_sensitive, field_search.exact_match)})",
+            SearchField.PROPERTIES: self._build_properties_clause,
+        }
+
+        builder = field_builders.get(field_search.field)
+        return builder() if builder else None
+
+    def _build_properties_clause(self) -> str:
+        key_clause = "toLower(prop_key)"
+        value_clause = "toLower(toString(n[prop_key]))"
+        return f"ANY(prop_key IN keys(n) WHERE {key_clause} OR {value_clause})"
+
+
+class FilterClauseBuilder(ClauseBuilder):
+    """Builds filter clauses for various criteria"""
+
+    def __init__(self, criteria: SearchCriteria):
+        self.criteria = criteria
+
+    def build(self) -> QueryComponent:
+        clauses = []
+
+        if self.criteria.exclude_labels:
+            clauses.append(f"NOT n:{':'.join(self.criteria.exclude_labels)}")
+
+        if self.criteria.required_properties:
+            clauses.extend(
+                f"ANY(prop_key IN keys(n) WHERE toLower(prop_key) CONTAINS toLower('{prop}')"
+                for prop in self.criteria.required_properties
+            )
+
+        if self.criteria.excluded_properties:
+            clauses.extend(
+                f"NOT ANY(prop_key IN keys(n) WHERE toLower(prop_key) CONTAINS toLower('{prop}')"
+                for prop in self.criteria.excluded_properties
+            )
+
+        if self.criteria.has_relationships is not None:
+            clauses.append(
+                "((n)--()) IS NOT NULL"
+                if self.criteria.has_relationships
+                else "((n)--()) IS NULL"
+            )
+
+        if self.criteria.relationship_types:
+            rel_patterns = [
+                f"((n)-[:{rel_type}]-()) IS NOT NULL"
+                for rel_type in self.criteria.relationship_types
+            ]
+            clauses.append(f"({' OR '.join(rel_patterns)})")
+
+        return QueryComponent(" AND ".join(clauses), {})
+
+
+class ReturnClauseBuilder(ClauseBuilder):
+    """Builds the RETURN clause with ordering and limits"""
+
+    def __init__(self, limit: Optional[int] = None):
+        self.limit = limit
+
+    def build(self) -> QueryComponent:
+        return QueryComponent(
+            "\n".join(
+                [
+                    "RETURN n,",
+                    "labels(n) as n_labels,",
+                    "properties(n) as n_props",
+                    "ORDER BY n.name",
+                    f"LIMIT {self.limit or 1000}",
+                ]
+            ),
+            {},
+        )
+
+
+class SearchQueryBuilder:
+    """Composes all query components into the final query"""
+
+    def build_search_query(
+        self, criteria: SearchCriteria
+    ) -> Tuple[str, Dict[str, Any]]:
+        builders = [
+            MatchClauseBuilder(criteria.label_filters),
+            FieldSearchBuilder(criteria.field_searches),
+            FilterClauseBuilder(criteria),
+            ReturnClauseBuilder(criteria.limit),
+        ]
+
+        query_parts = []
+        parameters = {}
+
+        for builder in builders:
+            component = builder.build()
+            if component.text:
+                query_parts.append(component.text)
+            parameters.update(component.parameters)
+
+        # Insert WHERE clause if we have conditions
+        if len(query_parts) > 1:
+            query_parts.insert(1, "WHERE")
+
+        return "\n".join(query_parts), parameters

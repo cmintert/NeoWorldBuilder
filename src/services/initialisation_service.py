@@ -11,7 +11,9 @@ from services.node_operation_service import NodeOperationsService
 from services.property_service import PropertyService
 from services.relationship_tree_service import RelationshipTreeService
 from services.save_service import SaveService
-from services.search_analysis_service import SearchAnalysisService
+from services.search_analysis_service.search_analysis_service import (
+    SearchAnalysisService,
+)
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
 from ui.styles import StyleManager
