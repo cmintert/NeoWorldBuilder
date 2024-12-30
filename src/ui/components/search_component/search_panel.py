@@ -1,6 +1,7 @@
 from typing import Optional, List, Dict, Any
+from uuid import uuid4
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QEvent
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -19,17 +20,93 @@ from PyQt6.QtWidgets import (
 from structlog import get_logger
 
 from services.search_analysis_service import SearchCriteria, SearchField, FieldSearch
+from ui.components.search_component.debounced_search_mixin import DebouncedSearchMixin
 
 logger = get_logger(__name__)
 
 
-class SearchFieldWidget(QWidget):
-    """Widget for a single search field with options."""
+class SearchFieldWidget(QWidget, DebouncedSearchMixin):
+    """
+    Widget for a single search field with options.
+
+        Provides a search input field with options for exact matching and
+        debounced search triggering.
+
+        Signals:
+            search_changed: Emitted when search parameters change
+    """
+
+    search_changed = pyqtSignal()
 
     def __init__(self, field: SearchField, parent: Optional[QWidget] = None) -> None:
-        super().__init__(parent)
+        """Initialize search field widget.
+
+        Args:
+            field: Type of search field this widget represents
+            parent: Optional parent widget
+
+        Raises:
+            RuntimeError: If UI setup fails
+        """
+        QWidget.__init__(self, parent)
+        DebouncedSearchMixin.__init__(self)
         self.field = field
-        self._setup_ui()
+        self._trace_id = str(uuid4())
+
+        try:
+            self._setup_ui()
+            self._connect_signals()
+            self.setup_debounced_search(self._emit_search_changed)
+            logger.debug(
+                "search_field_initialized", field=field.value, trace_id=self._trace_id
+            )
+        except Exception as e:
+            logger.error(
+                "search_field_init_failed",
+                error=str(e),
+                field=field.value,
+                trace_id=self._trace_id,
+            )
+            raise RuntimeError(f"Failed to initialize search field: {str(e)}")
+
+    def _connect_signals(self) -> None:
+        """Connect widget signals for search triggering.
+
+        Raises:
+            RuntimeError: If signal connection fails
+        """
+        try:
+            self.search_input.textChanged.connect(self.trigger_debounced_search)
+            self.exact_match.toggled.connect(self._emit_search_changed)
+        except Exception as e:
+            logger.error(
+                "signal_connection_failed", error=str(e), trace_id=self._trace_id
+            )
+            raise RuntimeError(f"Failed to connect signals: {str(e)}")
+
+    def _emit_search_changed(self) -> None:
+        """Emit search changed signal if there is valid content."""
+        if self.search_input.text().strip() or self.exact_match.isChecked():
+            logger.debug(
+                "search_params_changed",
+                field=self.field.value,
+                has_text=bool(self.search_input.text().strip()),
+                exact_match=self.exact_match.isChecked(),
+                trace_id=self._trace_id,
+            )
+            self.search_changed.emit()
+
+    def closeEvent(self, event: QEvent) -> None:
+        """Handle widget close event.
+
+        Args:
+            event: Close event to handle
+        """
+        self.cleanup_timer()
+        super().closeEvent(event)
+        logger.debug(
+            "search_field_closed", field=self.field.value, trace_id=self._trace_id
+        )
 
     def _setup_ui(self) -> None:
         layout = QHBoxLayout(self)
@@ -61,12 +138,41 @@ class SearchFieldWidget(QWidget):
         return None
 
 
-class SearchFilterWidget(QWidget):
-    """Widget for managing search filters."""
+class SearchFilterWidget(QWidget, DebouncedSearchMixin):
+    """Widget for managing search filters.
+
+    Provides various filter options for search refinement with
+    debounced updates for text-based filters.
+
+    Signals:
+        filter_changed: Emitted when any filter changes
+    """
+
+    filter_changed = pyqtSignal()
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
-        super().__init__(parent)
-        self._setup_ui()
+        """Initialize search filter widget.
+
+        Args:
+            parent: Optional parent widget
+
+        Raises:
+            RuntimeError: If UI setup fails
+        """
+        QWidget.__init__(self, parent)
+        DebouncedSearchMixin.__init__(self)
+        self._trace_id = str(uuid4())
+
+        try:
+            self._setup_ui()
+            self._connect_signals()
+            self.setup_debounced_search(self._emit_filter_changed)
+            logger.debug("search_filter_initialized", trace_id=self._trace_id)
+        except Exception as e:
+            logger.error(
+                "search_filter_init_failed", error=str(e), trace_id=self._trace_id
+            )
+            raise RuntimeError(f"Failed to initialize search filter: {str(e)}")
 
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -127,8 +233,85 @@ class SearchFilterWidget(QWidget):
         rel_group.setLayout(rel_layout)
         layout.addWidget(rel_group)
 
+    def _connect_signals(self) -> None:
+        """Connect filter widget signals.
 
-class SearchPanel(QWidget):
+        Raises:
+            RuntimeError: If signal connection fails
+        """
+        try:
+            # Text inputs with debounce
+            for input_widget in (
+                self.include_labels,
+                self.exclude_labels,
+                self.required_props,
+                self.rel_types,
+            ):
+                input_widget.textChanged.connect(self.trigger_debounced_search)
+
+            # Immediate feedback controls
+            self.has_props.toggled.connect(self._emit_filter_changed)
+            self.has_relationships.currentIndexChanged.connect(
+                self._emit_filter_changed
+            )
+        except Exception as e:
+            logger.error(
+                "filter_signal_connection_failed", error=str(e), trace_id=self._trace_id
+            )
+            raise RuntimeError(f"Failed to connect filter signals: {str(e)}")
+
+    def _emit_filter_changed(self) -> None:
+        """Emit filter changed signal if there are active filters."""
+        if self._has_active_filters():
+            logger.debug(
+                "filters_changed",
+                active_filters=self._get_active_filters(),
+                trace_id=self._trace_id,
+            )
+            self.filter_changed.emit()
+
+    def _has_active_filters(self) -> bool:
+        """Check if any filters are active.
+
+        Returns:
+            bool: True if any filters are active, False otherwise
+        """
+        return bool(
+            self.include_labels.text().strip()
+            or self.exclude_labels.text().strip()
+            or self.required_props.text().strip()
+            or self.rel_types.text().strip()
+            or self.has_props.isChecked()
+            or self.has_relationships.currentIndex() != 0
+        )
+
+    def _get_active_filters(self) -> dict[str, Any]:
+        """Get dictionary of active filters for logging.
+
+        Returns:
+            Dict containing active filter states
+        """
+        return {
+            "include_labels": bool(self.include_labels.text().strip()),
+            "exclude_labels": bool(self.exclude_labels.text().strip()),
+            "required_props": bool(self.required_props.text().strip()),
+            "rel_types": bool(self.rel_types.text().strip()),
+            "has_props": self.has_props.isChecked(),
+            "relationship_filter": self.has_relationships.currentIndex(),
+        }
+
+    def closeEvent(self, event: QEvent) -> None:
+        """Handle widget close event.
+
+        Args:
+            event: Close event to handle
+        """
+        self.cleanup_timer()
+        super().closeEvent(event)
+        logger.debug("search_filter_closed", trace_id=self._trace_id)
+
+
+class SearchPanel(QWidget, DebouncedSearchMixin):
     """Enhanced search panel with advanced search capabilities."""
 
     # Signals
@@ -136,10 +319,13 @@ class SearchPanel(QWidget):
     result_selected = pyqtSignal(str)  # Selected node name
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
-        super().__init__(parent)
+        QWidget.__init__(self, parent)
+        DebouncedSearchMixin.__init__(self)
+        self._trace_id = str(uuid4())
         self.setObjectName("searchPanel")
         self._setup_ui()
         self._connect_signals()
+        self.setup_debounced_search(self._handle_search_clicked)
 
     def _setup_ui(self) -> None:
         """Set up the enhanced search panel UI with optimized UX."""
@@ -244,12 +430,15 @@ class SearchPanel(QWidget):
                 field_widget = SearchFieldWidget(field)
                 self.field_searches[field] = field_widget
                 group_layout.addWidget(field_widget)
+                field_widget.search_changed.connect(self.trigger_debounced_search)
 
             advanced_layout.addWidget(group)
 
         # Add filters
         self.filters = SearchFilterWidget()
         advanced_layout.addWidget(self.filters)
+        self.filters.filter_changed.connect(self.trigger_debounced_search)
+
         advanced_layout.addStretch()
 
         self.scroll_area.setWidget(advanced_content)
@@ -375,10 +564,9 @@ class SearchPanel(QWidget):
         """Handle quick search text changes."""
         # Show/hide clear button based on text content
         self.clear_button.setVisible(bool(text))
-        # If text is non-empty, trigger search after a short delay
-        if text:
-            # You might want to add debouncing here
-            self._handle_search_clicked()
+        # If text is non-empty, trigger debounced search
+        if text.strip():
+            self.trigger_debounced_search()
 
     def _clear_quick_search(self) -> None:
         """Clear the quick search field."""
@@ -419,7 +607,7 @@ class SearchPanel(QWidget):
 
     def set_loading_state(self, is_loading: bool) -> None:
         """Set the loading state of the search panel."""
-        # Control input abilities during loading
+        # Control quick search
         self.quick_search.setReadOnly(is_loading)
         self.clear_button.setEnabled(not is_loading)
         self.advanced_toggle.setEnabled(not is_loading)
@@ -427,8 +615,20 @@ class SearchPanel(QWidget):
         # Control advanced search fields if visible
         if self.scroll_area.isVisible():
             for field_widget in self.field_searches.values():
-                field_widget.setEnabled(not is_loading)
-            self.filters.setEnabled(not is_loading)
+                # Set readonly for text input but keep it focused
+                field_widget.search_input.setReadOnly(is_loading)
+                # Only disable the checkbox
+                field_widget.exact_match.setEnabled(not is_loading)
+
+            # Handle filters similarly
+            self.filters.include_labels.setReadOnly(is_loading)
+            self.filters.exclude_labels.setReadOnly(is_loading)
+            self.filters.required_props.setReadOnly(is_loading)
+            self.filters.rel_types.setReadOnly(is_loading)
+
+            # Disable non-text controls
+            self.filters.has_props.setEnabled(not is_loading)
+            self.filters.has_relationships.setEnabled(not is_loading)
 
         # Update status text
         self.status_label.setText("Searching..." if is_loading else "")
@@ -481,3 +681,9 @@ class SearchPanel(QWidget):
         self.set_loading_state(False)
         self.status_label.setText(f"Error: {error_message}")
         logger.error("search_error", error=error_message)
+
+    def closeEvent(self, event: QEvent) -> None:
+        """Handle widget close event."""
+        self.cleanup_timer()
+        super().closeEvent(event)
+        logger.debug("search_panel_closed", trace_id=self._trace_id)
