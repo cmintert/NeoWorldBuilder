@@ -417,13 +417,13 @@ class FilterClauseBuilder(ClauseBuilder):
 
         if self.criteria.required_properties:
             clauses.extend(
-                f"ANY(prop_key IN keys(n) WHERE toLower(prop_key) CONTAINS toLower('{prop}')"
+                f"ANY(prop_key IN keys(n) WHERE toLower(prop_key) CONTAINS toLower('{prop}'))"
                 for prop in self.criteria.required_properties
             )
 
         if self.criteria.excluded_properties:
             clauses.extend(
-                f"NOT ANY(prop_key IN keys(n) WHERE toLower(prop_key) CONTAINS toLower('{prop}')"
+                f"NOT ANY(prop_key IN keys(n) WHERE toLower(prop_key) CONTAINS toLower('{prop}'))"
                 for prop in self.criteria.excluded_properties
             )
 

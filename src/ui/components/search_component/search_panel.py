@@ -495,74 +495,87 @@ class SearchPanel(QWidget, DebouncedSearchMixin):
         self.results_tree.itemClicked.connect(self._handle_result_selected)
 
     def _handle_search_clicked(self) -> None:
-        """Handle search button click or return pressed."""
-        # Create search criteria based on UI state
-        criteria = SearchCriteria()
+        """
+        Handle search initiation with improved state management.
+        """
+        try:
+            # Create search criteria
+            criteria = SearchCriteria()
 
-        # Handle quick search - search across all fields with smart defaults
-        if quick_text := self.quick_search.text().strip():
-            # Add searches for each field type with appropriate settings
-            for field in SearchField:
-                # Skip PROPERTIES field for quick search performance unless specifically needed
-                if field != SearchField.PROPERTIES:
-                    criteria.field_searches.append(
-                        FieldSearch(
-                            field=field,
-                            text=quick_text,
-                            exact_match=False,  # Always use contains for quick search
-                            case_sensitive=False,  # Default to case-insensitive
+            # Handle quick search
+            if quick_text := self.quick_search.text().strip():
+                # Add field searches for quick search
+                for field in SearchField:
+                    if field != SearchField.PROPERTIES:
+                        criteria.field_searches.append(
+                            FieldSearch(
+                                field=field,
+                                text=quick_text,
+                                exact_match=False,
+                                case_sensitive=False,
+                            )
                         )
-                    )
 
-        # If advanced search is visible, add those criteria
-        if self.scroll_area.isVisible():
-            # Add field searches from advanced search widgets
-            for field_widget in self.field_searches.values():
-                if field_search := field_widget.get_search_value():
-                    criteria.field_searches.append(field_search)
+            # Handle advanced search
+            if self.scroll_area.isVisible():
+                # Collect field searches
+                for field_widget in self.field_searches.values():
+                    if field_search := field_widget.get_search_value():
+                        criteria.field_searches.append(field_search)
 
-            # Add filters
-            if label_text := self.filters.include_labels.text().strip():
-                criteria.label_filters = [
-                    l.strip() for l in label_text.split(",") if l.strip()
-                ]
+                # Add filters with proper string handling
+                if label_text := self.filters.include_labels.text().strip():
+                    criteria.label_filters = [
+                        l.strip() for l in label_text.split(",") if l.strip()
+                    ]
 
-            if exclude_text := self.filters.exclude_labels.text().strip():
-                criteria.exclude_labels = [
-                    l.strip() for l in exclude_text.split(",") if l.strip()
-                ]
+                if exclude_text := self.filters.exclude_labels.text().strip():
+                    criteria.exclude_labels = [
+                        l.strip() for l in exclude_text.split(",") if l.strip()
+                    ]
 
-            if props_text := self.filters.required_props.text().strip():
-                criteria.required_properties = [
-                    p.strip() for p in props_text.split(",") if p.strip()
-                ]
+                if props_text := self.filters.required_props.text().strip():
+                    criteria.required_properties = [
+                        p.strip() for p in props_text.split(",") if p.strip()
+                    ]
 
-            # Handle relationship filters
-            rel_selection = self.filters.has_relationships.currentText()
-            if rel_selection != "Any":
-                criteria.has_relationships = rel_selection == "Has relationships"
+                # Handle relationship filters
+                rel_selection = self.filters.has_relationships.currentText()
+                if rel_selection != "Any":
+                    criteria.has_relationships = rel_selection == "Has relationships"
 
-            if rel_types := self.filters.rel_types.text().strip():
-                criteria.relationship_types = [
-                    r.strip() for r in rel_types.split(",") if r.strip()
-                ]
+                if rel_types := self.filters.rel_types.text().strip():
+                    criteria.relationship_types = [
+                        r.strip() for r in rel_types.split(",") if r.strip()
+                    ]
 
-        # Only emit search if we have criteria
-        if (
-            criteria.field_searches
-            or criteria.label_filters
-            or criteria.required_properties
-        ):
-            logger.debug(
-                "search_requested",
-                quick_search=bool(quick_text),
-                advanced_search=self.scroll_area.isVisible(),
-                criteria=criteria,
+            # Check if we have any valid search criteria
+            has_criteria = (
+                criteria.field_searches
+                or criteria.label_filters
+                or criteria.required_properties
+                or criteria.has_relationships is not None
+                or criteria.relationship_types
             )
-            self.search_requested.emit(criteria)
-            self.set_loading_state(True)
-        else:
-            self.status_label.setText("Please enter search criteria")
+
+            if has_criteria:
+                logger.debug(
+                    "search_requested",
+                    quick_search=bool(quick_text),
+                    advanced_search=self.scroll_area.isVisible(),
+                    criteria=criteria,
+                )
+                # Set loading state before emitting search
+                self.set_loading_state(True)
+                self.search_requested.emit(criteria)
+            else:
+                self.status_label.setText("Please enter search criteria")
+
+        except Exception as e:
+            logger.error("search_execution_error", error=str(e))
+            # Ensure we reset state on any error
+            self.set_loading_state(False)
+            self.status_label.setText(f"Search error: {str(e)}")
 
     def _handle_quick_search_text_changed(self, text: str) -> None:
         """Handle quick search text changes."""
@@ -611,30 +624,21 @@ class SearchPanel(QWidget, DebouncedSearchMixin):
 
     def set_loading_state(self, is_loading: bool) -> None:
         """Set the loading state of the search panel."""
-        # Control quick search
-        self.quick_search.setReadOnly(is_loading)
+        # Update action buttons
         self.clear_button.setEnabled(not is_loading)
         self.advanced_toggle.setEnabled(not is_loading)
 
-        # Control advanced search fields if visible
         if self.scroll_area.isVisible():
+            # Only disable checkboxes and action controls
             for field_widget in self.field_searches.values():
-                # Set readonly for text input but keep it focused
-                field_widget.search_input.setReadOnly(is_loading)
-                # Only disable the checkbox
+                # Keep text input responsive
                 field_widget.exact_match.setEnabled(not is_loading)
 
-            # Handle filters similarly
-            self.filters.include_labels.setReadOnly(is_loading)
-            self.filters.exclude_labels.setReadOnly(is_loading)
-            self.filters.required_props.setReadOnly(is_loading)
-            self.filters.rel_types.setReadOnly(is_loading)
-
-            # Disable non-text controls
+            # Keep text inputs responsive, only disable action controls
             self.filters.has_props.setEnabled(not is_loading)
             self.filters.has_relationships.setEnabled(not is_loading)
 
-        # Update status text
+        # Show search status
         self.status_label.setText("Searching..." if is_loading else "")
 
     def display_results(self, results: List[Dict[str, Any]]) -> None:
@@ -683,7 +687,8 @@ class SearchPanel(QWidget, DebouncedSearchMixin):
     def handle_error(self, error_message: str) -> None:
         """Handle and display search errors."""
         self.set_loading_state(False)
-        self.status_label.setText(f"Error: {error_message}")
+        self.clear_results()
+        self.status_label.setText(f"There has been an error")
         logger.error("search_error", error=error_message)
 
     def closeEvent(self, event: QEvent) -> None:
