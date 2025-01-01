@@ -427,21 +427,21 @@ class FilterClauseBuilder(ClauseBuilder):
                 for prop in self.criteria.excluded_properties
             )
 
+        # Changed to use pattern predicate for relationship check
         if self.criteria.has_relationships is not None:
             clauses.append(
-                "((n)--()) IS NOT NULL"
-                if self.criteria.has_relationships
-                else "((n)--()) IS NULL"
+                "()-[]-(n)" if self.criteria.has_relationships else "NOT ()-[]-(n)"
             )
 
+        # Changed to use pattern predicates for relationship types
         if self.criteria.relationship_types:
             rel_patterns = [
-                f"((n)-[:{rel_type}]-()) IS NOT NULL"
-                for rel_type in self.criteria.relationship_types
+                f"()-[:{rel_type}]-(n)" for rel_type in self.criteria.relationship_types
             ]
             clauses.append(f"({' OR '.join(rel_patterns)})")
 
-        return QueryComponent(" AND ".join(clauses), {})
+        # Return joined conditions
+        return QueryComponent((" AND ".join(clauses)) if clauses else "", {})
 
 
 class ReturnClauseBuilder(ClauseBuilder):
@@ -471,24 +471,39 @@ class SearchQueryBuilder:
     def build_search_query(
         self, criteria: SearchCriteria
     ) -> Tuple[str, Dict[str, Any]]:
-        builders = [
-            MatchClauseBuilder(criteria.label_filters),
-            FieldSearchBuilder(criteria.field_searches),
-            FilterClauseBuilder(criteria),
-            ReturnClauseBuilder(criteria.limit),
-        ]
-
+        """
+        Build complete search query ensuring proper WHERE clause construction.
+        """
         query_parts = []
+        where_conditions = []
         parameters = {}
 
-        for builder in builders:
-            component = builder.build()
-            if component.text:
-                query_parts.append(component.text)
-            parameters.update(component.parameters)
+        # Add MATCH clause
+        match_builder = MatchClauseBuilder(criteria.label_filters)
+        match_component = match_builder.build()
+        query_parts.append(match_component.text)
 
-        # Insert WHERE clause if we have conditions
-        if len(query_parts) > 1:
-            query_parts.insert(1, "WHERE")
+        # Collect field search conditions
+        field_builder = FieldSearchBuilder(criteria.field_searches)
+        field_component = field_builder.build()
+        if field_component.text:
+            where_conditions.append(field_component.text)
+            parameters.update(field_component.parameters)
+
+        # Collect filter conditions
+        filter_builder = FilterClauseBuilder(criteria)
+        filter_component = filter_builder.build()
+        if filter_component.text:
+            where_conditions.append(filter_component.text)
+            parameters.update(filter_component.parameters)
+
+        # Add WHERE clause if we have conditions
+        if where_conditions:
+            query_parts.append("WHERE " + " AND ".join(where_conditions))
+
+        # Add RETURN clause
+        return_builder = ReturnClauseBuilder(criteria.limit)
+        return_component = return_builder.build()
+        query_parts.append(return_component.text)
 
         return "\n".join(query_parts), parameters
