@@ -387,8 +387,19 @@ class FieldSearchBuilder:
         return builder() if builder else None
 
     def _build_properties_clause(self) -> str:
-        key_clause = "toLower(prop_key)"
-        value_clause = "toLower(toString(n[prop_key]))"
+        # For property keys (keep this part as is)
+        key_clause = "toLower(prop_key) CONTAINS $search_0"
+
+        # For property values - handle both regular values and arrays
+        value_clause = """
+        CASE 
+            WHEN prop_key = 'tags' THEN 
+                ANY(item IN n[prop_key] WHERE toLower(item) CONTAINS $search_0)
+            ELSE 
+                toLower(coalesce(toString(n[prop_key]), '')) CONTAINS $search_0
+        END
+        """
+
         return f"ANY(prop_key IN keys(n) WHERE {key_clause} OR {value_clause})"
 
 

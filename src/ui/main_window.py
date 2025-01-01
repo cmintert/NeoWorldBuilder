@@ -92,9 +92,6 @@ class WorldBuildingUI(QWidget):
 
     def _connect_signals(self) -> None:
         """Connect all UI signals to their handlers"""
-        # Main buttons
-        self.save_button.clicked.connect(self.controller.save_node)
-        self.delete_button.clicked.connect(self.controller.delete_node)
 
         # Check for unsaved changes
         self.name_input.textChanged.connect(
