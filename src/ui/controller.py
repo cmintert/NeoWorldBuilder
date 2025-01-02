@@ -22,6 +22,7 @@ from models.property_model import PropertyItem
 from models.suggestion_model import SuggestionUIHandler, SuggestionResult
 from models.worker_model import WorkerOperation
 from services.initialisation_service import InitializationService
+from services.search_analysis_service.search_analysis_service import SearchCriteria
 from ui.components.dialogs import (
     StyleSettingsDialog,
     ConnectionSettingsDialog,
@@ -1080,3 +1081,48 @@ class WorldBuildingController(QObject):
             self.ui.save_button.setStyleSheet("background-color: #83A00E;")
         else:
             self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
+
+    def _handle_search_request(self, criteria: SearchCriteria) -> None:
+        """
+        Handle enhanced search request from search panel.
+
+        Args:
+            criteria: The enhanced search criteria
+        """
+        logger.debug(
+            "handling_search_request",
+            field_searches=[
+                (fs.field.value, fs.text) for fs in criteria.field_searches
+            ],
+            label_filters=criteria.label_filters,
+            required_properties=criteria.required_properties,
+        )
+
+        def handle_results(results: List[Dict[str, Any]]) -> None:
+            """Handle search results callback."""
+            self.ui.search_panel.display_results(results)
+
+        # Execute search using search service
+        self.search_service.search_nodes(
+            criteria=criteria,  # Now using the enhanced criteria directly
+            result_callback=handle_results,
+            error_callback=lambda msg: self.ui.search_panel.handle_error(
+                f"Search failed: {msg}"
+            ),
+        )
+
+    def _handle_search_result_selected(self, node_name: str) -> None:
+        """
+        Handle selection of a search result.
+
+        Args:
+            node_name: The name of the selected node
+        """
+        logger.debug("Putting selected name into name text input", node_name=node_name)
+
+        # Update the name input field
+        self.ui.name_input.setText(node_name)
+
+        # Switch to the main tab if we're in search
+        if self.ui.tabs.currentWidget() == self.ui.search_panel:
+            self.ui.tabs.setCurrentIndex(0)

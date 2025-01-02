@@ -20,7 +20,7 @@ QWidget {
 }
 
 /* Panel layouts */
-#leftPanel, #rightPanel {
+#leftPanel, #rightPanel, #searchPanel {
     background-color: ${background-color};
     border: 1px solid #9C9C9C;
     border-radius: 5px;

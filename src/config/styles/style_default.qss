@@ -20,7 +20,7 @@ QWidget {
 }
 
 /* Panel layouts */
-#leftPanel, #rightPanel {
+#leftPanel, #rightPanel, #searchPanel {
     background-color: ${background-color};
     border: 1px solid #9C9C9C;
     border-radius: 5px;
@@ -68,12 +68,51 @@ QWidget {
 
 
 /* Input elements */
-#labelsInput, #tagsInput, #descriptionInput, #nameInput {
+#labelsInput, #tagsInput, #descriptionInput, #nameInput, #quickSearchInput {
     border: 1px solid #9C9C9C;
     border-radius: 5px;
     padding-left: 5px;
     background-color: ${text-background};
     color: ${text-color};
+}
+
+ #advancedSearchScrollArea {
+    border: 1px solid #9C9C9C;
+    border-radius: 5px;
+    padding-left: 5px;
+    color: ${text-color};
+}
+
+#advancedSearchScrollArea QWidget {
+    background-color: ${text-background};
+}
+
+#advancedSearchScrollArea QScrollBar:vertical {
+    width: 10px;
+    background: palette(gray);
+}
+
+#advancedSearchScrollArea QScrollBar::handle:vertical {
+    border: 4px solid palette(base);
+    background-clip: padding-box;
+
+    background: palette(mid);
+    min-height: 15px;
+}
+
+#advancedSearchScrollArea QScrollBar::add-line:vertical,
+#advancedSearchScrollArea QScrollBar::sub-line:vertical {
+    height: 0px;
+    width: 1px;
+}
+
+#advancedSearchScrollArea QScrollBar::add-page:vertical,
+#advancedSearchScrollArea QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+#searchGroup, #labelFiltersGroup, #propertyFiltersGroup, #relationshipFiltersGroup {
+    background-color: ${text-background};
 }
 
 #labelsInput, #tagsInput, #descriptionInput {
