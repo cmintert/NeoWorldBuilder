@@ -1125,4 +1125,4 @@ class WorldBuildingController(QObject):
 
         # Switch to the main tab if we're in search
         if self.ui.tabs.currentWidget() == self.ui.search_panel:
-            self.ui.tabs.setCurrentIndex(0)  # Assuming 0 is the main node editing tab
+            self.ui.tabs.setCurrentIndex(0)
