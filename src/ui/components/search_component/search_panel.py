@@ -90,15 +90,15 @@ class SearchFieldWidget(QWidget, DebouncedSearchMixin):
 
     def _emit_search_changed(self) -> None:
         """Emit search changed signal if there is valid content."""
-        if self.search_input.text().strip() or self.exact_match.isChecked():
-            logger.debug(
-                "search_params_changed",
-                field=self.field.value,
-                has_text=bool(self.search_input.text().strip()),
-                exact_match=self.exact_match.isChecked(),
-                trace_id=self._trace_id,
-            )
-            self.search_changed.emit()
+
+        logger.debug(
+            "search_params_changed",
+            field=self.field.value,
+            has_text=bool(self.search_input.text().strip()),
+            exact_match=self.exact_match.isChecked(),
+            trace_id=self._trace_id,
+        )
+        self.search_changed.emit()
 
     def closeEvent(self, event: QEvent) -> None:
         """Handle widget close event.
@@ -252,6 +252,9 @@ class SearchFilterWidget(QWidget, DebouncedSearchMixin):
                 self.rel_types,
             ):
                 input_widget.textChanged.connect(self.trigger_debounced_search)
+                input_widget.textChanged.connect(
+                    lambda: self._log_filter_change(input_widget)
+                )
 
             # Immediate feedback controls
             self.has_props.toggled.connect(self._emit_filter_changed)
@@ -273,6 +276,15 @@ class SearchFilterWidget(QWidget, DebouncedSearchMixin):
                 trace_id=self._trace_id,
             )
             self.filter_changed.emit()
+
+    def _log_filter_change(self, widget: QLineEdit) -> None:
+        """Log filter changes for debugging."""
+        logger.debug(
+            "filter_changed",
+            widget_name=widget.objectName(),
+            text=widget.text(),
+            trace_id=self._trace_id,
+        )
 
     def _has_active_filters(self) -> bool:
         """Check if any filters are active.

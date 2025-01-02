@@ -25,7 +25,7 @@ class DebouncedSearchMixin(QObject):
         self._trace_id: str = ""
 
     def setup_debounced_search(
-        self, callback: Callable[[], None], delay_ms: int = 50
+        self, callback: Callable[[], None], delay_ms: int = 200
     ) -> None:
         """Setup debounced search timer with callback.
 
