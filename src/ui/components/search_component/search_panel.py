@@ -593,9 +593,9 @@ class SearchPanel(QWidget, DebouncedSearchMixin):
         """Handle quick search text changes."""
         # Show/hide clear button based on text content
         self.clear_button.setVisible(bool(text))
-        # If text is non-empty, trigger debounced search
-        if text.strip():
-            self.trigger_debounced_search()
+        # Always trigger search
+
+        self.trigger_debounced_search()
 
     def _clear_quick_search(self) -> None:
         """Clear the quick search field."""
