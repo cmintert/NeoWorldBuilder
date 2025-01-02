@@ -1118,13 +1118,10 @@ class WorldBuildingController(QObject):
         Args:
             node_name: The name of the selected node
         """
-        logger.debug("search_result_selected", node_name=node_name)
+        logger.debug("Putting selected name into name text input", node_name=node_name)
 
         # Update the name input field
         self.ui.name_input.setText(node_name)
-
-        # Load the selected node
-        self.load_node_data()
 
         # Switch to the main tab if we're in search
         if self.ui.tabs.currentWidget() == self.ui.search_panel:

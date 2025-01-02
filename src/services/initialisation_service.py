@@ -255,28 +255,31 @@ class InitializationService:
 
     def _setup_search_handlers(self) -> None:
         """Setup search panel signal connections and initialization."""
-        if hasattr(self.ui, "search_panel"):
 
-            if not hasattr(self.ui, "search_panel"):
-                logger.warning("search_panel_not_found", module="InitializationService")
-                return
+        if not hasattr(self.ui, "search_panel") or not self.ui.search_panel:
+            logger.warning("search_panel_unavailable", module="InitializationService")
+            return
 
-            if not self.ui.search_panel:
-                logger.warning("search_panel_is_none", module="InitializationService")
-                return
+        try:
+            self.ui.search_panel.search_requested.disconnect()
+            self.ui.search_panel.result_selected.disconnect()
+        except TypeError:  # Raised when no connections exist
+            logger.debug("No prior search panel connections to disconnect")
+            pass
 
-            # Connect enhanced search panel signals
-            self.ui.search_panel.search_requested.connect(
-                self.controller._handle_search_request
-            )
-            self.ui.search_panel.result_selected.connect(
-                self.controller._handle_search_result_selected
-            )
+        # Connect enhanced search panel signals
+        self.ui.search_panel.search_requested.connect(
+            self.controller._handle_search_request
+        )
+        self.ui.search_panel.result_selected.connect(
+            self.controller._handle_search_result_selected
+        )
 
-            # Apply styling to search panel
-            self.style_manager.apply_style(self.ui.search_panel, "default")
-            logger.debug("search_handlers_setup_complete")
-            # Initialize any search panel specific settings
-            self.ui.search_panel.filters.has_relationships.setCurrentIndex(
-                0
-            )  # Set to "Any"
+        # Apply styling to search panel
+        self.style_manager.apply_style(self.ui.search_panel, "default")
+        logger.debug("search_handlers_setup_complete")
+
+        # Initialize any search panel specific settings
+        self.ui.search_panel.filters.has_relationships.setCurrentIndex(
+            0
+        )  # Set to "Any"
