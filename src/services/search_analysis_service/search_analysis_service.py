@@ -305,10 +305,15 @@ class MatchClauseBuilder(ClauseBuilder):
         self.label_filters = label_filters
 
     def build(self) -> QueryComponent:
-        if self.label_filters:
-            labels = ":".join(self.label_filters)
-            return QueryComponent(f"MATCH (n:{labels})", {})
-        return QueryComponent("MATCH (n)", {})
+        if not self.label_filters:
+            return QueryComponent("MATCH (n)", {})
+
+        # Create individual label matches joined with OR
+        label_patterns = [f"n:{label.upper()}" for label in self.label_filters]
+        label_clause = f"({' OR '.join(label_patterns)})"
+
+        # Return just the MATCH clause - let the WHERE clause be combined later
+        return QueryComponent(f"MATCH (n)", {"label_clause": label_clause})
 
 
 class TextSearchBuilder:
@@ -413,7 +418,11 @@ class FilterClauseBuilder(ClauseBuilder):
         clauses = []
 
         if self.criteria.exclude_labels:
-            clauses.append(f"NOT n:{':'.join(self.criteria.exclude_labels)}")
+            # Create individual exclusions for each label joined with OR
+            exclusion_clauses = [
+                f"n:{label.upper()}" for label in self.criteria.exclude_labels
+            ]
+            clauses.append(f"NOT ({' OR '.join(exclusion_clauses)})")
 
         if self.criteria.required_properties:
             clauses.extend(
@@ -482,6 +491,8 @@ class SearchQueryBuilder:
         match_builder = MatchClauseBuilder(criteria.label_filters)
         match_component = match_builder.build()
         query_parts.append(match_component.text)
+        if match_component.parameters.get("label_clause"):
+            where_conditions.append(match_component.parameters["label_clause"])
 
         # Collect field search conditions
         field_builder = FieldSearchBuilder(criteria.field_searches)
