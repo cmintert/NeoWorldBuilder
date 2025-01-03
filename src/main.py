@@ -13,9 +13,9 @@ Functions:
 """
 
 # Imports
-import faulthandler
 import json
 import logging
+import os
 import sys
 import traceback
 from dataclasses import dataclass
@@ -54,19 +54,57 @@ from utils.path_helper import get_resource_path
 from services.worker_manager_service import WorkerManagerService
 from services.name_cache_service import NameCacheService
 
-# Configure logging
-structlog.configure(
-    processors=[
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer(),
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
-    context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
-    cache_logger_on_first_use=True,
-)
 
-faulthandler.enable()
+def setup_app_logging():
+    """Set up logging for both development and production environments."""
+    # Determine if we're running from PyInstaller
+    if getattr(sys, "frozen", False):
+        # Running as compiled executable
+        app_dir = os.path.dirname(sys.executable)
+        log_path = os.path.join(app_dir, "neoworldbuilder.log")
+    else:
+        # Running in development
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        log_path = os.path.join(app_dir, "neoworldbuilder.log")
+
+    # Ensure log directory exists
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+
+    # Create a file handler that will work in both environments
+    try:
+        log_file = open(log_path, "a", encoding="utf-8")
+    except Exception as e:
+        # Fallback to a temp file if we can't write to the app directory
+        temp_dir = os.path.join(os.path.expanduser("~"), ".neoworldbuilder")
+        os.makedirs(temp_dir, exist_ok=True)
+        log_path = os.path.join(temp_dir, "neoworldbuilder.log")
+        log_file = open(log_path, "a", encoding="utf-8")
+
+    # Configure structlog to use the file
+    structlog.configure(
+        processors=[
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.add_log_level,
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.JSONRenderer(),
+        ],
+        wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
+        context_class=dict,
+        logger_factory=structlog.WriteLoggerFactory(file=log_file),
+        cache_logger_on_first_use=True,
+    )
+
+    # Set up stderr handling for PyInstaller
+    if getattr(sys, "frozen", False):
+        sys.stdout = log_file
+        sys.stderr = log_file
+
+    return log_file  # Keep reference to prevent garbage collection
+
+
+# Initialize logging
+log_file = setup_app_logging()
 
 
 def exception_hook(exctype: type, value: Exception, tb: traceback) -> None:
@@ -78,14 +116,32 @@ def exception_hook(exctype: type, value: Exception, tb: traceback) -> None:
         value (Exception): The exception instance.
         tb (traceback): The traceback object.
     """
-    structlog.get_logger().critical(
-        "Unhandled exception", exc_info=(exctype, value, tb)
-    )
-    traceback.print_exception(exctype, value, tb)
-    sys.__excepthook__(exctype, value, tb)
-    QMessageBox.critical(
-        None, "Unhandled Exception", f"An unhandled exception occurred:\n{value}"
-    )
+    try:
+        # Try to log using structlog
+        logger = structlog.get_logger()
+        logger.critical(
+            "Unhandled exception",
+            error_type=str(exctype.__name__),
+            error_value=str(value),
+            traceback=traceback.format_tb(tb),
+        )
+    except Exception:
+        # If structlog fails, write to the log file directly
+        if log_file and not log_file.closed:
+            traceback.print_exception(exctype, value, tb, file=log_file)
+            log_file.flush()
+
+    # Show error dialog to user
+    try:
+        app = QApplication.instance()
+        if app is not None:
+            QMessageBox.critical(
+                None,
+                "Unhandled Exception",
+                f"An unhandled exception occurred:\n{value}\n\nPlease check the log file for details.",
+            )
+    except Exception:
+        pass  # If we can't show the dialog, at least we logged the error
 
 
 sys.excepthook = exception_hook
@@ -117,11 +173,14 @@ class WorldBuildingApp(QMainWindow):
         components (Optional[AppComponents]): The main application components.
     """
 
+    log_file = None
+
     def __init__(self) -> None:
         """
         Initialize the main application window.
         """
         super().__init__()
+        WorldBuildingApp.log_file = log_file
         self.components: Optional[AppComponents] = None
         self.setObjectName("WorldBuildingApp")
         self.initialize_application()
@@ -516,6 +575,16 @@ class WorldBuildingApp(QMainWindow):
                 except Exception as e:
                     structlog.get_logger().error(f"Error during model cleanup: {e}")
 
+    def _show_error_dialog(self, title: str, message: str) -> None:
+        """
+        Show an error dialog to the user.
+
+        Args:
+            title (str): Dialog title
+            message (str): Error message to display
+        """
+        QMessageBox.critical(self, title, message)
+
     def closeEvent(self, event: QCloseEvent) -> None:
         """
         Handle application shutdown with proper cleanup.
@@ -526,7 +595,6 @@ class WorldBuildingApp(QMainWindow):
         structlog.get_logger().info("Application shutdown initiated")
 
         try:
-
             # Clean up controller resources
             if self.components and self.components.controller:
                 self.components.controller.cleanup()
@@ -537,16 +605,18 @@ class WorldBuildingApp(QMainWindow):
                 self.components.model.close()
                 structlog.get_logger().info("Model resources cleaned up")
 
+            # Flush and close the log file
+            if log_file:
+                log_file.flush()
+                log_file.close()
+
             event.accept()
             structlog.get_logger().info("Application shutdown completed successfully")
 
         except Exception as e:
-            structlog.get_logger().error(f"Error during application shutdown: {e}")
+            # At this point logging might not work, so print to stderr directly
+            print(f"Error during application shutdown: {e}", file=sys.__stderr__)
             event.accept()  # Still close the application
-
-    def _show_error_dialog(self, title: str, message: str) -> None:
-        """Show error dialog to user."""
-        QMessageBox.critical(self, title, message)
 
 
 if __name__ == "__main__":
