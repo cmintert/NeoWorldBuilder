@@ -331,8 +331,7 @@ class ConnectionSettingsDialog(QDialog):
         try:
             self.uri_input.setText(self.config.URI)
             self.username_input.setText(self.config.USERNAME)
-            if hasattr(self.config, "PASSWORD") and self.config.PASSWORD:
-                self.password_input.setText(self.config.PASSWORD)
+            self.password_input.setPlaceholderText("New password")
         except Exception as e:
             self.show_error("Failed to load existing settings", str(e))
 
@@ -365,7 +364,13 @@ class ConnectionSettingsDialog(QDialog):
             # Create temporary model to test connection
             from core.neo4jmodel import Neo4jModel
 
-            test_model = Neo4jModel(uri, username, password)
+            # Use existing config but override connection settings
+            test_config = self.config
+            test_config.URI = uri
+            test_config.USERNAME = username
+            test_config.PASSWORD = password
+
+            test_model = Neo4jModel(uri, username, password, test_config)
 
             try:
                 test_model._driver.verify_connectivity()
