@@ -631,7 +631,8 @@ class MapTab(QWidget):
             target_node = dialog.get_target_node()
             if target_node:
                 # Create relationship data using WKT format
-                properties = GeometryHandler.create_pin_properties(x, y)
+                wkt_point = GeometryHandler.create_point(x, y)
+                properties = GeometryHandler.create_geometry_properties(wkt_point)
 
                 self.pin_created.emit(target_node, ">", properties)
 
