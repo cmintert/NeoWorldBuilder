@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Tuple, Any, Set, Union, Optional
 
+import appdirs
 from PyQt6.QtCore import Qt, pyqtSlot, QTimer
 from PyQt6.QtWidgets import (
     QTabWidget,
@@ -33,6 +34,7 @@ from neo4j.exceptions import AuthError, ServiceUnavailable
 from structlog import get_logger
 
 from utils.crypto import SecurityUtility
+from utils.path_helper import get_resource_path
 
 logger = get_logger(__name__)
 
@@ -417,16 +419,34 @@ class ConnectionSettingsDialog(QDialog):
                 "PASSWORD": encrypted_password,
             }
 
-            # Save to config file
-            config_path = Path("src/config/database.json")
-            if config_path.exists():
+            # Get the user config directory (this creates a proper persistent location)
+            config_dir = Path(appdirs.user_config_dir("NeoWorldBuilder"))
+            config_path = config_dir / "database.json"
+
+            # Ensure the config directory exists
+            config_dir.mkdir(parents=True, exist_ok=True)
+
+            # If a default config exists in the bundled resources, use it as a template
+            if not config_path.exists():
+                try:
+                    default_config_path = Path(
+                        get_resource_path("src/config/database.json")
+                    )
+                    if default_config_path.exists():
+                        with default_config_path.open("r", encoding="utf-8") as file:
+                            current_config = json.load(file)
+                    else:
+                        current_config = {}
+                except Exception:
+                    current_config = {}
+            else:
+                # Load existing user config
                 with config_path.open("r", encoding="utf-8") as file:
                     current_config = json.load(file)
-            else:
-                current_config = {}
 
             current_config.update(new_settings)
 
+            # Save to the persistent config location
             with config_path.open("w", encoding="utf-8") as file:
                 json.dump(current_config, file, indent=4)
 
@@ -443,11 +463,7 @@ class ConnectionSettingsDialog(QDialog):
                 logger.info(
                     "User requested application restart after saving database settings"
                 )
-
-                # First accept the dialog
                 self.accept()
-
-                # Schedule the application exit
                 QTimer.singleShot(0, lambda: self._perform_application_exit())
             else:
                 self.accept()
