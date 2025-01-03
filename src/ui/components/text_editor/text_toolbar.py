@@ -105,7 +105,7 @@ class TextToolbar(QToolBar):
         cursor.beginEditBlock()
 
         standard_font = QFont()
-        standard_font.setPointSize(12)
+        standard_font.setPointSize(10)
         standard_font.setWeight(QFont.Weight.Normal)
 
         char_format = cursor.charFormat()

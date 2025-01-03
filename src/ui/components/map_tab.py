@@ -22,9 +22,13 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QFileDialog,
 )
+from structlog import get_logger
 
 from ui.components.dialogs import PinPlacementDialog
+from utils.geometry_handler import GeometryHandler
 from utils.path_helper import get_resource_path
+
+logger = get_logger(__name__)
 
 
 class MapImageLoader(QThread):
@@ -449,12 +453,7 @@ class MapTab(QWidget):
         self.load_pins()
 
     def load_pins(self) -> None:
-        """
-        Processes and loads pin data onto an image label. It retrieves the necessary data
-        from a relationships table in the controller and creates pins on the image label
-        based on the information.
-        """
-
+        """Process and load pin data from relationships table using WKT format."""
         self.image_label.clear_pins()
 
         if not self.controller or not self.controller.ui.relationships_table:
@@ -464,7 +463,6 @@ class MapTab(QWidget):
         pin_data = []
         relationships_table = self.controller.ui.relationships_table
 
-        # Use bulk data extraction
         for row in range(relationships_table.rowCount()):
             try:
                 rel_type = relationships_table.item(row, 0)
@@ -478,13 +476,22 @@ class MapTab(QWidget):
                     continue
 
                 properties = json.loads(props_item.text())
-                x, y = properties.get("x"), properties.get("y")
+                if "geometry" not in properties:
+                    logger.warning(
+                        f"Pin relationship missing geometry for {target_item.text()}"
+                    )
+                    continue
 
-                if x is not None and y is not None:
-                    pin_data.append((target_item.text(), int(x), int(y)))
+                # Extract coordinates from WKT
+                if not GeometryHandler.validate_wkt(properties["geometry"]):
+                    logger.error(f"Invalid WKT geometry for {target_item.text()}")
+                    continue
+
+                x, y = GeometryHandler.get_coordinates(properties["geometry"])
+                pin_data.append((target_item.text(), x, y))
 
             except (json.JSONDecodeError, AttributeError) as e:
-                print(f"Error loading pin: {e}")
+                logger.error(f"Error loading pin: {e}")
                 continue
 
         # Batch create all pins at once
@@ -623,8 +630,9 @@ class MapTab(QWidget):
         if dialog.exec():
             target_node = dialog.get_target_node()
             if target_node:
-                # Create relationship data
-                properties = {"x": x, "y": y}
+                # Create relationship data using WKT format
+                wkt_point = GeometryHandler.create_point(x, y)
+                properties = GeometryHandler.create_geometry_properties(wkt_point)
 
                 self.pin_created.emit(target_node, ">", properties)
 
