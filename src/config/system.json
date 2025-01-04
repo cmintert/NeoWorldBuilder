@@ -8,6 +8,7 @@
         "mapimage"
     ],
     "VERSION": "0.1.0",
+    "ENVIRONMENT": "development",
     "NAME_INPUT_DEBOUNCE_TIME_MS": 100,
     "KEY": "O5g51hWHqFFyLI-w2YrB-puJ91t9XGTiyumit01RC88="
 }
