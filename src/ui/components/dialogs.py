@@ -1,6 +1,4 @@
-import json
 import sys
-from pathlib import Path
 from typing import Dict, List, Tuple, Any, Set, Union, Optional
 
 from PyQt6.QtCore import Qt, pyqtSlot, QTimer
@@ -32,6 +30,7 @@ from PyQt6.QtWidgets import (
 from neo4j.exceptions import AuthError, ServiceUnavailable
 from structlog import get_logger
 
+from config.config import ConfigNode
 from utils.crypto import SecurityUtility
 
 logger = get_logger(__name__)
@@ -327,11 +326,20 @@ class ConnectionSettingsDialog(QDialog):
         layout.addWidget(button_box)
 
     def load_existing_settings(self):
-        """Load existing connection settings if available."""
+        """
+        Load existing connection settings if available.
+        Uses Config class methods to ensure proper environment handling.
+        """
         try:
-            self.uri_input.setText(self.config.URI)
-            self.username_input.setText(self.config.USERNAME)
+            # Get values through Config class to respect environment settings
+            uri = self.config.get("URI", "")
+            username = self.config.get("USERNAME", "")
+
+            # Set the values in the UI
+            self.uri_input.setText(uri)
+            self.username_input.setText(username)
             self.password_input.setPlaceholderText("New password")
+
         except Exception as e:
             self.show_error("Failed to load existing settings", str(e))
 
@@ -364,11 +372,15 @@ class ConnectionSettingsDialog(QDialog):
             # Create temporary model to test connection
             from core.neo4jmodel import Neo4jModel
 
-            # Use existing config but override connection settings
-            test_config = self.config
-            test_config.URI = uri
-            test_config.USERNAME = username
-            test_config.PASSWORD = password
+            # Create a simple test config with just the necessary attributes
+            test_config = ConfigNode(
+                {
+                    "URI": uri,
+                    "USERNAME": username,
+                    "PASSWORD": password,
+                    "KEY": self.config.KEY,  # Need this for encryption
+                }
+            )
 
             test_model = Neo4jModel(uri, username, password, test_config)
 
@@ -393,7 +405,10 @@ class ConnectionSettingsDialog(QDialog):
         self.test_button.setEnabled(True)
 
     def save_settings(self):
-        """Save the connection settings with proper application exit handling."""
+        """
+        Save connection settings using the Config class to ensure proper handling
+        across different environments.
+        """
         if not self.test_succeeded:
             response = QMessageBox.warning(
                 self,
@@ -406,36 +421,27 @@ class ConnectionSettingsDialog(QDialog):
                 return
 
         try:
-            # Encrypt password
+            # Encrypt password using existing security utility
             security_utility = SecurityUtility(self.config.KEY)
             encrypted_password = security_utility.encrypt(self.password_input.text())
 
-            # Prepare new settings
-            new_settings = {
-                "URI": self.uri_input.text().strip(),
-                "USERNAME": self.username_input.text().strip(),
-                "PASSWORD": encrypted_password,
-            }
+            # Save each setting individually through the Config class
+            # This ensures proper environment handling and validation
+            self.config.set_value("URI", self.uri_input.text().strip(), persist=False)
+            self.config.set_value(
+                "USERNAME", self.username_input.text().strip(), persist=False
+            )
+            self.config.set_value("PASSWORD", encrypted_password, persist=False)
 
-            # Save to config file
-            config_path = Path("src/config/database.json")
-            if config_path.exists():
-                with config_path.open("r", encoding="utf-8") as file:
-                    current_config = json.load(file)
-            else:
-                current_config = {}
-
-            current_config.update(new_settings)
-
-            with config_path.open("w", encoding="utf-8") as file:
-                json.dump(current_config, file, indent=4)
+            # Save all changes at once to minimize file operations
+            self.config.save_changes()
 
             # Show success message with restart prompt
             response = QMessageBox.information(
                 self,
                 "Success",
-                "Database settings have been saved. The application needs to restart for changes to take effect. "
-                "Would you like to quit the application now?",
+                "Database settings have been saved. The application needs to restart "
+                "for changes to take effect. Would you like to quit the application now?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
 
@@ -443,11 +449,9 @@ class ConnectionSettingsDialog(QDialog):
                 logger.info(
                     "User requested application restart after saving database settings"
                 )
-
-                # First accept the dialog
+                # Accept dialog first
                 self.accept()
-
-                # Schedule the application exit
+                # Schedule application exit
                 QTimer.singleShot(0, lambda: self._perform_application_exit())
             else:
                 self.accept()
@@ -456,7 +460,8 @@ class ConnectionSettingsDialog(QDialog):
             QMessageBox.critical(
                 self,
                 "Error",
-                f"Failed to save settings: {str(e)}\n\nPlease check file permissions and try again.",
+                f"Failed to save settings: {str(e)}\n\n"
+                "Please check application permissions and try again.",
             )
 
     def _perform_application_exit(self):

@@ -5,6 +5,10 @@ import platform
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import structlog
+
+logger = structlog.get_logger().bind(module="config")
+
 
 class ConfigNode:
     """A node in the configuration tree that allows both dictionary and attribute access."""
@@ -127,7 +131,7 @@ class Config(ConfigNode):
         self._source_path = Path(__file__).parent
         if self._environment != "development":
             self._env_path = self._get_env_specific_path()
-            self._env_path.mkdir(parents=True, exist_ok=True)
+            self._ensure_env_config_exists()
 
         # Load configuration data
         config_tree = {}  # This will hold all our configuration values
@@ -222,21 +226,64 @@ class Config(ConfigNode):
             self.save_changes()
 
     def save_changes(self, specific_file: Optional[str] = None) -> None:
-        """Save configuration changes back to the appropriate JSON files.
-
-        In development mode, changes are written directly to the source configuration files.
-        In other environments, changes are written to environment-specific configuration files,
-        preserving the original source files as defaults.
-
-        Args:
-            specific_file: Optional specific JSON file to update. If None, updates all changed files.
-        """
+        """Save configuration changes back to the appropriate JSON files."""
         current_config = self.to_dict()
 
-        # First, determine our target directory based on environment
+        logger.info(
+            "Preparing to save configuration",
+            environment=self._environment,
+            is_development=(self._environment == "development"),
+        )
+
+        # Determine target directory based on environment
         target_dir = (
             self._source_path if self._environment == "development" else self._env_path
         )
+
+        logger.info(
+            "Directory status before operations",
+            target_dir=str(target_dir),
+            exists=target_dir.exists(),
+            is_dir=target_dir.is_dir() if target_dir.exists() else None,
+            parent_exists=target_dir.parent.exists(),
+            absolute_path=str(target_dir.absolute()),
+        )
+        # Ensure target directory exists
+        try:
+            if not target_dir.exists():
+
+                logger.info(
+                    "Creating configuration directory",
+                    directory=str(target_dir),
+                    parent_dir=str(target_dir.parent),
+                    parent_exists=target_dir.parent.exists(),
+                )
+
+                target_dir.parent.mkdir(exist_ok=True)
+                target_dir.mkdir(exist_ok=True)
+
+                # Verify after creation
+                logger.info(
+                    "Directory creation result",
+                    exists=target_dir.exists(),
+                    is_dir=target_dir.is_dir() if target_dir.exists() else None,
+                    absolute_path=str(target_dir.absolute()),
+                )
+
+            # Verify directory was created
+            if not target_dir.exists():
+                raise RuntimeError(
+                    f"Failed to create configuration directory: {target_dir}"
+                )
+
+            logger.info("Configuration directory verified", directory=str(target_dir))
+        except Exception as e:
+            logger.error(
+                "Failed to create/verify config directory",
+                error=str(e),
+                directory=str(target_dir),
+            )
+            raise
 
         # Determine which files need updating
         files_to_update = set()
@@ -246,9 +293,11 @@ class Config(ConfigNode):
                 if specific_file is None or source_file == specific_file:
                     files_to_update.add(source_file)
 
+        successful_updates = []
+        failed_updates = []
+
         # Update each file
         for source_file in files_to_update:
-            # Get the corresponding target file path
             source_path = Path(source_file)
             target_file = target_dir / source_path.name
 
@@ -265,17 +314,50 @@ class Config(ConfigNode):
                     if self._file_mapping.get(key) == source_file:
                         file_config[key] = value
 
-                # Ensure target directory exists
-                target_file.parent.mkdir(parents=True, exist_ok=True)
-
                 # Write the updated configuration
                 with open(target_file, "w") as f:
                     json.dump(file_config, f, indent=2)
 
-                print(f"Updated configuration in {target_file}")
+                # Verify file was written
+                if not target_file.exists():
+                    logger.error(
+                        "File not found after write",
+                        file=str(target_file),
+                        parent_exists=target_file.parent.exists(),
+                        parent_is_dir=(
+                            target_file.parent.is_dir()
+                            if target_file.parent.exists()
+                            else None
+                        ),
+                    )
+                else:
+                    file_size = target_file.stat().st_size
+                    logger.info(
+                        "File write verification",
+                        file=str(target_file),
+                        exists=True,
+                        size=file_size,
+                    )
+
+                # Verify file content
+                with open(target_file, "r") as f:
+                    verification_content = json.load(f)
+                    if verification_content != file_config:
+                        raise ValueError("File content verification failed")
+
+                successful_updates.append(target_file)
+                logger.info(
+                    "Configuration file updated and verified", file=str(target_file)
+                )
 
             except Exception as e:
-                # Provide more helpful error messages for common issues
+                failed_updates.append((target_file, str(e)))
+                logger.error(
+                    "Failed to update configuration file",
+                    file=str(target_file),
+                    error=str(e),
+                )
+
                 if isinstance(e, PermissionError):
                     raise PermissionError(
                         f"Cannot write to configuration file {target_file}. "
@@ -290,6 +372,20 @@ class Config(ConfigNode):
                     raise RuntimeError(
                         f"Failed to save configuration to {target_file}: {str(e)}"
                     ) from e
+
+        # Final status report
+        if successful_updates:
+            logger.info(
+                "Configuration updates completed",
+                successful=len(successful_updates),
+                failed=len(failed_updates),
+            )
+        if failed_updates:
+            logger.error(
+                "Some configuration updates failed",
+                failed_files=[str(f[0]) for f in failed_updates],
+                errors=[f[1] for f in failed_updates],
+            )
 
     def reload(self, json_files: Optional[List[str]] = None) -> None:
         """Reload configuration from appropriate JSON files.
@@ -371,34 +467,20 @@ class Config(ConfigNode):
             ) from e
 
     def _get_env_specific_path(self) -> Path:
-        """Get the environment-specific configuration path based on the operating system.
-
-        This method follows OS-specific conventions for application data storage:
-        - Windows: Uses %APPDATA% (/Users/<user>/AppData/Roaming)
-        - macOS: Uses ~/Library/Application Support
-        - Linux: Uses ~/.config
-
-        Returns:
-            Path: The platform-specific configuration directory path
-        """
-
+        """Get the environment-specific configuration path based on the operating system."""
         system = platform.system().lower()
+        logger.info("Determining environment path for system", system=system)
 
         if system == "windows":
-            # On Windows, configurations typically go in %APPDATA%
-            # This resolves to C:/Users/<username>/AppData/Roaming
             base_path = Path(os.getenv("APPDATA"))
-
-        elif system == "darwin":  # macOS
-            # macOS applications traditionally store their configurations in
-            # ~/Library/Application Support
+            logger.info("Using Windows APPDATA path", appdata=str(base_path))
+        elif system == "darwin":
             base_path = Path.home() / "Library" / "Application Support"
-
-        else:  # Linux and other Unix-like systems
-            # The XDG Base Directory specification dictates that configuration
-            # files should go in ~/.config
+            logger.info("Using macOS Application Support path", path=str(base_path))
+        else:
             base_path = Path.home() / ".config"
+            logger.info("Using Linux config path", path=str(base_path))
 
-        # Create the complete path by adding our application directory
-        # We use 'neoworldbuilder' as it's lowercase and follows conventions
-        return base_path / "neoworldbuilder" / "config"
+        final_path = base_path / "neoworldbuilder" / "config"
+        logger.info("Final environment config path", path=str(final_path))
+        return final_path

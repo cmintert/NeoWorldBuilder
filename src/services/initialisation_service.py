@@ -18,6 +18,7 @@ from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
 from ui.styles import StyleManager
 from utils.exporters import Exporter
+from utils.path_helper import get_resource_path
 
 logger = get_logger(__name__)
 
@@ -68,7 +69,8 @@ class InitializationService:
 
     def _initialize_style_management(self) -> None:
         """Initialize style management system."""
-        self.style_manager = StyleManager("src/config/styles")
+        styles_path = get_resource_path("src/config/styles")
+        self.style_manager = StyleManager(styles_path)
         self.style_manager.registry.error_occurred.connect(
             self.controller._show_error_dialog
         )
