@@ -31,25 +31,25 @@ jobs:
     - name: Build with PyInstaller
       run: |
         # Clean build using our modified spec file
-        pyinstaller NeoRealmBuilder.spec --clean
+        pyinstaller NeoWorldBuilder.spec --clean
 
     - name: Verify Build Output
       run: |
         # PowerShell commands to check the build structure
         Write-Host "Checking build output structure..."
-        if (Test-Path "dist/NeoRealmBuilder/NeoRealmBuilder.exe") {
+        if (Test-Path "dist/NeoWorldBuilder/NeoWorldBuilder.exe") {
             Write-Host "√ Executable found"
         } else {
             Write-Host "X Executable missing"
             exit 1
         }
-        if (Test-Path "dist/NeoRealmBuilder/config") {
+        if (Test-Path "dist/NeoWorldBuilder/config") {
             Write-Host "√ Config directory found"
         } else {
             Write-Host "X Config directory missing"
             exit 1
         }
-        if (Test-Path "dist/NeoRealmBuilder/resources") {
+        if (Test-Path "dist/NeoWorldBuilder/resources") {
             Write-Host "√ Resources directory found"
         } else {
             Write-Host "X Resources directory missing"
@@ -59,10 +59,10 @@ jobs:
     - name: Create Release Bundle
       run: |
         # Create a zip file of our build
-        Compress-Archive -Path "dist/NeoRealmBuilder/*" -DestinationPath "NeoRealmBuilder-release.zip"
+        Compress-Archive -Path "dist/NeoWorldBuilder/*" -DestinationPath "NeoWorldBuilder-release.zip"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: NeoRealmBuilder
-        path: dist/NeoRealmBuilder/
+        name: NeoWorldBuilder
+        path: dist/NeoWorldBuilder/

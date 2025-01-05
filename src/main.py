@@ -1,5 +1,5 @@
 """
-Main module for the NeoRealmBuilder application.
+Main module for the NeoWorldBuilder application.
 
 This module initializes and runs the main application, including setting up the UI, 
 loading configuration, establishing database connections, and handling exceptions.
@@ -459,11 +459,11 @@ class WorldBuildingApp(QMainWindow):
             RuntimeError: If main window configuration fails.
         """
         try:
-            self.setObjectName("NeoRealmBuilder")
+            self.setObjectName("NeoWorldBuilder")
             self.setCentralWidget(self.components.ui)
 
             # Set window title with version
-            self.setWindowTitle(f"NeoRealmBuilder {self.components.config.VERSION}")
+            self.setWindowTitle(f"NeoWorldBuilder {self.components.config.VERSION}")
 
             # Ensure transparency is properly set
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
