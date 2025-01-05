@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2022  # Using Windows Server 2022 for modern compatibility
+    runs-on: windows-2022
 
     steps:
     - name: Checkout Repository
@@ -17,25 +17,33 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'  # Matching your project's Python version
+        python-version: '3.12'
 
     - name: Install Dependencies
       run: |
-        # Update pip to ensure we have the latest package handling capabilities
         python -m pip install --upgrade pip
-        # Install project requirements
         pip install -r requirements.txt
-        # Install PyInstaller for building the executable
         pip install pyinstaller
+
+    - name: Set Environment Variables
+      run: |
+        echo "NEOWORLDBUILDER_DEPLOY_CONFIG=$env:TEMP\config" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+    - name: Prepare Build Environment
+      run: |
+        python deploy.py
+
+    - name: Create Logs Directory
+      run: |
+        New-Item -ItemType Directory -Force -Path "dist/NeoWorldBuilder/logs"
+        New-Item -ItemType File -Force -Path "dist/NeoWorldBuilder/logs/.keep"
 
     - name: Build with PyInstaller
       run: |
-        # Clean build using our modified spec file
         pyinstaller NeoWorldBuilder.spec --clean
 
     - name: Verify Build Output
       run: |
-        # PowerShell commands to check the build structure
         Write-Host "Checking build output structure..."
         if (Test-Path "dist/NeoWorldBuilder/NeoWorldBuilder.exe") {
             Write-Host "√ Executable found"
@@ -55,10 +63,15 @@ jobs:
             Write-Host "X Resources directory missing"
             exit 1
         }
+        if (Test-Path "dist/NeoWorldBuilder/logs") {
+            Write-Host "√ Logs directory found"
+        } else {
+            Write-Host "X Logs directory missing"
+            exit 1
+        }
 
     - name: Create Release Bundle
       run: |
-        # Create a zip file of our build
         Compress-Archive -Path "dist/NeoWorldBuilder/*" -DestinationPath "NeoWorldBuilder-release.zip"
 
     - name: Upload artifact
