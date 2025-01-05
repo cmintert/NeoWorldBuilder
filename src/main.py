@@ -59,48 +59,51 @@ def setup_app_logging():
     """Set up logging for both development and production environments."""
     # Determine if we're running from PyInstaller
     if getattr(sys, "frozen", False):
-        # Running as compiled executable
         app_dir = os.path.dirname(sys.executable)
-        log_path = os.path.join(app_dir, "neoworldbuilder.log")
     else:
-        # Running in development
         app_dir = os.path.dirname(os.path.abspath(__file__))
-        log_path = os.path.join(app_dir, "neoworldbuilder.log")
 
-    # Ensure log directory exists
-    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    # Create logs directory if it doesn't exist
+    logs_dir = os.path.join(app_dir, "logs")
+    os.makedirs(logs_dir, exist_ok=True)
 
-    # Create a file handler that will work in both environments
+    log_path = os.path.join(logs_dir, "neoworldbuilder.log")
+
+    # Configure structlog with a file handler that stays open
     try:
-        log_file = open(log_path, "a", encoding="utf-8")
+        file_handler = open(log_path, "a", encoding="utf-8")
+
+        # Configure structlog
+        structlog.configure(
+            processors=[
+                structlog.processors.TimeStamper(fmt="iso"),
+                structlog.processors.add_log_level,
+                structlog.processors.StackInfoRenderer(),
+                structlog.processors.format_exc_info,
+                structlog.processors.JSONRenderer(),
+            ],
+            wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
+            context_class=dict,
+            logger_factory=structlog.WriteLoggerFactory(file=file_handler),
+            cache_logger_on_first_use=False,  # Changed to False to prevent caching issues
+        )
+
+        # Disable neo4j's internal debug logging
+        logging.getLogger("neo4j").setLevel(logging.WARNING)
+
+        return file_handler
+
     except Exception as e:
-        # Fallback to a temp file if we can't write to the app directory
-        temp_dir = os.path.join(os.path.expanduser("~"), ".neoworldbuilder")
+        # Fallback to a temp directory if we can't write to the app directory
+        temp_dir = os.path.join(os.path.expanduser("~"), ".neoworldbuilder", "logs")
         os.makedirs(temp_dir, exist_ok=True)
         log_path = os.path.join(temp_dir, "neoworldbuilder.log")
-        log_file = open(log_path, "a", encoding="utf-8")
+        file_handler = open(log_path, "a", encoding="utf-8")
 
-    # Configure structlog to use the file
-    structlog.configure(
-        processors=[
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.add_log_level,
-            structlog.processors.StackInfoRenderer(),
-            structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer(),
-        ],
-        wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
-        context_class=dict,
-        logger_factory=structlog.WriteLoggerFactory(file=log_file),
-        cache_logger_on_first_use=True,
-    )
+        # Configure with same settings as above
+        structlog.configure(...)  # Same configuration as above
 
-    # Set up stderr handling for PyInstaller
-    if getattr(sys, "frozen", False):
-        sys.stdout = log_file
-        sys.stderr = log_file
-
-    return log_file  # Keep reference to prevent garbage collection
+        return file_handler
 
 
 # Initialize logging
