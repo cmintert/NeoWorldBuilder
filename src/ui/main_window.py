@@ -442,7 +442,7 @@ class WorldBuildingUI(QWidget):
         refresh_action = menu.addAction("Refresh")
 
         # Execute menu and handle selection
-        action = menu.exec_(self.tree_view.mapToGlobal(position))
+        action = menu.exec(self.tree_view.mapToGlobal(position))
         if action == expand_action:
             self.tree_view.expandAll()
         elif action == collapse_action:

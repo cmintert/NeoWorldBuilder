@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 )
 from structlog import get_logger
 
+from core import WriteWorker
 from models.completer_model import AutoCompletionUIHandler, CompleterInput
 from models.property_model import PropertyItem
 from models.suggestion_model import SuggestionUIHandler, SuggestionResult
@@ -367,6 +368,7 @@ class WorldBuildingController(QObject):
 
         try:
             record = data[0]
+            logger.debug("Node data fetched", record=record)
             self._populate_node_fields(record)
 
             # Simple direct all_props update from record
@@ -1126,3 +1128,108 @@ class WorldBuildingController(QObject):
         # Switch to the main tab if we're in search
         if self.ui.tabs.currentWidget() == self.ui.search_panel:
             self.ui.tabs.setCurrentIndex(0)
+
+    def rename_node(
+        self, current_name: str, new_name: str, callback: Callable
+    ) -> WriteWorker:
+        """
+        Rename a node while preserving all its existing properties and relationships.
+
+        Args:
+            current_name (str): The current name of the node
+            new_name (str): The new name to assign to the node
+            callback (Callable): Function to call after renaming
+        """
+
+        def rename_transaction(tx: Any, current_name: str, new_name: str) -> None:
+            # 1. Validate the new name
+            if not new_name or not new_name.strip():
+                raise ValueError("New name cannot be empty")
+
+            # 2. Check if new name already exists
+            existing_check = tx.run(
+                "MATCH (n {name: $new_name}) RETURN n", new_name=new_name
+            )
+            if existing_check.single():
+                raise ValueError(f"A node with the name '{new_name}' already exists")
+
+            # 3. Retrieve all current node properties and relationships
+            retrieve_query = """
+            MATCH (n {name: $current_name})
+            OPTIONAL MATCH (n)-[rels]-(connected)
+            RETURN n, collect(rels) as relationships, labels(n) as node_labels
+            """
+            result = tx.run(retrieve_query, current_name=current_name)
+            record = result.single()
+
+            if not record:
+                raise ValueError(f"Node '{current_name}' not found")
+
+            node_properties = dict(record["n"])
+            node_labels = record["node_labels"]
+            relationships = record["relationships"]
+
+            # 4. Create a new node with the new name and existing properties
+            node_properties["name"] = new_name
+            node_properties["_modified"] = datetime.now().isoformat()
+
+            # 5. Create the new node with all original properties
+            create_query = """
+            CREATE (new_node {props})
+            SET new_node:`%s`
+            """ % "`:".join(
+                node_labels
+            )
+
+            # Recreate relationships
+            tx.run(create_query, props=node_properties)
+
+            # 6. Transfer relationships
+            for rel in relationships:
+                if rel.start_node["name"] == current_name:
+                    # Outgoing relationship
+                    transfer_out_query = (
+                        """
+                    MATCH (old {name: $current_name}), (new {name: $new_name}), (target {name: $target_name})
+                    CREATE (new)-[new_rel:`%s` {props}]->(target)
+                    """
+                        % rel.type
+                    )
+
+                    tx.run(
+                        transfer_out_query,
+                        current_name=current_name,
+                        new_name=new_name,
+                        target_name=rel.end_node["name"],
+                        props=dict(rel),
+                    )
+                else:
+                    # Incoming relationship
+                    transfer_in_query = (
+                        """
+                    MATCH (source {name: $source_name}), (old {name: $current_name}), (new {name: $new_name})
+                    CREATE (source)-[new_rel:`%s` {props}]->(new)
+                    """
+                        % rel.type
+                    )
+
+                    tx.run(
+                        transfer_in_query,
+                        current_name=current_name,
+                        new_name=new_name,
+                        source_name=rel.start_node["name"],
+                        props=dict(rel),
+                    )
+
+            # 7. Delete the old node
+            tx.run(
+                "MATCH (n {name: $current_name}) DETACH DELETE n",
+                current_name=current_name,
+            )
+
+        # Create and return a WriteWorker for the rename operation
+        worker = WriteWorker(
+            self._uri, self._auth, rename_transaction, current_name, new_name
+        )
+        worker.write_finished.connect(callback)
+        return worker
