@@ -932,12 +932,16 @@ class WorldBuildingUI(QWidget):
         if not self.controller.current_node_element_id:
             return
 
-        menu = QMenu()
-        rename_action = menu.addAction("Rename Node")
-        action = menu.exec(self.name_input.mapToGlobal(position))
+        # Create standard context menu with default actions
+        menu = self.name_input.createStandardContextMenu()
 
-        if action == rename_action:
-            self.show_rename_dialog()
+        # Add rename option if we have a node loaded
+        if self.controller.current_node_element_id:
+            menu.addSeparator()
+            rename_action = menu.addAction("Rename Node")
+            rename_action.triggered.connect(self.show_rename_dialog)
+
+        menu.exec(self.name_input.mapToGlobal(position))
 
     def show_rename_dialog(self) -> None:
         """Show dialog for renaming node."""
