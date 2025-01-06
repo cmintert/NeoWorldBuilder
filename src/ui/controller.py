@@ -83,6 +83,7 @@ class WorldBuildingController(QObject):
         self.error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
 
         self.original_node_data: Optional[Dict[str, Any]] = None
+        self.current_node_element_id: Optional[str] = None
         self.all_props: Dict[str, Any] = {}
 
         # Connect ImageGroup signals
@@ -359,6 +360,50 @@ class WorldBuildingController(QObject):
             self.ui.name_input.setText(text)
             self.load_node_data()
 
+    def extract_element_id(self, data: dict) -> str | None:
+        """
+        Extract element_id from NeoWorldBuilder node data JSON.
+
+        Args:
+            data: Dictionary containing node data in format {"data": [[node_str, ...]]}
+
+        Returns:
+            str: The element_id if found
+            None: If element_id cannot be extracted
+        """
+        """
+            Extract element_id from NeoWorldBuilder node data.
+
+            Args:
+                data: List containing node data
+
+            Returns:
+                str: The element_id if found
+                None: If element_id cannot be extracted
+            """
+        try:
+            # Get the Node object from the Record
+            node = data[0]["n"]
+
+            # Get the Node's string representation
+            node_str = str(node)
+
+            # Extract element_id using string markers
+            start_marker = "element_id='"
+            end_marker = "'"
+
+            start_pos = node_str.find(start_marker) + len(start_marker)
+            end_pos = node_str.find(end_marker, start_pos)
+
+            if start_pos == -1 or end_pos == -1:
+                return None
+
+            return node_str[start_pos:end_pos]
+
+        except (IndexError, KeyError, AttributeError) as e:
+            print(f"Error: {str(e)}")
+            return None
+
     @pyqtSlot(list)
     def _handle_node_data(self, data: List[Any]) -> None:
         """Handle node data fetched by the worker."""
@@ -367,7 +412,12 @@ class WorldBuildingController(QObject):
 
         try:
             record = data[0]
-            logger.debug("Node data fetched", record=record)
+
+            self.current_node_element_id = self.extract_element_id(data)
+            logger.debug(
+                "Current node element_id", element_id=self.current_node_element_id
+            )
+
             self._populate_node_fields(record)
 
             # Simple direct all_props update from record
