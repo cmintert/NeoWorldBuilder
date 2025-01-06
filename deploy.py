@@ -1,3 +1,4 @@
+import argparse
 import atexit
 import json
 import os
@@ -5,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import uuid
+from datetime import datetime
 from pathlib import Path
 from tempfile import mkdtemp
 
@@ -30,6 +32,11 @@ class DeploymentPreparator:
         self.build_dir = project_root / "build"
         self.dist_dir = project_root / "dist"
         self.src_config_dir = project_root / "src" / "config"
+        self.build_type = "nightly"
+
+        system_json_path = self.src_config_dir / "system.json"
+        with open(system_json_path) as f:
+            self.config = json.load(f)
 
         # Create temporary directory for deployment configs
         self.temp_dir = Path(mkdtemp())
@@ -225,6 +232,8 @@ class DeploymentPreparator:
                 text=True,
             )
             self.logger.info("deployment_creation_completed")
+            self._create_readme()
+            self._create_distribution_zip()
 
         except subprocess.CalledProcessError as e:
             self.logger.error(
@@ -235,12 +244,83 @@ class DeploymentPreparator:
             )
             raise
 
+    def _create_distribution_zip(self) -> None:
+        """Create ZIP file of the built application."""
+        dist_dir = self.project_root / "dist"
+        app_dir = dist_dir / "NeoWorldBuilder"
+        zip_name = (
+            f"NeoWorldBuilder-{self.config['VERSION']}-{self.config['BUILD_TYPE']}.zip"
+        )
+        zip_path = dist_dir / zip_name
+
+        self.logger.info("creating_distribution_zip", zip_file=str(zip_path))
+
+        try:
+            shutil.make_archive(
+                str(zip_path.with_suffix("")),  # remove .zip as make_archive adds it
+                "zip",
+                app_dir,
+            )
+            self.logger.info("zip_creation_completed", zip_file=str(zip_path))
+        except Exception as e:
+            self.logger.error("zip_creation_failed", error=str(e))
+            raise
+
+    def _create_readme(self) -> None:
+        """Create README.txt for distribution"""
+        readme_content = f"""NeoWorldBuilder {self.config['VERSION']}-{self.config['BUILD_TYPE']}
+
+    Quick Start Guide:
+    1. Extract all files from this ZIP to a folder of your choice
+    2. Double-click NeoWorldBuilder.exe to start the application
+    3. The application needs all files in the folder to run - don't move the exe separately
+
+    Requirements:
+    - Windows 10 or newer
+    - Neo4j Database Server (5.25+) must be installed and running. Free community edition available at https://neo4j.com/download/
+    - Screen resolution 1280x720 or higher recommended
+
+    Files & Folders:
+    - NeoWorldBuilder.exe - Main application
+    - _internal/ - Required program files
+    - config/ - Configuration files (can be edited if needed)
+
+    First Time Setup:
+    1. Start the application
+    2. Enter your Neo4j database connection details ( Defaults: username: neo4j, password: neo4j, localhost:7687 )
+    3. The application will remember these settings
+
+    Bugs?
+    - Report issues at: https://github.com/cmintert/NeoWorldBuilder/issues
+
+    {datetime.now().strftime('%Y-%m-%d')}
+    """
+        dist_dir = self.project_root / "dist" / "NeoWorldBuilder"
+        readme_path = dist_dir / "README.txt"
+
+        self.logger.info("creating_readme", path=str(readme_path))
+
+        try:
+            with open(readme_path, "w", encoding="utf-8") as f:
+                f.write(readme_content)
+        except Exception as e:
+            self.logger.error("readme_creation_failed", error=str(e))
+            raise
+
 
 def main():
     # Initialize logger for main
     logger = structlog.get_logger().bind(module="deploy.py", function="main")
-
     logger.info("deployment_script_started")
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Deploy NeoWorldBuilder")
+    parser.add_argument(
+        "--build-type",
+        choices=["nightly", "alpha", "beta", "rc", "release"],
+        help="Override build type (highest priority)",
+    )
+    args = parser.parse_args()
 
     # Get project root (assuming script is in project root)
     project_root = Path(__file__).parent
@@ -249,10 +329,25 @@ def main():
         # Create deployment preparator
         preparator = DeploymentPreparator(project_root)
 
-        # Prepare environment
-        preparator.prepare_environment()
+        # Determine build type in priority order
+        build_type = (
+            args.build_type  # CLI argument (highest)
+            or os.environ.get("NEOWORLDBUILDER_BUILD")  # Environment variable
+            or preparator.config["BUILD_TYPE"]  # Config file (lowest)
+        )
 
-        # Create deployment
+        # Update config with determined build type
+        preparator.config["BUILD_TYPE"] = build_type
+
+        # Log configuration being used
+        logger.info(
+            "deployment_configuration",
+            build_type=build_type,
+            version=preparator.config["VERSION"],
+        )
+
+        # Prepare environment and create deployment
+        preparator.prepare_environment()
         preparator.create_deployment()
 
         logger.info("deployment_process_completed")
