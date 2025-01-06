@@ -466,7 +466,14 @@ class WorldBuildingApp(QMainWindow):
             self.setCentralWidget(self.components.ui)
 
             # Set window title with version
-            self.setWindowTitle(f"NeoWorldBuilder {self.components.config.VERSION}")
+            version = self.components.config.VERSION
+            build_type = self.components.config.BUILD_TYPE
+
+            # Show version with build type if not release
+            if build_type == "release":
+                self.setWindowTitle(f"NeoWorldBuilder {version}")
+            else:
+                self.setWindowTitle(f"NeoWorldBuilder {version}-{build_type}")
 
             # Ensure transparency is properly set
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
