@@ -290,6 +290,9 @@ class WorldBuildingUI(QWidget):
         self.name_input.setMinimumHeight(35)
         self.name_input.setMaxLength(100)
 
+        self.name_input.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.name_input.customContextMenuRequested.connect(self._show_name_context_menu)
+
         # Action buttons with loading states
         self.save_button = QPushButton("💾 Save")
         self.save_button.setObjectName("saveButton")
@@ -922,3 +925,48 @@ class WorldBuildingUI(QWidget):
             direction=direction,
             properties=json.dumps(properties),
         )
+
+    def _show_name_context_menu(self, position: QPoint) -> None:
+        """Show context menu for name input field."""
+        # Only show rename option if we have a node loaded
+        if not self.controller.current_node_element_id:
+            return
+
+        menu = QMenu()
+        rename_action = menu.addAction("Rename Node")
+        action = menu.exec(self.name_input.mapToGlobal(position))
+
+        if action == rename_action:
+            self.show_rename_dialog()
+
+    def show_rename_dialog(self) -> None:
+        """Show dialog for renaming node."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Rename Node")
+        dialog.setModal(True)
+
+        layout = QVBoxLayout(dialog)
+
+        # Add name input
+        name_input = QLineEdit(dialog)
+        name_input.setText(self.name_input.text())
+        name_input.setPlaceholderText("Enter new name...")
+        layout.addWidget(name_input)
+
+        # Add buttons
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(
+            lambda: self._handle_rename_dialog(name_input.text(), dialog)
+        )
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+
+        dialog.exec()
+
+    def _handle_rename_dialog(self, new_name: str, dialog: QDialog) -> None:
+        """Handle rename dialog acceptance."""
+        if new_name.strip():
+            self.controller.rename_node(new_name)
+            dialog.accept()

@@ -1177,3 +1177,55 @@ class WorldBuildingController(QObject):
         # Switch to the main tab if we're in search
         if self.ui.tabs.currentWidget() == self.ui.search_panel:
             self.ui.tabs.setCurrentIndex(0)
+
+    def rename_node(self, new_name: str) -> None:
+        """
+        Rename the current node using its element ID.
+
+        Args:
+            new_name (str): The new name for the node
+        """
+        if not self.current_node_element_id:
+            return
+
+        # Validate new name
+        if not self.node_operations.validate_node_name(new_name).is_valid:
+            return
+
+        def handle_rename_success(success: bool) -> None:
+            if success:
+                # Block signal handling temporarily
+                old_state = self.ui.name_input.blockSignals(True)
+
+                # Update UI with new name
+                self.ui.name_input.setText(new_name)
+
+                # Restore signal handling
+                self.ui.name_input.blockSignals(old_state)
+
+                # Single load of node data
+                self.load_node_data()  # This will also update the tree
+
+                # Update cache
+                self.name_cache_service.invalidate_cache()
+                self.name_cache_service.rebuild_cache()
+
+                QMessageBox.information(self.ui, "Success", "Node renamed successfully")
+            else:
+                self.error_handler.handle_error("Failed to rename node")
+
+        worker = self.model.rename_node(
+            self.current_node_element_id, new_name, handle_rename_success
+        )
+
+        # Create WorkerOperation
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=handle_rename_success,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Error renaming node: {msg}"
+            ),
+            operation_name="rename_node",
+        )
+
+        self.worker_manager.execute_worker("rename", operation)
