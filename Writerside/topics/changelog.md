@@ -9,3 +9,5 @@ Changelog
 'Fixes'
 
 - Tree View items are now only selected with left click, right click for context menue
+- Fixed map reload on first zoom use
+- Made initial map zoom level adjust to windows size
