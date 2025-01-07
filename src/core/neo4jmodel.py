@@ -621,3 +621,38 @@ class Neo4jModel:
         )
 
         return worker
+
+    def rename_node(
+        self, element_id: str, new_name: str, callback: Callable
+    ) -> WriteWorker:
+        """
+        Rename a node using its element ID.
+
+        Args:
+            element_id (str): The element ID of the node to rename
+            new_name (str): The new name for the node
+            callback (Callable): Function to call when operation completes
+
+        Returns:
+            WriteWorker: Worker that will execute the rename operation
+        """
+        query = """
+        MATCH (n)
+        WHERE elementId(n) = $element_id
+        SET n.name = $new_name, 
+            n._modified = $timestamp
+        RETURN n
+        """
+
+        params = {
+            "element_id": element_id,
+            "new_name": new_name,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        worker = WriteWorker(
+            self._uri, self._auth, WriteWorker._run_transaction, query, params
+        )
+        worker.write_finished.connect(callback)
+
+        return worker
