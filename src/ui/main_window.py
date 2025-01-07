@@ -37,6 +37,24 @@ from utils.converters import NamingConventionConverter
 logger = get_logger(__name__)
 
 
+class WorldBuilderTreeView(QTreeView):
+    """Custom tree view that handles right-click without selection."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Set up for context menu support but handle press ourselves
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+
+    def mousePressEvent(self, event):
+        """Override to prevent selection on right click."""
+        if event.button() == Qt.MouseButton.RightButton:
+            # Explicitly don't handle right click
+            return
+
+        # Handle all other mouse events normally
+        super().mousePressEvent(event)
+
+
 class WorldBuildingUI(QWidget):
 
     # Class-level signals
@@ -178,7 +196,7 @@ class WorldBuildingUI(QWidget):
         layout.setSpacing(10)
 
         # Enhanced tree view
-        self.tree_view = QTreeView()
+        self.tree_view = WorldBuilderTreeView()
         self.tree_view.setObjectName("treeView")
 
         self.tree_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
