@@ -1,0 +1,35 @@
+{
+    "name": "D&D 5e Monster Statblock",
+    "description": "Basic D&D 5th Edition monster statistics template (defaults to Goblin stats)",
+    "content": {
+        "labels": ["Monster", "DnD5e", "Creature"],
+        "tags": ["monster", "creature", "enemy", "npc", "stats", "humanoid", "goblinoid"],
+        "properties": {
+            "size": "Small, Medium, Large, Tiny, Huge, Gargantuan",
+            "type": "Humanoid (goblinoid), Beast, Monstrosity, Dragon, Undead, Fiend, Celestial, Aberration, Construct, Elemental, Fey, Giant, Ooze, Plant",
+            "alignment": "Neutral Evil, Lawful Good, Lawful Neutral, Lawful Evil, Neutral Good, Neutral, Chaotic Good, Chaotic Neutral, Chaotic Evil, Unaligned",
+            "armorClass": "15 (leather armor, shield)",
+            "hitPoints": "7",
+            "hitDice": "2d6",
+            "speed": "30 ft.",
+            "strength": "8",
+            "dexterity": "14",
+            "constitution": "10",
+            "intelligence": "10",
+            "wisdom": "8",
+            "charisma": "8",
+            "savingThrows": "",
+            "skills": "Stealth +6",
+            "damageResistances": "",
+            "damageImmunities": "",
+            "conditionImmunities": "",
+            "senses": "darkvision 60 ft., passive Perception 9",
+            "languages": "Common, Goblin",
+            "challengeRating": "1/4",
+            "specialTraits": "Nimble Escape: The goblin can take the Disengage or Hide action as a bonus action on each of its turns",
+            "actions": "Scimitar: Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) slashing damage. Shortbow: Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target. Hit: 5 (1d6 + 2) piercing damage",
+            "reactions": "",
+            "legendaryActions": ""
+        }
+    }
+}

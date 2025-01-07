@@ -1,0 +1,32 @@
+{
+    "name": "Settlement Template",
+    "description": "Template for towns, cities, villages and other inhabited locations",
+    "content": {
+        "labels": ["Settlement", "Location", "Population"],
+        "tags": ["inhabited", "urban", "community", "civilization"],
+        "properties": {
+            "settlementType": "Village, Town, City, Metropolis, Hamlet, Outpost, Trading Post",
+            "population": "100",
+            "government": "Democracy, Monarchy, Oligarchy, Theocracy, Council, Autocracy",
+            "leadership": "",
+            "economy": "Agriculture, Trade, Mining, Fishing, Crafts, Mixed",
+            "defenses": "Wall, Guard Force, Militia, None, Natural Defenses",
+            "wealth": "Poor, Modest, Prosperous, Wealthy, Very Wealthy",
+            "knownFor": "",
+            "culturalLevel": "Primitive, Medieval, Renaissance, Industrial, Modern",
+            "mainExports": "",
+            "mainImports": "",
+            "climate": "Temperate, Tropical, Arctic, Desert, Mediterranean",
+            "terrain": "Plains, Hills, Mountains, Coastal, Forest, Desert",
+            "waterSources": "River, Lake, Ocean, Wells, Springs, None",
+            "majorBuildings": "",
+            "religion": "",
+            "conflicts": "",
+            "demographics": "",
+            "history": "",
+            "lawEnforcement": "City Guard, Militia, Knights, Sheriff, None",
+            "education": "None, Temple School, University, Guild Training",
+            "healthcare": "None, Herbalist, Temple Healing, Hospital"
+        }
+    }
+}

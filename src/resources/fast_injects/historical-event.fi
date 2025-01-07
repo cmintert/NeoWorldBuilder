@@ -1,0 +1,32 @@
+{
+    "name": "Historical Event Template",
+    "description": "Template for historical events, battles, discoveries, or significant moments",
+    "content": {
+        "labels": ["Event", "Historical", "Timeline"],
+        "tags": ["history", "event", "record", "chronicle", "milestone"],
+        "properties": {
+            "eventType": "Battle, Treaty, Discovery, Coronation, Disaster, Revolution, Founding, Innovation, Migration, Reform",
+            "date": "",
+            "duration": "Instant, Hours, Days, Weeks, Months, Years, Decades",
+            "location": "",
+            "mainParticipants": "",
+            "keyFigures": "",
+            "causes": "",
+            "immediateEffects": "",
+            "longTermEffects": "",
+            "significance": "Minor, Moderate, Major, Pivotal, World-changing",
+            "casualties": "",
+            "resourcesLost": "",
+            "culturalImpact": "None, Minor, Significant, Revolutionary, Permanent",
+            "recordedBy": "Official Records, Chronicles, Folk Tales, Archaeological Evidence, Multiple Sources",
+            "reliability": "Verified, Disputed, Legendary, Mythical",
+            "artifacts": "",
+            "commemoration": "Holiday, Monument, Festival, Memorial, None",
+            "relatedEvents": "",
+            "historicalContext": "",
+            "interpretations": "",
+            "resolution": "",
+            "aftermath": ""
+        }
+    }
+}

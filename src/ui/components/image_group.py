@@ -1,3 +1,4 @@
+from os.path import exists
 from typing import Optional
 
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -10,6 +11,9 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QMessageBox,
 )
+from structlog import get_logger
+
+logger = get_logger(__name__)
 
 
 class ImageGroup(QGroupBox):
@@ -23,6 +27,7 @@ class ImageGroup(QGroupBox):
     def __init__(self, parent=None):
         super().__init__("Image", parent)
         self.setObjectName("imageGroupBox")
+        self._pixmap_cache = {}  # Add caching
         self._init_image_group_ui()
 
     def _init_image_group_ui(self) -> None:
@@ -82,15 +87,31 @@ class ImageGroup(QGroupBox):
 
     def set_basic_image(self, image_path: Optional[str]) -> None:
         """Set or clear the displayed image."""
+        logger.debug("Setting basic image", image_path=image_path)
+
         if not image_path:
+            logger.debug("Clearing image display - no path provided")
             self.image_label.clear()
             self.image_label.setToolTip("")
             return
 
+        # Validate file exists
+        if not exists(image_path):
+            logger.error("Image file not found", path=image_path)
+            self._handle_image_error(f"Image file not found: {image_path}")
+            return
+
         try:
-            pixmap = QPixmap(image_path)
-            if pixmap.isNull():
-                raise ValueError("Failed to load image")
+            # Check cache first
+            if image_path in self._pixmap_cache:
+                logger.debug("Using cached image", path=image_path)
+                pixmap = self._pixmap_cache[image_path]
+            else:
+                logger.debug("Loading new image", path=image_path)
+                pixmap = QPixmap(image_path)
+                if pixmap.isNull():
+                    raise ValueError(f"Failed to load image: {image_path}")
+                self._pixmap_cache[image_path] = pixmap
 
             scaled_pixmap = pixmap.scaled(
                 self.image_label.size(),
@@ -98,12 +119,20 @@ class ImageGroup(QGroupBox):
                 Qt.TransformationMode.SmoothTransformation,
             )
             self.image_label.setPixmap(scaled_pixmap)
-            self.image_label.setToolTip(image_path)  # Store path in toolTip
+            self.image_label.setToolTip(image_path)
+            logger.debug("Successfully set image", path=image_path)
 
         except Exception as e:
-            self.image_label.clear()
-            self.image_label.setToolTip("")
-            QMessageBox.warning(self, "Image Error", f"Failed to load image: {str(e)}")
+            logger.error(
+                "Failed to load image", error=str(e), path=image_path, exc_info=True
+            )
+            self._handle_image_error(str(e))
+
+    def _handle_image_error(self, error_msg: str) -> None:
+        """Centralized error handling for image operations."""
+        self.image_label.clear()
+        self.image_label.setToolTip("")
+        QMessageBox.warning(self, "Image Error", f"Failed to load image: {error_msg}")
 
     def get_basic_image_path(self) -> Optional[str]:
         """Get the current image path."""
