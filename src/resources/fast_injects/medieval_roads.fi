@@ -1,0 +1,42 @@
+{
+    "name": "Medieval Road Properties",
+    "description": "Template for medieval road and path characteristics including construction, maintenance, and usage patterns",
+    "content": {
+        "labels": [
+            "road",
+            "infrastructure",
+            "medieval",
+            "transportation"
+        ],
+        "tags": [
+            "medieval",
+            "road",
+            "path",
+            "trade",
+            "travel"
+        ],
+        "properties": {
+		"length": "1000",
+            "roadType": "Roman road, King's highway, Pilgrimage route, Trade route, Local path, Cart track",
+            "surfaceType": "Packed earth, Gravel, Stone-paved, Cobblestone, Wooden planks, Natural trail",
+            "condition": "Well-maintained, Serviceable, Deteriorating, Ruined, Overgrown",
+            "width": "Cart width, Single horse, Double horse, Wagon width",
+            "seasonalUsability": "All-year, Summer only, Dry season, Limited in winter",
+            "routeImportance": "Major trade route, Regional connection, Local path, Pilgrimage path",
+            "maintenance": "Royal upkeep, Local lord, Village maintained, Unmaintained",
+            "tollStatus": "Royal toll, Lord's toll, Free passage, Restricted access",
+            "bridgeType": "Stone bridge, Wooden bridge, Ford, None",
+            "waypointType": "Inn, Market town, Monastery, Village, Castle, Waymarker",
+            "guardStatus": "Regular patrols, Occasional patrols, Self-guarded, Unprotected",
+            "constructionPeriod": "Roman, Early Medieval, High Medieval, Late Medieval",
+            "drainageSystem": "Stone gutters, Drainage ditches, Natural runoff, None",
+            "surroundingTerrain": "Forest, Farmland, Hills, Wetlands, Plains, Coastal",
+            "commonUsers": "Merchants, Pilgrims, Peasants, Nobility, Military",
+            "weatherProtection": "Tree-lined, Open road, Partially sheltered",
+            "restingPoints": "Regular intervals, Scattered, Rare, None",
+            "hazardLevel": "Safe passage, Moderate risk, High risk, Dangerous",
+            "tradingVolume": "High traffic, Moderate traffic, Low traffic, Sporadic",
+            "historicalSignificance": "Major importance, Regional significance, Local significance, Minor"
+        }
+    }
+}

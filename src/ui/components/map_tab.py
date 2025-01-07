@@ -404,7 +404,7 @@ class MapTab(QWidget):
         # Calculate new scale
         new_scale = self.current_scale * zoom_factor
 
-        # Clamp scale to slider limits (10% to 200%)
+        # Clamp scale to slider limits (1% to 200%)
         new_scale = max(0.1, min(2.0, new_scale))
 
         # Update slider value
@@ -444,11 +444,21 @@ class MapTab(QWidget):
             self.image_label.setText(f"Error loading map image: {self.map_image_path}")
             return
 
-        # Cache the successfully loaded pixmap
+            # Cache the successfully loaded pixmap
         self._pixmap_cache[self.map_image_path] = pixmap
-
-        # Update display
         self.original_pixmap = pixmap
+
+        # Calculate initial scale to fit width
+        viewport_width = self.scroll_area.viewport().width()
+        image_width = pixmap.width()
+
+        if image_width > 0:
+            # Calculate scale to fit width with a small margin (95% of viewport)
+            self.current_scale = (viewport_width) / image_width
+            # Update zoom slider to match
+            self.zoom_slider.setValue(int(self.current_scale * 100))
+
+        # Update display with calculated scale
         self._update_map_image_display()
         self.load_pins()
 
