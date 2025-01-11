@@ -12,6 +12,7 @@ Changelog
 - Fixed map reload on first zoom use
 - Made initial map zoom level adjust to windows size
 - removed critical bug preventing proper node description saving
+- removed node data duplication in export
 
 0.1.0
 

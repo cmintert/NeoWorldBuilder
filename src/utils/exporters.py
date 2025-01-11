@@ -134,6 +134,24 @@ class Exporter:
         """
         return "; ".join(f"{key}: {value}" for key, value in properties.items())
 
+    def _format_description(self, description_input: Any, format_type: str) -> str:
+        """
+        Get description in appropriate format based on export type.
+
+        Args:
+            description_input: The QTextEdit input widget containing the description
+            format_type: The type of export format ('json', 'txt', 'csv', 'pdf')
+
+        Returns:
+            str: The formatted description text
+        """
+        # Only PDF should retain HTML formatting
+        if format_type == "pdf":
+            return description_input.toHtml().strip()
+
+        # All other formats get plain text
+        return description_input.toPlainText().strip()
+
     def _handle_json(self, file_name: str, nodes_data: List[Dict[str, Any]]) -> None:
         """
         Handle JSON export.
@@ -142,6 +160,13 @@ class Exporter:
             file_name (str): The name of the file to save.
             nodes_data (List[Dict[str, Any]]): The list of node data to export.
         """
+        # Convert the descriptions to plain text before export
+        for node in nodes_data:
+            if "description" in node:
+                node["description"] = self._format_description(
+                    self.ui.description_input, "json"
+                )
+
         with open(file_name, "w") as file:
             json.dump(nodes_data, file, indent=4)
 
@@ -155,7 +180,12 @@ class Exporter:
         """
         with open(file_name, "w") as file:
             for node_data in nodes_data:
-                self._write_txt_node(file, node_data)
+                # Create a copy of node data with formatted description
+                node_with_formatted_desc = node_data.copy()
+                node_with_formatted_desc["description"] = self._format_description(
+                    self.ui.description_input, "txt"
+                )
+                self._write_txt_node(file, node_with_formatted_desc)
                 file.write("\n")
 
     def _write_txt_node(self, file: Any, node_data: Dict[str, Any]) -> None:
@@ -190,13 +220,18 @@ class Exporter:
                 "Name,Description,Tags,Labels,Relationships,Additional Properties\n"
             )
             for node_data in nodes_data:
+                # Format the description
+                formatted_desc = self._format_description(
+                    self.ui.description_input, "csv"
+                )
+
                 relationships = "; ".join(
                     self._format_relationship(rel) for rel in node_data["relationships"]
                 )
                 properties = self._format_properties(node_data["additional_properties"])
 
                 file.write(
-                    f"{node_data['name']},{node_data['description']},"
+                    f"{node_data['name']},{formatted_desc},"
                     f"{', '.join(node_data['tags'])},{', '.join(node_data['labels'])},"
                     f"{relationships},{properties}\n"
                 )
