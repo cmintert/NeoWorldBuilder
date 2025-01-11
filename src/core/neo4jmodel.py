@@ -297,11 +297,14 @@ class Neo4jModel:
 
         # Add non-system properties
 
-        if filtered_additional_props := {
+        # Filter out system properties and description from additional properties
+        filtered_additional_props = {
             k: v
             for k, v in additional_properties.items()
-            if not k.startswith("_") and k != "tags"
-        }:
+            if not k.startswith("_") and k not in ["description", "tags", "name"]
+        }
+
+        if filtered_additional_props:
             query_props = "MATCH (n {name: $name}) SET n += $additional_properties"
             tx.run(
                 query_props, name=name, additional_properties=filtered_additional_props
