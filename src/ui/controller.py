@@ -912,15 +912,21 @@ class WorldBuildingController(QObject):
         Returns:
             Optional[Dict[str, Any]]: The collected node data.
         """
+        # First create a filtered copy of all_props
+        filtered_props = {
+            k: v
+            for k, v in self.all_props.items()
+            if k not in {"name", "description", "tags"}
+        }
 
         return self.node_operations.collect_node_data(
             name=node_name,
-            description=self.ui.description_input.toPlainText().strip(),
+            description=self.ui.description_input.toHtml().strip(),
             tags=self.ui.tags_input.text(),
             labels=self.ui.labels_input.text(),
             properties=self._collect_table_properties(),
             relationships=self._collect_table_relationships(),
-            all_props=self.all_props,
+            all_props=filtered_props,  # Use filtered version
         )
 
     def load_last_modified_node(self) -> None:

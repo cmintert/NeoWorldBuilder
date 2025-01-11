@@ -11,3 +11,8 @@ Changelog
 - Tree View items are now only selected with left click, right click for context menue
 - Fixed map reload on first zoom use
 - Made initial map zoom level adjust to windows size
+- removed critical bug preventing proper node description saving
+
+0.1.0
+
+'Initial Release'
