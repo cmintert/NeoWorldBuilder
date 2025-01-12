@@ -27,5 +27,8 @@
         "BASE_PIN_HEIGHT": 32,
         "MIN_PIN_WIDTH": 12,
         "MIN_PIN_HEIGHT": 16
+    },
+    "user": {
+        "WORLD": "_DEFAULT"  
     }
 }

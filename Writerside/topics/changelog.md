@@ -1,5 +1,11 @@
 Changelog
 =========
+0.2.1
+
+'New Features'
+
+- Multiple "namespaces" can now be created
+
 0.2.0
 
 'New Features'
