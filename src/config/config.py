@@ -38,6 +38,15 @@ class ConfigNode:
             return self._data[name]
         raise AttributeError(f"Config has no attribute '{name}'")
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name.startswith("_"):
+            super().__setattr__(name, value)
+        else:
+            self._data[name] = value
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self._data[key] = value
+
     def __getitem__(self, key: str) -> Any:
         return self._data[key]
 
@@ -233,6 +242,12 @@ class Config(ConfigNode):
             "Preparing to save configuration",
             environment=self._environment,
             is_development=(self._environment == "development"),
+        )
+
+        logger.debug(
+            "Saving configuration changes",
+            current_config=self.to_dict(),
+            file_mapping=self._file_mapping,
         )
 
         # Determine target directory based on environment

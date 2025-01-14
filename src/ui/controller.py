@@ -28,6 +28,7 @@ from ui.components.dialogs import (
     ConnectionSettingsDialog,
     SuggestionDialog,
     FastInjectDialog,
+    ProjectSettingsDialog,
 )
 from ui.components.map_tab import MapTab
 from utils.error_handler import ErrorHandler
@@ -937,6 +938,10 @@ class WorldBuildingController(QObject):
             self.update_relationship_tree(self.ui.name_input.text().strip())
 
         self.node_operations.load_last_modified_node(on_load)
+
+    def open_project_settings(self) -> None:
+        dialog = ProjectSettingsDialog(self.config, self.app_instance)
+        dialog.exec()
 
     def open_connection_settings(self) -> None:
         dialog = ConnectionSettingsDialog(self.config, self.app_instance)
