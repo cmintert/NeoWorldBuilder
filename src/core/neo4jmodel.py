@@ -173,7 +173,7 @@ class Neo4jModel:
             QueryWorker: A worker that will execute the query.
         """
         query = """
-            MATCH (n {name: $name})
+            MATCH (n {name: $name, _project: $project})
             WITH n, labels(n) AS labels,
                  [(n)-[r]->(m) | {end: m.name, type: type(r), dir: '>', props: properties(r)}] AS out_rels,
                  [(n)<-[r2]-(o) | {end: o.name, type: type(r2), dir: '<', props: properties(r2)}] AS in_rels,
@@ -184,7 +184,7 @@ class Neo4jModel:
                    all_props
             LIMIT 1
         """
-        params = {"name": name}
+        params = {"name": name, "project": self._project}
         worker = QueryWorker(self._uri, self._auth, query, params)
 
         worker.query_finished.connect(callback)
@@ -420,8 +420,7 @@ class Neo4jModel:
         worker.delete_finished.connect(callback)
         return worker
 
-    @staticmethod
-    def _delete_node_transaction(tx: Any, name: str) -> None:
+    def _delete_node_transaction(self, tx: Any, name: str) -> None:
         """
         Private transaction handler for delete_node.
 
@@ -429,8 +428,8 @@ class Neo4jModel:
             tx: The transaction object.
             name (str): Name of the node to delete.
         """
-        query = "MATCH (n {name: $name}) DETACH DELETE n"
-        tx.run(query, name=name)
+        query = "MATCH (n {name: $name, _project:$project   }) DETACH DELETE n"
+        tx.run(query, name=name, project=self._project)
 
     #############################################
     # 3. Node Query Operations
@@ -460,6 +459,7 @@ class Neo4jModel:
             WHERE n.name = $name
               AND ALL(r IN relationships(path) WHERE startNode(r) IS NOT NULL AND endNode(r) IS NOT NULL)
               AND ALL(node IN nodes(path) WHERE node IS NOT NULL)
+              AND n._project = $project
             WITH path, length(path) AS path_length
             UNWIND range(1, path_length) AS idx
             WITH
@@ -477,7 +477,7 @@ class Neo4jModel:
                 depth
             ORDER BY depth ASC
         """
-        params = {"name": node_name}
+        params = {"name": node_name, "project": self._project}
 
         worker = QueryWorker(self._uri, self._auth, query, params)
         worker.query_finished.connect(callback)
@@ -497,6 +497,7 @@ class Neo4jModel:
                 MATCH (n)
                 WITH n, labels(n) AS labels
                 WHERE size(labels) > 1
+                AND n._project = $project
                 RETURN DISTINCT head(labels) as category, 
                        collect(n.name) as nodes
                 ORDER BY category
@@ -613,6 +614,10 @@ class Neo4jModel:
         Raises:
             ValueError: If the query appears to be a write operation
         """
+        params = params or {}
+        if "project" not in params:
+            params["project"] = self._project
+
         # Convert query to uppercase for easier checking
         query_upper = query.upper().strip()
 
