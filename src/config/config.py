@@ -4,8 +4,11 @@ import os
 import platform
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import threading
 
 import structlog
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 logger = structlog.get_logger().bind(module="config")
 
@@ -126,16 +129,19 @@ class Config(ConfigNode):
     """Configuration class that maintains hierarchical structure from JSON files."""
 
     _instance = None
+    _observer = None
+    _lock = threading.Lock()
 
     def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
+        with cls._lock:
+            if cls._instance is None:
+                logger.info(
+                    "Creating new Config instance", module="config", class_name="Config"
+                )
+                cls._instance = super(Config, cls).__new__(cls)
             logger.info(
-                "Creating new Config instance", module="config", class_name="Config"
+                "Returning existing Config instance", module="config", class_name="Config"
             )
-            cls._instance = super(Config, cls).__new__(cls)
-        logger.info(
-            "Returning existing Config instance", module="config", class_name="Config"
-        )
         return cls._instance
 
     def __init__(self, json_files: List[str]) -> None:
@@ -188,6 +194,9 @@ class Config(ConfigNode):
 
         # Finally, initialize the ConfigNode with our complete tree
         super().__init__(config_tree, source_file=None, environment=self._environment)
+
+        # Start watching config files for changes
+        self.watch_config_files()
 
     def _ensure_env_config_exists(self) -> None:
         """Ensure environment-specific config files exist.
@@ -513,3 +522,25 @@ class Config(ConfigNode):
         final_path = base_path / "neoworldbuilder" / "config"
         logger.info("Final environment config path", path=str(final_path))
         return final_path
+
+    def watch_config_files(self) -> None:
+        """Watch configuration files for changes and reload on modification."""
+        if self._observer is not None:
+            self._observer.stop()
+
+        event_handler = ConfigFileChangeHandler(self)
+        self._observer = Observer()
+        for json_file in self._json_files:
+            self._observer.schedule(event_handler, str(Path(json_file).parent), recursive=False)
+        self._observer.start()
+
+class ConfigFileChangeHandler(FileSystemEventHandler):
+    """Handler for file system events related to configuration files."""
+
+    def __init__(self, config: Config):
+        self.config = config
+
+    def on_modified(self, event):
+        if event.src_path in self.config._json_files:
+            logger.info(f"Configuration file {event.src_path} modified. Reloading configuration.")
+            self.config.reload()
