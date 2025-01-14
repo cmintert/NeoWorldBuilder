@@ -44,7 +44,7 @@ class Neo4jModel:
         self._auth = (username, password)
         self._driver = None
         self._config = config
-        self._project = self._config.user.PROJECT
+        self._project = config.user.PROJECT
 
         self.connect()
 
