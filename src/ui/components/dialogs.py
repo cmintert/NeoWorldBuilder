@@ -1049,3 +1049,72 @@ class PinPlacementDialog(QDialog):
     def get_target_node(self) -> Optional[str]:
         """Get the entered target node name."""
         return self.target_input.text().strip() or None
+
+
+class ProjectSettingsDialog(QDialog):
+    """
+    Dialog for managing application styles and themes.
+    Allows users to choose and preview different styles in real-time.
+    """
+
+    def __init__(self, config, app_instance, parent=None):
+        super().__init__(parent)
+
+        self.config = config
+        self.app_instance = app_instance
+        self._project_name_input = QLineEdit()
+
+        # Get the controller from app_instance.components
+        if not hasattr(app_instance, "components") or not app_instance.components:
+            raise RuntimeError("Application components not initialized")
+
+        self.controller = app_instance.components.controller
+
+        self.setWindowTitle("Project Settings")
+        self.setModal(True)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        self.setWindowTitle("Project Settings")
+        self.setModal(True)
+        self.setMinimumWidth(300)
+
+        layout = QVBoxLayout(self)
+        form_layout = QFormLayout()
+
+        # Create input fields
+        self._project_name_input.setPlaceholderText(
+            f"Current: {self.config.user.PROJECT}"
+        )
+
+        # Add fields to form
+        form_layout.addRow("Project Name:", self._project_name_input)
+
+        # Add a save button
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save
+            | QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(self.save_project_name)
+        button_box.rejected.connect(self.reject)
+
+        layout.addLayout(form_layout)
+        layout.addWidget(button_box)
+
+    def save_project_name(self):
+        project_name = self._project_name_input.text().strip()
+        if not project_name:
+            QMessageBox.critical(self, "Error", "Project name cannot be empty")
+            return
+
+        try:
+            self.config.set_value("user.PROJECT", project_name)
+            QMessageBox.information(
+                self, "Success", "Project name updated successfully"
+            )
+            self.accept()
+
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"Failed to save project name: {str(e)}"
+            )

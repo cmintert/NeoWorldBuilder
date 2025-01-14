@@ -44,9 +44,18 @@ class Neo4jModel:
         self._auth = (username, password)
         self._driver = None
         self._config = config
+        self._project = config.user.PROJECT
+
         self.connect()
+        self.migrate_project_property()
+
         logger.info(
             "Neo4jModel initialized and connected to the database.",
+            module="Neo4jModel",
+            function="__init__",
+        )
+        logger.debug(
+            "Current project: " + self._project,
             module="Neo4jModel",
             function="__init__",
         )
@@ -165,7 +174,7 @@ class Neo4jModel:
             QueryWorker: A worker that will execute the query.
         """
         query = """
-            MATCH (n {name: $name})
+            MATCH (n {name: $name, _project: $project})
             WITH n, labels(n) AS labels,
                  [(n)-[r]->(m) | {end: m.name, type: type(r), dir: '>', props: properties(r)}] AS out_rels,
                  [(n)<-[r2]-(o) | {end: o.name, type: type(r2), dir: '<', props: properties(r2)}] AS in_rels,
@@ -176,7 +185,7 @@ class Neo4jModel:
                    all_props
             LIMIT 1
         """
-        params = {"name": name}
+        params = {"name": name, "project": self._project}
         worker = QueryWorker(self._uri, self._auth, query, params)
 
         worker.query_finished.connect(callback)
@@ -200,8 +209,7 @@ class Neo4jModel:
         worker.write_finished.connect(callback)
         return worker
 
-    @staticmethod
-    def _save_node_transaction(tx: Any, node_data: Dict[str, Any]) -> None:
+    def _save_node_transaction(self, tx: Any, node_data: Dict[str, Any]) -> None:
         """
         Private transaction handler for save_node.
         Preserves and updates system properties (_created, _modified, _author) while replacing all others.
@@ -231,16 +239,17 @@ class Neo4jModel:
         # 1. Get existing system properties
         # Updated to specifically check for _created timestamp
         query_get_system = """
-        MATCH (n {name: $name})
+        MATCH (n {name: $name, _project: $project})
         RETURN n._created as created
         """
-        result = tx.run(query_get_system, name=name)
+        result = tx.run(query_get_system, name=name, project=self._project)
         record = result.single()
 
         # 2. Prepare system properties
         system_props = {
             "_author": "System",  # Always set author
             "_modified": datetime.now().isoformat(),  # Always update modified time
+            "_project": self._project,  # Always set to active project
         }
 
         # Only set _created if it doesn't exist
@@ -254,9 +263,15 @@ class Neo4jModel:
         # Create a new node if it doesn't exist
         if not record:
             query_create = """
-            CREATE (n {name: $name, description: $description, tags: $tags})
+            CREATE (n {name: $name, description: $description, tags: $tags,_project: $project})
             """
-            tx.run(query_create, name=name, description=description, tags=tags)
+            tx.run(
+                query_create,
+                name=name,
+                description=description,
+                tags=tags,
+                project=self._project,
+            )
 
         # 3. Reset node with core properties and system properties
         base_props = {
@@ -267,13 +282,17 @@ class Neo4jModel:
         }
 
         query_reset = """
-        MATCH (n {name: $name})
+        MATCH (n {name: $name, _project: $project})
         SET n = $base_props
         """
-        tx.run(query_reset, name=name, base_props=base_props)
+        tx.run(query_reset, name=name, base_props=base_props, project=self._project)
 
         # 4. Handle labels
-        result = tx.run("MATCH (n {name: $name}) RETURN labels(n) AS labels", name=name)
+        result = tx.run(
+            "MATCH (n {name: $name,_project:$project}) RETURN labels(n) AS labels",
+            name=name,
+            project=self._project,
+        )
         record = result.single()
         existing_labels = record["labels"] if record else []
 
@@ -286,14 +305,18 @@ class Neo4jModel:
         # Add new labels
         if labels_to_add:
             labels_str = ":".join([f"`{label}`" for label in labels_to_add])
-            query_add = f"MATCH (n {{name: $name}}) SET n:{labels_str}"
-            tx.run(query_add, name=name)
+            query_add = (
+                f"MATCH (n {{name: $name,_project:$project }}) SET n:{labels_str}"
+            )
+            tx.run(query_add, name=name, project=self._project)
 
         # Remove old labels
         if labels_to_remove:
             labels_str = ", ".join([f"n:`{label}`" for label in labels_to_remove])
-            query_remove = f"MATCH (n {{name: $name}}) REMOVE {labels_str}"
-            tx.run(query_remove, name=name)
+            query_remove = (
+                f"MATCH (n {{name: $name,_project:$project }}) REMOVE {labels_str}"
+            )
+            tx.run(query_remove, name=name, project=self._project)
 
         # Add non-system properties
 
@@ -305,15 +328,18 @@ class Neo4jModel:
         }
 
         if filtered_additional_props:
-            query_props = "MATCH (n {name: $name}) SET n += $additional_properties"
+            query_props = "MATCH (n {name: $name, _project:$project}) SET n += $additional_properties"
             tx.run(
-                query_props, name=name, additional_properties=filtered_additional_props
+                query_props,
+                name=name,
+                additional_properties=filtered_additional_props,
+                project=self._project,
             )
 
         # 6. Handle relationships
         # Remove existing relationships
-        query_remove_rels = "MATCH (n {name: $name})-[r]-() DELETE r"
-        tx.run(query_remove_rels, name=name)
+        query_remove_rels = "MATCH (n {name: $name,_project:$project})-[r]-() DELETE r"
+        tx.run(query_remove_rels, name=name, project=self._project)
 
         # Create/update relationships
         for rel in relationships:
@@ -325,11 +351,14 @@ class Neo4jModel:
                 "_author": "System",
                 "_created": datetime.now().isoformat(),
                 "_modified": datetime.now().isoformat(),
+                "_project": self._project,
             }
 
             # First check if target exists
-            check_query = "MATCH (target {name: $rel_name}) RETURN target"
-            result = tx.run(check_query, rel_name=rel_name)
+            check_query = (
+                "MATCH (target {name: $rel_name, _project:$project}) RETURN target"
+            )
+            result = tx.run(check_query, rel_name=rel_name, project=self._project)
             target_exists = result.single() is not None
 
             # Handle target node
@@ -345,7 +374,7 @@ class Neo4jModel:
             if direction == ">":
                 query_rel = (
                     """
-                    MATCH (n {name: $name}), (target {name: $rel_name})
+                    MATCH (n {name: $name,_project:$project}), (target {name: $rel_name, _project:$project})
                     MERGE (n)-[r:`%s`]->(target)
                     SET r = $properties
                 """
@@ -354,14 +383,20 @@ class Neo4jModel:
             else:
                 query_rel = (
                     """
-                    MATCH (n {name: $name}), (target {name: $rel_name})
+                    MATCH (n {name: $name,_project:$project}), (target {name: $rel_name, _project:$project})
                     MERGE (n)<-[r:`%s`]-(target)
                     SET r = $properties
                 """
                     % rel_type
                 )
 
-            tx.run(query_rel, name=name, rel_name=rel_name, properties=properties)
+            tx.run(
+                query_rel,
+                name=name,
+                rel_name=rel_name,
+                properties=properties,
+                project=self._project,
+            )
 
         logger.debug(
             "Finished Save Node Transaction",
@@ -386,8 +421,7 @@ class Neo4jModel:
         worker.delete_finished.connect(callback)
         return worker
 
-    @staticmethod
-    def _delete_node_transaction(tx: Any, name: str) -> None:
+    def _delete_node_transaction(self, tx: Any, name: str) -> None:
         """
         Private transaction handler for delete_node.
 
@@ -395,8 +429,8 @@ class Neo4jModel:
             tx: The transaction object.
             name (str): Name of the node to delete.
         """
-        query = "MATCH (n {name: $name}) DETACH DELETE n"
-        tx.run(query, name=name)
+        query = "MATCH (n {name: $name, _project:$project   }) DETACH DELETE n"
+        tx.run(query, name=name, project=self._project)
 
     #############################################
     # 3. Node Query Operations
@@ -426,6 +460,7 @@ class Neo4jModel:
             WHERE n.name = $name
               AND ALL(r IN relationships(path) WHERE startNode(r) IS NOT NULL AND endNode(r) IS NOT NULL)
               AND ALL(node IN nodes(path) WHERE node IS NOT NULL)
+              AND n._project = $project
             WITH path, length(path) AS path_length
             UNWIND range(1, path_length) AS idx
             WITH
@@ -443,7 +478,7 @@ class Neo4jModel:
                 depth
             ORDER BY depth ASC
         """
-        params = {"name": node_name}
+        params = {"name": node_name, "project": self._project}
 
         worker = QueryWorker(self._uri, self._auth, query, params)
         worker.query_finished.connect(callback)
@@ -463,6 +498,7 @@ class Neo4jModel:
                 MATCH (n)
                 WITH n, labels(n) AS labels
                 WHERE size(labels) > 1
+                AND n._project = $project
                 RETURN DISTINCT head(labels) as category, 
                        collect(n.name) as nodes
                 ORDER BY category
@@ -486,9 +522,10 @@ class Neo4jModel:
         """
         query = (
             "MATCH (n) WHERE toLower(n.name) CONTAINS toLower($prefix) "
+            "AND n._project = $project "
             "RETURN n.name AS name LIMIT $limit"
         )
-        params = {"prefix": prefix, "limit": limit}
+        params = {"prefix": prefix, "limit": limit, "project": self._project}
         worker = QueryWorker(self._uri, self._auth, query, params)
         worker.query_finished.connect(callback)
         return worker
@@ -529,12 +566,13 @@ class Neo4jModel:
         """
         query = """
         MATCH (n)
+        WHERE n._project = $project
         RETURN n.name AS name, n._modified AS modified
         ORDER BY modified DESC
         LIMIT 1
         """
         with self.get_session() as session:
-            result = session.run(query)
+            result = session.run(query, project=self._project)
             record = result.single()
             return dict(record) if record else None
 
@@ -550,15 +588,43 @@ class Neo4jModel:
         query = """
         MATCH (n) 
         WHERE n.name IS NOT NULL
+        AND n._project = $project
         RETURN n.name AS name
         ORDER BY n.name
         """
 
-        worker = QueryWorker(self._uri, self._auth, query)
+        worker = QueryWorker(self._uri, self._auth, query, {"project": self._project})
         worker.query_finished.connect(
             lambda records: callback([r["name"] for r in records])
         )
         return worker
+
+    def migrate_project_property(self) -> None:
+        """Add _project property with 'default' value to nodes missing it."""
+        query = """
+        MATCH (n)
+        WHERE n._project IS NULL OR n._project = ''
+        SET n._project = "default"
+        RETURN count(n) as migrated
+        """
+        try:
+            with self.get_session() as session:
+                result = session.run(query)
+                migrated = result.single()["migrated"]
+                if migrated > 0:
+                    logger.info(
+                        "Project property migration completed",
+                        module="Neo4jModel",
+                        function="migrate_project_property",
+                        migrated_nodes=migrated,
+                    )
+        except Exception as e:
+            logger.error(
+                "Project property migration failed",
+                module="Neo4jModel",
+                function="migrate_project_property",
+                error=str(e),
+            )
 
     def execute_read_query(
         self, query: str, params: Optional[Dict[str, Any]] = None
@@ -576,6 +642,10 @@ class Neo4jModel:
         Raises:
             ValueError: If the query appears to be a write operation
         """
+        params = params or {}
+        if "project" not in params:
+            params["project"] = self._project
+
         # Convert query to uppercase for easier checking
         query_upper = query.upper().strip()
 
@@ -642,6 +712,7 @@ class Neo4jModel:
         query = """
         MATCH (n)
         WHERE elementId(n) = $element_id
+        AND n._project = $project
         SET n.name = $new_name, 
             n._modified = $timestamp
         RETURN n
@@ -651,6 +722,7 @@ class Neo4jModel:
             "element_id": element_id,
             "new_name": new_name,
             "timestamp": datetime.now().isoformat(),
+            "project": self._project,
         }
 
         worker = WriteWorker(

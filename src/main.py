@@ -536,6 +536,12 @@ class WorldBuildingApp(QMainWindow):
         )
         export_menu.addAction(export_pdf_action)
 
+        open_project_settings_action = QAction("Project Settings", self)
+        open_project_settings_action.triggered.connect(
+            self.components.controller.open_project_settings
+        )
+        settings_menue.addAction(open_project_settings_action)
+
         open_connection_settings_action = QAction("Database Connection", self)
         open_connection_settings_action.triggered.connect(
             self.components.controller.open_connection_settings
@@ -546,7 +552,6 @@ class WorldBuildingApp(QMainWindow):
         open_style_settings_action.triggered.connect(
             self.components.controller.open_style_settings
         )
-
         settings_menue.addAction(open_style_settings_action)
 
     def _handle_initialization_error(self, error: Exception) -> None:

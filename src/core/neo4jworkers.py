@@ -327,6 +327,7 @@ class SuggestionWorker(BaseNeo4jWorker):
         super().__init__(uri, auth)
         self.node_data = node_data
         self.config = config
+        self._project = config.user.PROJECT
 
     #####  The following methods are used to fetch data from the Neo4j database  #####
 
@@ -387,6 +388,7 @@ class SuggestionWorker(BaseNeo4jWorker):
         query = """
                 MATCH (n)
                 WHERE n.name = $node_name
+                AND n._project = $project
                 OPTIONAL MATCH (n)-[r]->(m)
                 OPTIONAL MATCH (n)<-[r_in]-(m_in)
                 RETURN n,
@@ -403,7 +405,7 @@ class SuggestionWorker(BaseNeo4jWorker):
                            direction: 'INCOMING'
                        }) AS relationships
         """
-        params = {"node_name": self.node_data.get("name")}
+        params = {"node_name": self.node_data.get("name"), "project": self._project}
 
         with self._driver.session() as session:
             result = session.run(query, params).single()
@@ -436,6 +438,7 @@ class SuggestionWorker(BaseNeo4jWorker):
         query = """
                 MATCH (n)
                 WHERE ANY(label IN $node_labels WHERE label IN labels(n))
+                AND n._project = $project
                 OPTIONAL MATCH (n)-[r]->(m)
                 OPTIONAL MATCH (n)<-[r_in]-(m_in)
                 RETURN n,
@@ -452,7 +455,7 @@ class SuggestionWorker(BaseNeo4jWorker):
                            direction: 'INCOMING'
                        }) AS relationships
                 """
-        params = {"node_labels": labels}
+        params = {"node_labels": labels, "project": self._project}
 
         nodes_data = []
         with self._driver.session() as session:
@@ -484,6 +487,7 @@ class SuggestionWorker(BaseNeo4jWorker):
         logger.debug("Fetching data for all nodes in the database")
         query = """
                 MATCH (n)
+                WHERE n._project = $project
                 OPTIONAL MATCH (n)-[r]->(m)
                 OPTIONAL MATCH (n)<-[r_in]-(m_in)
                 RETURN n,
@@ -503,7 +507,7 @@ class SuggestionWorker(BaseNeo4jWorker):
 
         nodes_data = []
         with self._driver.session() as session:
-            results = session.run(query)
+            results = session.run(query, {"project": self._project})
             for result in results:
                 node = result["n"]
                 relationships = [
