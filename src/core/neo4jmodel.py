@@ -520,9 +520,10 @@ class Neo4jModel:
         """
         query = (
             "MATCH (n) WHERE toLower(n.name) CONTAINS toLower($prefix) "
+            "AND n._project = $project "
             "RETURN n.name AS name LIMIT $limit"
         )
-        params = {"prefix": prefix, "limit": limit}
+        params = {"prefix": prefix, "limit": limit, "project": self._project}
         worker = QueryWorker(self._uri, self._auth, query, params)
         worker.query_finished.connect(callback)
         return worker
