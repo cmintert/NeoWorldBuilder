@@ -415,7 +415,9 @@ class FilterClauseBuilder(ClauseBuilder):
         self.criteria = criteria
 
     def build(self) -> QueryComponent:
-        clauses = []
+        # Always filter by project, param will be added in Neo4jWorker
+        # execute_read_querry method
+        clauses = ["n._project = $project"]
 
         if self.criteria.exclude_labels:
             # Create individual exclusions for each label joined with OR
