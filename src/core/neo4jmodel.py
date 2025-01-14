@@ -564,12 +564,13 @@ class Neo4jModel:
         """
         query = """
         MATCH (n)
+        WHERE n._project = $project
         RETURN n.name AS name, n._modified AS modified
         ORDER BY modified DESC
         LIMIT 1
         """
         with self.get_session() as session:
-            result = session.run(query)
+            result = session.run(query, project=self._project)
             record = result.single()
             return dict(record) if record else None
 
@@ -585,11 +586,12 @@ class Neo4jModel:
         query = """
         MATCH (n) 
         WHERE n.name IS NOT NULL
+        AND n._project = $project
         RETURN n.name AS name
         ORDER BY n.name
         """
 
-        worker = QueryWorker(self._uri, self._auth, query)
+        worker = QueryWorker(self._uri, self._auth, query, {"project": self._project})
         worker.query_finished.connect(
             lambda records: callback([r["name"] for r in records])
         )
