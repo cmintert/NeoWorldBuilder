@@ -47,6 +47,7 @@ class Neo4jModel:
         self._project = config.user.PROJECT
 
         self.connect()
+        self.migrate_project_property()
 
         logger.info(
             "Neo4jModel initialized and connected to the database.",
@@ -597,6 +598,33 @@ class Neo4jModel:
             lambda records: callback([r["name"] for r in records])
         )
         return worker
+
+    def migrate_project_property(self) -> None:
+        """Add _project property with 'default' value to nodes missing it."""
+        query = """
+        MATCH (n)
+        WHERE n._project IS NULL OR n._project = ''
+        SET n._project = "default"
+        RETURN count(n) as migrated
+        """
+        try:
+            with self.get_session() as session:
+                result = session.run(query)
+                migrated = result.single()["migrated"]
+                if migrated > 0:
+                    logger.info(
+                        "Project property migration completed",
+                        module="Neo4jModel",
+                        function="migrate_project_property",
+                        migrated_nodes=migrated,
+                    )
+        except Exception as e:
+            logger.error(
+                "Project property migration failed",
+                module="Neo4jModel",
+                function="migrate_project_property",
+                error=str(e),
+            )
 
     def execute_read_query(
         self, query: str, params: Optional[Dict[str, Any]] = None
