@@ -125,6 +125,19 @@ class ConfigNode:
 class Config(ConfigNode):
     """Configuration class that maintains hierarchical structure from JSON files."""
 
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            logger.info(
+                "Creating new Config instance", module="config", class_name="Config"
+            )
+            cls._instance = super(Config, cls).__new__(cls)
+        logger.info(
+            "Returning existing Config instance", module="config", class_name="Config"
+        )
+        return cls._instance
+
     def __init__(self, json_files: List[str]) -> None:
 
         self._file_mapping = {}  # Maps top-level keys to their source files
@@ -413,6 +426,7 @@ class Config(ConfigNode):
         Args:
             json_files: Optional list of JSON files to reload. If None, uses existing file list.
         """
+
         # Update file list if provided
         if json_files is not None:
             self._json_files = json_files

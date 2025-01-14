@@ -1,4 +1,3 @@
-import sys
 from typing import Dict, List, Tuple, Any, Set, Union, Optional
 
 from PyQt6.QtCore import Qt, pyqtSlot, QTimer
@@ -16,7 +15,6 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QInputDialog,
     QButtonGroup,
-    QApplication,
     QDialog,
     QVBoxLayout,
     QFormLayout,
@@ -31,6 +29,7 @@ from neo4j.exceptions import AuthError, ServiceUnavailable
 from structlog import get_logger
 
 from config.config import ConfigNode
+from utils.app_shutdown import perform_application_exit
 from utils.crypto import SecurityUtility
 
 logger = get_logger(__name__)
@@ -452,7 +451,7 @@ class ConnectionSettingsDialog(QDialog):
                 # Accept dialog first
                 self.accept()
                 # Schedule application exit
-                QTimer.singleShot(0, lambda: self._perform_application_exit())
+                QTimer.singleShot(0, lambda: perform_application_exit())
             else:
                 self.accept()
 
@@ -463,25 +462,6 @@ class ConnectionSettingsDialog(QDialog):
                 f"Failed to save settings: {str(e)}\n\n"
                 "Please check application permissions and try again.",
             )
-
-    def _perform_application_exit(self):
-        """Perform a clean application exit."""
-        try:
-            # Get the main window instance
-            main_window = self.app_instance
-
-            # Cleanup if possible
-            if hasattr(main_window, "cleanup"):
-                main_window.cleanup()
-
-            # Quit the application
-            QApplication.instance().quit()
-
-            # Force exit if needed
-            sys.exit(0)
-        except Exception as e:
-            logger.error(f"Error during application exit: {e}")
-            sys.exit(1)
 
 
 class FastInjectDialog(QDialog):
@@ -1080,7 +1060,9 @@ class ProjectSettingsDialog(QDialog):
         self.setMinimumWidth(300)
 
         layout = QVBoxLayout(self)
+
         form_layout = QFormLayout()
+        warning = QLabel("WARNING: Changing the project name will require a restart")
 
         # Create input fields
         self._project_name_input.setPlaceholderText(
@@ -1098,6 +1080,7 @@ class ProjectSettingsDialog(QDialog):
         button_box.accepted.connect(self.save_project_name)
         button_box.rejected.connect(self.reject)
 
+        layout.addWidget(warning)
         layout.addLayout(form_layout)
         layout.addWidget(button_box)
 
@@ -1110,9 +1093,12 @@ class ProjectSettingsDialog(QDialog):
         try:
             self.config.set_value("user.PROJECT", project_name)
             QMessageBox.information(
-                self, "Success", "Project name updated successfully"
+                self,
+                "Success",
+                "Project name updated successfully, application will shutdown, please restart",
             )
             self.accept()
+            QTimer.singleShot(0, lambda: perform_application_exit(self))
 
         except Exception as e:
             QMessageBox.critical(
