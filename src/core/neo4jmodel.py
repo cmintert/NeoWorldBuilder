@@ -679,6 +679,7 @@ class Neo4jModel:
         query = """
         MATCH (n)
         WHERE elementId(n) = $element_id
+        AND n._project = $project
         SET n.name = $new_name, 
             n._modified = $timestamp
         RETURN n
@@ -688,6 +689,7 @@ class Neo4jModel:
             "element_id": element_id,
             "new_name": new_name,
             "timestamp": datetime.now().isoformat(),
+            "project": self._project,
         }
 
         worker = WriteWorker(
