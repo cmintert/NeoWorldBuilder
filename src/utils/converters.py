@@ -1,165 +1,123 @@
 """
-This module provides the NamingConventionConverter class, which handles conversions and validations for labels, properties, tags, relationships, and relationship properties.
+This module provides the Neo4jNameValidator class, which handles validation for labels, properties, tags, and relationships according to Neo4j requirements.
 """
 
 import logging
-import re
-from typing import List, Dict, Any
-from typing import Tuple
+from typing import Dict, Any, List, Tuple
 
 import pandas as pd
 
-
-class NamingConventionConverter:
-    """
-    Class to handle conversions and validations for labels, properties, tags, relationships, and relationship properties.
-    """
-
-    @staticmethod
-    def to_camel_case(label: str) -> str:
-        """
-        Convert a label to CamelCase, treating special characters as blanks and removing leading numbers.
-
-        Args:
-            label (str): The label to convert.
-
-        Returns:
-            str: The label in CamelCase format.
-        """
-        # Replace special characters with spaces and remove leading numbers
-        label = re.sub(r"[^a-zA-Z0-9_ ]", " ", label)
-        label = re.sub(r"^\d+", "", label)
-        parts = label.split()
-        return "".join(word.capitalize() for word in parts)
-
-    @staticmethod
-    def to_upper_underscore(relationship_type: str) -> str:
-        """
-        Convert a relationship type to UPPERCASE_WITH_UNDERSCORES, treating special characters as blanks and removing leading numbers.
-
-        Args:
-            relationship_type (str): The relationship type to convert.
-
-        Returns:
-            str: The relationship type in UPPERCASE_WITH_UNDERSCORES format.
-        """
-        # Replace special characters with spaces and remove leading numbers
-        relationship_type = re.sub(r"[^a-zA-Z0-9_ ]", " ", relationship_type)
-        relationship_type = re.sub(r"^\d+", "", relationship_type)
-        return relationship_type.upper().replace(" ", "_")
-
-    @staticmethod
-    def to_camel_case_key(key: str) -> str:
-        """
-        Convert a property key to camelCase, treating special characters as blanks and removing leading numbers.
-
-        Args:
-            key (str): The key to convert.
-
-        Returns:
-            str: The key in camelCase format.
-        """
-        # Replace special characters with underscores and remove leading numbers
-        key = re.sub(r"[^a-zA-Z0-9_]", "_", key)
-        key = re.sub(r"^\d+", "", key)
-        parts = key.split("_")
-        return parts[0].lower() + "".join(word.capitalize() for word in parts[1:])
-
-    @staticmethod
-    def is_camel_case(label: str) -> bool:
-        """
-        Check if a label is in CamelCase format, treating special characters as blanks and removing leading numbers.
-
-        Args:
-            label (str): The label to check.
-
-        Returns:
-            bool: True if the label is in CamelCase format, False otherwise.
-        """
-        # Replace special characters with spaces and remove leading numbers
-        label = re.sub(r"[^a-zA-Z0-9_ ]", " ", label)
-        label = re.sub(r"^\d+", "", label)
-        return label == "".join(word.capitalize() for word in label.split())
-
-    @staticmethod
-    def is_upper_underscore(relationship_type: str) -> bool:
-        """
-        Check if a relationship type is in UPPERCASE_WITH_UNDERSCORES format, treating special characters as blanks and removing leading numbers.
-
-        Args:
-            relationship_type (str): The relationship type to check.
-
-        Returns:
-            bool: True if the relationship type is in UPPERCASE_WITH_UNDERSCORES format, False otherwise.
-        """
-        # Replace special characters with spaces and remove leading numbers
-        relationship_type = re.sub(r"[^a-zA-Z0-9_ ]", " ", relationship_type)
-        relationship_type = re.sub(r"^\d+", "", relationship_type)
-        return relationship_type == relationship_type.upper().replace(" ", "_")
-
-    @staticmethod
-    def is_camel_case_key(key: str) -> bool:
-        """
-        Check if a property key is in camelCase format, treating special characters as blanks and removing leading numbers.
-
-        Args:
-            key (str): The key to check.
-
-        Returns:
-            bool: True if the key is in camelCase format, False otherwise.
-        """
-        # Replace special characters with underscores and remove leading numbers
-        key = re.sub(r"[^a-zA-Z0-9_]", "_", key)
-        key = re.sub(r"^\d+", "", key)
-        parts = key.split("_")
-        formatted_key = parts[0].lower() + "".join(
-            word.capitalize() for word in parts[1:]
-        )
-        return key == formatted_key
-
-    @staticmethod
-    def convert_node_data(node_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Convert labels, property keys, and relationships in node data to enforce naming conventions.
-
-        Args:
-            node_data (dict): The node data including labels, properties, and relationships.
-
-        Returns:
-            dict: The converted node data.
-        """
-        # Convert labels to CamelCase
-        node_data["labels"] = [
-            NamingConventionConverter.to_upper_underscore(label)
-            for label in node_data.get("labels", [])
-        ]
-
-        # Convert property keys to camelCase
-        node_data["additional_properties"] = {
-            NamingConventionConverter.to_camel_case_key(k): v
-            for k, v in node_data.get("additional_properties", {}).items()
-        }
-
-        # Convert relationships
-        updated_realationships: List[Tuple[str, str, str, Dict[str, Any]]] = []
-        for rel in node_data.get("relationships", []):
-            relationship_type, target, direction, properties = rel
-            converted_relationship_type = NamingConventionConverter.to_upper_underscore(
-                relationship_type
-            )
-            converted_properties = {
-                NamingConventionConverter.to_camel_case_key(k): v
-                for k, v in properties.items()
-            }
-            updated_realationships.append(
-                (converted_relationship_type, target, direction, converted_properties)
-            )
-        node_data["relationships"] = updated_realationships
-
-        return node_data
-
+from .validation_rules import ValidationRules
 
 logger = logging.getLogger(__name__)
+
+
+class Neo4jNameValidator:
+    """
+    Class to handle validation for Neo4j entity names according to Neo4j requirements.
+    """
+
+    def __init__(self):
+        self.rules = ValidationRules()
+
+    def validate_label(self, label: str) -> Tuple[bool, str]:
+        """
+        Validate a label according to Neo4j requirements.
+
+        Args:
+            label: The label to validate
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if not label or not label.strip():
+            return False, self.rules.EMPTY_NAME_ERROR
+
+        if len(label) > self.rules.MAX_LENGTH:
+            return False, self.rules.LENGTH_ERROR.format(self.rules.MAX_LENGTH)
+
+        if not self.rules.valid_chars_check.match(label):
+            return False, f"Label '{label}': {self.rules.INVALID_CHARS_ERROR}"
+
+        return True, ""
+
+    def validate_relationship_type(self, rel_type: str) -> Tuple[bool, str]:
+        """
+        Validate a relationship type according to Neo4j requirements.
+
+        Args:
+            rel_type: The relationship type to validate
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if not rel_type or not rel_type.strip():
+            return False, self.rules.EMPTY_NAME_ERROR
+
+        if len(rel_type) > self.rules.MAX_LENGTH:
+            return False, self.rules.LENGTH_ERROR.format(self.rules.MAX_LENGTH)
+
+        if not self.rules.valid_chars_check.match(rel_type):
+            return (
+                False,
+                f"Relationship type '{rel_type}': {self.rules.INVALID_CHARS_ERROR}",
+            )
+
+        return True, ""
+
+    def validate_property_key(self, key: str) -> Tuple[bool, str]:
+        """
+        Validate a property key according to Neo4j requirements.
+
+        Args:
+            key: The property key to validate
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if not key or not key.strip():
+            return False, self.rules.EMPTY_NAME_ERROR
+
+        if len(key) > self.rules.MAX_LENGTH:
+            return False, self.rules.LENGTH_ERROR.format(self.rules.MAX_LENGTH)
+
+        if not self.rules.valid_chars_check.match(key):
+            return False, f"Property key '{key}': {self.rules.INVALID_CHARS_ERROR}"
+
+        return True, ""
+
+    def validate_node_data(self, node_data: Dict[str, Any]) -> List[str]:
+        """
+        Validate all names in node data according to Neo4j requirements.
+
+        Args:
+            node_data: Dictionary containing node data
+
+        Returns:
+            List of error messages (empty if all valid)
+        """
+        errors = []
+
+        # Validate labels
+        for label in node_data.get("labels", []):
+            valid, error = self.validate_label(label)
+            if not valid:
+                errors.append(error)
+
+        # Validate relationships
+        for rel in node_data.get("relationships", []):
+            rel_type = rel[0]
+            valid, error = self.validate_relationship_type(rel_type)
+            if not valid:
+                errors.append(error)
+
+        # Validate property keys
+        for key in node_data.get("additional_properties", {}):
+            valid, error = self.validate_property_key(key)
+            if not valid:
+                errors.append(error)
+
+        return errors
 
 
 class DataFrameBuilder:

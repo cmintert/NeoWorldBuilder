@@ -1,0 +1,31 @@
+{
+    "name": "Abyssal Space Vessel Statblock",
+    "description": "Gives a basic Statblock for an Abyssal Space Vessel",
+    "content": {
+        "labels": ["Space_Vessel", "Vessel"],
+        "tags": ["vehicle", "interstellar", "systemship", "transportation", "stats"],
+        "properties": {
+            "size": 200,
+            "Crew_Compartment": 4,
+            "MaxG": 3,
+            "Signal_Rating": 3,
+            "Cargo_Capacity": 30,
+            "StE": 10,
+            "ElE": 10,
+            "Armour": 10,
+            "EWDR": 2,
+            "Critical_Damage": 0,
+            "KPAD": "Basic Model",
+            "Active_Sensors": "Basic",
+            "Passive_Sensors": "Basic",
+            "Life_Support": "Basic",
+            "Communications": "Basic",
+            "Reactor": "Basic",
+            "Optional_Components": "None",
+            "Weapons": "None",
+            "Cargo_loaded": "None",
+            "Critical_Status": "None",
+            "Notes": ""
+        }
+    }
+}

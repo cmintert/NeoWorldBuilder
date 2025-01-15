@@ -1098,7 +1098,7 @@ class ProjectSettingsDialog(QDialog):
                 "Project name updated successfully, application will shutdown, please restart",
             )
             self.accept()
-            QTimer.singleShot(0, lambda: perform_application_exit(self))
+            # QTimer.singleShot(0, lambda: perform_application_exit(self))
 
         except Exception as e:
             QMessageBox.critical(

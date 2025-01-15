@@ -131,7 +131,7 @@ class QuickRelationDialog(QDialog):
                 properties[key_item.text().strip()] = value_item.text().strip()
 
         return (
-            self.rel_type.currentText().strip().upper(),
+            self.rel_type.currentText().strip(),
             self.target_input.text().strip(),
             self.direction.currentText(),
             json.dumps(properties),

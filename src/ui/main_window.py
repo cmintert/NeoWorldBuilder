@@ -32,7 +32,6 @@ from ui.components.image_group import ImageGroup
 from ui.components.map_tab import MapTab
 from ui.components.search_component.search_panel import SearchPanel
 from ui.components.text_editor.text_editor import TextEditor
-from utils.converters import NamingConventionConverter
 
 logger = get_logger(__name__)
 
@@ -839,7 +838,7 @@ class WorldBuildingUI(QWidget):
             Set[str]: Set of normalized label strings.
         """
         return {
-            NamingConventionConverter.to_camel_case(label.strip())
+            label.strip()
             for label in self.labels_input.text().split(",")
             if label.strip()
         }

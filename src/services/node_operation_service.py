@@ -181,10 +181,7 @@ class NodeOperationsService:
                 "name": name.strip(),
                 "description": description.strip(),
                 "tags": parse_comma_separated(tags),
-                "labels": [
-                    label.strip().upper().replace(" ", "_")
-                    for label in parse_comma_separated(labels)
-                ],
+                "labels": [label.strip() for label in parse_comma_separated(labels)],
                 "relationships": self._format_relationships(relationships),
                 "additional_properties": properties,
             }
@@ -244,7 +241,7 @@ class NodeOperationsService:
                 )
 
                 # Format relationship type
-                formatted_rel_type = rel_type.strip().upper().replace(" ", "_")
+                formatted_rel_type = rel_type.strip()
 
                 formatted_relationships.append(
                     (formatted_rel_type, target.strip(), direction, properties)

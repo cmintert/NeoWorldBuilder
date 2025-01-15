@@ -309,7 +309,7 @@ class MatchClauseBuilder(ClauseBuilder):
             return QueryComponent("MATCH (n)", {})
 
         # Create individual label matches joined with OR
-        label_patterns = [f"n:{label.upper()}" for label in self.label_filters]
+        label_patterns = [f"n:{label}" for label in self.label_filters]
         label_clause = f"({' OR '.join(label_patterns)})"
 
         # Return just the MATCH clause - let the WHERE clause be combined later
@@ -421,9 +421,7 @@ class FilterClauseBuilder(ClauseBuilder):
 
         if self.criteria.exclude_labels:
             # Create individual exclusions for each label joined with OR
-            exclusion_clauses = [
-                f"n:{label.upper()}" for label in self.criteria.exclude_labels
-            ]
+            exclusion_clauses = [f"n:{label}" for label in self.criteria.exclude_labels]
             clauses.append(f"NOT ({' OR '.join(exclusion_clauses)})")
 
         if self.criteria.required_properties:

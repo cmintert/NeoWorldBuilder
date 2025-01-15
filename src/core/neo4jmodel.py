@@ -12,7 +12,7 @@ from neo4j.exceptions import AuthError
 from structlog import get_logger
 
 from core.neo4jworkers import QueryWorker, WriteWorker, DeleteWorker, SuggestionWorker
-from utils.converters import NamingConventionConverter as ncc
+from utils.converters import Neo4jNameValidator
 
 # Configure the standard logging
 logger = get_logger(__name__)
@@ -140,25 +140,30 @@ class Neo4jModel:
 
     def validate_node_data(self, node_data: Dict[str, Any]) -> bool:
         """
-        Validate node data before performing any operations.
+        Validate node data according to Neo4j requirements.
 
         Args:
-            node_data (dict): Node data including properties and relationships.
+            node_data: Dictionary containing node properties and relationships.
 
         Raises:
-            ValueError: If validation fails.
+            ValueError: If validation fails, with detailed error messages.
         """
-        # Check for required fields
+        # Initialize validator
+        validator = Neo4jNameValidator()
+
+        # Run validation
+        errors = validator.validate_node_data(node_data)
+
+        # Additional data presence validations (keeping these separate from name validation)
         if "name" not in node_data or not node_data["name"].strip():
-            raise ValueError("Node must have a non-empty name.")
+            errors.append("Node must have a non-empty name.")
 
         if "labels" not in node_data or not node_data["labels"]:
-            raise ValueError("Node must have at least one label.")
+            errors.append("Node must have at least one label.")
 
-        # Check for proper labels
-        for label in node_data["labels"]:
-            if not label.strip():
-                raise ValueError("Node labels must be non-empty.")
+        # If any errors were found, raise them all at once
+        if errors:
+            raise ValueError("\n".join(errors))
 
         return True
 
@@ -223,10 +228,6 @@ class Neo4jModel:
             module="Neo4jModel",
             function="_save_node_transaction",
         )
-
-        # Enforce naming style conventions
-
-        node_data = ncc.convert_node_data(node_data)
 
         # Extract data from node_data
         name = node_data["name"]
