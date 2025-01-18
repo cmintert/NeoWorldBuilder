@@ -37,7 +37,8 @@ class CalendarConfigDialog(QDialog):
             "epoch_name": "Era",
             "current_year": 1,
             "year_length": 360,
-            "months": [{"name": "Month 1", "days": 30}],
+            "months": [{"name": "Month 1"}],
+            "days_per_months": [{"days": 30}],
             "days_per_week": 7,
             "weekday_names": ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"],
             "leap_year_rule": "none",
@@ -133,11 +134,22 @@ class CalendarConfigDialog(QDialog):
 
     def _populate_months_table(self) -> None:
         """Populate the months table with current data."""
-        self.months_table.setRowCount(len(self.calendar_data["months"]))
-        for i, month in enumerate(self.calendar_data["months"]):
-            self.months_table.setItem(i, 0, QTableWidgetItem(month["name"]))
-            days_item = QTableWidgetItem(str(month["days"]))
-            self.months_table.setItem(i, 1, days_item)
+        # Check if we have the old nested structure or the new flattened structure
+        if 'months' in self.calendar_data and 'days_per_months' in self.calendar_data:
+            # Old nested structure
+            month_names = [m['name'] for m in self.calendar_data['months']]
+            month_days = [d['days'] for d in self.calendar_data['days_per_months']]
+        else:
+            # Assume flattened structure
+            month_names = self.calendar_data.get('month_names', [])
+            month_days = self.calendar_data.get('month_days', [])
+
+        self.months_table.setRowCount(len(month_names))
+        for i, name in enumerate(month_names):
+            self.months_table.setItem(i, 0, QTableWidgetItem(name))
+
+        for i, days in enumerate(month_days):
+            self.months_table.setItem(i, 1, QTableWidgetItem(str(days)))
 
     def _populate_weekday_table(self) -> None:
         """Populate the weekday names table."""
@@ -174,17 +186,21 @@ class CalendarConfigDialog(QDialog):
                 self.weekday_table.removeRow(self.weekday_table.rowCount() - 1)
 
     def get_calendar_data(self) -> Dict[str, Any]:
-        """Get the current calendar configuration.
+        """Get the current calendar configuration with flattened properties.
 
         Returns:
-            Dict[str, Any]: The calendar configuration data
+            Dict[str, Any]: The flattened calendar configuration data
         """
-        # Collect months data
-        months = []
+        # Collect months names
+        month_names = []
         for row in range(self.months_table.rowCount()):
-            name = self.months_table.item(row, 0).text()
+            month_names.append(self.months_table.item(row, 0).text())
+
+        # Collect days per month
+        month_days = []
+        for row in range(self.months_table.rowCount()):
             days = int(self.months_table.item(row, 1).text())
-            months.append({"name": name, "days": days})
+            month_days.append(days)
 
         # Collect weekday names
         weekday_names = []
@@ -196,7 +212,8 @@ class CalendarConfigDialog(QDialog):
             "epoch_name": self.epoch_name.text(),
             "current_year": self.current_year.value(),
             "year_length": self.year_length.value(),
-            "months": months,
+            "month_names": month_names,  # Flattened from nested structure
+            "month_days": month_days,  # Flattened from nested structure
             "days_per_week": self.days_per_week.value(),
             "weekday_names": weekday_names,
             "leap_year_rule": "none",
@@ -301,8 +318,9 @@ class CalendarTab(QWidget):
         <ul>
         """
 
-        for month in self.calendar_data['months']:
-            info_html += f"<li>{month['name']} ({month['days']} days)</li>"
+        # Updated to use the flattened properties
+        for name, days in zip(self.calendar_data['month_names'], self.calendar_data['month_days']):
+            info_html += f"<li>{name} ({days} days)</li>"
 
         info_html += """
         </ul>

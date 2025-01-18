@@ -1147,6 +1147,40 @@ class WorldBuildingController(QObject):
         else:
             self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
 
+    def _get_raw_calendar_properties(self) -> Dict[str, str]:
+        """Get raw calendar properties from table."""
+        properties = {}
+        for row in range(self.ui.properties_table.rowCount()):
+            key_item = self.ui.properties_table.item(row, 0)
+            value_item = self.ui.properties_table.item(row, 1)
+            if key_item and value_item and key_item.text().startswith('calendar_'):
+                properties[key_item.text()] = value_item.text().strip()
+        return properties
+
+    def setup_calendar_data(self) -> None:
+        """Load calendar data from flat properties."""
+        if not self.calendar_tab or not self._get_raw_calendar_properties():
+            return
+
+        try:
+            calendar_data = {
+                key.replace('calendar_', ''): json.loads(value)
+                for key, value in self._get_raw_calendar_properties().items()
+            }
+            self.calendar_tab.set_calendar_data(calendar_data)
+        except Exception as e:
+            logger.error("calendar_setup_failed", error=str(e))
+
+    def _handle_calendar_changed(self, calendar_data: Dict[str, Any]) -> None:
+        """Handle changes to calendar data by storing in flat properties."""
+        try:
+            self._clear_calendar_properties()
+            for key, value in calendar_data.items():
+                self._add_calendar_property(f"calendar_{key}", json.dumps(value))
+            self.update_unsaved_changes_indicator()
+        except Exception as e:
+            logger.error("calendar_update_failed", error=str(e))
+
     def _handle_search_request(self, criteria: SearchCriteria) -> None:
         """
         Handle enhanced search request from search panel.

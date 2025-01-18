@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Set, Dict, Any
+from typing import Optional, Set, Dict, Any, List
 
 from PyQt6.QtCore import pyqtSignal, Qt, QPoint
 from PyQt6.QtWidgets import (
@@ -859,7 +859,7 @@ class WorldBuildingUI(QWidget):
                 logger.info("calendar_tab_removed", widget_id=self.objectName())
 
     def _add_calendar_property(self, key: str, value: str) -> None:
-        """Helper method to add a calendar property to the properties table."""
+        """Add a calendar property to the properties table."""
         try:
             row = self.properties_table.rowCount()
             self.properties_table.insertRow(row)
@@ -868,116 +868,51 @@ class WorldBuildingUI(QWidget):
             delete_button = self.create_delete_button(self.properties_table, row)
             self.properties_table.setCellWidget(row, 2, delete_button)
         except Exception as e:
-            logger.error(f"Error adding calendar property {key}: {e}")
+            logger.error("calendar_property_add_failed", key=key, error=str(e))
 
-    def setup_calendar_data(self) -> None:
-        """Set up calendar data from properties with improved error handling."""
-        if not hasattr(self, "calendar_tab") or not self.calendar_tab:
-            return
-
-        calendar_data = {}
-        month_names = []
-        month_days = []
-
+    def _get_raw_calendar_properties(self) -> Dict[str, str]:
+        """Get raw calendar properties from table."""
+        properties = {}
         for row in range(self.properties_table.rowCount()):
             key_item = self.properties_table.item(row, 0)
             value_item = self.properties_table.item(row, 1)
+            if key_item and value_item and key_item.text().startswith('calendar_'):
+                properties[key_item.text()] = value_item.text().strip()
+        return properties
 
-            if not key_item or not value_item:
-                continue
+    def setup_calendar_data(self) -> None:
+        """Load calendar data directly from flat properties."""
+        if not self.calendar_tab or not self._get_raw_calendar_properties():
+            return
 
-            key = key_item.text()
-            value = value_item.text().strip()
-
-            if not key.startswith('calendar_'):
-                continue
-
-            try:
-                # Handle special month properties
-                if key == 'calendar_month_names':
-                    # Fix string format before parsing
-                    value = value.replace("'", '"')
-                    month_names = json.loads(value) if value else []
-                elif key == 'calendar_month_days':
-                    month_days = json.loads(value) if value else []
-                else:
-                    # For other properties, remove prefix and parse value
-                    clean_key = key[9:]  # len('calendar_') = 9
-
-                    # More robust value parsing
-                    if value:
-                        if value.startswith('['):  # Array
-                            value = value.replace("'", '"')  # Fix quotes
-                            try:
-                                calendar_data[clean_key] = json.loads(value)
-                            except json.JSONDecodeError:
-                                calendar_data[clean_key] = value
-                        elif value.isdigit():  # Integer
-                            calendar_data[clean_key] = int(value)
-                        else:  # String
-                            calendar_data[clean_key] = value
-
-            except json.JSONDecodeError as e:
-                logger.error(f"Error parsing {key}: {e}")
-                continue
-            except Exception as e:
-                logger.error(f"Unexpected error processing {key}: {e}")
-                continue
-
-        # Construct months array if we have both names and days
-        if month_names and month_days and len(month_names) == len(month_days):
-            calendar_data['months'] = [
-                {'name': name, 'days': days}
-                for name, days in zip(month_names, month_days)
-            ]
-
-        # Set calendar data if we have valid properties
-        if calendar_data:
-            try:
-                self.calendar_tab.set_calendar_data(calendar_data)
-                logger.info("calendar_data_loaded", widget_id=self.objectName())
-            except Exception as e:
-                logger.error(f"Error setting calendar data: {e}", exc_info=True)
+        try:
+            calendar_data = {
+                key.replace('calendar_', ''): json.loads(value)
+                for key, value in self._get_raw_calendar_properties().items()
+            }
+            self.calendar_tab.set_calendar_data(calendar_data)
+        except Exception as e:
+            logger.error("calendar_setup_failed", error=str(e))
 
     def _handle_calendar_changed(self, calendar_data: Dict[str, Any]) -> None:
-        """Handle calendar configuration changes with improved error handling."""
+        """Store calendar data as flat properties."""
         try:
-            # First clear any existing calendar properties
-            row = 0
-            while row < self.properties_table.rowCount():
-                if (item := self.properties_table.item(row, 0)) and item.text().startswith('calendar_'):
-                    self.properties_table.removeRow(row)
-                else:
-                    row += 1
-
-            # Special handling for months - store names and days separately
-            if 'months' in calendar_data:
-                months = calendar_data['months']
-
-                # Extract and store month names
-                month_names = [month.get('name', '') for month in months]
-                self._add_calendar_property('calendar_month_names', json.dumps(month_names,ensure_ascii=False))
-
-                # Extract and store month days
-                month_days = [month.get('days', 0) for month in months]
-                self._add_calendar_property('calendar_month_days', json.dumps(month_days,ensure_ascii=False))
-
-                # Remove months key since we've handled it specially
-                del calendar_data['months']
-
-            # Handle remaining calendar properties
+            self._clear_calendar_properties()
             for key, value in calendar_data.items():
-                property_key = f"calendar_{key}"
-
-                property_value = json.dumps(value,ensure_ascii=False)
-
-                self._add_calendar_property(property_key, property_value)
-
-            # Update save state
+                self._add_calendar_property(f"calendar_{key}", json.dumps(value))
             self.controller.update_unsaved_changes_indicator()
-
         except Exception as e:
-            logger.error(f"Error handling calendar changes: {e}")
+            logger.error("calendar_update_failed", error=str(e))
+
+    def _clear_calendar_properties(self) -> None:
+        """Remove all existing calendar properties."""
+        row = 0
+        while row < self.properties_table.rowCount():
+            if key_item := self.properties_table.item(row, 0):
+                if key_item.text().startswith('calendar_'):
+                    self.properties_table.removeRow(row)
+                    continue
+            row += 1
 
     def _handle_tab_error(self, error: Exception) -> None:
         """Handle errors related to tab management.
