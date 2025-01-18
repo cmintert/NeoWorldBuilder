@@ -572,6 +572,9 @@ class WorldBuildingController(QObject):
             self._populate_relationships(node_data["relationships"])
             self._populate_basic_info_image(node_data["node_properties"])
 
+            if "CALENDAR" in {label.upper() for label in node_data["labels"]}:
+                self.ui.setup_calendar_data()
+
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
 
