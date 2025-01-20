@@ -30,25 +30,46 @@ logger = get_logger(__name__)
 class CalendarConfigDialog(QDialog):
     """Dialog for configuring calendar settings."""
 
-    def __init__(self, calendar_data: Optional[Dict[str, Any]] = None, parent=None):
+    def __init__(self, calendar_data: Optional[Dict[str, Any]] = None, parent: Optional[QWidget] = None):
+        logger.debug(
+            "Initializing calendar config dialog",
+            calendar_data=calendar_data,
+            has_parent=bool(parent)
+        )
+
+        # Ensure parent is properly handled
+        if parent is None:
+            logger.warning("No parent widget provided for CalendarConfigDialog")
+
         super().__init__(parent)
-        self.setWindowTitle("Calendar Configuration")
-        self.setModal(True)
 
         # Initialize default or existing calendar data
-        self.calendar_data = calendar_data or {
-            "calendar_type": "custom",
-            "epoch_name": "Era",
-            "current_year": 1,
-            "year_length": 360,
-            "months": [{"name": "Month 1"}],
-            "days_per_months": [{"days": 30}],
-            "days_per_week": 7,
-            "weekday_names": ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"],
-            "leap_year_rule": "none"
-        }
+        if calendar_data is None:
+            logger.debug("No calendar data provided, using defaults")
+            self.calendar_data = {
+                "calendar_type": "custom",
+                "epoch_name": "Era",
+                "current_year": 1,
+                "year_length": 360,
+                "month_names": ["Month 1"],
+                "month_days": [30],
+                "days_per_week": 7,
+                "weekday_names": ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"],
+                "leap_year_rule": "none"
+            }
+        else:
+            logger.debug("Using provided calendar data", data=calendar_data)
+            self.calendar_data = calendar_data
 
-        self.setup_ui()
+        try:
+            self.setup_ui()
+        except Exception as e:
+            logger.error(
+                "Failed to setup calendar config dialog UI",
+                error=str(e),
+                calendar_data=self.calendar_data
+            )
+            raise
 
     def setup_ui(self) -> None:
         """Setup the dialog UI."""
@@ -135,6 +156,21 @@ class CalendarConfigDialog(QDialog):
         layout.addWidget(tabs)
         layout.addWidget(button_box)
 
+    def accept(self) -> None:
+        """Handle dialog acceptance with proper error handling."""
+        try:
+            # Validate and collect data before accepting
+            self.get_calendar_data()  # This will validate the data
+            super().accept()
+        except Exception as e:
+            logger.error(
+                "Error accepting calendar config",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            # Error already shown to user in get_calendar_data()
+            return
+
     def _populate_months_table(self) -> None:
         """Populate the months table with current data."""
         # Check if we have the old nested structure or the new flattened structure
@@ -189,38 +225,66 @@ class CalendarConfigDialog(QDialog):
                 self.weekday_table.removeRow(self.weekday_table.rowCount() - 1)
 
     def get_calendar_data(self) -> Dict[str, Any]:
-        """Get the current calendar configuration with flattened properties.
+        """Get the current calendar configuration.
 
         Returns:
-            Dict[str, Any]: The flattened calendar configuration data
+            Dict[str, Any]: The calendar configuration data
         """
-        # Collect months names
-        month_names = []
-        for row in range(self.months_table.rowCount()):
-            month_names.append(self.months_table.item(row, 0).text())
+        try:
+            # Collect months names
+            month_names = []
+            month_days = []
+            for row in range(self.months_table.rowCount()):
+                name_item = self.months_table.item(row, 0)
+                days_item = self.months_table.item(row, 1)
 
-        # Collect days per month
-        month_days = []
-        for row in range(self.months_table.rowCount()):
-            days = int(self.months_table.item(row, 1).text())
-            month_days.append(days)
+                if name_item and days_item:  # Check for valid items
+                    month_names.append(name_item.text().strip())
+                    month_days.append(int(days_item.text().strip()))
 
-        # Collect weekday names
-        weekday_names = []
-        for row in range(self.weekday_table.rowCount()):
-            weekday_names.append(self.weekday_table.item(row, 0).text())
+            # Collect weekday names
+            weekday_names = []
+            for row in range(self.weekday_table.rowCount()):
+                name_item = self.weekday_table.item(row, 0)
+                if name_item:
+                    weekday_names.append(name_item.text().strip())
 
-        return {
-            "calendar_type": "custom",
-            "epoch_name": self.epoch_name.text(),
-            "current_year": self.current_year.value(),
-            "year_length": self.year_length.value(),
-            "month_names": month_names,  # Flattened from nested structure
-            "month_days": month_days,  # Flattened from nested structure
-            "days_per_week": self.days_per_week.value(),
-            "weekday_names": weekday_names,
-            "leap_year_rule": "none",
-        }
+            # Build and validate configuration
+            calendar_data = {
+                "calendar_type": "custom",
+                "epoch_name": self.epoch_name.text().strip(),
+                "current_year": self.current_year.value(),
+                "year_length": self.year_length.value(),
+                "month_names": month_names,
+                "month_days": month_days,
+                "days_per_week": self.days_per_week.value(),
+                "weekday_names": weekday_names,
+                "leap_year_rule": "none"
+            }
+
+            # Validate total days matches year length
+            total_days = sum(month_days)
+            if total_days != calendar_data["year_length"]:
+                raise ValueError(
+                    f"Total days in months ({total_days}) does not match year length ({calendar_data['year_length']})"
+                )
+
+            logger.debug("Calendar data collected", data=calendar_data)
+            return calendar_data
+
+        except Exception as e:
+            logger.error(
+                "Error collecting calendar data",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            # Show error to user
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to save calendar configuration: {str(e)}"
+            )
+            raise
 
 
 class CalendarTab(QWidget):
@@ -234,6 +298,13 @@ class CalendarTab(QWidget):
         self.controller = controller
         self.config = controller.config if controller else None
         self.calendar_data = None
+
+        logger.debug(
+            "Initializing calendar tab",
+            has_controller=bool(controller),
+            has_config=bool(self.config),
+            parent_widget=bool(parent)
+        )
 
         self.setup_calendar_tab_ui()
 
@@ -280,9 +351,41 @@ class CalendarTab(QWidget):
 
     def _show_calendar_config(self) -> None:
         """Show the calendar configuration dialog."""
-        dialog = CalendarConfigDialog(self.calendar_data, self)
-        if dialog.exec():
-            self.set_calendar_data(dialog.get_calendar_data())
+        try:
+            logger.debug(
+                "Opening calendar config dialog",
+                current_data=self.calendar_data
+            )
+
+            # Create dialog with explicit parent and data
+            dialog = CalendarConfigDialog(
+                calendar_data=self.calendar_data,
+                parent=self
+            )
+
+            # Show dialog and handle result
+            if dialog.exec():
+                new_data = dialog.get_calendar_data()
+                logger.debug(
+                    "Calendar config dialog accepted",
+                    new_data=new_data
+                )
+                self.set_calendar_data(new_data)
+            else:
+                logger.debug("Calendar config dialog cancelled")
+
+        except Exception as e:
+            logger.error(
+                "Error showing calendar config dialog",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            # Show error to user
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to open calendar configuration: {str(e)}"
+            )
 
     def _save_calendar_config(self) -> None:
         """Save the current calendar configuration."""
@@ -306,12 +409,32 @@ class CalendarTab(QWidget):
             data: Dictionary containing calendar configuration
         """
         try:
+            logger.debug("Setting calendar data", data=data)
+
+            if not data:
+                logger.warning("Attempted to set empty calendar data")
+                return
+
             self.calendar_data = data
             self._update_info_display()
 
+            # Emit change signal to notify parent
+            self.calendar_changed.emit(self.calendar_data)
+
+            logger.debug("Calendar data set successfully")
+
         except Exception as e:
-            logger.error("Error setting calendar data", error=str(e))
-            QMessageBox.critical(self, "Error", f"Failed to set calendar data: {str(e)}")
+            logger.error(
+                "Error setting calendar data",
+                error=str(e),
+                error_type=type(e).__name__,
+                data=data
+            )
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to update calendar configuration: {str(e)}"
+            )
 
     def _update_info_display(self) -> None:
         """Update the calendar information display."""

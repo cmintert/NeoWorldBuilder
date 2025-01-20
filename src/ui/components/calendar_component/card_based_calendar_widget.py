@@ -111,7 +111,9 @@ class CompactCalendarDisplay(QWidget):
         # Clear existing layouts
         for layout in [self.stats_layout, self.months_layout, self.weekdays_layout]:
             for i in reversed(range(layout.count())):
-                layout.itemAt(i).widget().setParent(None)
+                item = layout.itemAt(i)
+                if item is not None and item.widget() is not None:
+                    item.widget().setParent(None)
 
         # Update header
         self.header.setText(calendar_data['epoch_name'])
