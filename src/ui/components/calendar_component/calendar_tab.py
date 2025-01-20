@@ -41,8 +41,7 @@ class CalendarConfigDialog(QDialog):
             "days_per_months": [{"days": 30}],
             "days_per_week": 7,
             "weekday_names": ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"],
-            "leap_year_rule": "none",
-            "special_dates": []
+            "leap_year_rule": "none"
         }
 
         self.setup_ui()
@@ -217,7 +216,6 @@ class CalendarConfigDialog(QDialog):
             "days_per_week": self.days_per_week.value(),
             "weekday_names": weekday_names,
             "leap_year_rule": "none",
-            "special_dates": self.calendar_data.get("special_dates", [])
         }
 
 

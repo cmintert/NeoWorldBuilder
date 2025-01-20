@@ -230,8 +230,6 @@ class TextEditor(QWidget):
         """Get the content as HTML, cleaned for saving."""
         current_html = self.text_edit.toHtml()
 
-        logger.info("to_html", current_html=current_html)
-
         # First remove our link formatting
         cleaned = re.sub(
             r'<a href="[^"]*" class="node-reference"[^>]*style="[^"]*">([^<]+)</a>',
@@ -241,8 +239,6 @@ class TextEditor(QWidget):
 
         # Then remove any empty paragraphs that might have been created
         cleaned = re.sub(r"<p[^>]*>\s*<br\s*/?>\s*</p>", "", cleaned)
-
-        logger.info("to_html_cleaned", cleaned=cleaned)
 
         return cleaned if cleaned else ""
 

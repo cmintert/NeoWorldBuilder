@@ -848,6 +848,7 @@ class WorldBuildingUI(QWidget):
             self.calendar_tab = CalendarTab(controller=self.controller)
             self.calendar_tab.calendar_changed.connect(self._handle_calendar_changed)
             self.tabs.addTab(self.calendar_tab, "Calendar")
+            self.setup_calendar_data()
 
     def _remove_calendar_tab_if_exists(self) -> None:
         """Remove calendar tab if it exists."""
@@ -881,18 +882,74 @@ class WorldBuildingUI(QWidget):
         return properties
 
     def setup_calendar_data(self) -> None:
-        """Load calendar data directly from flat properties."""
+        """Load calendar data from flat properties."""
+        logger.debug("Starting calendar data setup",
+                     has_calendar_tab=bool(self.calendar_tab),
+                     has_raw_props=bool(self._get_raw_calendar_properties()))
+
         if not self.calendar_tab or not self._get_raw_calendar_properties():
             return
 
         try:
-            calendar_data = {
-                key.replace('calendar_', ''): json.loads(value)
-                for key, value in self._get_raw_calendar_properties().items()
-            }
+            raw_props = self._get_raw_calendar_properties()
+            logger.debug("Raw calendar properties", raw_props=raw_props)
+            calendar_data = {}
+
+            # Known types for each property
+            list_props = {'month_names', 'month_days', 'weekday_names'}
+            int_props = {'current_year', 'year_length', 'days_per_week'}
+
+            for key, value in raw_props.items():
+                # Remove calendar_ prefix
+                clean_key = key.replace('calendar_', '')
+
+                logger.debug("Processing property",
+                             original_key=key,
+                             clean_key=clean_key,
+                             original_value=value)
+
+                try:
+                    if clean_key in list_props:
+                        # Handle list properties by properly parsing the string representation
+                        try:
+                            # Use ast.literal_eval to safely evaluate the string representation of list
+                            import ast
+                            parsed_list = ast.literal_eval(value)
+                            if clean_key == 'month_days':
+                                # Ensure all values are integers for month_days
+                                calendar_data[clean_key] = [int(x) for x in parsed_list]
+                            else:
+                                # Keep as strings for other list properties
+                                calendar_data[clean_key] = [str(x) for x in parsed_list]
+                        except (ValueError, SyntaxError) as e:
+                            # Fallback to simple comma splitting if literal_eval fails
+                            items = [x.strip() for x in value.strip('[]').split(',') if x.strip()]
+                            if clean_key == 'month_days':
+                                calendar_data[clean_key] = [int(x) for x in items]
+                            else:
+                                calendar_data[clean_key] = items
+
+                    elif clean_key in int_props:
+                        # Handle integers
+                        calendar_data[clean_key] = int(value)
+                    else:
+                        # Handle strings
+                        calendar_data[clean_key] = value.strip()
+
+                except Exception as conversion_error:
+                    logger.error("Property conversion failed",
+                                 key=clean_key,
+                                 value=value,
+                                 error=str(conversion_error))
+                    raise
+
+            logger.debug("Final calendar data structure", calendar_data=calendar_data)
             self.calendar_tab.set_calendar_data(calendar_data)
+
         except Exception as e:
-            logger.error("calendar_setup_failed", error=str(e))
+            logger.error("calendar_setup_failed",
+                         error=str(e),
+                         error_type=type(e).__name__)
 
     def _handle_calendar_changed(self, calendar_data: Dict[str, Any]) -> None:
         """Store calendar data as flat properties."""
