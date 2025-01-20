@@ -165,12 +165,21 @@ class CalendarTab(QWidget):
 
     def _update_info_display(self) -> None:
         """Update the calendar information display."""
+
         if not self.calendar_data:
             # Create a simple label for no data case
             no_data_label = QLabel("<i>No calendar configured</i>")
+            no_data_label.setObjectName("no_data_label")
             no_data_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.calendar_display.layout.addWidget(no_data_label)
             return
+
+        # Clear existing layouts with name 'no_data_label'
+        for i in reversed(range(self.calendar_display.layout.count())):
+            item = self.calendar_display.layout.itemAt(i)
+            if item is not None and item.widget() is not None:
+                if item.widget().objectName() == "no_data_label":
+                    item.widget().setParent(None)
 
         # Update the modern display with calendar data
         self.calendar_display.update_display(self.calendar_data)
