@@ -1,7 +1,9 @@
+
 from typing import Optional, Dict, Any
-import json
+
 
 from PyQt6.QtCore import pyqtSignal, Qt
+
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -18,8 +20,9 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QMessageBox,
     QGroupBox
-)
 from structlog import get_logger
+
+from ui.components.calendar_component.card_based_calendar_widget import CompactCalendarDisplay
 
 logger = get_logger(__name__)
 
@@ -254,16 +257,25 @@ class CalendarTab(QWidget):
         controls_layout.addWidget(self.save_btn)
         controls_layout.addStretch()
 
-        # Calendar info display
-        self.info_label = QLabel()
-        self.info_label.setWordWrap(True)
-        self.info_label.setTextFormat(Qt.TextFormat.RichText)
-        self._update_info_display()
+        # Modern calendar display
+        self.calendar_display = CompactCalendarDisplay()
+        self._update_info_display()  # This will now update our new display
 
         # Add components to layout
         layout.addLayout(controls_layout)
-        layout.addWidget(self.info_label)
-        layout.addStretch()
+        layout.addWidget(self.calendar_display)
+
+    def _update_info_display(self) -> None:
+        """Update the calendar information display."""
+        if not self.calendar_data:
+            # Create a simple label for no data case
+            no_data_label = QLabel("<i>No calendar configured</i>")
+            no_data_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.calendar_display.layout.addWidget(no_data_label)
+            return
+
+        # Update the modern display with calendar data
+        self.calendar_display.update_display(self.calendar_data)
 
     def _show_calendar_config(self) -> None:
         """Show the calendar configuration dialog."""
@@ -303,33 +315,11 @@ class CalendarTab(QWidget):
     def _update_info_display(self) -> None:
         """Update the calendar information display."""
         if not self.calendar_data:
-            self.info_label.setText("<i>No calendar configured</i>")
+            # Create a simple label for no data case
+            no_data_label = QLabel("<i>No calendar configured</i>")
+            no_data_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.calendar_display.layout.addWidget(no_data_label)
             return
 
-        info_html = f"""
-        <h3>{self.calendar_data['epoch_name']}</h3>
-        <p><b>Current Year:</b> {self.calendar_data['current_year']}</p>
-        <p><b>Days per Year:</b> {self.calendar_data['year_length']}</p>
-        <p><b>Days per Week:</b> {self.calendar_data['days_per_week']}</p>
-        <br>
-        <p><b>Months:</b></p>
-        <ul>
-        """
-
-        # Updated to use the flattened properties
-        for name, days in zip(self.calendar_data['month_names'], self.calendar_data['month_days']):
-            info_html += f"<li>{name} ({days} days)</li>"
-
-        info_html += """
-        </ul>
-        <br>
-        <p><b>Weekdays:</b></p>
-        <ul>
-        """
-
-        for day in self.calendar_data['weekday_names']:
-            info_html += f"<li>{day}</li>"
-
-        info_html += "</ul>"
-
-        self.info_label.setText(info_html)
+        # Update the modern display with calendar data
+        self.calendar_display.update_display(self.calendar_data)
