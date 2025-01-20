@@ -19,7 +19,8 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QDialogButtonBox,
     QMessageBox,
-    QGroupBox
+    QGroupBox,
+)
 from structlog import get_logger
 
 from ui.components.calendar_component.card_based_calendar_widget import CompactCalendarDisplay
