@@ -569,15 +569,18 @@ class WorldBuildingUI(QWidget):
         if self.map_tab:
             map_tab_index = self.tabs.indexOf(self.map_tab)
             if map_tab_index != -1:
-                self.tabs.removeTab(map_tab_index)
+            self.tabs.removeTab(map_tab_index)
             self.map_tab = None
 
-        # Clear map tab if it exists
+        self._remove_map_tab_if_exists()
+
+    def _remove_map_tab_if_exists(self) -> None:
+        """Remove the map tab if it exists and clear the reference."""
         if self.map_tab:
             map_tab_index = self.tabs.indexOf(self.map_tab)
             if map_tab_index != -1:
                 self.tabs.removeTab(map_tab_index)
-                self.map_tab = None
+            self.map_tab = None
 
     def set_image(self, image_path: Optional[str]) -> None:
         """Set image with proper scaling and error handling."""
