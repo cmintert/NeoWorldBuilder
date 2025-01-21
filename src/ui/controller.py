@@ -572,6 +572,9 @@ class WorldBuildingController(QObject):
             self._populate_relationships(node_data["relationships"])
             self._populate_basic_info_image(node_data["node_properties"])
 
+            if "CALENDAR" in {label.upper() for label in node_data["labels"]}:
+                self.ui.setup_calendar_data()
+
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
 
@@ -1143,6 +1146,124 @@ class WorldBuildingController(QObject):
             self.ui.save_button.setStyleSheet("background-color: #83A00E;")
         else:
             self.ui.save_button.setStyleSheet("background-color: #d3d3d3;")
+
+    def _get_raw_calendar_properties(self) -> Dict[str, str]:
+        """Get raw calendar properties from table."""
+        logger.debug("Fetching raw calendar properties")
+        properties = {}
+        for row in range(self.properties_table.rowCount()):
+            key_item = self.properties_table.item(row, 0)
+            value_item = self.properties_table.item(row, 1)
+            if key_item and value_item and key_item.text().startswith('calendar_'):
+                properties[key_item.text()] = value_item.text().strip()
+                logger.debug("Found calendar property",
+                             key=key_item.text(),
+                             value=value_item.text().strip())
+
+        logger.debug("Raw calendar properties result", properties=properties)
+        return properties
+
+    def setup_calendar_data(self) -> None:
+        """Load calendar data from flat properties."""
+        # Log initial check
+        logger.debug("Starting calendar data setup",
+                     has_calendar_tab=bool(self.calendar_tab),
+                     has_raw_props=bool(self._get_raw_calendar_properties()))
+
+        if not self.calendar_tab or not self._get_raw_calendar_properties():
+            logger.debug("Exiting early - missing required components")
+            return
+
+        try:
+            raw_props = self._get_raw_calendar_properties()
+            logger.debug("Raw calendar properties", raw_props=raw_props)
+
+            calendar_data = {}
+
+            # Known types for each property
+            list_props = {'month_names', 'month_days', 'weekday_names'}
+            int_props = {'current_year', 'year_length', 'days_per_week'}
+
+            logger.debug("Property type classifications",
+                         list_props=list_props,
+                         int_props=int_props)
+
+            for key, value in raw_props.items():
+                # Remove calendar_ prefix
+                clean_key = key.replace('calendar_', '')
+
+                logger.debug("Processing property",
+                             original_key=key,
+                             clean_key=clean_key,
+                             original_value=value)
+
+                try:
+                    if clean_key in list_props:
+                        if clean_key == 'month_days':
+                            # Convert to list of integers
+                            split_values = value.split(',')
+                            calendar_data[clean_key] = [int(x) for x in split_values if x]
+                            logger.debug("Processed list (integers)",
+                                         key=clean_key,
+                                         split_values=split_values,
+                                         result=calendar_data[clean_key])
+                        else:
+                            # Convert to list of strings
+                            split_values = value.split(',')
+                            calendar_data[clean_key] = [x for x in split_values if x]
+                            logger.debug("Processed list (strings)",
+                                         key=clean_key,
+                                         split_values=split_values,
+                                         result=calendar_data[clean_key])
+                    elif clean_key in int_props:
+                        # Handle integers
+                        calendar_data[clean_key] = int(value)
+                        logger.debug("Processed integer",
+                                     key=clean_key,
+                                     value=value,
+                                     result=calendar_data[clean_key])
+                    else:
+                        # Handle strings
+                        calendar_data[clean_key] = value
+                        logger.debug("Processed string",
+                                     key=clean_key,
+                                     value=value)
+                except Exception as conversion_error:
+                    logger.error("Property conversion failed",
+                                 key=clean_key,
+                                 value=value,
+                                 error=str(conversion_error))
+                    raise
+
+            logger.debug("Final calendar data structure", calendar_data=calendar_data)
+            self.calendar_tab.set_calendar_data(calendar_data)
+
+        except Exception as e:
+            logger.error("calendar_setup_failed",
+                         error=str(e),
+                         error_type=type(e).__name__)
+            raise
+
+    def _handle_calendar_changed(self, calendar_data: Dict[str, Any]) -> None:
+        """Handle changes to calendar data by storing in flat properties."""
+        try:
+            # Clear existing calendar properties
+            self._clear_calendar_properties()
+
+            # Store each property with appropriate type handling
+            for key, value in calendar_data.items():
+                if isinstance(value, list):
+                    # Convert lists to comma-separated strings
+                    stored_value = ','.join(str(x) for x in value)
+                else:
+                    # Store other values directly as strings
+                    stored_value = str(value)
+
+                self._add_calendar_property(f"calendar_{key}", stored_value)
+
+            self.update_unsaved_changes_indicator()
+        except Exception as e:
+            logger.error("calendar_update_failed", error=str(e))
 
     def _handle_search_request(self, criteria: SearchCriteria) -> None:
         """

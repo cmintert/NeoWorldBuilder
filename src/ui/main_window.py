@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Set
+from typing import Optional, Set, Dict, Any, List
 
 from PyQt6.QtCore import pyqtSignal, Qt, QPoint
 from PyQt6.QtWidgets import (
@@ -28,6 +28,7 @@ from PyQt6.QtWidgets import (
 )
 from structlog import get_logger
 
+from ui.components.calendar_component.calendar_tab import CalendarTab
 from ui.components.image_group import ImageGroup
 from ui.components.map_tab import MapTab
 from ui.components.search_component.search_panel import SearchPanel
@@ -568,6 +569,16 @@ class WorldBuildingUI(QWidget):
         if self.map_tab:
             map_tab_index = self.tabs.indexOf(self.map_tab)
             if map_tab_index != -1:
+            self.tabs.removeTab(map_tab_index)
+            self.map_tab = None
+
+        self._remove_map_tab_if_exists()
+
+    def _remove_map_tab_if_exists(self) -> None:
+        """Remove the map tab if it exists and clear the reference."""
+        if self.map_tab:
+            map_tab_index = self.tabs.indexOf(self.map_tab)
+            if map_tab_index != -1:
                 self.tabs.removeTab(map_tab_index)
             self.map_tab = None
 
@@ -817,9 +828,170 @@ class WorldBuildingUI(QWidget):
 
             current_labels = self._get_normalized_labels()
             self._update_map_tab_visibility("Map" in current_labels)
+            self._update_calendar_tab_visibility("CALENDAR" in current_labels)
 
         except Exception as e:
             self._handle_map_tab_error(e)
+
+    def _update_calendar_tab_visibility(self, should_show_calendar: bool) -> None:
+        """Update calendar tab visibility and manage associated resources.
+
+        Args:
+            should_show_calendar (bool): Whether the calendar tab should be visible
+        """
+        if should_show_calendar:
+            self._ensure_calendar_tab_exists()
+        else:
+            self._remove_calendar_tab_if_exists()
+
+    def _ensure_calendar_tab_exists(self) -> None:
+        """Create and configure calendar tab if it doesn't exist."""
+        if not hasattr(self, "calendar_tab") or not self.calendar_tab:
+            logger.debug("creating_calendar_tab", widget_id=self.objectName())
+            self.calendar_tab = CalendarTab(controller=self.controller)
+            self.calendar_tab.calendar_changed.connect(self._handle_calendar_changed)
+            self.tabs.addTab(self.calendar_tab, "Calendar")
+            self.setup_calendar_data()
+
+    def _remove_calendar_tab_if_exists(self) -> None:
+        """Remove calendar tab if it exists."""
+        if hasattr(self, "calendar_tab") and self.calendar_tab:
+            calendar_tab_index = self.tabs.indexOf(self.calendar_tab)
+            if calendar_tab_index != -1:
+                self.tabs.removeTab(calendar_tab_index)
+                self.calendar_tab = None
+                logger.info("calendar_tab_removed", widget_id=self.objectName())
+
+    def _add_calendar_property(self, key: str, value: str) -> None:
+        """Add a calendar property to the properties table."""
+        try:
+            row = self.properties_table.rowCount()
+            self.properties_table.insertRow(row)
+            self.properties_table.setItem(row, 0, QTableWidgetItem(key))
+            self.properties_table.setItem(row, 1, QTableWidgetItem(value))
+            delete_button = self.create_delete_button(self.properties_table, row)
+            self.properties_table.setCellWidget(row, 2, delete_button)
+        except Exception as e:
+            logger.error("calendar_property_add_failed", key=key, error=str(e))
+
+    def _get_raw_calendar_properties(self) -> Dict[str, str]:
+        """Get raw calendar properties from table."""
+        properties = {}
+        for row in range(self.properties_table.rowCount()):
+            key_item = self.properties_table.item(row, 0)
+            value_item = self.properties_table.item(row, 1)
+            if key_item and value_item and key_item.text().startswith('calendar_'):
+                properties[key_item.text()] = value_item.text().strip()
+        return properties
+
+    def setup_calendar_data(self) -> None:
+        """Load calendar data from flat properties."""
+        logger.debug("Starting calendar data setup",
+                     has_calendar_tab=bool(self.calendar_tab),
+                     has_raw_props=bool(self._get_raw_calendar_properties()))
+
+        if not self.calendar_tab or not self._get_raw_calendar_properties():
+            return
+
+        try:
+            raw_props = self._get_raw_calendar_properties()
+            logger.debug("Raw calendar properties", raw_props=raw_props)
+            calendar_data = {}
+
+            # Known types for each property
+            list_props = {'month_names', 'month_days', 'weekday_names'}
+            int_props = {'current_year', 'year_length', 'days_per_week'}
+
+            for key, value in raw_props.items():
+                # Remove calendar_ prefix
+                clean_key = key.replace('calendar_', '')
+
+                logger.debug("Processing property",
+                             original_key=key,
+                             clean_key=clean_key,
+                             original_value=value)
+
+                try:
+                    if clean_key in list_props:
+                        # Handle list properties by properly parsing the string representation
+                        try:
+                            # Use ast.literal_eval to safely evaluate the string representation of list
+                            import ast
+                            parsed_list = ast.literal_eval(value)
+                            if clean_key == 'month_days':
+                                # Ensure all values are integers for month_days
+                                calendar_data[clean_key] = [int(x) for x in parsed_list]
+                            else:
+                                # Keep as strings for other list properties
+                                calendar_data[clean_key] = [str(x) for x in parsed_list]
+                        except (ValueError, SyntaxError) as e:
+                            # Fallback to simple comma splitting if literal_eval fails
+                            items = [x.strip() for x in value.strip('[]').split(',') if x.strip()]
+                            if clean_key == 'month_days':
+                                calendar_data[clean_key] = [int(x) for x in items]
+                            else:
+                                calendar_data[clean_key] = items
+
+                    elif clean_key in int_props:
+                        # Handle integers
+                        calendar_data[clean_key] = int(value)
+                    else:
+                        # Handle strings
+                        calendar_data[clean_key] = value.strip()
+
+                except Exception as conversion_error:
+                    logger.error("Property conversion failed",
+                                 key=clean_key,
+                                 value=value,
+                                 error=str(conversion_error))
+                    raise
+
+            logger.debug("Final calendar data structure", calendar_data=calendar_data)
+            self.calendar_tab.set_calendar_data(calendar_data)
+
+        except Exception as e:
+            logger.error("calendar_setup_failed",
+                         error=str(e),
+                         error_type=type(e).__name__)
+
+    def _handle_calendar_changed(self, calendar_data: Dict[str, Any]) -> None:
+        """Store calendar data as flat properties."""
+        try:
+            self._clear_calendar_properties()
+            for key, value in calendar_data.items():
+                self._add_calendar_property(f"calendar_{key}", json.dumps(value))
+            self.controller.update_unsaved_changes_indicator()
+        except Exception as e:
+            logger.error("calendar_update_failed", error=str(e))
+
+    def _clear_calendar_properties(self) -> None:
+        """Remove all existing calendar properties."""
+        row = 0
+        while row < self.properties_table.rowCount():
+            if key_item := self.properties_table.item(row, 0):
+                if key_item.text().startswith('calendar_'):
+                    self.properties_table.removeRow(row)
+                    continue
+            row += 1
+
+    def _handle_tab_error(self, error: Exception) -> None:
+        """Handle errors related to tab management.
+
+        Args:
+            error: The error that occurred
+        """
+        logger.error(
+            "tab_error",
+            error=str(error),
+            widget_id=self.objectName(),
+            module="world_building_ui",
+            function="_handle_label_changes",
+        )
+
+        if hasattr(self, "controller"):
+            self.controller.error_handler.handle_error(
+                f"Error updating specialized tabs: {str(error)}"
+            )
 
     def _can_handle_label_changes(self) -> bool:
         """
