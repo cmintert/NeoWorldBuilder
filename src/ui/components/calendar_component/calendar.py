@@ -74,6 +74,22 @@ class CalendarHandler:
                         f"Invalid day in special date: {date['name']}"
                     )
 
+        # Validate seasons
+        if 'seasons' in data:
+            for season in data['seasons']:
+                if season['start_month'] > len(data['months']) or season['end_month'] > len(data['months']):
+                    raise ValueError(f"Invalid month in season: {season['name']}")
+                if season['start_day'] > data['months'][season['start_month'] - 1]['days'] or season['end_day'] > data['months'][season['end_month'] - 1]['days']:
+                    raise ValueError(f"Invalid day in season: {season['name']}")
+
+        # Validate lunar cycles
+        if 'lunar_cycles' in data:
+            for cycle in data['lunar_cycles']:
+                if cycle['start_month'] > len(data['months']) or cycle['end_month'] > len(data['months']):
+                    raise ValueError(f"Invalid month in lunar cycle: {cycle['name']}")
+                if cycle['start_day'] > data['months'][cycle['start_month'] - 1]['days'] or cycle['end_day'] > data['months'][cycle['end_month'] - 1]['days']:
+                    raise ValueError(f"Invalid day in lunar cycle: {cycle['name']}")
+
     def date_to_daynum(self, date: CalendarDate) -> int:
         """
         Convert a calendar date to a day number (days since epoch).

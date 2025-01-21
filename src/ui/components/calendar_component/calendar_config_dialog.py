@@ -34,7 +34,9 @@ class CalendarConfigDialog(QDialog):
                 "month_days": [30],
                 "days_per_week": 7,
                 "weekday_names": ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"],
-                "leap_year_rule": "none"
+                "leap_year_rule": "none",
+                "seasons": [],
+                "lunar_cycles": []
             }
         else:
             logger.debug("Using provided calendar data", data=calendar_data)
@@ -120,10 +122,58 @@ class CalendarConfigDialog(QDialog):
         week_group.setLayout(week_form)
         week_layout.addWidget(week_group)
 
+        # Seasons Tab
+        seasons_tab = QWidget()
+        seasons_layout = QVBoxLayout(seasons_tab)
+
+        self.seasons_table = QTableWidget()
+        self.seasons_table.setColumnCount(5)
+        self.seasons_table.setHorizontalHeaderLabels(["Season Name", "Start Month", "Start Day", "End Month", "End Day"])
+
+        # Add season data to table
+        self._populate_seasons_table()
+
+        # Add/Remove season buttons
+        season_buttons = QHBoxLayout()
+        add_season_btn = QPushButton("Add Season")
+        add_season_btn.clicked.connect(self._add_season)
+        remove_season_btn = QPushButton("Remove Season")
+        remove_season_btn.clicked.connect(self._remove_season)
+        season_buttons.addWidget(add_season_btn)
+        season_buttons.addWidget(remove_season_btn)
+
+        seasons_layout.addWidget(self.seasons_table)
+        seasons_layout.addLayout(season_buttons)
+
+        # Lunar Cycles Tab
+        lunar_cycles_tab = QWidget()
+        lunar_cycles_layout = QVBoxLayout(lunar_cycles_tab)
+
+        self.lunar_cycles_table = QTableWidget()
+        self.lunar_cycles_table.setColumnCount(5)
+        self.lunar_cycles_table.setHorizontalHeaderLabels(["Cycle Name", "Start Month", "Start Day", "End Month", "End Day"])
+
+        # Add lunar cycle data to table
+        self._populate_lunar_cycles_table()
+
+        # Add/Remove lunar cycle buttons
+        lunar_cycle_buttons = QHBoxLayout()
+        add_lunar_cycle_btn = QPushButton("Add Lunar Cycle")
+        add_lunar_cycle_btn.clicked.connect(self._add_lunar_cycle)
+        remove_lunar_cycle_btn = QPushButton("Remove Lunar Cycle")
+        remove_lunar_cycle_btn.clicked.connect(self._remove_lunar_cycle)
+        lunar_cycle_buttons.addWidget(add_lunar_cycle_btn)
+        lunar_cycle_buttons.addWidget(remove_lunar_cycle_btn)
+
+        lunar_cycles_layout.addWidget(self.lunar_cycles_table)
+        lunar_cycles_layout.addLayout(lunar_cycle_buttons)
+
         # Add tabs
         tabs.addTab(basic_tab, "Basic Settings")
         tabs.addTab(months_tab, "Months")
         tabs.addTab(week_tab, "Week Structure")
+        tabs.addTab(seasons_tab, "Seasons")
+        tabs.addTab(lunar_cycles_tab, "Lunar Cycles")
 
         # Dialog buttons
         button_box = QDialogButtonBox(
@@ -175,6 +225,26 @@ class CalendarConfigDialog(QDialog):
         for i, name in enumerate(self.calendar_data["weekday_names"]):
             self.weekday_table.setItem(i, 0, QTableWidgetItem(name))
 
+    def _populate_seasons_table(self) -> None:
+        """Populate the seasons table with current data."""
+        self.seasons_table.setRowCount(len(self.calendar_data["seasons"]))
+        for i, season in enumerate(self.calendar_data["seasons"]):
+            self.seasons_table.setItem(i, 0, QTableWidgetItem(season["name"]))
+            self.seasons_table.setItem(i, 1, QTableWidgetItem(str(season["start_month"])))
+            self.seasons_table.setItem(i, 2, QTableWidgetItem(str(season["start_day"])))
+            self.seasons_table.setItem(i, 3, QTableWidgetItem(str(season["end_month"])))
+            self.seasons_table.setItem(i, 4, QTableWidgetItem(str(season["end_day"])))
+
+    def _populate_lunar_cycles_table(self) -> None:
+        """Populate the lunar cycles table with current data."""
+        self.lunar_cycles_table.setRowCount(len(self.calendar_data["lunar_cycles"]))
+        for i, cycle in enumerate(self.calendar_data["lunar_cycles"]):
+            self.lunar_cycles_table.setItem(i, 0, QTableWidgetItem(cycle["name"]))
+            self.lunar_cycles_table.setItem(i, 1, QTableWidgetItem(str(cycle["start_month"])))
+            self.lunar_cycles_table.setItem(i, 2, QTableWidgetItem(str(cycle["start_day"])))
+            self.lunar_cycles_table.setItem(i, 3, QTableWidgetItem(str(cycle["end_month"])))
+            self.lunar_cycles_table.setItem(i, 4, QTableWidgetItem(str(cycle["end_day"])))
+
     def _add_month(self) -> None:
         """Add a new month to the table."""
         row = self.months_table.rowCount()
@@ -203,6 +273,38 @@ class CalendarConfigDialog(QDialog):
             for _ in range(current_rows - new_days):
                 self.weekday_table.removeRow(self.weekday_table.rowCount() - 1)
 
+    def _add_season(self) -> None:
+        """Add a new season to the table."""
+        row = self.seasons_table.rowCount()
+        self.seasons_table.insertRow(row)
+        self.seasons_table.setItem(row, 0, QTableWidgetItem(f"Season {row + 1}"))
+        self.seasons_table.setItem(row, 1, QTableWidgetItem("1"))
+        self.seasons_table.setItem(row, 2, QTableWidgetItem("1"))
+        self.seasons_table.setItem(row, 3, QTableWidgetItem("1"))
+        self.seasons_table.setItem(row, 4, QTableWidgetItem("1"))
+
+    def _remove_season(self) -> None:
+        """Remove the selected season from the table."""
+        current_row = self.seasons_table.currentRow()
+        if current_row >= 0:
+            self.seasons_table.removeRow(current_row)
+
+    def _add_lunar_cycle(self) -> None:
+        """Add a new lunar cycle to the table."""
+        row = self.lunar_cycles_table.rowCount()
+        self.lunar_cycles_table.insertRow(row)
+        self.lunar_cycles_table.setItem(row, 0, QTableWidgetItem(f"Cycle {row + 1}"))
+        self.lunar_cycles_table.setItem(row, 1, QTableWidgetItem("1"))
+        self.lunar_cycles_table.setItem(row, 2, QTableWidgetItem("1"))
+        self.lunar_cycles_table.setItem(row, 3, QTableWidgetItem("1"))
+        self.lunar_cycles_table.setItem(row, 4, QTableWidgetItem("1"))
+
+    def _remove_lunar_cycle(self) -> None:
+        """Remove the selected lunar cycle from the table."""
+        current_row = self.lunar_cycles_table.currentRow()
+        if current_row >= 0:
+            self.lunar_cycles_table.removeRow(current_row)
+
     def get_calendar_data(self) -> Dict[str, Any]:
         """Get the current calendar configuration.
 
@@ -228,6 +330,42 @@ class CalendarConfigDialog(QDialog):
                 if name_item:
                     weekday_names.append(name_item.text().strip())
 
+            # Collect seasons
+            seasons = []
+            for row in range(self.seasons_table.rowCount()):
+                name_item = self.seasons_table.item(row, 0)
+                start_month_item = self.seasons_table.item(row, 1)
+                start_day_item = self.seasons_table.item(row, 2)
+                end_month_item = self.seasons_table.item(row, 3)
+                end_day_item = self.seasons_table.item(row, 4)
+
+                if name_item and start_month_item and start_day_item and end_month_item and end_day_item:
+                    seasons.append({
+                        "name": name_item.text().strip(),
+                        "start_month": int(start_month_item.text().strip()),
+                        "start_day": int(start_day_item.text().strip()),
+                        "end_month": int(end_month_item.text().strip()),
+                        "end_day": int(end_day_item.text().strip())
+                    })
+
+            # Collect lunar cycles
+            lunar_cycles = []
+            for row in range(self.lunar_cycles_table.rowCount()):
+                name_item = self.lunar_cycles_table.item(row, 0)
+                start_month_item = self.lunar_cycles_table.item(row, 1)
+                start_day_item = self.lunar_cycles_table.item(row, 2)
+                end_month_item = self.lunar_cycles_table.item(row, 3)
+                end_day_item = self.lunar_cycles_table.item(row, 4)
+
+                if name_item and start_month_item and start_day_item and end_month_item and end_day_item:
+                    lunar_cycles.append({
+                        "name": name_item.text().strip(),
+                        "start_month": int(start_month_item.text().strip()),
+                        "start_day": int(start_day_item.text().strip()),
+                        "end_month": int(end_month_item.text().strip()),
+                        "end_day": int(end_day_item.text().strip())
+                    })
+
             # Build and validate configuration
             calendar_data = {
                 "calendar_type": "custom",
@@ -238,7 +376,9 @@ class CalendarConfigDialog(QDialog):
                 "month_days": month_days,
                 "days_per_week": self.days_per_week.value(),
                 "weekday_names": weekday_names,
-                "leap_year_rule": "none"
+                "leap_year_rule": "none",
+                "seasons": seasons,
+                "lunar_cycles": lunar_cycles
             }
 
             # Validate total days matches year length
