@@ -65,7 +65,7 @@ class CalendarTab(QWidget):
 
         # Modern calendar display
         self.calendar_display = CompactCalendarDisplay()
-        self._update_info_display()  # This will now update our new display
+        self._update_info_display()
 
         # Add components to layout
         layout.addLayout(controls_layout)
@@ -134,6 +134,8 @@ class CalendarTab(QWidget):
     def set_calendar_data(self, data: Dict[str, Any]) -> None:
         """Set the calendar data and update the UI.
 
+        This method validates and transforms the data before updating the display.
+
         Args:
             data: Dictionary containing calendar configuration
         """
@@ -144,10 +146,16 @@ class CalendarTab(QWidget):
                 logger.warning("Attempted to set empty calendar data")
                 return
 
-            self.calendar_data = data
+            # Transform any string-formatted lists into proper Python lists
+            transformed_data = self._transform_calendar_data(data)
+
+            # Update the internal data store
+            self.calendar_data = transformed_data
+
+            # Update the display with the clean data
             self._update_info_display()
 
-            # Emit change signal to notify parent
+            # Notify parent of changes
             self.calendar_changed.emit(self.calendar_data)
 
             logger.debug("Calendar data set successfully")
@@ -162,6 +170,42 @@ class CalendarTab(QWidget):
             QMessageBox.critical(
                 self, "Error", f"Failed to update calendar configuration: {str(e)}"
             )
+
+    def _transform_calendar_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform calendar data into the proper format.
+
+        Handles conversion of string-formatted lists to proper Python lists.
+
+        Args:
+            data: Raw calendar data dictionary
+
+        Returns:
+            Dict[str, Any]: Transformed calendar data with proper types
+        """
+        # Create a copy to avoid modifying the input
+        transformed = data.copy()
+
+        # Handle epoch-related fields
+        list_fields = [
+            ("epoch_names", str),
+            ("epoch_abbreviations", str),
+            ("epoch_start_years", int),
+            ("epoch_end_years", int),
+        ]
+
+        for field, type_func in list_fields:
+            if field in transformed:
+                value = transformed[field]
+                if isinstance(value, str):
+                    # Convert string representation to list
+                    clean_str = value.strip("[]").replace("'", "").replace('"', "")
+                    transformed[field] = [
+                        type_func(item.strip())
+                        for item in clean_str.split(",")
+                        if item.strip()
+                    ]
+
+        return transformed
 
     def _update_info_display(self) -> None:
         """Update the calendar information display."""
