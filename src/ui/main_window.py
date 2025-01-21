@@ -565,13 +565,6 @@ class WorldBuildingUI(QWidget):
         self.relationships_table.setRowCount(0)
         self.image_group.set_basic_image(None)
 
-        # Clear map tab if it exists
-        if self.map_tab:
-            map_tab_index = self.tabs.indexOf(self.map_tab)
-            if map_tab_index != -1:
-            self.tabs.removeTab(map_tab_index)
-            self.map_tab = None
-
         self._remove_map_tab_if_exists()
 
     def _remove_map_tab_if_exists(self) -> None:
@@ -827,7 +820,7 @@ class WorldBuildingUI(QWidget):
                 return
 
             current_labels = self._get_normalized_labels()
-            self._update_map_tab_visibility("Map" in current_labels)
+            self._update_map_tab_visibility("MAP" in current_labels)
             self._update_calendar_tab_visibility("CALENDAR" in current_labels)
 
         except Exception as e:
@@ -880,15 +873,17 @@ class WorldBuildingUI(QWidget):
         for row in range(self.properties_table.rowCount()):
             key_item = self.properties_table.item(row, 0)
             value_item = self.properties_table.item(row, 1)
-            if key_item and value_item and key_item.text().startswith('calendar_'):
+            if key_item and value_item and key_item.text().startswith("calendar_"):
                 properties[key_item.text()] = value_item.text().strip()
         return properties
 
     def setup_calendar_data(self) -> None:
         """Load calendar data from flat properties."""
-        logger.debug("Starting calendar data setup",
-                     has_calendar_tab=bool(self.calendar_tab),
-                     has_raw_props=bool(self._get_raw_calendar_properties()))
+        logger.debug(
+            "Starting calendar data setup",
+            has_calendar_tab=bool(self.calendar_tab),
+            has_raw_props=bool(self._get_raw_calendar_properties()),
+        )
 
         if not self.calendar_tab or not self._get_raw_calendar_properties():
             return
@@ -899,17 +894,19 @@ class WorldBuildingUI(QWidget):
             calendar_data = {}
 
             # Known types for each property
-            list_props = {'month_names', 'month_days', 'weekday_names'}
-            int_props = {'current_year', 'year_length', 'days_per_week'}
+            list_props = {"month_names", "month_days", "weekday_names"}
+            int_props = {"current_year", "year_length", "days_per_week"}
 
             for key, value in raw_props.items():
                 # Remove calendar_ prefix
-                clean_key = key.replace('calendar_', '')
+                clean_key = key.replace("calendar_", "")
 
-                logger.debug("Processing property",
-                             original_key=key,
-                             clean_key=clean_key,
-                             original_value=value)
+                logger.debug(
+                    "Processing property",
+                    original_key=key,
+                    clean_key=clean_key,
+                    original_value=value,
+                )
 
                 try:
                     if clean_key in list_props:
@@ -917,8 +914,9 @@ class WorldBuildingUI(QWidget):
                         try:
                             # Use ast.literal_eval to safely evaluate the string representation of list
                             import ast
+
                             parsed_list = ast.literal_eval(value)
-                            if clean_key == 'month_days':
+                            if clean_key == "month_days":
                                 # Ensure all values are integers for month_days
                                 calendar_data[clean_key] = [int(x) for x in parsed_list]
                             else:
@@ -926,8 +924,12 @@ class WorldBuildingUI(QWidget):
                                 calendar_data[clean_key] = [str(x) for x in parsed_list]
                         except (ValueError, SyntaxError) as e:
                             # Fallback to simple comma splitting if literal_eval fails
-                            items = [x.strip() for x in value.strip('[]').split(',') if x.strip()]
-                            if clean_key == 'month_days':
+                            items = [
+                                x.strip()
+                                for x in value.strip("[]").split(",")
+                                if x.strip()
+                            ]
+                            if clean_key == "month_days":
                                 calendar_data[clean_key] = [int(x) for x in items]
                             else:
                                 calendar_data[clean_key] = items
@@ -940,19 +942,21 @@ class WorldBuildingUI(QWidget):
                         calendar_data[clean_key] = value.strip()
 
                 except Exception as conversion_error:
-                    logger.error("Property conversion failed",
-                                 key=clean_key,
-                                 value=value,
-                                 error=str(conversion_error))
+                    logger.error(
+                        "Property conversion failed",
+                        key=clean_key,
+                        value=value,
+                        error=str(conversion_error),
+                    )
                     raise
 
             logger.debug("Final calendar data structure", calendar_data=calendar_data)
             self.calendar_tab.set_calendar_data(calendar_data)
 
         except Exception as e:
-            logger.error("calendar_setup_failed",
-                         error=str(e),
-                         error_type=type(e).__name__)
+            logger.error(
+                "calendar_setup_failed", error=str(e), error_type=type(e).__name__
+            )
 
     def _handle_calendar_changed(self, calendar_data: Dict[str, Any]) -> None:
         """Store calendar data as flat properties."""
@@ -969,7 +973,7 @@ class WorldBuildingUI(QWidget):
         row = 0
         while row < self.properties_table.rowCount():
             if key_item := self.properties_table.item(row, 0):
-                if key_item.text().startswith('calendar_'):
+                if key_item.text().startswith("calendar_"):
                     self.properties_table.removeRow(row)
                     continue
             row += 1
