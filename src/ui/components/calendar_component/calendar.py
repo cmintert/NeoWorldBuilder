@@ -89,8 +89,11 @@ class CalendarHandler:
         Returns:
             int: Number of days since epoch
         """
+        # Previous complete years
         days = (date.year - 1) * self.calendar_data["year_length"]
+        # Days in current year up to current month
         days += self.days_before_month[date.month - 1]
+        # Days in current month
         days += date.day
         return days
 
@@ -104,8 +107,11 @@ class CalendarHandler:
         Returns:
             CalendarDate: Corresponding calendar date
         """
-        year = (daynum - 1) // self.calendar_data["year_length"] + 1
-        days_remaining = daynum - (year - 1) * self.calendar_data["year_length"]
+        year_length = self.calendar_data["year_length"]
+
+        # Calculate year
+        year = (daynum - 1) // year_length + 1
+        days_remaining = daynum - ((year - 1) * year_length)
 
         # Find month
         month = 1
@@ -114,12 +120,15 @@ class CalendarHandler:
             and self.days_before_month[month] < days_remaining
         ):
             month += 1
-        month -= 1
+        month -= 1  # Adjust month since we overshot by one
 
+        # Calculate day
         day = days_remaining - self.days_before_month[month]
+
+        # Calculate weekday (0-based)
         weekday = (daynum - 1) % self.calendar_data["days_per_week"]
 
-        return CalendarDate(year, month, day, weekday)
+        return CalendarDate(year=year, month=month + 1, day=day, weekday=weekday)
 
     def format_date(self, date: CalendarDate, include_weekday: bool = True) -> str:
         """
