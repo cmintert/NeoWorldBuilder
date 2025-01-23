@@ -50,7 +50,7 @@ class CalendarConfigDialog(QDialog):
                 "epoch_start_years": [0],
                 "epoch_end_years": [99999],
                 "current_year": 1,
-                "year_length": 360,
+                "year_length": 30,
                 "month_names": ["Month 1"],
                 "month_days": [30],
                 "days_per_week": 7,

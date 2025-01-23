@@ -1,7 +1,5 @@
 import pytest
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QMessageBox
-from PyQt6.QtTest import QTest
+from PyQt6.QtWidgets import QApplication
 from unittest.mock import MagicMock, patch
 
 from ui.components.calendar_component.calendar_tab import CalendarTab
@@ -40,10 +38,26 @@ class TestCalendarTab:
     def test_set_calendar_data_valid(self, calendar_tab):
         """Test setting valid calendar data"""
         test_data = {
+            "calendar_type": "custom",
             "epoch_names": "['First', 'Second']",
             "epoch_abbreviations": "['1st', '2nd']",
             "epoch_start_years": "[0, 100]",
             "epoch_end_years": "[99, 199]",
+            "current_year": 50,
+            "year_length": 30,
+            "month_names": ["Month 1"],
+            "month_days": [30],
+            "days_per_week": 7,
+            "weekday_names": [
+                "Day 1",
+                "Day 2",
+                "Day 3",
+                "Day 4",
+                "Day 5",
+                "Day 6",
+                "Day 7",
+            ],
+            "leap_year_rule": "none",
         }
 
         calendar_tab.set_calendar_data(test_data)
@@ -54,6 +68,9 @@ class TestCalendarTab:
         assert calendar_tab.calendar_data["epoch_abbreviations"] == ["1st", "2nd"]
         assert calendar_tab.calendar_data["epoch_start_years"] == [0, 100]
         assert calendar_tab.calendar_data["epoch_end_years"] == [99, 199]
+        # Add assertions for new fields
+        assert calendar_tab.calendar_data["current_year"] == 50
+        assert calendar_tab.calendar_data["year_length"] == 30
 
     def test_set_calendar_data_empty(self, calendar_tab):
         """Test setting empty calendar data"""
@@ -87,7 +104,28 @@ class TestCalendarTab:
 
     def test_calendar_changed_signal(self, calendar_tab):
         """Test that the calendar_changed signal is emitted correctly"""
-        test_data = {"name": "test_calendar"}
+        test_data = {
+            "calendar_type": "custom",
+            "epoch_names": ["First", "Second"],
+            "epoch_abbreviations": ["1st", "2nd"],
+            "epoch_start_years": [0, 100],
+            "epoch_end_years": [99, 199],
+            "current_year": 50,
+            "year_length": 360,  # Required field
+            "month_names": ["Month 1"],  # Required field
+            "month_days": [30],  # Required field
+            "days_per_week": 7,  # Required field
+            "weekday_names": [
+                "Day 1",
+                "Day 2",
+                "Day 3",
+                "Day 4",
+                "Day 5",
+                "Day 6",
+                "Day 7",
+            ],  # Required field
+            "leap_year_rule": "none",  # Required field
+        }
 
         # Create a signal spy
         signal_received = []
@@ -99,14 +137,34 @@ class TestCalendarTab:
         assert len(signal_received) == 1
         assert signal_received[0] == test_data
 
-    @patch("calendar_tab.CalendarConfigDialog")
+    @patch("ui.components.calendar_component.calendar_tab.CalendarConfigDialog")
     def test_show_calendar_config_accepted(self, mock_dialog, calendar_tab):
         """Test calendar configuration dialog when accepted"""
-        # Setup mock dialog
-        dialog_instance = MagicMock()
+        # Setup mock dialog with valid data
+        dialog_instance = mock_dialog.return_value
         dialog_instance.exec.return_value = True
-        dialog_instance.get_calendar_data.return_value = {"name": "test_calendar"}
-        mock_dialog.return_value = dialog_instance
+        dialog_instance.get_calendar_data.return_value = {
+            "calendar_type": "custom",
+            "epoch_names": ["Test"],
+            "epoch_abbreviations": ["T"],
+            "epoch_start_years": [0],
+            "epoch_end_years": [99],
+            "current_year": 1,
+            "year_length": 30,  # Match this with month_days total
+            "month_names": ["Month 1"],
+            "month_days": [30],  # Make sure this matches year_length
+            "days_per_week": 7,
+            "weekday_names": [
+                "Day 1",
+                "Day 2",
+                "Day 3",
+                "Day 4",
+                "Day 5",
+                "Day 6",
+                "Day 7",
+            ],
+            "leap_year_rule": "none",
+        }
 
         # Show dialog
         calendar_tab._show_calendar_config()
@@ -114,17 +172,17 @@ class TestCalendarTab:
         # Verify dialog was shown and data was updated
         dialog_instance.exec.assert_called_once()
         dialog_instance.get_calendar_data.assert_called_once()
-        assert calendar_tab.calendar_data == {"name": "test_calendar"}
+        assert (
+            calendar_tab.calendar_data == dialog_instance.get_calendar_data.return_value
+        )
 
-    @patch("calendar_tab.CalendarConfigDialog")
+    @patch("ui.components.calendar_component.calendar_tab.CalendarConfigDialog")
     def test_show_calendar_config_cancelled(self, mock_dialog, calendar_tab):
         """Test calendar configuration dialog when cancelled"""
-        # Setup mock dialog
-        dialog_instance = MagicMock()
+        dialog_instance = mock_dialog.return_value
         dialog_instance.exec.return_value = False
-        mock_dialog.return_value = dialog_instance
 
-        # Store original calendar data
+        # Store original data
         original_data = calendar_tab.calendar_data
 
         # Show dialog
