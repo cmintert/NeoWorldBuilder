@@ -130,7 +130,11 @@ class QueryWorker(BaseNeo4jWorker):
         """
         try:
             with self._driver.session() as session:
+                logger.debug(
+                    "Raw query about to execute", query=self.query, params=self.params
+                )
                 result = list(session.run(self.query, self.params))
+                logger.debug("Raw query result", result=result)
                 if not self._is_cancelled:
                     self.query_finished.emit(result)
         except Exception as e:
