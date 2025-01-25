@@ -1,7 +1,5 @@
 import pytest
 from PyQt6.QtWidgets import QApplication, QTableWidgetItem, QMessageBox
-from PyQt6.QtTest import QTest
-from unittest.mock import MagicMock
 
 from ui.components.calendar_component.calendar_config_dialog import CalendarConfigDialog
 
