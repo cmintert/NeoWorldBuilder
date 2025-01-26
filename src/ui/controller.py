@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
 )
 from structlog import get_logger
 
+from date_parser_module.dateparser import ParsedDate, DatePrecision
 from models.completer_model import AutoCompletionUIHandler, CompleterInput
 from models.property_model import PropertyItem
 from models.suggestion_model import SuggestionUIHandler, SuggestionResult
@@ -428,6 +429,82 @@ class WorldBuildingController(QObject):
             if not isinstance(self.all_props, dict):
                 self.all_props = {}
 
+            # Reconstruct ParsedDate from flat properties
+            parsed_date = None
+            if "parsed_date_year" in self.all_props:
+                try:
+                    precision_str = self.all_props.get(
+                        "parsed_date_precision", "EXACT"
+                    )  # Default to EXACT if missing
+                    precision = DatePrecision[precision_str]
+                    range_start = None
+                    range_end = None
+
+                    if "parsed_date_range_start_year" in self.all_props:
+                        range_start = ParsedDate(
+                            year=self.all_props["parsed_date_range_start_year"],
+                            month=self.all_props.get("parsed_date_range_start_month"),
+                            day=self.all_props.get("parsed_date_range_start_day"),
+                            precision=DatePrecision[
+                                self.all_props.get(
+                                    "parsed_date_range_start_precision", "EXACT"
+                                )
+                            ],  # Default to EXACT
+                        )
+                    if "parsed_date_range_end_year" in self.all_props:
+                        range_end = ParsedDate(
+                            year=self.all_props["parsed_date_range_end_year"],
+                            month=self.all_props.get("parsed_date_range_end_month"),
+                            day=self.all_props.get("parsed_date_range_end_day"),
+                            precision=DatePrecision[
+                                self.all_props.get(
+                                    "parsed_date_range_end_precision", "EXACT"
+                                )
+                            ],  # Default to EXACT
+                        )
+
+                    parsed_date = ParsedDate(
+                        year=self.all_props["parsed_date_year"],
+                        month=self.all_props.get("parsed_date_month"),
+                        day=self.all_props.get("parsed_date_day"),
+                        precision=precision,
+                        relative_to=self.all_props.get("parsed_date_relative_to"),
+                        relative_days=self.all_props.get("parsed_date_relative_days"),
+                        confidence=self.all_props.get(
+                            "parsed_date_confidence", 1.0
+                        ),  # Default to 1.0 if missing
+                        season=self.all_props.get("parsed_date_season"),
+                        range_start=range_start,
+                        range_end=range_end,
+                    )
+                except (ValueError, KeyError) as e:
+                    logger.warning(
+                        "Error reconstructing ParsedDate from flat props", error=str(e)
+                    )
+                    parsed_date = None  # Handle reconstruction failure gracefully
+
+            labels = record.get("labels", [])
+            index_of_map_tab = self.ui.tabs.indexOf(self.ui.map_tab)
+            if "MAP" in labels:
+                self.ui.tabs.setCurrentIndex(index_of_map_tab)
+            else:
+                self.ui.tabs.setCurrentIndex(0)
+
+            if "EVENT" in labels:
+                self._setup_event_calendar()
+
+                # Just pass the basic event data including the original temporal string
+                event_data = {
+                    "event_type": self.all_props.get("event_type", "Occurrence"),
+                    "temporal_data": self.all_props.get(
+                        "temporal_data", ""
+                    ),  # Original date string
+                    "relative_to": self.all_props.get("event_relative_to"),
+                }
+
+                if hasattr(self.ui, "event_tab") and self.ui.event_tab:
+                    self.ui.event_tab.set_event_data(event_data)
+
             # Update original data for save state tracking
             self.original_node_data = self.node_operations.collect_node_data(
                 name=self.ui.name_input.text().strip(),
@@ -438,16 +515,6 @@ class WorldBuildingController(QObject):
                 relationships=self._collect_table_relationships(),
                 all_props=self.all_props,
             )
-
-            labels = self.original_node_data.get("labels", [])
-            index_of_map_tab = self.ui.tabs.indexOf(self.ui.map_tab)
-            if "MAP" in labels:
-                self.ui.tabs.setCurrentIndex(index_of_map_tab)
-            else:
-                self.ui.tabs.setCurrentIndex(0)
-
-            if "EVENT" in labels:
-                self._setup_event_calendar()
 
             # Update save state with new original data
             self.save_service.update_save_state(self.original_node_data)
@@ -644,7 +711,26 @@ class WorldBuildingController(QObject):
 
     def _handle_event_data_changed(self, event_data: dict) -> None:
         """Handle changes to event data"""
-        self.all_props["event_data"] = event_data
+        logger.debug(
+            "_handle_event_data_changed: event_data received - START",
+            event_data=event_data,
+        )
+
+        # Convert numeric values to strings before storing
+        for key, value in event_data.items():
+            if key.startswith("parsed_date_") and value is not None:
+                self.all_props[key] = str(value)
+            else:
+                self.all_props[key] = value
+
+        # Store other event data properties directly in all_props
+        self.all_props["event_type"] = event_data["event_type"]
+        self.all_props["temporal_data"] = event_data["temporal_data"]
+        self.all_props["event_relative_to"] = event_data.get("event_relative_to")
+
+        logger.debug(
+            "_handle_event_changed: all_props final - END", all_props=self.all_props
+        )
         self.update_unsaved_changes_indicator()
 
     def _handle_pin_created(
@@ -710,10 +796,10 @@ class WorldBuildingController(QObject):
     def _populate_properties(self, properties: Dict[str, Any]) -> None:
         """
         Populate properties table.
-
-        Args:
-            properties: Dictionary of node properties.
         """
+        logger.debug(
+            "_populate_properties: received properties", properties=properties
+        )  # Log received properties
         self.ui.properties_table.setRowCount(0)
         for key, value in properties.items():
             if self._should_display_property(key):
@@ -734,11 +820,10 @@ class WorldBuildingController(QObject):
     def _add_property_row(self, key: str, value: Any) -> None:
         """
         Add a row to the properties table.
-
-        Args:
-            key: Property key.
-            value: Property value.
         """
+        logger.debug(
+            "_add_property_row: adding property", key=key, value=value
+        )  # Log each property row addition
         row = self.ui.properties_table.rowCount()
         self.ui.properties_table.insertRow(row)
         self.ui.properties_table.setItem(row, 0, QTableWidgetItem(key))

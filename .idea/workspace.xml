@@ -4,11 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Added unit tests for additional calendar components.">
-      <change afterPath="$PROJECT_DIR$/src/ui/components/event_component/event_tab.py" afterDir="false" />
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="We are getting there, got a calendar connection established.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core/neo4jworkers.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/neo4jworkers.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/event_component/event_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/event_component/event_tab.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ui/controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/controller.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
     </list>
@@ -58,6 +57,7 @@
     &quot;Python tests.Python tests in calendar_test.py.executor&quot;: &quot;Run&quot;,
     &quot;Python tests.pytest in calendar_config_dialog_test.py.executor&quot;: &quot;Run&quot;,
     &quot;Python tests.pytest in calendar_tab_test.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in test_parser.py.executor&quot;: &quot;Run&quot;,
     &quot;Python.Run main.py.executor&quot;: &quot;Run&quot;,
     &quot;Python.core.executor&quot;: &quot;Run&quot;,
     &quot;Python.main.executor&quot;: &quot;Run&quot;,
@@ -138,7 +138,9 @@
       <workItem from="1737409320833" duration="960000" />
       <workItem from="1737660206647" duration="4413000" />
       <workItem from="1737726249627" duration="4913000" />
-      <workItem from="1737791418800" duration="9080000" />
+      <workItem from="1737791418800" duration="11233000" />
+      <workItem from="1737879215076" duration="400000" />
+      <workItem from="1737879685028" duration="9122000" />
     </task>
     <task id="LOCAL-00001" summary="Implemented a first basic calendar property system.">
       <option name="closed" value="true" />
@@ -212,7 +214,15 @@
       <option name="project" value="LOCAL" />
       <updated>1737791478267</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="We are getting there, got a calendar connection established.">
+      <option name="closed" value="true" />
+      <created>1737833062463</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1737833062463</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -236,7 +246,8 @@
     <MESSAGE value="Config now works at all times." />
     <MESSAGE value="Started adding unit tests" />
     <MESSAGE value="Added unit tests for additional calendar components." />
-    <option name="LAST_COMMIT_MESSAGE" value="Added unit tests for additional calendar components." />
+    <MESSAGE value="We are getting there, got a calendar connection established." />
+    <option name="LAST_COMMIT_MESSAGE" value="We are getting there, got a calendar connection established." />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$core.coverage" NAME="core Coverage Results" MODIFIED="1737663368566" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/dateparser" />
@@ -246,10 +257,11 @@
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$calendar_handler.coverage" NAME="calendar_handler Coverage Results" MODIFIED="1737583401367" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui/components/calendar_component" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$main.coverage" NAME="main Coverage Results" MODIFIED="1737189065102" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$.coverage" NAME=" Coverage Results" MODIFIED="1737584858616" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1737832834162" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1737906213039" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$card_based_calendar_widget.coverage" NAME="card_based_calendar_widget Coverage Results" MODIFIED="1737485046740" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui/components/calendar_component" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_calendar_config_dialog_test_py.coverage" NAME="pytest in calendar_config_dialog_test.py Coverage Results" MODIFIED="1737662433154" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_parser_py.coverage" NAME="pytest in test_parser.py Coverage Results" MODIFIED="1737833483635" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$date_parser_test_module.coverage" NAME="date_parser_test_module Coverage Results" MODIFIED="1737453411441" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/test_module" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$calendar.coverage" NAME="calendar Coverage Results" MODIFIED="1737488258850" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui/components/calendar_component" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$calendar_model.coverage" NAME="calendar_model Coverage Results" MODIFIED="1737581064214" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/models" />

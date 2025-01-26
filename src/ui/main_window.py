@@ -1003,11 +1003,15 @@ class WorldBuildingUI(QWidget):
         """Handle changes to event data"""
         try:
             # Update properties
+            logger.debug("Updating event data", event_data=event_data)
             self._set_property_value("event_type", event_data["event_type"])
             self._set_property_value("temporal_data", event_data["temporal_data"])
-            self._set_property_value(
-                "parsed_temporal_data", json.dumps(event_data["parsed_temporal_data"])
-            )
+
+            for key in event_data:
+                if "parsed_date_" in key:
+                    logger.debug("Parsed property", key=key, value=event_data[key])
+                    logger.debug("-" * 20)
+                    self._set_property_value(key, event_data[key])
 
             if event_data["relative_to"]:
                 self._set_property_value("event_relative_to", event_data["relative_to"])
@@ -1165,13 +1169,17 @@ class WorldBuildingUI(QWidget):
 
     def _set_property_value(self, key: str, value: str) -> None:
         """Set a property value in the properties table."""
+        logger.debug("Setting property value", key=key, value=value)
+
         # Look for existing property
         for row in range(self.properties_table.rowCount()):
+            logger.debug("Property exists", row=row)
             if self.properties_table.item(row, 0).text() == key:
                 self.properties_table.item(row, 1).setText(value)
                 return
 
         # Add new property if not found
+        logger.debug("Adding as new property")
         row = self.properties_table.rowCount()
         self.properties_table.insertRow(row)
         self.properties_table.setItem(row, 0, QTableWidgetItem(key))
