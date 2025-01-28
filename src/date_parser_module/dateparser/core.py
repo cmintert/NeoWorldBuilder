@@ -149,7 +149,8 @@ class DateParser:
     def _compile_all_patterns(self) -> None:
         """Compile all date parsing patterns"""
         # Escape all special characters in month names and join with |
-        month_names = [re.escape(name) for name in self.calendar["month_names"]]
+        month_names = sorted(self.calendar["month_names"], key=len, reverse=True)
+        month_names = [re.escape(name) for name in month_names]
         month_pattern = f'({"|".join(month_names)})'
 
         # Basic components
@@ -171,6 +172,7 @@ class DateParser:
         # Weekday pattern (if weekdays are defined)
         weekday_prefix = ""
         if weekday_names := self.calendar.get("weekday_names"):
+            weekday_names = sorted(weekday_names, key=len, reverse=True)
             weekday_pattern = "|".join(re.escape(name) for name in weekday_names)
             weekday_prefix = (
                 f"(?:(?:{weekday_pattern}){opt_space}{opt_comma}{opt_space})?"
@@ -181,6 +183,23 @@ class DateParser:
 
         # Compile patterns in specific order
         self.compiled_patterns = {
+            "month_year": [
+                # Basic Month Year format
+                re.compile(
+                    f"^{month_pattern}{opt_space}{year}$",
+                    re.IGNORECASE,
+                ),
+                # "In Month Year" format
+                re.compile(
+                    f"^(?:in|during){space}{month_pattern}{opt_space}{year}$",
+                    re.IGNORECASE,
+                ),
+                # "The month of Month, Year" format
+                re.compile(
+                    f"^{the_part}?(?:month{space}of{space})?{month_pattern}{opt_space}{opt_comma}{opt_space}{year}$",
+                    re.IGNORECASE,
+                ),
+            ],
             "exact": [
                 # "Weekday, the Xth day of Month, Year" format
                 re.compile(
@@ -203,23 +222,6 @@ class DateParser:
                 # Basic "day Month Year" format (without weekday)
                 re.compile(
                     f"^{day}{space}{month_pattern}{opt_space}{opt_comma}{opt_space}{year}$",
-                    re.IGNORECASE,
-                ),
-            ],
-            "month_year": [
-                # Basic Month Year format
-                re.compile(
-                    f"^{month_pattern}{opt_space}{year}$",
-                    re.IGNORECASE,
-                ),
-                # "In Month Year" format
-                re.compile(
-                    f"^(?:in|during){space}{month_pattern}{opt_space}{year}$",
-                    re.IGNORECASE,
-                ),
-                # "The month of Month, Year" format
-                re.compile(
-                    f"^{the_part}?(?:month{space}of{space})?{month_pattern}{opt_space}{opt_comma}{opt_space}{year}$",
                     re.IGNORECASE,
                 ),
             ],
@@ -378,19 +380,12 @@ class DateParser:
     def _parse_month_year(self, match) -> ParsedDate:
         """Parse month-year combinations with support for compound month names"""
         groups = [g for g in match.groups() if g is not None]
-
         try:
             # Extract year
             year = int(next(g for g in reversed(groups) if re.match(r"^\d{1,4}$", g)))
 
-            # Extract month by finding exact match with calendar months
-            month_name = next(
-                g
-                for g in groups
-                if any(
-                    name.lower() == g.lower() for name in self.calendar["month_names"]
-                )
-            )
+            # Find the month name that matches a key in the month_lookup (case-insensitive)
+            month_name = next(g for g in groups if g.lower() in self.month_lookup)
 
             # Look up month number
             month = self.month_lookup[month_name.lower()]
