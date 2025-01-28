@@ -1,5 +1,6 @@
 import json
 import logging
+import functools
 import time
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
@@ -17,6 +18,7 @@ from PyQt6.QtWidgets import (
 )
 from structlog import get_logger
 
+from date_parser_module.dateparser import ParsedDate, DatePrecision
 from models.completer_model import AutoCompletionUIHandler, CompleterInput
 from models.property_model import PropertyItem
 from models.suggestion_model import SuggestionUIHandler, SuggestionResult
@@ -30,6 +32,7 @@ from ui.components.dialogs import (
     FastInjectDialog,
     ProjectSettingsDialog,
 )
+from ui.components.event_component.event_tab import EventTab
 from ui.components.map_tab import MapTab
 from utils.error_handler import ErrorHandler
 
@@ -426,6 +429,82 @@ class WorldBuildingController(QObject):
             if not isinstance(self.all_props, dict):
                 self.all_props = {}
 
+            # Reconstruct ParsedDate from flat properties
+            parsed_date = None
+            if "parsed_date_year" in self.all_props:
+                try:
+                    precision_str = self.all_props.get(
+                        "parsed_date_precision", "EXACT"
+                    )  # Default to EXACT if missing
+                    precision = DatePrecision[precision_str]
+                    range_start = None
+                    range_end = None
+
+                    if "parsed_date_range_start_year" in self.all_props:
+                        range_start = ParsedDate(
+                            year=self.all_props["parsed_date_range_start_year"],
+                            month=self.all_props.get("parsed_date_range_start_month"),
+                            day=self.all_props.get("parsed_date_range_start_day"),
+                            precision=DatePrecision[
+                                self.all_props.get(
+                                    "parsed_date_range_start_precision", "EXACT"
+                                )
+                            ],  # Default to EXACT
+                        )
+                    if "parsed_date_range_end_year" in self.all_props:
+                        range_end = ParsedDate(
+                            year=self.all_props["parsed_date_range_end_year"],
+                            month=self.all_props.get("parsed_date_range_end_month"),
+                            day=self.all_props.get("parsed_date_range_end_day"),
+                            precision=DatePrecision[
+                                self.all_props.get(
+                                    "parsed_date_range_end_precision", "EXACT"
+                                )
+                            ],  # Default to EXACT
+                        )
+
+                    parsed_date = ParsedDate(
+                        year=self.all_props["parsed_date_year"],
+                        month=self.all_props.get("parsed_date_month"),
+                        day=self.all_props.get("parsed_date_day"),
+                        precision=precision,
+                        relative_to=self.all_props.get("parsed_date_relative_to"),
+                        relative_days=self.all_props.get("parsed_date_relative_days"),
+                        confidence=self.all_props.get(
+                            "parsed_date_confidence", 1.0
+                        ),  # Default to 1.0 if missing
+                        season=self.all_props.get("parsed_date_season"),
+                        range_start=range_start,
+                        range_end=range_end,
+                    )
+                except (ValueError, KeyError) as e:
+                    logger.warning(
+                        "Error reconstructing ParsedDate from flat props", error=str(e)
+                    )
+                    parsed_date = None  # Handle reconstruction failure gracefully
+
+            labels = record.get("labels", [])
+            index_of_map_tab = self.ui.tabs.indexOf(self.ui.map_tab)
+            if "MAP" in labels:
+                self.ui.tabs.setCurrentIndex(index_of_map_tab)
+            else:
+                self.ui.tabs.setCurrentIndex(0)
+
+            if "EVENT" in labels:
+                self._setup_event_calendar()
+
+                # Just pass the basic event data including the original temporal string
+                event_data = {
+                    "event_type": self.all_props.get("event_type", "Occurrence"),
+                    "temporal_data": self.all_props.get(
+                        "temporal_data", ""
+                    ),  # Original date string
+                    "relative_to": self.all_props.get("event_relative_to"),
+                }
+
+                if hasattr(self.ui, "event_tab") and self.ui.event_tab:
+                    self.ui.event_tab.set_event_data(event_data)
+
             # Update original data for save state tracking
             self.original_node_data = self.node_operations.collect_node_data(
                 name=self.ui.name_input.text().strip(),
@@ -436,13 +515,6 @@ class WorldBuildingController(QObject):
                 relationships=self._collect_table_relationships(),
                 all_props=self.all_props,
             )
-
-            labels = self.original_node_data.get("labels", [])
-            index_of_map_tab = self.ui.tabs.indexOf(self.ui.map_tab)
-            if "MAP" in labels:
-                self.ui.tabs.setCurrentIndex(index_of_map_tab)
-            else:
-                self.ui.tabs.setCurrentIndex(0)
 
             # Update save state with new original data
             self.save_service.update_save_state(self.original_node_data)
@@ -546,18 +618,23 @@ class WorldBuildingController(QObject):
     def _populate_node_fields(self, record: Any) -> None:
         """
         Populate UI fields with node data.
-
-        Args:
-            record: The record containing node data.
         """
         try:
             node_data = self._extract_node_data(record)
 
-            # Start map data processing in parallel with basic info
-            is_map_node = "MAP" in {label.upper() for label in node_data["labels"]}
-            if is_map_node:
+            # Basic info population (existing code)
+            self._populate_basic_info(node_data)
+            self.ui.description_input.setHtml(node_data.get("description", ""))
+            self._populate_properties(node_data["properties"])
+            self._populate_relationships(node_data["relationships"])
+            self._populate_basic_info_image(node_data["node_properties"])
+
+            # Handle special node types
+            labels = {label.upper() for label in node_data["labels"]}
+
+            # Handle MAP nodes
+            if "MAP" in labels:
                 self._ensure_map_tab_exists()
-                # Start map image loading asynchronously
                 QTimer.singleShot(
                     0,
                     lambda: self._update_map_image(
@@ -565,15 +642,10 @@ class WorldBuildingController(QObject):
                     ),
                 )
 
-            # Populate basic info immediately
-            self._populate_basic_info(node_data)
-            self.ui.description_input.setHtml(node_data.get("description", ""))
-            self._populate_properties(node_data["properties"])
-            self._populate_relationships(node_data["relationships"])
-            self._populate_basic_info_image(node_data["node_properties"])
-
-            if "CALENDAR" in {label.upper() for label in node_data["labels"]}:
-                self.ui.setup_calendar_data()
+            # Handle EVENT nodes
+            if "EVENT" in labels:
+                self._ensure_event_tab_exists()  # New method
+                self._setup_event_calendar()
 
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
@@ -626,6 +698,40 @@ class WorldBuildingController(QObject):
             self.ui.map_tab.pin_created.connect(self._handle_pin_created)
 
             self.ui.tabs.addTab(self.ui.map_tab, "Map")
+
+    def _ensure_event_tab_exists(self) -> None:
+        """Ensure event tab exists and is properly initialized"""
+        if not hasattr(self.ui, "event_tab") or not self.ui.event_tab:
+            # Create event tab if it doesn't exist
+            self.ui.event_tab = EventTab(self)
+            self.ui.tabs.addTab(self.ui.event_tab, "Event")
+
+            # Connect event data change signal
+            self.ui.event_tab.event_changed.connect(self._handle_event_data_changed)
+
+    def _handle_event_data_changed(self, event_data: dict) -> None:
+        """Handle changes to event data"""
+        logger.debug(
+            "_handle_event_data_changed: event_data received - START",
+            event_data=event_data,
+        )
+
+        # Convert numeric values to strings before storing
+        for key, value in event_data.items():
+            if key.startswith("parsed_date_") and value is not None:
+                self.all_props[key] = str(value)
+            else:
+                self.all_props[key] = value
+
+        # Store other event data properties directly in all_props
+        self.all_props["event_type"] = event_data["event_type"]
+        self.all_props["temporal_data"] = event_data["temporal_data"]
+        self.all_props["event_relative_to"] = event_data.get("event_relative_to")
+
+        logger.debug(
+            "_handle_event_changed: all_props final - END", all_props=self.all_props
+        )
+        self.update_unsaved_changes_indicator()
 
     def _handle_pin_created(
         self, target_node: str, direction: str, properties: dict
@@ -690,10 +796,10 @@ class WorldBuildingController(QObject):
     def _populate_properties(self, properties: Dict[str, Any]) -> None:
         """
         Populate properties table.
-
-        Args:
-            properties: Dictionary of node properties.
         """
+        logger.debug(
+            "_populate_properties: received properties", properties=properties
+        )  # Log received properties
         self.ui.properties_table.setRowCount(0)
         for key, value in properties.items():
             if self._should_display_property(key):
@@ -714,11 +820,10 @@ class WorldBuildingController(QObject):
     def _add_property_row(self, key: str, value: Any) -> None:
         """
         Add a row to the properties table.
-
-        Args:
-            key: Property key.
-            value: Property value.
         """
+        logger.debug(
+            "_add_property_row: adding property", key=key, value=value
+        )  # Log each property row addition
         row = self.ui.properties_table.rowCount()
         self.ui.properties_table.insertRow(row)
         self.ui.properties_table.setItem(row, 0, QTableWidgetItem(key))
@@ -1154,11 +1259,13 @@ class WorldBuildingController(QObject):
         for row in range(self.properties_table.rowCount()):
             key_item = self.properties_table.item(row, 0)
             value_item = self.properties_table.item(row, 1)
-            if key_item and value_item and key_item.text().startswith('calendar_'):
+            if key_item and value_item and key_item.text().startswith("calendar_"):
                 properties[key_item.text()] = value_item.text().strip()
-                logger.debug("Found calendar property",
-                             key=key_item.text(),
-                             value=value_item.text().strip())
+                logger.debug(
+                    "Found calendar property",
+                    key=key_item.text(),
+                    value=value_item.text().strip(),
+                )
 
         logger.debug("Raw calendar properties result", properties=properties)
         return properties
@@ -1166,9 +1273,11 @@ class WorldBuildingController(QObject):
     def setup_calendar_data(self) -> None:
         """Load calendar data from flat properties."""
         # Log initial check
-        logger.debug("Starting calendar data setup",
-                     has_calendar_tab=bool(self.calendar_tab),
-                     has_raw_props=bool(self._get_raw_calendar_properties()))
+        logger.debug(
+            "Starting calendar data setup",
+            has_calendar_tab=bool(self.calendar_tab),
+            has_raw_props=bool(self._get_raw_calendar_properties()),
+        )
 
         if not self.calendar_tab or not self._get_raw_calendar_properties():
             logger.debug("Exiting early - missing required components")
@@ -1181,67 +1290,79 @@ class WorldBuildingController(QObject):
             calendar_data = {}
 
             # Known types for each property
-            list_props = {'month_names', 'month_days', 'weekday_names'}
-            int_props = {'current_year', 'year_length', 'days_per_week'}
+            list_props = {"month_names", "month_days", "weekday_names"}
+            int_props = {"current_year", "year_length", "days_per_week"}
 
-            logger.debug("Property type classifications",
-                         list_props=list_props,
-                         int_props=int_props)
+            logger.debug(
+                "Property type classifications",
+                list_props=list_props,
+                int_props=int_props,
+            )
 
             for key, value in raw_props.items():
                 # Remove calendar_ prefix
-                clean_key = key.replace('calendar_', '')
+                clean_key = key.replace("calendar_", "")
 
-                logger.debug("Processing property",
-                             original_key=key,
-                             clean_key=clean_key,
-                             original_value=value)
+                logger.debug(
+                    "Processing property",
+                    original_key=key,
+                    clean_key=clean_key,
+                    original_value=value,
+                )
 
                 try:
                     if clean_key in list_props:
-                        if clean_key == 'month_days':
+                        if clean_key == "month_days":
                             # Convert to list of integers
-                            split_values = value.split(',')
-                            calendar_data[clean_key] = [int(x) for x in split_values if x]
-                            logger.debug("Processed list (integers)",
-                                         key=clean_key,
-                                         split_values=split_values,
-                                         result=calendar_data[clean_key])
+                            split_values = value.split(",")
+                            calendar_data[clean_key] = [
+                                int(x) for x in split_values if x
+                            ]
+                            logger.debug(
+                                "Processed list (integers)",
+                                key=clean_key,
+                                split_values=split_values,
+                                result=calendar_data[clean_key],
+                            )
                         else:
                             # Convert to list of strings
-                            split_values = value.split(',')
+                            split_values = value.split(",")
                             calendar_data[clean_key] = [x for x in split_values if x]
-                            logger.debug("Processed list (strings)",
-                                         key=clean_key,
-                                         split_values=split_values,
-                                         result=calendar_data[clean_key])
+                            logger.debug(
+                                "Processed list (strings)",
+                                key=clean_key,
+                                split_values=split_values,
+                                result=calendar_data[clean_key],
+                            )
                     elif clean_key in int_props:
                         # Handle integers
                         calendar_data[clean_key] = int(value)
-                        logger.debug("Processed integer",
-                                     key=clean_key,
-                                     value=value,
-                                     result=calendar_data[clean_key])
+                        logger.debug(
+                            "Processed integer",
+                            key=clean_key,
+                            value=value,
+                            result=calendar_data[clean_key],
+                        )
                     else:
                         # Handle strings
                         calendar_data[clean_key] = value
-                        logger.debug("Processed string",
-                                     key=clean_key,
-                                     value=value)
+                        logger.debug("Processed string", key=clean_key, value=value)
                 except Exception as conversion_error:
-                    logger.error("Property conversion failed",
-                                 key=clean_key,
-                                 value=value,
-                                 error=str(conversion_error))
+                    logger.error(
+                        "Property conversion failed",
+                        key=clean_key,
+                        value=value,
+                        error=str(conversion_error),
+                    )
                     raise
 
             logger.debug("Final calendar data structure", calendar_data=calendar_data)
             self.calendar_tab.set_calendar_data(calendar_data)
 
         except Exception as e:
-            logger.error("calendar_setup_failed",
-                         error=str(e),
-                         error_type=type(e).__name__)
+            logger.error(
+                "calendar_setup_failed", error=str(e), error_type=type(e).__name__
+            )
             raise
 
     def _handle_calendar_changed(self, calendar_data: Dict[str, Any]) -> None:
@@ -1254,7 +1375,7 @@ class WorldBuildingController(QObject):
             for key, value in calendar_data.items():
                 if isinstance(value, list):
                     # Convert lists to comma-separated strings
-                    stored_value = ','.join(str(x) for x in value)
+                    stored_value = ",".join(str(x) for x in value)
                 else:
                     # Store other values directly as strings
                     stored_value = str(value)
@@ -1361,3 +1482,123 @@ class WorldBuildingController(QObject):
         )
 
         self.worker_manager.execute_worker("rename", operation)
+
+    def _setup_event_calendar(self) -> None:
+        """Set up calendar data for event nodes"""
+        if not self.current_node_element_id:
+            logger.error("No element_id available for calendar lookup")
+            return
+
+        # Query to get calendar data with proper prefixed property names
+        calendar_query = """
+        MATCH (n)-[r:USES_CALENDAR]->(c:CALENDAR)
+        WHERE elementId(n) = $element_id
+        AND n._project = $project
+        RETURN {
+            month_names: c.calendar_month_names,
+            month_days: c.calendar_month_days,
+            weekday_names: c.calendar_weekday_names,
+            days_per_week: toInteger(c.calendar_days_per_week),
+            year_length: toInteger(c.calendar_year_length),
+            current_year: toInteger(c.calendar_current_year)
+        } as calendar_data
+        """
+
+        logger.debug("_setup_event_calendar: before execute_worker calendar operation")
+        worker = self.model.execute_read_query(
+            calendar_query,
+            {
+                "element_id": self.current_node_element_id,
+                "project": self.config.user.PROJECT,
+            },
+        )
+
+        worker.query_finished.connect(
+            self._handle_calendar_query_finished
+        )  # ADD THIS LINE - Signal connection
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=None,  # SET TO None - We are using signal now
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Calendar query failed: {msg}"
+            ),
+            operation_name="calendar_lookup",
+        )
+
+        self.worker_manager.execute_worker("calendar", operation)
+        logger.debug("_setup_event_calendar: after execute_worker calendar operation")
+
+    def handle_calendar_data(
+        self,
+        result,
+    ):  # Keep handle_calendar_data as is, but it will be called from signal handler
+        """Process calendar data and update UI"""
+        logger.debug("handle_calendar_data: raw result", result=result)
+        if not result or not result[0].get("calendar_data"):
+            logger.error("No calendar data found")
+            return
+
+        calendar_data = result[0]["calendar_data"]
+        logger.debug("handle_calendar_data: calendar_data", calendar_data=calendar_data)
+
+        # Convert month_days from string array to integer array
+        calendar_data["month_days"] = [
+            int(days) for days in calendar_data["month_days"]
+        ]
+
+        # Validate all fields exist and are of correct type
+        try:
+            required = {
+                "month_names": list,
+                "month_days": list,
+                "weekday_names": list,
+                "days_per_week": int,
+                "year_length": int,
+                "current_year": int,
+            }
+
+            for field, expected_type in required.items():
+                if field not in calendar_data:
+                    raise ValueError(f"Missing required field: {field}")
+                if not isinstance(calendar_data[field], expected_type):
+                    raise ValueError(
+                        f"Field {field} has wrong type. Expected {expected_type}"
+                    )
+
+            # Set calendar data in event tab
+            if hasattr(self.ui, "event_tab") and self.ui.event_tab:
+                try:
+                    self.ui.event_tab.set_calendar_data(calendar_data)
+                    logger.info(
+                        "Calendar data successfully set in event tab",
+                        data=calendar_data,
+                    )
+
+                    # Load existing event data if present
+                    if self.all_props.get("event_data"):
+                        self.ui.event_tab.set_event_data(self.all_props["event_data"])
+                except Exception as e:
+                    logger.error(
+                        "Failed to set calendar data in event tab", error=str(e)
+                    )
+            else:
+                logger.error("Event tab not found")
+
+        except Exception as e:
+            logger.error("Calendar data validation failed", error=str(e))
+
+    @pyqtSlot(list)
+    def _handle_calendar_query_finished(self, result: list) -> None:
+        """
+        Handle the result from the calendar query worker.
+
+        Args:
+            result (list): The result data from the query worker.
+        """
+        logger.debug(
+            "_handle_calendar_query_finished: Signal received", result=result
+        )  # Add log
+
+        # Now call the original handle_calendar_data function to process the result
+        self.handle_calendar_data(result)

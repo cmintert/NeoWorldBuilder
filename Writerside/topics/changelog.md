@@ -5,7 +5,8 @@ Changelog
 'New Features'
 
 - Multiple "namespaces" can now be created
-
+- Added event and calendar nodes using
+  EVENT and CALENDAR labels
 0.2.0
 
 'New Features'

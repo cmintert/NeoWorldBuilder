@@ -822,6 +822,7 @@ class WorldBuildingUI(QWidget):
             current_labels = self._get_normalized_labels()
             self._update_map_tab_visibility("MAP" in current_labels)
             self._update_calendar_tab_visibility("CALENDAR" in current_labels)
+            self._update_event_tab_visibility("EVENT" in current_labels)
 
         except Exception as e:
             self._handle_map_tab_error(e)
@@ -958,6 +959,26 @@ class WorldBuildingUI(QWidget):
                 "calendar_setup_failed", error=str(e), error_type=type(e).__name__
             )
 
+    def _get_calendar_data(self) -> Optional[Dict[str, Any]]:
+        """Get current calendar data for events"""
+        try:
+            raw_props = {}
+            for row in range(self.properties_table.rowCount()):
+                key_item = self.properties_table.item(row, 0)
+                value_item = self.properties_table.item(row, 1)
+                if key_item and value_item and key_item.text().startswith("calendar_"):
+                    raw_props[key_item.text().replace("calendar_", "")] = (
+                        value_item.text().strip()
+                    )
+
+            if raw_props:
+                return raw_props
+
+        except Exception as e:
+            logger.error("Failed to get calendar data", error=str(e))
+
+        return None
+
     def _handle_calendar_changed(self, calendar_data: Dict[str, Any]) -> None:
         """Store calendar data as flat properties."""
         try:
@@ -977,6 +998,31 @@ class WorldBuildingUI(QWidget):
                     self.properties_table.removeRow(row)
                     continue
             row += 1
+
+    def _handle_event_changed(self, event_data: Dict[str, Any]) -> None:
+        """Handle changes to event data"""
+        try:
+            # Update properties
+            logger.debug("Updating event data", event_data=event_data)
+            self._set_property_value("event_type", event_data["event_type"])
+            self._set_property_value("temporal_data", event_data["temporal_data"])
+
+            for key in event_data:
+                if "parsed_date_" in key:
+                    logger.debug("Parsed property", key=key, value=event_data[key])
+                    logger.debug("-" * 20)
+                    self._set_property_value(key, event_data[key])
+
+            if event_data["relative_to"]:
+                self._set_property_value("event_relative_to", event_data["relative_to"])
+            else:
+                self._remove_property("event_relative_to")
+
+            # Update save state
+            self.controller.update_unsaved_changes_indicator()
+
+        except Exception as e:
+            logger.error("event_update_failed", error=str(e))
 
     def _handle_tab_error(self, error: Exception) -> None:
         """Handle errors related to tab management.
@@ -1031,6 +1077,13 @@ class WorldBuildingUI(QWidget):
         else:
             self._remove_map_tab_if_exists()
 
+    def _update_event_tab_visibility(self, should_show_event: bool) -> None:
+        """Update event tab visibility and manage associated resources"""
+        if should_show_event:
+            self._ensure_event_tab_exists()
+        else:
+            self._remove_event_tab_if_exists()
+
     def _ensure_map_tab_exists(self) -> None:
         """Create and configure map tab if it doesn't exist."""
         if not hasattr(self, "map_tab") or not self.map_tab:
@@ -1048,6 +1101,19 @@ class WorldBuildingUI(QWidget):
                     "map_image_loaded", path=map_image_path, widget_id=self.objectName()
                 )
 
+    def _ensure_event_tab_exists(self) -> None:
+        """Create and configure event tab if it doesn't exist"""
+        if not hasattr(self, "event_tab") or not self.event_tab:
+            logger.debug("creating_event_tab", widget_id=self.objectName())
+            from ui.components.event_component.event_tab import EventTab
+
+            self.event_tab = EventTab(controller=self.controller)
+            self.event_tab.event_changed.connect(self._handle_event_changed)
+            self.tabs.addTab(self.event_tab, "Event")
+
+            # Set initial data if available
+            self.setup_event_data()
+
     def _remove_map_tab_if_exists(self) -> None:
         """Remove map tab if it exists."""
         if hasattr(self, "map_tab") and self.map_tab:
@@ -1056,6 +1122,15 @@ class WorldBuildingUI(QWidget):
                 self.tabs.removeTab(map_tab_index)
                 self.map_tab = None
                 logger.info("map_tab_removed", widget_id=self.objectName())
+
+    def _remove_event_tab_if_exists(self) -> None:
+        """Remove event tab if it exists"""
+        if hasattr(self, "event_tab") and self.event_tab:
+            event_tab_index = self.tabs.indexOf(self.event_tab)
+            if event_tab_index != -1:
+                self.tabs.removeTab(event_tab_index)
+                self.event_tab = None
+                logger.info("event_tab_removed", widget_id=self.objectName())
 
     def _handle_map_tab_error(self, error: Exception) -> None:
         """
@@ -1094,13 +1169,17 @@ class WorldBuildingUI(QWidget):
 
     def _set_property_value(self, key: str, value: str) -> None:
         """Set a property value in the properties table."""
+        logger.debug("Setting property value", key=key, value=value)
+
         # Look for existing property
         for row in range(self.properties_table.rowCount()):
+            logger.debug("Property exists", row=row)
             if self.properties_table.item(row, 0).text() == key:
                 self.properties_table.item(row, 1).setText(value)
                 return
 
         # Add new property if not found
+        logger.debug("Adding as new property")
         row = self.properties_table.rowCount()
         self.properties_table.insertRow(row)
         self.properties_table.setItem(row, 0, QTableWidgetItem(key))
@@ -1167,3 +1246,33 @@ class WorldBuildingUI(QWidget):
         if new_name.strip():
             self.controller.rename_node(new_name)
             dialog.accept()
+
+    def setup_event_data(self) -> None:
+        """Load event data from properties"""
+        if not self.event_tab:
+            return
+
+        # Get event properties
+        event_data = {
+            "event_type": self._get_property_value("event_type") or "Occurrence",
+            "temporal_data": self._get_property_value("temporal_data"),
+            "parsed_temporal_data": self._get_property_value("parsed_temporal_data"),
+            "calendar_id": self._get_property_value("calendar_id"),
+            "description": self._get_property_value("event_description"),
+            "relative_to": self._get_property_value("event_relative_to"),
+        }
+
+        # Get active calendar data
+        calendar_data = self._get_calendar_data()
+        if calendar_data:
+            self.event_tab.set_calendar_data(calendar_data, "default")
+
+        # Load data into UI
+        self.event_tab.set_event_data(event_data)
+
+    def _remove_property(self, key: str) -> None:
+        """Remove a property from the properties table"""
+        for row in range(self.properties_table.rowCount()):
+            if self.properties_table.item(row, 0).text() == key:
+                self.properties_table.removeRow(row)
+                return
