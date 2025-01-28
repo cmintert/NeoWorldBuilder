@@ -314,7 +314,7 @@ class DateParser:
 
         try:
             # Find year (always last 4-digit number)
-            year = int(next(g for g in groups if re.match(r"^\d{4}$", g)))
+            year = int(next(g for g in groups if re.match(r"^\d{1,4}$", g)))
 
             # Find month name (case-insensitive)
             month_name = next(
