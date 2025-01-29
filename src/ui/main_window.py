@@ -1,7 +1,7 @@
 import json
 from typing import Optional, Set, Dict, Any, List
 
-from PyQt6.QtCore import pyqtSignal, Qt, QPoint
+from PyQt6.QtCore import pyqtSignal, Qt, QPoint, QTimer
 from PyQt6.QtWidgets import (
     QWidget,
     QHBoxLayout,
@@ -809,23 +809,42 @@ class WorldBuildingUI(QWidget):
 
     def _handle_label_changes(self) -> None:
         """
-        Handle changes to labels and update map tab visibility.
+        Handle changes to labels and update tab visibility.
 
-        Updates the map tab visibility based on whether the 'Map' label
-        is present in the entity's labels. Creates or removes the map tab
-        and manages associated properties as needed.
+        Updates the map tab and calendar tab visibility based on whether the respective
+        labels ('Map' or 'Calendar') are present in the entity's labels. Creates or
+        removes tabs and manages associated properties as needed.
         """
         try:
             if not self._can_handle_label_changes():
                 return
 
             current_labels = self._get_normalized_labels()
+
+            # Handle Map tab
             self._update_map_tab_visibility("MAP" in current_labels)
-            self._update_calendar_tab_visibility("CALENDAR" in current_labels)
+
+            # Handle Calendar tab
+            has_calendar = "CALENDAR" in current_labels
+            if has_calendar:
+                self._ensure_calendar_tab_exists()
+                # Initialize calendar data after properties are populated
+                QTimer.singleShot(100, self._initialize_calendar_data)
+            else:
+                self._remove_calendar_tab_if_exists()
+
+            # Handle Event tab
             self._update_event_tab_visibility("EVENT" in current_labels)
 
         except Exception as e:
-            self._handle_map_tab_error(e)
+            self._handle_tab_error(e)
+
+    def _initialize_calendar_data(self) -> None:
+        """Initialize calendar data after ensuring properties are loaded."""
+        if hasattr(self, "calendar_tab") and self.calendar_tab:
+            raw_props = self._get_raw_calendar_properties()
+            logger.debug("Got raw calendar properties", raw_props=raw_props)
+            self.calendar_tab.initialize_calendar_data(raw_props)
 
     def _update_calendar_tab_visibility(self, should_show_calendar: bool) -> None:
         """Update calendar tab visibility and manage associated resources.
@@ -845,7 +864,11 @@ class WorldBuildingUI(QWidget):
             self.calendar_tab = CalendarTab(controller=self.controller)
             self.calendar_tab.calendar_changed.connect(self._handle_calendar_changed)
             self.tabs.addTab(self.calendar_tab, "Calendar")
-            self.setup_calendar_data()
+            raw_props = self._get_raw_calendar_properties()
+            if raw_props:
+                QTimer.singleShot(
+                    100, lambda: self.calendar_tab.initialize_calendar_data(raw_props)
+                )
 
     def _remove_calendar_tab_if_exists(self) -> None:
         """Remove calendar tab if it exists."""
