@@ -27,7 +27,6 @@ class CalendarTab(QWidget):
     calendar_changed = pyqtSignal(dict)  # Signal when calendar configuration changes
 
     def __init__(self, parent: Optional[QWidget] = None, controller=None):
-        """Initialize the calendar tab."""
         super().__init__(parent)
         self.controller = controller
         self.config = controller.config if controller else None
@@ -40,7 +39,105 @@ class CalendarTab(QWidget):
             parent_widget=bool(parent),
         )
 
+        # Initialize UI without loading data
         self.setup_calendar_tab_ui()
+
+    def initialize_calendar_data(self, raw_props: Dict[str, str]) -> None:
+        """Initialize calendar data after properties are loaded.
+
+        Args:
+            raw_props: Dictionary of raw calendar properties from the main UI
+        """
+        logger.debug("Initializing calendar data with raw props", raw_props=raw_props)
+        try:
+            if not raw_props:
+                logger.debug("No calendar properties found")
+                return
+
+            calendar_data = self._process_calendar_properties(raw_props)
+            if calendar_data:
+                self.set_calendar_data(calendar_data)
+                logger.info("Calendar data initialized successfully")
+        except Exception as e:
+            logger.error("Failed to initialize calendar data", error=str(e))
+
+    def _process_calendar_properties(
+        self, raw_props: Dict[str, str]
+    ) -> Optional[Dict[str, Any]]:
+        """Process raw calendar properties into structured data."""
+        calendar_data = {}
+
+        # Known types for each property
+        list_props = {"month_names", "month_days", "weekday_names"}
+        int_props = {"current_year", "year_length", "days_per_week"}
+
+        for key, value in raw_props.items():
+            # Remove calendar_ prefix
+            clean_key = key.replace("calendar_", "")
+
+            try:
+                if clean_key in list_props:
+                    # Handle list properties by properly parsing the string representation
+                    try:
+                        import ast
+
+                        parsed_list = ast.literal_eval(value)
+                        if clean_key == "month_days":
+                            calendar_data[clean_key] = [int(x) for x in parsed_list]
+                        else:
+                            calendar_data[clean_key] = [str(x) for x in parsed_list]
+                    except (ValueError, SyntaxError):
+                        # Fallback to simple comma splitting if literal_eval fails
+                        items = [
+                            x.strip() for x in value.strip("[]").split(",") if x.strip()
+                        ]
+                        if clean_key == "month_days":
+                            calendar_data[clean_key] = [int(x) for x in items]
+                        else:
+                            calendar_data[clean_key] = items
+                elif clean_key in int_props:
+                    calendar_data[clean_key] = int(value)
+                else:
+                    calendar_data[clean_key] = value.strip()
+
+                logger.debug(
+                    f"Processed calendar property: {clean_key}",
+                    value=calendar_data[clean_key],
+                )
+
+            except Exception as e:
+                logger.error(
+                    f"Failed to process calendar property: {key}", error=str(e)
+                )
+                raise
+
+        return calendar_data if self._validate_calendar_data(calendar_data) else None
+
+    def _validate_calendar_data(self, data: Dict[str, Any]) -> bool:
+        """Validate calendar data structure."""
+        required = {
+            "month_names": list,
+            "month_days": list,
+            "weekday_names": list,
+            "days_per_week": int,
+            "year_length": int,
+            "current_year": int,
+        }
+
+        try:
+            for field, expected_type in required.items():
+                if field not in data:
+                    logger.error(f"Missing required field: {field}")
+                    return False
+                if not isinstance(data[field], expected_type):
+                    logger.error(
+                        f"Invalid type for {field}: expected {expected_type}, got {type(data[field])}"
+                    )
+                    return False
+            return True
+        except Exception as e:
+            logger.error("Calendar data validation failed", error=str(e))
+            return False
 
     def setup_calendar_tab_ui(self) -> None:
         """Setup the UI components."""
