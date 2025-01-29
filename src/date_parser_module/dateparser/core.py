@@ -155,7 +155,7 @@ class DateParser:
 
         # Basic components
         day = r"(\d{1,2})(?:st|nd|rd|th)?"
-        year = r"(\d{1,4})"
+        year = r"(?P<year>\d{1,4})"
 
         # Separators and optional parts
         space = r"\s+"
@@ -311,10 +311,11 @@ class DateParser:
         """Parse exact dates from regex match"""
         # Get all non-None groups and clean them
         groups = [g.strip() for g in match.groups() if g is not None]
+        groupdict = match.groupdict()
 
         try:
-            # Find year (always last 4-digit number)
-            year = int(next(g for g in groups if re.match(r"^\d{1,4}$", g)))
+            # Extract year using named group
+            year = int(groupdict["year"])
 
             # Find month name (case-insensitive)
             month_name = next(

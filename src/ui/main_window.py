@@ -1196,7 +1196,7 @@ class WorldBuildingUI(QWidget):
 
         # Look for existing property
         for row in range(self.properties_table.rowCount()):
-            logger.debug("Property exists", row=row)
+
             if self.properties_table.item(row, 0).text() == key:
                 self.properties_table.item(row, 1).setText(value)
                 return

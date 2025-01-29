@@ -593,6 +593,26 @@ class TestEdgeCases:
                 parsed_date == expected_date
             )  # Ensure ParsedDate objects are comparable
 
+        def test_year_formats(self, standard_calendar):
+            parser = DateParser(standard_calendar)
+
+            test_cases = [
+                # Single digit year
+                ("15 Wintermarch 5", ParsedDate(year=5, month=1, day=15)),
+                # Two digit year
+                ("15 Wintermarch 42", ParsedDate(year=42, month=1, day=15)),
+                # Three digit year
+                ("15 Wintermarch 342", ParsedDate(year=342, month=1, day=15)),
+                # Four digit year
+                ("15 Wintermarch 3019", ParsedDate(year=3019, month=1, day=15)),
+            ]
+
+            for input_str, expected in test_cases:
+                result = parser.parse_date(input_str)
+                assert result.year == expected.year
+                assert result.month == expected.month
+                assert result.day == expected.day
+
 
 if __name__ == "__main__":
     pytest.main([__file__])
