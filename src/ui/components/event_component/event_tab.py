@@ -1,17 +1,16 @@
 from typing import Dict, Any, Optional
-from dataclasses import asdict
+
 
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
-    QComboBox,
+
     QLineEdit,
     QFormLayout,
     QLabel,
-    QCheckBox,
-    QMessageBox,
+
 )
 
 from date_parser_module.dateparser import DateParser, ParsedDate, DatePrecision
@@ -38,18 +37,6 @@ class EventTab(QWidget):
         layout = QVBoxLayout()
         form_layout = QFormLayout()
 
-        # Event type selection
-        self.event_type = QComboBox()
-        self.event_type.addItems(
-            [
-                "Occurrence",  # Single point in time
-                "Period",  # Time span
-                "Era",  # Major time period
-                "Cycle",  # Recurring event
-            ]
-        )
-        form_layout.addRow("Event Type:", self.event_type)
-
         # Date input with validation
         self.date_input = QLineEdit()
         self.date_input.setPlaceholderText(
@@ -64,15 +51,6 @@ class EventTab(QWidget):
         self.validation_label.setWordWrap(True)
         form_layout.addRow("", self.validation_label)
 
-        # Relative event reference
-        reference_layout = QHBoxLayout()
-        self.relative_checkbox = QCheckBox("Relative to Event:")
-        self.reference_selector = QComboBox()
-        self.reference_selector.setEnabled(False)
-        reference_layout.addWidget(self.relative_checkbox)
-        reference_layout.addWidget(self.reference_selector)
-        form_layout.addRow("", reference_layout)
-
         layout.addLayout(form_layout)
         layout.addStretch()
         self.setLayout(layout)
@@ -80,8 +58,6 @@ class EventTab(QWidget):
     def _connect_signals(self):
         """Connect UI signals to handlers"""
         self.date_input.textChanged.connect(self._validate_date)
-        self.event_type.currentTextChanged.connect(self._handle_type_changed)
-        self.relative_checkbox.toggled.connect(self._handle_relative_toggled)
 
     def _validate_date(self):
         """Validate date input and update UI"""
@@ -147,13 +123,7 @@ class EventTab(QWidget):
         # Start building our event data dictionary
         data = {
             # Basic event properties
-            "event_type": self.event_type.currentText(),
             "temporal_data": temporal_data,
-            "relative_to": (
-                self.reference_selector.currentText()
-                if self.relative_checkbox.isChecked()
-                else None
-            ),
             # Core date fields - convert numeric values to strings
             "parsed_date_year": (
                 str(parsed_date.year)
@@ -276,22 +246,11 @@ class EventTab(QWidget):
         self.event_changed.emit(data)
 
     def set_event_data(self, data: Dict[str, Any]):
-        """Load event data into UI components.
-
-        Args:
-            data: Dictionary containing event information including:
-                 - event_type: Type of the event (Occurrence, Period, etc.)
-                 - temporal_data: The date/time string to display
-                 - relative_to: Optional reference to another event
-        """
+        """Load event data into UI components"""
         if not data:
             return
 
         try:
-            # Set event type if provided
-            if event_type := data.get("event_type"):
-                self.event_type.setCurrentText(event_type)
-
             # Set the temporal data directly in the date input field
             if temporal_data := data.get("temporal_data"):
                 # Temporarily disconnect textChanged signal to prevent premature validation
@@ -302,14 +261,6 @@ class EventTab(QWidget):
                 # Validate if we have calendar data
                 if self.date_parser and self.calendar_data:
                     self._validate_date()
-
-            # Handle relative event data if present
-            relative_to = data.get("relative_to")
-            if relative_to:
-                self.relative_checkbox.setChecked(True)
-                index = self.reference_selector.findText(relative_to)
-                if index >= 0:
-                    self.reference_selector.setCurrentIndex(index)
 
         except Exception as e:
             logger.error("Failed to load event data", error=str(e))
@@ -339,29 +290,6 @@ class EventTab(QWidget):
             self.validation_label.setStyleSheet("color: red")
             self.validation_label.setText(f"Calendar error: {str(e)}")
 
-    def _handle_type_changed(self, event_type: str):
-        """Handle event type selection change"""
-        if event_type == "Period":
-            self.date_input.setPlaceholderText(
-                "Enter date range (e.g. from 1st to 15th Summermonth 1245)"
-            )
-        elif event_type == "Cycle":
-            self.date_input.setPlaceholderText(
-                "Enter recurring pattern (e.g. every spring)"
-            )
-        else:
-            self.date_input.setPlaceholderText(
-                "Enter date (e.g. 15th day of Summermonth, 1245)"
-            )
-        self._emit_event_data()
-
-    def _handle_relative_toggled(self, checked: bool):
-        """Handle relative event checkbox toggle"""
-        self.reference_selector.setEnabled(checked)
-        if checked and not self.reference_selector.count():
-            self._populate_event_references()
-        self._emit_event_data()
-
     def _get_month_name(self, month_num: int) -> str:
         """Get month name from number using current calendar"""
         if not self.calendar_data or "month_names" not in self.calendar_data:
@@ -370,11 +298,6 @@ class EventTab(QWidget):
             return self.calendar_data["month_names"][month_num - 1]
         except IndexError:
             return str(month_num)
-
-    def _populate_event_references(self):
-        """Populate reference event selector with available events"""
-        # TODO: Query relationships for available event references
-        pass
 
     def _update_ui_state(self) -> None:
         """Update UI elements based on calendar availability"""
@@ -391,4 +314,3 @@ class EventTab(QWidget):
 
         # Enable/disable inputs based on calendar availability
         self.date_input.setEnabled(has_calendar)
-        self.event_type.setEnabled(has_calendar)
