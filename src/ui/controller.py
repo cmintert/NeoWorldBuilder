@@ -112,6 +112,68 @@ class WorldBuildingController(QObject):
         self.init_service.initialize_application()
         self._setup_name_input_handling()
 
+    def update_calendar_suggestions(self, text: str, completer):
+        """Update calendar suggestions in completer"""
+        query = """
+        MATCH (c:CALENDAR)
+        WHERE c._project = $project 
+        AND toLower(c.name) CONTAINS toLower($search)
+        RETURN c.name as name
+        ORDER BY c.name
+        """
+
+        def handle_results(results):
+            model = self.auto_completion_service.create_completion_model(
+                [record["name"] for record in results]
+            )
+            completer.setModel(model)
+
+        worker = self.model.execute_read_query(
+            query, {"project": self.config.user.PROJECT, "search": text}
+        )
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=handle_results,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Error updating calendar suggestions: {msg}"
+            ),
+            operation_name="calendar_search",
+        )
+
+        self.worker_manager.execute_worker("calendar_search", operation)
+
+    def add_calendar_relationship(self, calendar_name: str):
+        """Add USES_CALENDAR relationship to relationship table"""
+        # Remove any existing USES_CALENDAR relationships
+        self._remove_calendar_relationships()
+
+        # Add new relationship
+        self.ui.add_relationship_row(
+            rel_type="USES_CALENDAR",
+            target=calendar_name,
+            direction=">",
+            properties="{}",
+        )
+
+        # Update save button state
+        self.update_unsaved_changes_indicator()
+
+    def _remove_calendar_relationships(self):
+        """Remove any existing USES_CALENDAR relationships from table"""
+        table = self.ui.relationships_table
+        rows_to_remove = []
+
+        # Find rows with USES_CALENDAR relationship
+        for row in range(table.rowCount()):
+            rel_type = table.item(row, 0)
+            if rel_type and rel_type.text() == "USES_CALENDAR":
+                rows_to_remove.append(row)
+
+        # Remove rows in reverse order to maintain correct indices
+        for row in sorted(rows_to_remove, reverse=True):
+            table.removeRow(row)
+
     def _setup_name_input_handling(self) -> None:
         """Setup name input field event handling."""
         # Remove all focus event handling
@@ -643,9 +705,12 @@ class WorldBuildingController(QObject):
                 )
 
             # Handle EVENT nodes
-            if "EVENT" in labels:
-                self._ensure_event_tab_exists()  # New method
-                self._setup_event_calendar()
+            if "EVENT" in record.get("labels", []):
+                for rel in record.get("relationships", []):
+                    if rel.get("type") == "USES_CALENDAR":
+                        if hasattr(self.ui, "event_tab") and self.ui.event_tab:
+                            self.ui.event_tab.update_calendar_name(rel.get("end", ""))
+                        break
 
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")

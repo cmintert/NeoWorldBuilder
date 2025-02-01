@@ -1,16 +1,16 @@
 from typing import Dict, Any, Optional
 
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
-
     QLineEdit,
     QFormLayout,
     QLabel,
-
+    QPushButton,
+    QCompleter,
 )
 
 from date_parser_module.dateparser import DateParser, ParsedDate, DatePrecision
@@ -37,6 +37,23 @@ class EventTab(QWidget):
         layout = QVBoxLayout()
         form_layout = QFormLayout()
 
+        # Calendar selection with autocomplete
+        calendar_layout = QHBoxLayout()
+        self.calendar_input = QLineEdit()
+        self.calendar_input.setPlaceholderText("Select a calendar...")
+
+        # Initialize completer with the same settings as relationship table
+        self.calendar_completer = QCompleter()
+        self.calendar_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.calendar_completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        self.calendar_input.setCompleter(self.calendar_completer)
+
+        # Add Link button
+        self.link_calendar_btn = QPushButton("Link Calendar")
+        calendar_layout.addWidget(self.calendar_input)
+        calendar_layout.addWidget(self.link_calendar_btn)
+        form_layout.addRow("Calendar:", calendar_layout)
+
         # Date input with validation
         self.date_input = QLineEdit()
         self.date_input.setPlaceholderText(
@@ -58,6 +75,27 @@ class EventTab(QWidget):
     def _connect_signals(self):
         """Connect UI signals to handlers"""
         self.date_input.textChanged.connect(self._validate_date)
+        self.link_calendar_btn.clicked.connect(self._link_calendar)
+        self.calendar_input.textChanged.connect(self._update_calendar_suggestions)
+
+    def _update_calendar_suggestions(self, text: str):
+        """Update calendar suggestions based on input"""
+        # Use existing autocomplete service through controller
+        self.controller.update_calendar_suggestions(text, self.calendar_completer)
+
+    def _link_calendar(self):
+        """Add or update USES_CALENDAR relationship via relationships table"""
+        calendar_name = self.calendar_input.text().strip()
+        if calendar_name:
+            # Add relationship to relationship table
+            self.controller.add_calendar_relationship(calendar_name)
+            # Update calendar data
+            self.controller._setup_event_calendar()
+
+    def update_calendar_name(self, calendar_name: str):
+        """Update calendar input field when relationship exists"""
+        if calendar_name:
+            self.calendar_input.setText(calendar_name)
 
     def _validate_date(self):
         """Validate date input and update UI"""
