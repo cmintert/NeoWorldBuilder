@@ -3,9 +3,9 @@ import logging
 import functools
 import time
 from pathlib import Path
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Tuple, Callable
 
-from PyQt6.QtCore import QObject, Qt, pyqtSlot, QTimer
+from PyQt6.QtCore import QObject, Qt, pyqtSlot, QTimer, QStringListModel
 from PyQt6.QtGui import QStandardItem
 from PyQt6.QtWidgets import (
     QCompleter,
@@ -112,21 +112,33 @@ class WorldBuildingController(QObject):
         self.init_service.initialize_application()
         self._setup_name_input_handling()
 
-    def update_calendar_suggestions(self, text: str, completer):
-        """Update calendar suggestions in completer"""
+    def update_calendar_suggestions(self, text: str, completer) -> None:
+        """Get calendar suggestions including element IDs for validation."""
         query = """
         MATCH (c:CALENDAR)
         WHERE c._project = $project 
         AND toLower(c.name) CONTAINS toLower($search)
-        RETURN c.name as name
+        RETURN c.name as name, elementId(c) as element_id
         ORDER BY c.name
         """
 
         def handle_results(results):
-            model = self.auto_completion_service.create_completion_model(
-                [record["name"] for record in results]
+            # Store element IDs for validation
+            self.calendar_element_ids = {r["name"]: r["element_id"] for r in results}
+            logger.debug(
+                "update_calendar_suggestions: handle_results",
+                results=results,
+                calendar_element_ids=self.calendar_element_ids,
             )
-            completer.setModel(model)
+            # Create string list model for completer
+            completion_model = QStringListModel()
+            completion_model.setStringList([r["name"] for r in results])
+
+            # Set model on completer
+            completer.setModel(completion_model)
+
+            # Log for debugging
+            logger.debug(f"Updated completer model with {len(results)} suggestions")
 
         worker = self.model.execute_read_query(
             query, {"project": self.config.user.PROJECT, "search": text}
@@ -1667,3 +1679,28 @@ class WorldBuildingController(QObject):
 
         # Now call the original handle_calendar_data function to process the result
         self.handle_calendar_data(result)
+
+    def validate_calendar_node(self, element_id: str, callback: Callable) -> None:
+        """Validate a node is a valid calendar using its element ID."""
+        logger.debug("validate_calendar_node", element_id=element_id)
+        query = """
+        MATCH (c) 
+        WHERE elementId(c) = $element_id 
+        AND c._project = $project
+        RETURN 'CALENDAR' IN labels(c) as is_calendar
+        """
+
+        worker = self.model.execute_read_query(
+            query, {"element_id": element_id, "project": self.config.user.PROJECT}
+        )
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=callback,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Error validating calendar: {msg}"
+            ),
+            operation_name="validate_calendar",
+        )
+
+        self.worker_manager.execute_worker("validate_calendar", operation)
