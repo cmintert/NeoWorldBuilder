@@ -133,7 +133,16 @@ class EventTab(QWidget):
         # Ensure completer popup is visible if we have text
         if text.strip():
             self.calendar_completer.complete()
-            logger.debug("_on_calendar_input_changed: complete() called")
+            logger.debug(
+                "Completer status",
+                has_completer=self.calendar_input.completer() is not None,
+                completer_model=(
+                    self.calendar_input.completer().model() is not None
+                    if self.calendar_input.completer()
+                    else None
+                ),
+                popup_visible=self.calendar_completer.popup().isVisible(),
+            )
 
     def _on_calendar_selected(self, name: str):
         """Handle calendar selection from completer."""
@@ -178,11 +187,6 @@ class EventTab(QWidget):
             self.calendar_validation_label.setStyleSheet("color: red")
             # self.link_calendar_btn.setEnabled(False)  # Removed: Always enabled
             self.calendar_input.setStyleSheet("border: 1px solid red")
-
-    def _update_calendar_suggestions(self, text: str):
-        """Update calendar suggestions based on input"""
-        # Use existing autocomplete service through controller
-        self.controller.update_calendar_suggestions(text, self.calendar_completer)
 
     def _link_calendar(self):
         """Link calendar (always adds/updates the relationship)."""

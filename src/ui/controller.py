@@ -113,7 +113,8 @@ class WorldBuildingController(QObject):
         self._setup_name_input_handling()
 
     def update_calendar_suggestions(self, text: str, completer) -> None:
-        """Get calendar suggestions including element IDs for validation."""
+        logger.debug("update_calendar_suggestions called", text=text)
+
         query = """
         MATCH (c:CALENDAR)
         WHERE c._project = $project 
@@ -123,30 +124,33 @@ class WorldBuildingController(QObject):
         """
 
         def handle_results(results):
+            logger.debug("handle_results called", results=results)
+
             # Store element IDs for validation
             self.calendar_element_ids = {r["name"]: r["element_id"] for r in results}
-            logger.debug(
-                "update_calendar_suggestions: handle_results",
-                results=results,
-                calendar_element_ids=self.calendar_element_ids,
-            )
+            logger.debug("calendar_element_ids set", ids=self.calendar_element_ids)
+
             # Create string list model for completer
             completion_model = QStringListModel()
-            completion_model.setStringList([r["name"] for r in results])
+            name_list = [r["name"] for r in results]
+            completion_model.setStringList(name_list)
+            logger.debug("completion model created", names=name_list)
 
             # Set model on completer
             completer.setModel(completion_model)
+            logger.debug("model set on completer")
 
-            # Log for debugging
-            logger.debug(f"Updated completer model with {len(results)} suggestions")
-
+        # Create worker first to store reference
         worker = self.model.execute_read_query(
             query, {"project": self.config.user.PROJECT, "search": text}
         )
 
+        # Connect signals before creating operation
+        worker.query_finished.connect(handle_results)
+
         operation = WorkerOperation(
             worker=worker,
-            success_callback=handle_results,
+            success_callback=None,  # Set to None since we're using direct signal connection
             error_callback=lambda msg: self.error_handler.handle_error(
                 f"Error updating calendar suggestions: {msg}"
             ),
