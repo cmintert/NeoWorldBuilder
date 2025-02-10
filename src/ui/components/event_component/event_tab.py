@@ -49,7 +49,8 @@ class EventTab(QWidget):
 
         # Initialize calendar link button
         self.link_calendar_btn = QPushButton("Link Calendar")
-        self.link_calendar_btn.setEnabled(False)
+        #  Always enabled!
+        self.link_calendar_btn.setEnabled(True)
 
         # Initialize and configure completer
         self.calendar_completer = QCompleter()
@@ -106,7 +107,7 @@ class EventTab(QWidget):
         # Update suggestions and completer model
         self.controller.update_calendar_suggestions(text, self.calendar_completer)
 
-        # Reset validation state
+        # Reset validation state (important for visual feedback)
         self._reset_validation_state()
 
         # Only validate if we have text
@@ -116,7 +117,9 @@ class EventTab(QWidget):
                 element_id = self.controller.calendar_element_ids.get(text)
                 if element_id:
                     self._current_calendar_element_id = element_id
-                    self._validate_selected_calendar(element_id)
+                    self._validate_selected_calendar(
+                        element_id
+                    )  # Keep for visual feedback
                     logger.debug(
                         "_on_calendar_input_changed: Exact match found",
                         element_id=element_id,
@@ -125,36 +128,12 @@ class EventTab(QWidget):
                     logger.debug(
                         "_on_calendar_input_changed: No exact match found",
                     )
+                    self._update_validation_state(False)  # Add this line
 
         # Ensure completer popup is visible if we have text
         if text.strip():
             self.calendar_completer.complete()
             logger.debug("_on_calendar_input_changed: complete() called")
-
-            # focus check
-            if self.calendar_input.hasFocus():
-                logger.debug("_on_calendar_input_changed: calendar_input has focus")
-            else:
-                logger.debug(
-                    "_on_calendar_input_changed: calendar_input does not have focus"
-                )
-            # geometry check
-            screen_rect = QApplication.primaryScreen().availableGeometry()
-            completer_rect = self.calendar_completer.popup().geometry()
-            logger.debug(
-                "_on_calendar_input_changed: screen_rect",
-                screen_x=screen_rect.x(),
-                screen_y=screen_rect.y(),
-                screen_width=screen_rect.width(),
-                screen_height=screen_rect.height(),
-            )
-            logger.debug(
-                "_on_calendar_input_changed: completer_rect",
-                completer_x=completer_rect.x(),
-                completer_y=completer_rect.y(),
-                completer_width=completer_rect.width(),
-                completer_height=completer_rect.height(),
-            )
 
     def _on_calendar_selected(self, name: str):
         """Handle calendar selection from completer."""
@@ -164,7 +143,7 @@ class EventTab(QWidget):
             element_id = self.controller.calendar_element_ids.get(name)
             if element_id:
                 self._current_calendar_element_id = element_id
-                self._validate_selected_calendar(element_id)
+                self._validate_selected_calendar(element_id)  # Keep for visual feedback
                 # Set the full name in the input
                 self.calendar_input.setText(name)
                 logger.debug(
@@ -172,7 +151,7 @@ class EventTab(QWidget):
                 )
 
     def _validate_selected_calendar(self, element_id: str):
-        """Validate selected calendar node."""
+        """Validate selected calendar node (for visual feedback only)."""
         logger.debug("_validate_selected_calendar", element_id=element_id)
 
         def handle_validation(results):
@@ -180,24 +159,24 @@ class EventTab(QWidget):
                 "_validate_selected_calendar: handle_validation", results=results
             )
             is_valid = results[0].get("is_calendar", False) if results else False
-            self._update_validation_state(is_valid)
+            self._update_validation_state(is_valid)  # Keep for the checkmark/X
 
         self.controller.validate_calendar_node(element_id, handle_validation)
 
     def _update_validation_state(self, is_valid: bool):
-        """Update UI based on validation state."""
+        """Update UI based on validation state (checkmark/X)."""
         logger.debug("_update_validation_state", is_valid=is_valid)
         self.calendar_validation_label.setVisible(True)
 
         if is_valid:
             self.calendar_validation_label.setText("✓")
             self.calendar_validation_label.setStyleSheet("color: green")
-            self.link_calendar_btn.setEnabled(True)
+            # self.link_calendar_btn.setEnabled(True)  # Removed: Always enabled
             self.calendar_input.setStyleSheet("")
         else:
             self.calendar_validation_label.setText("✗")
             self.calendar_validation_label.setStyleSheet("color: red")
-            self.link_calendar_btn.setEnabled(False)
+            # self.link_calendar_btn.setEnabled(False)  # Removed: Always enabled
             self.calendar_input.setStyleSheet("border: 1px solid red")
 
     def _update_calendar_suggestions(self, text: str):
@@ -206,14 +185,11 @@ class EventTab(QWidget):
         self.controller.update_calendar_suggestions(text, self.calendar_completer)
 
     def _link_calendar(self):
-        """Link calendar only if validation passed."""
-        if not self._current_calendar_element_id:
-            return
-
+        """Link calendar (always adds/updates the relationship)."""
         calendar_name = self.calendar_input.text().strip()
         logger.debug("_link_calendar", calendar_name=calendar_name)
-        self.controller.add_calendar_relationship(calendar_name)
-        self.controller._setup_event_calendar()
+        self.controller.add_calendar_relationship(calendar_name)  # Simplified
+        # self.controller._setup_event_calendar()  # Removed - setup happens on load
 
     def update_calendar_name(self, calendar_name: str):
         """Update calendar input field when relationship exists"""
@@ -489,6 +465,6 @@ class EventTab(QWidget):
         """Reset the validation state of the calendar input."""
         logger.debug("_reset_validation_state")
         self.calendar_validation_label.setVisible(False)
-        self.link_calendar_btn.setEnabled(False)
+        # self.link_calendar_btn.setEnabled(False)  # Removed: Always enabled
         self._current_calendar_element_id = None
         self.calendar_input.setStyleSheet("")
