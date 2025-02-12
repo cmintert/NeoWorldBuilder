@@ -250,6 +250,55 @@ class BaseController(QObject):
         if service is None:
             raise RuntimeError(f"Required service {name} not initialized")
 
+    def save_node(self) -> None:
+        """Handle node save request."""
+        name = self.ui.name_input.text().strip()
+        if not self.node_operations.validate_node_name(name).is_valid:
+            return
+
+        # Collect properties from UI
+        properties = self._collect_table_properties()
+        relationships = self._collect_table_relationships()
+
+        node_data = self.node_operations.collect_node_data(
+            name=name,
+            description=self.ui.description_input.toHtml().strip(),
+            tags=self.ui.tags_input.text(),
+            labels=self.ui.labels_input.text(),
+            properties=properties,
+            relationships=relationships,
+            all_props=self.all_props,
+        )
+
+        if node_data:
+            self.node_operations.save_node(node_data, self._handle_save_success)
+
+    def _handle_save_success(self, _: Any) -> None:
+        """Handle successful node save with proper UI updates."""
+        msg_box = QMessageBox(self.ui)
+        msg_box.setIcon(QMessageBox.Icon.Information)
+        msg_box.setWindowTitle("Success")
+        msg_box.setText("Node saved successfully")
+        msg_box.setStandardButtons(QMessageBox.StandardButton.NoButton)
+        msg_box.show()
+
+        # Auto-close message after 1 second
+        QTimer.singleShot(500, msg_box.accept)
+
+        # Invalidate and rebuild name cache
+        self.name_cache_service.invalidate_cache()
+        self.name_cache_service.rebuild_cache()
+
+        # Refresh UI state
+        self.refresh_tree_view()
+        self.load_node_data()
+        if self.ui.map_tab:
+            self.ui.map_tab.load_pins()
+        self.update_unsaved_changes_indicator()
+
+        # Activate the basic info tab
+        self.ui.tabs.setCurrentIndex(0)
+
     def delete_node(self) -> None:
         """Handle node deletion request."""
         if self._delete_in_progress:
@@ -1250,55 +1299,6 @@ class WorldBuildingController(BaseController):
     def open_style_settings(self) -> None:
         dialog = StyleSettingsDialog(self.config, self.app_instance)
         dialog.exec()
-
-    def save_node(self) -> None:
-        """Handle node save request."""
-        name = self.ui.name_input.text().strip()
-        if not self.node_operations.validate_node_name(name).is_valid:
-            return
-
-        # Collect properties from UI
-        properties = self._collect_table_properties()
-        relationships = self._collect_table_relationships()
-
-        node_data = self.node_operations.collect_node_data(
-            name=name,
-            description=self.ui.description_input.toHtml().strip(),
-            tags=self.ui.tags_input.text(),
-            labels=self.ui.labels_input.text(),
-            properties=properties,
-            relationships=relationships,
-            all_props=self.all_props,
-        )
-
-        if node_data:
-            self.node_operations.save_node(node_data, self._handle_save_success)
-
-    def _handle_save_success(self, _: Any) -> None:
-        """Handle successful node save with proper UI updates."""
-        msg_box = QMessageBox(self.ui)
-        msg_box.setIcon(QMessageBox.Icon.Information)
-        msg_box.setWindowTitle("Success")
-        msg_box.setText("Node saved successfully")
-        msg_box.setStandardButtons(QMessageBox.StandardButton.NoButton)
-        msg_box.show()
-
-        # Auto-close message after 1 second
-        QTimer.singleShot(500, msg_box.accept)
-
-        # Invalidate and rebuild name cache
-        self.name_cache_service.invalidate_cache()
-        self.name_cache_service.rebuild_cache()
-
-        # Refresh UI state
-        self.refresh_tree_view()
-        self.load_node_data()
-        if self.ui.map_tab:
-            self.ui.map_tab.load_pins()
-        self.update_unsaved_changes_indicator()
-
-        # Activate the basic info tab
-        self.ui.tabs.setCurrentIndex(0)
 
     def _get_current_node_data(self) -> Optional[Dict[str, Any]]:
         """Implementation of base class method."""
