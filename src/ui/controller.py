@@ -38,8 +38,282 @@ from utils.error_handler import ErrorHandler
 
 logger = get_logger(__name__)
 
+# core/controllers/base_controller.py
+from typing import Optional, Dict, Any, Callable
+from PyQt6.QtCore import QObject
+from PyQt6.QtWidgets import QMessageBox
+from structlog import get_logger
 
-class WorldBuildingController(QObject):
+logger = get_logger(__name__)
+
+from typing import Optional, Dict, Any, Callable
+from PyQt6.QtCore import QObject
+from PyQt6.QtWidgets import QMessageBox
+from structlog import get_logger
+
+logger = get_logger(__name__)
+
+
+class BaseController(QObject):
+    """Base controller providing core infrastructure."""
+
+    NODE_RELATIONSHIPS_HEADER = "Node Relationships"
+
+    def __init__(
+        self,
+        ui: "WorldBuildingUI",
+        model: "Neo4jModel",
+        config: "Config",
+        app_instance: "WorldBuildingApp",
+        error_handler: "ErrorHandler",
+        name_cache_service: "NameCacheService" = None,
+    ) -> None:
+        """Initialize base controller with core dependencies."""
+        super().__init__()
+
+        # Core dependencies
+        self.ui = ui
+        self.model = model
+        self.config = config
+        self.app_instance = app_instance
+        self.error_handler = error_handler
+        self.name_cache_service = name_cache_service
+
+        # Essential state
+        self.current_node_element_id: Optional[str] = None
+        self.all_props: Dict[str, Any] = {}
+        self._signals_connected: bool = False
+
+        # Operation flags
+        self._delete_in_progress: bool = False
+        self._last_delete_timestamp: float = 0.0
+        self._previous_name: Optional[str] = None
+
+        # Required services - will be set by derived class
+        self.worker_manager = None
+        self.node_operations = None
+        self.save_service = None
+
+    def _load_empty_state(self):
+        """Reset all UI components to their empty state while preserving headers and structure."""
+
+        # Clear basic info fields
+        self.ui.name_input.setText("")
+        self.ui.description_input.clear()
+        self.ui.tags_input.clear()
+        self.ui.labels_input.clear()
+
+        # Clear and reset properties table
+        self.ui.properties_table.setRowCount(0)
+        self.ui.properties_table.setHorizontalHeaderLabels(["Key", "Value", ""])
+
+        # Clear and reset relationships table
+        self.ui.relationships_table.setRowCount(0)
+        self.ui.relationships_table.setHorizontalHeaderLabels(
+            ["Type", "Related Node", "Direction", "Properties", " ", " "]
+        )
+
+        # Clear tree view
+        tree_model = self.ui.tree_view.model()
+        if tree_model:
+            tree_model.clear()
+            tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
+
+        # Reset map tab if it exists
+        if self.ui.map_tab:
+            map_tab_index = self.ui.tabs.indexOf(self.ui.map_tab)
+            if map_tab_index != -1:
+                self.ui.tabs.removeTab(map_tab_index)
+                self.ui.map_tab = None
+
+        # Reset save state
+        if hasattr(self, "save_service"):
+            self.save_service.update_save_state(None)
+            self.ui.save_button.setStyleSheet(self.config.colors.passiveSave)
+
+        # Reset operation flags
+        self._delete_in_progress = False
+        self._last_delete_time = 0.0
+
+        # Ensure all buttons are enabled
+        self.ui.save_button.setEnabled(True)
+        self.ui.delete_button.setEnabled(True)
+
+        logger.debug("UI reset to empty state")
+
+    def load_node_data(self) -> None:
+        """Load node data."""
+        self._validate_service(self.node_operations, "node_operations")
+
+        name = self.ui.name_input.text().strip()
+        if not name:
+            return
+
+        # Clear all fields to populate them again
+        self.ui.clear_all_fields()
+
+        self.node_operations.load_node(
+            name, self._handle_node_data, lambda: self.update_relationship_tree(name)
+        )
+
+    def rename_node(self, new_name: str) -> None:
+        """
+        Rename the current node using its element ID.
+
+        Args:
+            new_name (str): The new name for the node
+        """
+        if not self.current_node_element_id:
+            return
+
+        # Validate new name
+        if not self.node_operations.validate_node_name(new_name).is_valid:
+            return
+
+        def handle_rename_success(success: bool) -> None:
+            if success:
+                self._handle_rename_success(new_name)
+            else:
+                self.error_handler.handle_error("Failed to rename node")
+
+        worker = self.model.rename_node(
+            self.current_node_element_id, new_name, handle_rename_success
+        )
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=handle_rename_success,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Error renaming node: {msg}"
+            ),
+            operation_name="rename_node",
+        )
+
+        self.worker_manager.execute_worker("rename", operation)
+
+    def _handle_rename_success(self, new_name: str) -> None:
+        """
+        Handle successful node rename.
+
+        Args:
+            new_name: New name of the node
+        """
+        # Block signal handling temporarily
+        old_state = self.ui.name_input.blockSignals(True)
+
+        # Update UI with new name
+        self.ui.name_input.setText(new_name)
+
+        # Restore signal handling
+        self.ui.name_input.blockSignals(old_state)
+
+        # Reload node data
+        self.load_node_data()
+
+        # Update cache
+        if self.name_cache_service:
+            self.name_cache_service.invalidate_cache()
+            self.name_cache_service.rebuild_cache()
+
+        # Show success message
+        QMessageBox.information(self.ui, "Success", "Node renamed successfully")
+
+    def update_unsaved_changes_indicator(self) -> None:
+        """Update unsaved changes indicator in UI."""
+        self._validate_service(self.save_service, "save_service")
+
+        current_data = self._get_current_node_data()
+        if current_data and self.save_service.check_for_changes(current_data):
+            self.ui.save_button.setStyleSheet(self.config.colors.activeSave)
+        else:
+            self.ui.save_button.setStyleSheet(self.config.colors.passiveSave)
+
+    def _handle_node_data(self, data: List[Any]) -> None:
+        """Handle node data loaded from database."""
+        raise NotImplementedError("Must be implemented by child class")
+
+    def _get_current_node_data(self) -> Optional[Dict[str, Any]]:
+        """Get current node data from UI."""
+        raise NotImplementedError("Must be implemented by child class")
+
+    def update_relationship_tree(self, node_name: str) -> None:
+        """Update relationship tree for node."""
+        raise NotImplementedError("Must be implemented by child class")
+
+    def _handle_error(self, error: str) -> None:
+        """Centralized error handling."""
+        if self.error_handler:
+            self.error_handler.handle_error(error)
+
+    def _validate_service(self, service: Any, name: str) -> None:
+        """Validate required service exists."""
+        if service is None:
+            raise RuntimeError(f"Required service {name} not initialized")
+
+    def delete_node(self) -> None:
+        """Handle node deletion request."""
+        if self._delete_in_progress:
+            logger.warning("delete_operation_already_in_progress")
+            return
+
+        # Guard against rapid successive calls (debounce)
+        current_time = time.time()
+        if current_time - self._last_delete_timestamp < 0.5:  # 500ms debounce
+            logger.warning("delete_operation_debounced")
+            return
+
+        try:
+            self._delete_in_progress = True
+            self._last_delete_timestamp = current_time
+
+            name = self.ui.name_input.text().strip()
+            if not name:
+                self._delete_in_progress = False
+                return
+
+            reply = QMessageBox.question(
+                self.ui,
+                "Confirm Deletion",
+                f'Are you sure you want to delete node "{name}"?',
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                self.node_operations.delete_node(name, self._handle_delete_success)
+            else:
+                self._cleanup_delete_operation()
+
+        except Exception as e:
+            logger.error("delete_operation_failed", error=str(e))
+            self._cleanup_delete_operation()
+            raise
+
+    def _handle_delete_success(self, _: Any) -> None:
+        """
+        Handle successful node deletion.
+
+        Args:
+            _: The result of the delete operation.
+        """
+        try:
+            # Invalidate and rebuild name cache
+            self.name_cache_service.invalidate_cache()
+            self.name_cache_service.rebuild_cache()
+
+            QMessageBox.information(self.ui, "Success", "Node deleted successfully")
+            self._load_empty_state()
+
+        finally:
+            self._cleanup_delete_operation()
+
+    def _cleanup_delete_operation(self) -> None:
+        """Clean up delete operation state."""
+        self._delete_in_progress = False
+        self.ui.delete_button.setEnabled(True)
+
+
+class WorldBuildingController(BaseController):
     """
     Controller class managing interaction between UI and Neo4j model using QThread workers.
 
@@ -48,8 +322,6 @@ class WorldBuildingController(QObject):
         model (Neo4jModel): The Neo4j model instance.
         config (Config): The configuration instance.
     """
-
-    NODE_RELATIONSHIPS_HEADER = "Node Relationships"
 
     def __init__(
         self,
@@ -67,38 +339,17 @@ class WorldBuildingController(QObject):
             model (Neo4jModel): The Neo4j model instance.
             config (Config): The configuration instance.
         """
-        super().__init__()
-
-        # Operation Flags
-        self._delete_in_progress = False
-        self._last_delete_timestamp = 0.0
-
-        # Main references
-        self.ui = ui
-        self.model = model
-        self.config = config
-        self.app_instance = app_instance
-        self.name_cache_service = name_cache_service
-
-        # Add name tracking
-        self._previous_name = None
-
-        # Initialize error handler first as it's needed by the initialization service
         self.error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
-
-        self.original_node_data: Optional[Dict[str, Any]] = None
-        self.current_node_element_id: Optional[str] = None
-        self.all_props: Dict[str, Any] = {}
-
-        # Connect ImageGroup signals
-        self.ui.image_group.basic_image_changed.connect(
-            self._handle_basic_image_changed
-        )
-        self.ui.image_group.basic_image_removed.connect(
-            self._handle_basic_image_removed
+        super().__init__(
+            ui=ui,
+            model=model,
+            config=config,
+            app_instance=app_instance,
+            error_handler=self.error_handler,
+            name_cache_service=name_cache_service,
         )
 
-        # Initialize the application using the initialization service
+        # Initialize services through initialization service
         self.init_service = InitializationService(
             controller=self,
             ui=ui,
@@ -273,46 +524,6 @@ class WorldBuildingController(QObject):
         self.node_operations.load_node(
             name, self._handle_node_data, lambda: self.update_relationship_tree(name)
         )
-
-    def delete_node(self) -> None:
-        """Handle node deletion request."""
-
-        if self._delete_in_progress:
-            logger.warning("delete_operation_already_in_progress")
-            return
-
-            # Guard against rapid successive calls (debounce)
-        current_time = time.time()
-        if current_time - self._last_delete_timestamp < 0.5:  # 500ms debounce
-            logger.warning("delete_operation_debounced")
-            return
-
-        try:
-            self._delete_in_progress = True
-            self._last_delete_timestamp = current_time
-
-            name = self.ui.name_input.text().strip()
-            if not name:
-                self._delete_in_progress = False
-                return
-
-            reply = QMessageBox.question(
-                self.ui,
-                "Confirm Deletion",
-                f'Are you sure you want to delete node "{name}"?',
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
-            )
-
-            if reply == QMessageBox.StandardButton.Yes:
-                self.node_operations.delete_node(name, self._handle_delete_success)
-            else:
-                self._cleanup_delete_operation()
-
-        except Exception as e:
-            logger.error("delete_operation_failed", error=str(e))
-            self._cleanup_delete_operation()
-            raise
 
     #############################################
     # 3. Tree and Relationship Management
@@ -606,91 +817,13 @@ class WorldBuildingController(QObject):
             self.error_handler.handle_error(f"Error processing node data: {str(e)}")
 
     def update_unsaved_changes_indicator(self) -> None:
-        """Update the unsaved changes indicator based on current state."""
-        current_data = self.node_operations.collect_node_data(
-            name=self.ui.name_input.text().strip(),
-            description=self.ui.description_input.toHtml().strip(),
-            tags=self.ui.tags_input.text(),
-            labels=self.ui.labels_input.text(),
-            properties=self._collect_table_properties(),
-            relationships=self._collect_table_relationships(),
-            all_props=self.all_props,
-        )
+        """Implementation of base class method."""
+        current_data = self._get_current_node_data()
 
         if current_data and self.save_service.check_for_changes(current_data):
             self.ui.save_button.setStyleSheet(self.config.colors.activeSave)
         else:
             self.ui.save_button.setStyleSheet(self.config.colors.passiveSave)
-
-    def _handle_delete_success(self, _: Any) -> None:
-        """
-        Handle successful node deletion.
-
-        Args:
-            _: The result of the delete operation.
-        """
-        try:
-            # Invalidate and rebuild name cache
-            self.name_cache_service.invalidate_cache()
-            self.name_cache_service.rebuild_cache()
-
-            QMessageBox.information(self.ui, "Success", "Node deleted successfully")
-            self._load_empty_state()
-
-        finally:
-            self._cleanup_delete_operation()
-
-    def _cleanup_delete_operation(self) -> None:
-        """Clean up delete operation state."""
-        self._delete_in_progress = False
-        self.ui.delete_button.setEnabled(True)
-
-    def _load_empty_state(self):
-        """Reset all UI components to their empty state while preserving headers and structure."""
-
-        # Clear basic info fields
-        self.ui.name_input.setText("")
-        self.ui.description_input.clear()
-        self.ui.tags_input.clear()
-        self.ui.labels_input.clear()
-
-        # Clear and reset properties table
-        self.ui.properties_table.setRowCount(0)
-        self.ui.properties_table.setHorizontalHeaderLabels(["Key", "Value", ""])
-
-        # Clear and reset relationships table
-        self.ui.relationships_table.setRowCount(0)
-        self.ui.relationships_table.setHorizontalHeaderLabels(
-            ["Type", "Related Node", "Direction", "Properties", " ", " "]
-        )
-
-        # Clear tree view
-        tree_model = self.ui.tree_view.model()
-        if tree_model:
-            tree_model.clear()
-            tree_model.setHorizontalHeaderLabels([self.NODE_RELATIONSHIPS_HEADER])
-
-        # Reset map tab if it exists
-        if self.ui.map_tab:
-            map_tab_index = self.ui.tabs.indexOf(self.ui.map_tab)
-            if map_tab_index != -1:
-                self.ui.tabs.removeTab(map_tab_index)
-                self.ui.map_tab = None
-
-        # Reset save state
-        if hasattr(self, "save_service"):
-            self.save_service.update_save_state(None)
-            self.ui.save_button.setStyleSheet(self.config.colors.passiveSave)
-
-        # Reset operation flags
-        self._delete_in_progress = False
-        self._last_delete_time = 0.0
-
-        # Ensure all buttons are enabled
-        self.ui.save_button.setEnabled(True)
-        self.ui.delete_button.setEnabled(True)
-
-        logger.debug("UI reset to empty state")
 
     @pyqtSlot(object)
     def _populate_node_fields(self, record: Any) -> None:
@@ -1189,8 +1322,8 @@ class WorldBuildingController(QObject):
         # Activate the basic info tab
         self.ui.tabs.setCurrentIndex(0)
 
-    def _get_current_node_data(self) -> Dict[str, Any]:
-        """Get current node data from UI."""
+    def _get_current_node_data(self) -> Optional[Dict[str, Any]]:
+        """Implementation of base class method."""
         return self.node_operations.collect_node_data(
             name=self.ui.name_input.text().strip(),
             description=self.ui.description_input.toHtml().strip(),
@@ -1511,58 +1644,6 @@ class WorldBuildingController(QObject):
         # Switch to the main tab if we're in search
         if self.ui.tabs.currentWidget() == self.ui.search_panel:
             self.ui.tabs.setCurrentIndex(0)
-
-    def rename_node(self, new_name: str) -> None:
-        """
-        Rename the current node using its element ID.
-
-        Args:
-            new_name (str): The new name for the node
-        """
-        if not self.current_node_element_id:
-            return
-
-        # Validate new name
-        if not self.node_operations.validate_node_name(new_name).is_valid:
-            return
-
-        def handle_rename_success(success: bool) -> None:
-            if success:
-                # Block signal handling temporarily
-                old_state = self.ui.name_input.blockSignals(True)
-
-                # Update UI with new name
-                self.ui.name_input.setText(new_name)
-
-                # Restore signal handling
-                self.ui.name_input.blockSignals(old_state)
-
-                # Single load of node data
-                self.load_node_data()  # This will also update the tree
-
-                # Update cache
-                self.name_cache_service.invalidate_cache()
-                self.name_cache_service.rebuild_cache()
-
-                QMessageBox.information(self.ui, "Success", "Node renamed successfully")
-            else:
-                self.error_handler.handle_error("Failed to rename node")
-
-        worker = self.model.rename_node(
-            self.current_node_element_id, new_name, handle_rename_success
-        )
-
-        # Create WorkerOperation
-        operation = WorkerOperation(
-            worker=worker,
-            success_callback=handle_rename_success,
-            error_callback=lambda msg: self.error_handler.handle_error(
-                f"Error renaming node: {msg}"
-            ),
-            operation_name="rename_node",
-        )
-
-        self.worker_manager.execute_worker("rename", operation)
 
     def _setup_event_calendar(self) -> None:
         """Set up calendar data for event nodes"""
