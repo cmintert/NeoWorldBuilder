@@ -512,19 +512,6 @@ class WorldBuildingController(BaseController):
             self.ui.relationships_table, row
         )
 
-    def load_node_data(self) -> None:
-        """Load node data."""
-        name = self.ui.name_input.text().strip()
-        if not name:
-            return
-
-        # Clear all fields to populate them again
-        self.ui.clear_all_fields()
-
-        self.node_operations.load_node(
-            name, self._handle_node_data, lambda: self.update_relationship_tree(name)
-        )
-
     #############################################
     # 3. Tree and Relationship Management
     #############################################
@@ -815,15 +802,6 @@ class WorldBuildingController(BaseController):
         except Exception as e:
             logger.error("node_processing_error", error=str(e))
             self.error_handler.handle_error(f"Error processing node data: {str(e)}")
-
-    def update_unsaved_changes_indicator(self) -> None:
-        """Implementation of base class method."""
-        current_data = self._get_current_node_data()
-
-        if current_data and self.save_service.check_for_changes(current_data):
-            self.ui.save_button.setStyleSheet(self.config.colors.activeSave)
-        else:
-            self.ui.save_button.setStyleSheet(self.config.colors.passiveSave)
 
     @pyqtSlot(object)
     def _populate_node_fields(self, record: Any) -> None:
