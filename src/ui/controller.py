@@ -135,6 +135,125 @@ class ExportMixin:
         pass
 
 
+class NodeDataMixin:
+    """
+    Mixin providing node data handling functionality.
+
+    Required properties that must be implemented by inheriting class:
+    - ui: The UI instance
+    - all_props: Dictionary of all properties
+    - config: Configuration instance
+    """
+
+    @property
+    @abstractmethod
+    def ui(self):
+        """The UI instance."""
+        pass
+
+    @property
+    @abstractmethod
+    def all_props(self):
+        """Dictionary of all properties."""
+        pass
+
+    @property
+    @abstractmethod
+    def config(self):
+        """Configuration instance."""
+        pass
+
+    def extract_element_id(self, data: dict) -> str | None:
+        """Extract element_id from node data."""
+        try:
+            node = data[0]["n"]
+            node_str = str(node)
+            start_marker = "element_id='"
+            end_marker = "'"
+
+            start_pos = node_str.find(start_marker) + len(start_marker)
+            end_pos = node_str.find(end_marker, start_pos)
+
+            if start_pos == -1 or end_pos == -1:
+                return None
+
+            return node_str[start_pos:end_pos]
+
+        except (IndexError, KeyError, AttributeError) as e:
+            logger.error("Error extracting element_id", error=str(e))
+            return None
+
+    def _extract_node_data(self, record: Any) -> Dict[str, Any]:
+        """Extract and organize node data from database record."""
+        node = record["n"]
+        node_properties = dict(node)
+
+        return {
+            "node_properties": node_properties,
+            "name": node_properties.get("name", ""),
+            "description": node_properties.get("description", ""),
+            "tags": node_properties.get("tags", []),
+            "labels": record["labels"],
+            "relationships": record["relationships"],
+            "properties": record["all_props"],
+        }
+
+    def _populate_basic_info(self, node_data: Dict[str, Any]) -> None:
+        """Populate basic node information fields."""
+        self.ui.name_input.setText(node_data["name"])
+        self.ui.description_input.setHtml(node_data["description"])
+        self.ui.labels_input.setText(", ".join(node_data["labels"]))
+        self.ui.tags_input.setText(", ".join(node_data["tags"]))
+
+    def _populate_properties(self, properties: Dict[str, Any]) -> None:
+        """Populate properties table."""
+        logger.debug("_populate_properties: received properties", properties=properties)
+        self.ui.properties_table.setRowCount(0)
+        for key, value in properties.items():
+            if self._should_display_property(key):
+                self._add_property_row(key, value)
+
+    def _should_display_property(self, key: str) -> bool:
+        """Check if a property should be displayed in properties table."""
+        return not key.startswith("_") and key not in self.config.RESERVED_PROPERTY_KEYS
+
+    def _add_property_row(self, key: str, value: Any) -> None:
+        """Add a row to the properties table."""
+        logger.debug("_add_property_row: adding property", key=key, value=value)
+        row = self.ui.properties_table.rowCount()
+        self.ui.properties_table.insertRow(row)
+        self.ui.properties_table.setItem(row, 0, QTableWidgetItem(key))
+        self.ui.properties_table.setItem(row, 1, QTableWidgetItem(str(value)))
+        delete_button = self.ui.create_delete_button(self.ui.properties_table, row)
+        self.ui.properties_table.setCellWidget(row, 2, delete_button)
+
+    def _populate_relationships(self, relationships: List[Dict[str, Any]]) -> None:
+        """Populate relationships table."""
+        self.ui.relationships_table.setRowCount(0)
+        for rel in relationships:
+            self.ui.add_relationship_row(
+                rel.get("type", ""),
+                rel.get("end", ""),
+                rel.get("dir", ">"),
+                json.dumps(rel.get("props", {})),
+            )
+
+    def _populate_basic_info_image(self, node_properties: Dict[str, Any]) -> None:
+        """Set node's image if available."""
+        image_path = node_properties.get("imagepath")
+        self.ui.image_group.set_basic_image(image_path)
+
+    def _handle_basic_image_changed(self, image_path: str) -> None:
+        """Handle image change signal from ImageGroup."""
+        self.all_props["imagepath"] = image_path
+        self.update_unsaved_changes_indicator()
+
+    def _handle_basic_image_removed(self) -> None:
+        """Handle image removal signal from ImageGroup."""
+        self.all_props["imagepath"] = None
+        self.update_unsaved_changes_indicator()
+
+
 class BaseController(QObject):
     """Base controller providing core infrastructure."""
 
@@ -152,17 +271,17 @@ class BaseController(QObject):
         """Initialize base controller with core dependencies."""
         super().__init__()
 
-        # Core dependencies
-        self.ui = ui
-        self.model = model
-        self.config = config
-        self.app_instance = app_instance
-        self.error_handler = error_handler
-        self.name_cache_service = name_cache_service
+        # Store core dependencies as protected attributes
+        self._ui = ui
+        self._model = model
+        self._config = config
+        self._app_instance = app_instance
+        self._error_handler = error_handler
+        self._name_cache_service = name_cache_service
 
         # Essential state
         self.current_node_element_id: Optional[str] = None
-        self.all_props: Dict[str, Any] = {}
+        self._all_props: Dict[str, Any] = {}
         self._signals_connected: bool = False
 
         # Operation flags
@@ -174,6 +293,23 @@ class BaseController(QObject):
         self.worker_manager = None
         self.node_operations = None
         self.save_service = None
+
+    # Add properties to access protected attributes
+    @property
+    def model(self):
+        return self._model
+
+    @property
+    def error_handler(self):
+        return self._error_handler
+
+    @property
+    def name_cache_service(self):
+        return self._name_cache_service
+
+    @property
+    def app_instance(self):
+        return self._app_instance
 
     def _load_empty_state(self):
         """Reset all UI components to their empty state while preserving headers and structure."""
@@ -455,7 +591,7 @@ class BaseController(QObject):
         QMessageBox.critical(self.ui, title, message)
 
 
-class WorldBuildingController(BaseController, ExportMixin):
+class WorldBuildingController(BaseController, ExportMixin, NodeDataMixin):
     """
     Controller class managing interaction between UI and Neo4j model using QThread workers.
 
@@ -473,21 +609,16 @@ class WorldBuildingController(BaseController, ExportMixin):
         app_instance: "WorldBuildingApp",
         name_cache_service: "NameCacheService",
     ) -> None:
-        """
-        Initialize the controller with UI, model, and configuration.
+        # Create an error handler instance to pass to super()
+        error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
 
-        Args:
-            ui (WorldBuildingUI): The UI instance.
-            model (Neo4jModel): The Neo4j model instance.
-            config (Config): The configuration instance.
-        """
-        self.error_handler = ErrorHandler(ui_feedback_handler=self._show_error_dialog)
+        # Initialize parent class
         super().__init__(
             ui=ui,
             model=model,
             config=config,
             app_instance=app_instance,
-            error_handler=self.error_handler,
+            error_handler=error_handler,  # Pass the created error handler
             name_cache_service=name_cache_service,
         )
 
@@ -498,12 +629,35 @@ class WorldBuildingController(BaseController, ExportMixin):
             model=model,
             config=config,
             app_instance=app_instance,
-            error_handler=self.error_handler,
+            error_handler=self.error_handler,  # Use the property to access error handler
             name_cache_service=name_cache_service,
         )
 
         self.init_service.initialize_application()
         self._setup_name_input_handling()
+
+    # Implement required properties from NodeDataMixin
+    @property
+    def ui(self):
+        """The UI instance."""
+        return self._ui
+
+    @property
+    def config(self):
+        """The configuration instance."""
+        return self._config
+
+    @property
+    def all_props(self):
+        """Dictionary of all properties."""
+        return self._all_props
+
+    @all_props.setter
+    def all_props(self, value):
+        """Setter for all_props."""
+        if not isinstance(value, dict):
+            value = {}
+        self._all_props = value
 
     def update_calendar_suggestions(self, text: str, completer) -> None:
         logger.debug("update_calendar_suggestions called", text=text)
@@ -782,50 +936,6 @@ class WorldBuildingController(BaseController, ExportMixin):
             self.ui.name_input.setText(text)
             self.load_node_data()
 
-    def extract_element_id(self, data: dict) -> str | None:
-        """
-        Extract element_id from NeoWorldBuilder node data JSON.
-
-        Args:
-            data: Dictionary containing node data in format {"data": [[node_str, ...]]}
-
-        Returns:
-            str: The element_id if found
-            None: If element_id cannot be extracted
-        """
-        """
-            Extract element_id from NeoWorldBuilder node data.
-
-            Args:
-                data: List containing node data
-
-            Returns:
-                str: The element_id if found
-                None: If element_id cannot be extracted
-            """
-        try:
-            # Get the Node object from the Record
-            node = data[0]["n"]
-
-            # Get the Node's string representation
-            node_str = str(node)
-
-            # Extract element_id using string markers
-            start_marker = "element_id='"
-            end_marker = "'"
-
-            start_pos = node_str.find(start_marker) + len(start_marker)
-            end_pos = node_str.find(end_marker, start_pos)
-
-            if start_pos == -1 or end_pos == -1:
-                return None
-
-            return node_str[start_pos:end_pos]
-
-        except (IndexError, KeyError, AttributeError) as e:
-            print(f"Error: {str(e)}")
-            return None
-
     @pyqtSlot(list)
     def _handle_node_data(self, data: List[Any]) -> None:
         """Handle node data fetched by the worker."""
@@ -984,41 +1094,6 @@ class WorldBuildingController(BaseController, ExportMixin):
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
 
-    def _extract_node_data(self, record: Any) -> Dict[str, Any]:
-        """
-        Extract and organize node data from the database record.
-
-        Args:
-            record: The raw database record.
-
-        Returns:
-            Dict containing organized node data.
-        """
-        node = record["n"]
-        node_properties = dict(node)
-
-        return {
-            "node_properties": node_properties,
-            "name": node_properties.get("name", ""),
-            "description": node_properties.get("description", ""),
-            "tags": node_properties.get("tags", []),
-            "labels": record["labels"],
-            "relationships": record["relationships"],
-            "properties": record["all_props"],
-        }
-
-    def _populate_basic_info(self, node_data: Dict[str, Any]) -> None:
-        """
-        Populate basic node information fields.
-
-        Args:
-            node_data: Dictionary containing node information.
-        """
-        self.ui.name_input.setText(node_data["name"])
-        self.ui.description_input.setHtml(node_data["description"])
-        self.ui.labels_input.setText(", ".join(node_data["labels"]))
-        self.ui.tags_input.setText(", ".join(node_data["tags"]))
-
     def _ensure_map_tab_exists(self) -> None:
         """Create map tab if it doesn't exist."""
         if not self.ui.map_tab:
@@ -1126,80 +1201,6 @@ class WorldBuildingController(BaseController, ExportMixin):
         """Update map image if map tab exists."""
         if self.ui.map_tab:
             self.ui.map_tab.set_map_image(image_path)
-
-    def _populate_properties(self, properties: Dict[str, Any]) -> None:
-        """
-        Populate properties table.
-        """
-        logger.debug(
-            "_populate_properties: received properties", properties=properties
-        )  # Log received properties
-        self.ui.properties_table.setRowCount(0)
-        for key, value in properties.items():
-            if self._should_display_property(key):
-                self._add_property_row(key, value)
-
-    def _should_display_property(self, key: str) -> bool:
-        """
-        Check if a property should be displayed in the properties table.
-
-        Args:
-            key: Property key to check.
-
-        Returns:
-            bool: True if property should be displayed.
-        """
-        return not key.startswith("_") and key not in self.config.RESERVED_PROPERTY_KEYS
-
-    def _add_property_row(self, key: str, value: Any) -> None:
-        """
-        Add a row to the properties table.
-        """
-        logger.debug(
-            "_add_property_row: adding property", key=key, value=value
-        )  # Log each property row addition
-        row = self.ui.properties_table.rowCount()
-        self.ui.properties_table.insertRow(row)
-        self.ui.properties_table.setItem(row, 0, QTableWidgetItem(key))
-        self.ui.properties_table.setItem(row, 1, QTableWidgetItem(str(value)))
-        delete_button = self.ui.create_delete_button(self.ui.properties_table, row)
-        self.ui.properties_table.setCellWidget(row, 2, delete_button)
-
-    def _populate_relationships(self, relationships: List[Dict[str, Any]]) -> None:
-        """
-        Populate relationships table.
-
-        Args:
-            relationships: List of relationship dictionaries.
-        """
-        self.ui.relationships_table.setRowCount(0)
-        for rel in relationships:
-            self.ui.add_relationship_row(
-                rel.get("type", ""),
-                rel.get("end", ""),
-                rel.get("dir", ">"),
-                json.dumps(rel.get("props", {})),
-            )
-
-    def _populate_basic_info_image(self, node_properties: Dict[str, Any]) -> None:
-        """
-        Set the node's image if available.
-
-        Args:
-            node_properties: Dictionary of node properties.
-        """
-        image_path = node_properties.get("imagepath")
-        self.ui.image_group.set_basic_image(image_path)
-
-    def _handle_basic_image_changed(self, image_path: str) -> None:
-        """Handle image change signal from ImageGroup."""
-        self.all_props["imagepath"] = image_path
-        self.update_unsaved_changes_indicator()
-
-    def _handle_basic_image_removed(self) -> None:
-        """Handle image removal signal from ImageGroup."""
-        self.all_props["imagepath"] = None
-        self.update_unsaved_changes_indicator()
 
     @pyqtSlot(list)
     def _populate_relationship_tree(self, records: List[Any]) -> None:
@@ -1737,7 +1738,11 @@ class WorldBuildingController(BaseController, ExportMixin):
         Handle the result from the calendar query worker.
 
         Args:
-            result (list): The result data from the query worker.
+            result: The result data from the query worker containing calendar information.
+                Expected format is a list of dicts with calendar_data key.
+
+        Raises:
+            ValueError: If result data is invalid or missing required fields.
         """
         logger.debug(
             "_handle_calendar_query_finished: Signal received", result=result
