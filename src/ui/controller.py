@@ -36,16 +36,6 @@ from ui.components.event_component.event_tab import EventTab
 from ui.components.map_tab import MapTab
 from utils.error_handler import ErrorHandler
 
-logger = get_logger(__name__)
-
-# core/controllers/base_controller.py
-from typing import Optional, Dict, Any, Callable
-from PyQt6.QtCore import QObject
-from PyQt6.QtWidgets import QMessageBox
-from structlog import get_logger
-
-logger = get_logger(__name__)
-
 from typing import Optional, Dict, Any, Callable
 from PyQt6.QtCore import QObject
 from PyQt6.QtWidgets import QMessageBox
@@ -360,6 +350,18 @@ class BaseController(QObject):
         """Clean up delete operation state."""
         self._delete_in_progress = False
         self.ui.delete_button.setEnabled(True)
+
+    def cleanup(self) -> None:
+        """
+        Clean up resources.
+        """
+        self.save_service.stop_periodic_check()
+        self.worker_manager.cancel_all_workers()
+        self.model.close()
+
+    def _show_error_dialog(self, title: str, message: str) -> None:
+        """Show error dialog to user."""
+        QMessageBox.critical(self.ui, title, message)
 
 
 class WorldBuildingController(BaseController):
@@ -1143,18 +1145,6 @@ class WorldBuildingController(BaseController):
     #############################################
     # 7. Cleanup and Error Handling
     #############################################
-
-    def cleanup(self) -> None:
-        """
-        Clean up resources.
-        """
-        self.save_service.stop_periodic_check()
-        self.worker_manager.cancel_all_workers()
-        self.model.close()
-
-    def _show_error_dialog(self, title: str, message: str) -> None:
-        """Show error dialog to user."""
-        QMessageBox.critical(self.ui, title, message)
 
     #############################################
     # 8. Utility Methods
