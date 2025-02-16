@@ -264,6 +264,7 @@ class EventTab(QWidget):
         # Start building our event data dictionary
         data = {
             # Basic event properties
+            "event_type": "Occurence",
             "temporal_data": temporal_data,
             # Core date fields - convert numeric values to strings
             "parsed_date_year": (
