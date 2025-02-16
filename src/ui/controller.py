@@ -258,49 +258,6 @@ class CalendarMixin:
         except Exception as e:
             logger.error("calendar_update_failed", error=str(e))
 
-    def _setup_event_calendar(self) -> None:
-        """Set up calendar data for event nodes."""
-        if not self.current_node_element_id:
-            logger.error("No element_id available for calendar lookup")
-            return
-
-        calendar_query = """
-        MATCH (n)-[r:USES_CALENDAR]->(c:CALENDAR)
-        WHERE elementId(n) = $element_id
-        AND n._project = $project
-        RETURN {
-            month_names: c.calendar_month_names,
-            month_days: c.calendar_month_days,
-            weekday_names: c.calendar_weekday_names,
-            days_per_week: toInteger(c.calendar_days_per_week),
-            year_length: toInteger(c.calendar_year_length),
-            current_year: toInteger(c.calendar_current_year)
-        } as calendar_data
-        """
-
-        logger.debug("_setup_event_calendar: before execute_worker calendar operation")
-        worker = self.model.execute_read_query(
-            calendar_query,
-            {
-                "element_id": self.current_node_element_id,
-                "project": self.config.user.PROJECT,
-            },
-        )
-
-        worker.query_finished.connect(self._handle_calendar_query_finished)
-
-        operation = WorkerOperation(
-            worker=worker,
-            success_callback=None,
-            error_callback=lambda msg: self.error_handler.handle_error(
-                f"Calendar query failed: {msg}"
-            ),
-            operation_name="calendar_lookup",
-        )
-
-        self.worker_manager.execute_worker("calendar", operation)
-        logger.debug("_setup_event_calendar: after execute_worker calendar operation")
-
     def handle_calendar_data(self, result) -> None:
         """Process calendar data and update UI."""
         logger.debug("handle_calendar_data: raw result", result=result)
@@ -387,6 +344,70 @@ class CalendarMixin:
         )
 
         self.worker_manager.execute_worker("validate_calendar", operation)
+
+
+class EventMixin:
+
+    def _setup_event_calendar(self) -> None:
+        """Set up calendar data for event nodes."""
+        if not self.current_node_element_id:
+            logger.error("No element_id available for calendar lookup")
+            return
+
+        calendar_query = """
+        MATCH (n)-[r:USES_CALENDAR]->(c:CALENDAR)
+        WHERE elementId(n) = $element_id
+        AND n._project = $project
+        RETURN {
+            month_names: c.calendar_month_names,
+            month_days: c.calendar_month_days,
+            weekday_names: c.calendar_weekday_names,
+            days_per_week: toInteger(c.calendar_days_per_week),
+            year_length: toInteger(c.calendar_year_length),
+            current_year: toInteger(c.calendar_current_year)
+        } as calendar_data
+        """
+
+        logger.debug("_setup_event_calendar: before execute_worker calendar operation")
+        worker = self.model.execute_read_query(
+            calendar_query,
+            {
+                "element_id": self.current_node_element_id,
+                "project": self.config.user.PROJECT,
+            },
+        )
+
+        worker.query_finished.connect(self._handle_calendar_query_finished)
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=None,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Calendar query failed: {msg}"
+            ),
+            operation_name="calendar_lookup",
+        )
+
+        self.worker_manager.execute_worker("calendar", operation)
+        logger.debug("_setup_event_calendar: after execute_worker calendar operation")
+
+
+class ImageMixin:
+
+    def _populate_basic_info_image(self, node_properties: Dict[str, Any]) -> None:
+        """Set node's image if available."""
+        image_path = node_properties.get("imagepath")
+        self.ui.image_group.set_basic_image(image_path)
+
+    def _handle_basic_image_changed(self, image_path: str) -> None:
+        """Handle image change signal from ImageGroup."""
+        self.all_props["imagepath"] = image_path
+        self.update_unsaved_changes_indicator()
+
+    def _handle_basic_image_removed(self) -> None:
+        """Handle image removal signal from ImageGroup."""
+        self.all_props["imagepath"] = None
+        self.update_unsaved_changes_indicator()
 
 
 class ExportMixin:
@@ -658,21 +679,6 @@ class NodeDataMixin:
                 rel.get("dir", ">"),
                 json.dumps(rel.get("props", {})),
             )
-
-    def _populate_basic_info_image(self, node_properties: Dict[str, Any]) -> None:
-        """Set node's image if available."""
-        image_path = node_properties.get("imagepath")
-        self.ui.image_group.set_basic_image(image_path)
-
-    def _handle_basic_image_changed(self, image_path: str) -> None:
-        """Handle image change signal from ImageGroup."""
-        self.all_props["imagepath"] = image_path
-        self.update_unsaved_changes_indicator()
-
-    def _handle_basic_image_removed(self) -> None:
-        """Handle image removal signal from ImageGroup."""
-        self.all_props["imagepath"] = None
-        self.update_unsaved_changes_indicator()
 
 
 class BaseController(QObject):
@@ -1013,7 +1019,13 @@ class BaseController(QObject):
 
 
 class WorldBuildingController(
-    BaseController, ExportMixin, NodeDataMixin, CalendarMixin, MapMixin
+    BaseController,
+    ExportMixin,
+    NodeDataMixin,
+    CalendarMixin,
+    EventMixin,
+    MapMixin,
+    ImageMixin,
 ):
     """
     Controller class managing interaction between UI and Neo4j model using QThread workers.
@@ -1438,40 +1450,6 @@ class WorldBuildingController(
 
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
-
-    def _ensure_event_tab_exists(self) -> None:
-        """Ensure event tab exists and is properly initialized"""
-        if not hasattr(self.ui, "event_tab") or not self.ui.event_tab:
-            # Create event tab if it doesn't exist
-            self.ui.event_tab = EventTab(self)
-            self.ui.tabs.addTab(self.ui.event_tab, "Event")
-
-            # Connect event data change signal
-            self.ui.event_tab.event_changed.connect(self._handle_event_data_changed)
-
-    def _handle_event_data_changed(self, event_data: dict) -> None:
-        """Handle changes to event data"""
-        logger.debug(
-            "_handle_event_data_changed: event_data received - START",
-            event_data=event_data,
-        )
-
-        # Convert numeric values to strings before storing
-        for key, value in event_data.items():
-            if key.startswith("parsed_date_") and value is not None:
-                self.all_props[key] = str(value)
-            else:
-                self.all_props[key] = value
-
-        # Store other event data properties directly in all_props
-        self.all_props["event_type"] = event_data["event_type"]
-        self.all_props["temporal_data"] = event_data["temporal_data"]
-        self.all_props["event_relative_to"] = event_data.get("event_relative_to")
-
-        logger.debug(
-            "_handle_event_changed: all_props final - END", all_props=self.all_props
-        )
-        self.update_unsaved_changes_indicator()
 
     @pyqtSlot(list)
     def _populate_relationship_tree(self, records: List[Any]) -> None:
