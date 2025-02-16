@@ -577,7 +577,7 @@ class MapMixin:
             self.ui.map_tab.set_map_image(image_path)
 
 
-class NodeDataMixin:
+class NodeDataExtractionMixin:
     """
     Mixin providing node data handling functionality.
 
@@ -639,6 +639,9 @@ class NodeDataMixin:
             "relationships": record["relationships"],
             "properties": record["all_props"],
         }
+
+
+class NodeDataPopulationMixin:
 
     def _populate_basic_info(self, node_data: Dict[str, Any]) -> None:
         """Populate basic node information fields."""
@@ -1021,7 +1024,8 @@ class BaseController(QObject):
 class WorldBuildingController(
     BaseController,
     ExportMixin,
-    NodeDataMixin,
+    NodeDataExtractionMixin,
+    NodeDataPopulationMixin,
     CalendarMixin,
     EventMixin,
     MapMixin,
