@@ -346,6 +346,70 @@ class CalendarMixin:
         self.worker_manager.execute_worker("validate_calendar", operation)
 
 
+class TimelineMixin:
+    """Mixin providing timeline functionality for controllers."""
+
+    def _setup_timeline_calendar(self) -> None:
+        """Set up calendar data for timeline nodes."""
+        if not self.current_node_element_id:
+            logger.error("No element_id available for calendar lookup")
+            return
+
+        calendar_query = """
+        MATCH (n)-[r:USES_CALENDAR]->(c:CALENDAR)
+        WHERE elementId(n) = $element_id
+        AND n._project = $project
+        RETURN {
+            month_names: c.calendar_month_names,
+            month_days: c.calendar_month_days,
+            weekday_names: c.calendar_weekday_names,
+            days_per_week: toInteger(c.calendar_days_per_week),
+            year_length: toInteger(c.calendar_year_length),
+            current_year: toInteger(c.calendar_current_year)
+        } as calendar_data
+        """
+
+        worker = self.model.execute_read_query(
+            calendar_query,
+            {
+                "element_id": self.current_node_element_id,
+                "project": self.config.user.PROJECT,
+            },
+        )
+
+        worker.query_finished.connect(self._handle_calendar_query_finished)
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=None,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Calendar query failed: {msg}"
+            ),
+            operation_name="calendar_lookup",
+        )
+
+        self.worker_manager.execute_worker("calendar", operation)
+
+    def _setup_timeline_tab(self) -> None:
+        """Set up timeline data for timeline nodes."""
+        if not hasattr(self.ui, "timeline_tab") or not self.ui.timeline_tab:
+            return
+
+        # Get events data somehow - this depends on how you store events
+        events = self._get_events_for_timeline()
+        self.ui.timeline_tab.set_event_data(events)
+
+        # Set up calendar data if needed
+        if calendar_data := self._get_calendar_data():
+            self.ui.timeline_tab.set_calendar_data(calendar_data)
+
+    def _get_events_for_timeline(self) -> List[Dict[str, Any]]:
+        """Get event data for timeline visualization."""
+        # Implement event data collection logic
+        # This could parse your timeline node's data or query related event nodes
+        return []
+
+
 class EventMixin:
 
     def _setup_event_calendar(self) -> None:
@@ -1030,6 +1094,7 @@ class WorldBuildingController(
     EventMixin,
     MapMixin,
     ImageMixin,
+    TimelineMixin,
 ):
     """
     Controller class managing interaction between UI and Neo4j model using QThread workers.
