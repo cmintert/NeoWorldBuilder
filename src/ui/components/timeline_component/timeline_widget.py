@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QFrame,
 )
 from PyQt6.QtCore import Qt, QSize, QRectF
-from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath
+from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QFont
 from structlog import get_logger
 
 logger = get_logger(__name__)
@@ -21,9 +21,16 @@ class TimelineContent(QWidget):
         super().__init__()
         self.events = []
         self.scale = "Years"
-        self.min_year = None
-        self.max_year = None
+        # Initialize with default values
+        self.default_span = 1500  # Show 100 years by default
+        self.default_year = 0  # Center point for empty timeline
+        self.min_year = self.default_year - self.default_span // 2
+        self.max_year = self.default_year + self.default_span // 2
+
         self.setMinimumHeight(200)
+        self.padding = 2  # Padding on both sides
+        self.marker_radius = 5
+        self.label_padding = 25  # Space for labels
 
         # Set white background
         self.setAutoFillBackground(True)
@@ -36,42 +43,68 @@ class TimelineContent(QWidget):
 
     def set_data(self, events: List[Dict[str, Any]], scale: str) -> None:
         """Set the timeline data and trigger redraw."""
+        logger.debug("Setting timeline widget data", events=events, scale=scale)
         self.events = events
         self.scale = scale
 
-        # Calculate year range
+        # Calculate width and year range
         if events:
+            # Extract years from events
             years = [int(event.get("parsed_date_year", 0)) for event in events]
-            self.min_year = min(years) if years else None
-            self.max_year = max(years) if years else None
+            if years:  # Check if we got valid years
+                self.min_year = min(years)
+                self.max_year = max(years)
 
-            # Adjust width based on scale and range
-            if self.min_year and self.max_year:
-                if scale == "Decades":
-                    width = (self.max_year - self.min_year) // 10 * 100 + 200
-                elif scale == "Years":
-                    width = (self.max_year - self.min_year) * 100 + 200
-                elif scale == "Months":
-                    width = (self.max_year - self.min_year) * 1200 + 200
-                else:  # Days
-                    width = (self.max_year - self.min_year) * 36500 + 200
+                # Add padding years for better visualization
+                year_span = self.max_year - self.min_year
+                padding_years = max(year_span * 0.1, 10)  # At least 10 years padding
+                self.min_year = int(self.min_year - padding_years)
+                self.max_year = int(self.max_year + padding_years)
+            else:
+                # Fallback to defaults if no valid years
+                self.min_year = self.default_year - self.default_span // 2
+                self.max_year = self.default_year + self.default_span // 2
+        else:
+            # Set default range when no events
+            self.min_year = self.default_year - self.default_span // 2
+            self.max_year = self.default_year + self.default_span // 2
 
-                self.setMinimumWidth(max(width, 800))
+        # Calculate width based on scale and range
+        pixels_per_year = self._get_pixels_per_year()
+        width = (self.max_year - self.min_year) * pixels_per_year + self.padding * 2
+        self.setMinimumWidth(max(width, 800))
+
+        logger.debug(
+            "Timeline dimensions calculated",
+            min_year=self.min_year,
+            max_year=self.max_year,
+            width=width,
+            scale=self.scale,
+            pixels_per_year=pixels_per_year,
+        )
 
         self.update()
 
+    def _get_pixels_per_year(self) -> int:
+        """Get pixels per year based on current scale."""
+        if self.scale == "Decades":
+            return 5
+        elif self.scale == "Years":
+            return 50
+        elif self.scale == "Months":
+            return 200
+        else:  # Days
+            return 600
+
     def paintEvent(self, event):
         """Draw the timeline visualization."""
-        if not self.events or self.min_year is None or self.max_year is None:
-            return
-
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Draw timeline base line
         base_y = self.height() // 2
         painter.setPen(QPen(Qt.GlobalColor.black, 2))
-        painter.drawLine(50, base_y, self.width() - 50, base_y)
+        painter.drawLine(self.padding, base_y, self.width() - self.padding, base_y)
 
         # Calculate scale and intervals
         if self.scale == "Decades":
@@ -83,8 +116,24 @@ class TimelineContent(QWidget):
         else:  # Days
             self._draw_day_scale(painter, base_y)
 
-        # Draw events
-        self._draw_events(painter, base_y)
+        # Draw events if we have any
+        if self.events:
+            self._draw_events(painter, base_y)
+
+    def _draw_year_scale(self, painter: QPainter, base_y: int) -> None:
+        """Draw year markers and labels."""
+        year_span = self.max_year - self.min_year
+        interval = max(1, year_span // 20)  # Show max 20 year labels
+
+        for year in range(self.min_year, self.max_year + 1, interval):
+            x = self._get_x_position(year)
+
+            # Draw marker
+            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.drawLine(x, base_y - 5, x, base_y + 5)
+
+            # Draw year label
+            painter.drawText(x - 20, base_y + 20, str(year))
 
     def _draw_decade_scale(self, painter: QPainter, base_y: int) -> None:
         """Draw decade markers and labels."""
@@ -101,66 +150,57 @@ class TimelineContent(QWidget):
             # Draw label
             painter.drawText(x - 20, base_y + 25, f"{decade}s")
 
-    def _draw_year_scale(self, painter: QPainter, base_y: int) -> None:
-        """Draw year markers and labels."""
-        for year in range(self.min_year, self.max_year + 1):
-            x = self._get_x_position(year)
-
-            # Draw marker
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
-            painter.drawLine(x, base_y - 5, x, base_y + 5)
-
-            # Draw label every 5 years
-            if year % 5 == 0:
-                painter.drawText(x - 15, base_y + 20, str(year))
-
-    def _draw_month_scale(self, painter: QPainter, base_y: int) -> None:
-        """Draw month markers and labels."""
-        # Implementation depends on calendar data
-        # For now, just draw year divisions
-        for year in range(self.min_year, self.max_year + 1):
-            x = self._get_x_position(year)
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
-            painter.drawLine(x, base_y - 10, x, base_y + 10)
-            painter.drawText(x - 15, base_y + 25, str(year))
-
-    def _draw_day_scale(self, painter: QPainter, base_y: int) -> None:
-        """Draw day markers and labels."""
-        # Implementation depends on calendar data
-        # For now, just draw month divisions
-        for year in range(self.min_year, self.max_year + 1):
-            x = self._get_x_position(year)
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
-            painter.drawLine(x, base_y - 10, x, base_y + 10)
-            painter.drawText(x - 15, base_y + 25, str(year))
-
     def _get_x_position(self, year: int) -> int:
         """Calculate x position for a given year based on current scale."""
-        total_width = self.width() - 100  # Margin on both sides
+        usable_width = self.width() - (self.padding * 2)
         year_span = self.max_year - self.min_year
         if year_span == 0:
             year_span = 1
 
-        position = (year - self.min_year) / year_span * total_width + 50
+        position = (((year - self.min_year) / year_span) * usable_width) + self.padding
+
         return int(position)
 
     def _draw_events(self, painter: QPainter, base_y: int) -> None:
-        """Draw event markers on the timeline."""
-        marker_radius = 5
-
+        """Draw event markers and labels on the timeline."""
         for event in self.events:
-            year = int(event.get("parsed_date_year", 0))
-            x = self._get_x_position(year)
+            year = event.get("parsed_date_year", 0)
+            if not year:
+                continue
+
+            x = self._get_x_position(int(year))
+            logger.debug(
+                f"Drawing event: {event.get('name', 'Unknown')}, year: {year}, x: {x}"
+            )
+
+            # Draw vertical connection line
+            line_height = 30
+            painter.setPen(QPen(Qt.GlobalColor.gray, 1))
+            painter.drawLine(x, base_y - line_height, x, base_y + line_height)
 
             # Draw event marker
             painter.setPen(QPen(Qt.GlobalColor.blue, 2))
             painter.setBrush(Qt.GlobalColor.white)
             painter.drawEllipse(
-                x - marker_radius,
-                base_y - marker_radius,
-                marker_radius * 2,
-                marker_radius * 2,
+                x - self.marker_radius,
+                base_y - self.marker_radius,
+                self.marker_radius * 2,
+                self.marker_radius * 2,
             )
+
+            # Draw event name - alternate above/below timeline
+            text = f"{event.get('name', 'Unknown')} ({year})"
+            text_width = painter.fontMetrics().horizontalAdvance(text)
+            text_x = x - (text_width / 2)
+
+            # Alternate text position above/below timeline
+            index = self.events.index(event)
+            if index % 2 == 0:
+                text_y = base_y - line_height - 5
+            else:
+                text_y = base_y + line_height + 15
+
+            painter.drawText(text_x, text_y, text)
 
 
 class TimelineWidget(QWidget):
@@ -193,4 +233,10 @@ class TimelineWidget(QWidget):
 
     def set_data(self, events: List[Dict[str, Any]], scale: str) -> None:
         """Update the timeline with new data."""
+        logger.debug(
+            "TimelineWidget.set_data called",
+            event_count=len(events),
+            scale=scale,
+            events=events,
+        )
         self.content.set_data(events, scale)

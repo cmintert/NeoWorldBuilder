@@ -393,21 +393,149 @@ class TimelineMixin:
     def _setup_timeline_tab(self) -> None:
         """Set up timeline data for timeline nodes."""
         if not hasattr(self.ui, "timeline_tab") or not self.ui.timeline_tab:
+            logger.error("Timeline tab not available")
             return
 
-        # Get events data somehow - this depends on how you store events
-        events = self._get_events_for_timeline()
-        self.ui.timeline_tab.set_event_data(events)
+        # Create worker for event query
+        query = """
+        MATCH (t)-[:USES_CALENDAR]->(c:CALENDAR)<-[:USES_CALENDAR]-(e:EVENT)
+        WHERE elementId(t) = $element_id
+          AND t._project = $project
+        RETURN {
+            name: e.name,
+            temporal_data: e.temporal_data,
+            parsed_date_year: toInteger(e.parsed_date_year), 
+            parsed_date_month: toInteger(e.parsed_date_month),
+            parsed_date_day: toInteger(e.parsed_date_day),
+            event_type: e.event_type
+        } as event
+        ORDER BY e.parsed_date_year, e.parsed_date_month, e.parsed_date_day
+        """
 
-        # Set up calendar data if needed
-        if calendar_data := self._get_calendar_data():
-            self.ui.timeline_tab.set_calendar_data(calendar_data)
+        def handle_timeline_events(results):
+            logger.debug(
+                "Raw timeline query results",
+                result_count=len(results) if results else 0,
+                results=results,
+            )
+
+            logger.debug(
+                "Handling timeline events", result_count=len(results) if results else 0
+            )
+
+            # Extract and validate events
+            events = []
+            for result in results:
+                event_data = None
+
+                # Handle different result structures
+                if isinstance(result, dict):
+                    if "event" in result:
+                        event_data = result["event"]
+                    else:
+                        event_data = result
+                elif isinstance(result, (list, tuple)) and result:
+                    if isinstance(result[0], dict):
+                        event_data = result[0]
+
+                # Validate required fields
+                if event_data and isinstance(event_data, dict):
+                    if "parsed_date_year" in event_data:
+                        events.append(event_data)
+                    else:
+                        logger.warning(
+                            "Event missing required field parsed_date_year",
+                            event=event_data,
+                        )
+
+            logger.debug(
+                "Timeline events processed",
+                event_count=len(events),
+                processed_events=events,
+            )
+
+            if not events:
+                logger.warning("No valid events extracted from query results")
+                return
+
+            if not hasattr(self.ui, "timeline_tab"):
+                logger.error("Timeline tab not available for event data")
+                return
+
+            logger.debug(
+                "Setting timeline event data",
+                event_count=len(events),
+                first_event=events[0] if events else None,
+            )
+
+            logger.debug("Sending events to timeline tab", event_count=len(events))
+            self.ui.timeline_tab.set_event_data(events)
+
+        logger.debug(
+            "Creating timeline events worker", element_id=self.current_node_element_id
+        )
+
+        worker = self.model.execute_read_query(
+            query,
+            {
+                "element_id": self.current_node_element_id,
+                "project": self.config.user.PROJECT,
+            },
+        )
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=handle_timeline_events,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Timeline event query failed: {msg}"
+            ),
+            operation_name="timeline_events",
+        )
+
+        self.worker_manager.execute_worker("timeline", operation)
 
     def _get_events_for_timeline(self) -> List[Dict[str, Any]]:
-        """Get event data for timeline visualization."""
-        # Implement event data collection logic
-        # This could parse your timeline node's data or query related event nodes
-        return []
+        """Get event data for timeline visualization.
+
+        Returns:
+            List[Dict[str, Any]]: List of event data dictionaries
+        """
+        if not self.current_node_element_id:
+            logger.error("No element_id available for timeline query")
+            return []
+
+        query = """
+        MATCH (t)-[:USES_CALENDAR]->(c:CALENDAR)<-[:USES_CALENDAR]-(e:EVENT)
+        WHERE elementId(t) = $element_id
+          AND t._project = $project
+        RETURN e { 
+            name: e.name,
+            temporal_data: e.temporal_data,
+            parsed_date_year: toInteger(e.parsed_date_year),
+            parsed_date_month: toInteger(e.parsed_date_month),
+            parsed_date_day: toInteger(e.parsed_date_day),
+            event_type: e.event_type
+        } as event
+        ORDER BY e.parsed_date_year, e.parsed_date_month, e.parsed_date_day
+        """
+
+        worker = self.model.execute_read_query(
+            query,
+            {
+                "element_id": self.current_node_element_id,
+                "project": self.config.user.PROJECT,
+            },
+        )
+
+        def handle_results(results):
+            events = []
+            for result in results:
+                if "event" in result:
+                    events.append(result["event"])
+            return events
+
+        worker.query_finished.connect(handle_results)
+        return []  # Initial empty return while query executes
 
 
 class EventMixin:
@@ -1516,6 +1644,11 @@ class WorldBuildingController(
                         if hasattr(self.ui, "event_tab") and self.ui.event_tab:
                             self.ui.event_tab.update_calendar_name(rel.get("end", ""))
                         break
+
+            # Handle TIMELINE nodes
+            if "TIMELINE" in labels:
+                self._setup_timeline_tab()
+                self._setup_timeline_calendar()
 
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")

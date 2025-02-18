@@ -119,8 +119,17 @@ class TimelineTab(QWidget):
 
     def _on_scale_changed(self, scale: str):
         """Handle scale selection changes."""
+        logger.debug(
+            "Scale changed",
+            new_scale=scale,
+            has_events=bool(self.events),
+            event_count=len(self.events) if self.events else 0,
+        )
+
         if hasattr(self, "timeline_widget"):
             self.timeline_widget.set_data(self.events, scale)
+        else:
+            logger.error("Timeline widget not found on scale change")
 
     def _link_calendar(self):
         """Link calendar to timeline."""
@@ -151,14 +160,29 @@ class TimelineTab(QWidget):
             self.calendar_input.setStyleSheet("border: 1px solid red")
 
     def set_event_data(self, events: List[Dict[str, Any]]) -> None:
-        """Set event data for the timeline.
+        """Set event data for the timeline."""
+        logger.debug(
+            "TimelineTab.set_event_data called",
+            event_count=len(events) if events else 0,
+            has_timeline_widget=hasattr(self, "timeline_widget"),
+            events=events,
+        )
 
-        Args:
-            events: List of event dictionaries containing date and description info
-        """
+        # Store events
         self.events = events
+
+        # Pass to timeline widget
         if hasattr(self, "timeline_widget"):
-            self.timeline_widget.set_data(events, self.scale_combo.currentText())
+            current_scale = self.scale_combo.currentText()
+            logger.debug(
+                "Passing events to timeline widget",
+                event_count=len(events) if events else 0,
+                scale=current_scale,
+            )
+            self.timeline_widget.set_data(events, current_scale)
+            logger.debug("Events passed to timeline widget")
+        else:
+            logger.error("Timeline widget not found")
 
     def set_calendar_data(self, calendar_data: Dict[str, Any]) -> None:
         """Set calendar data for date handling.
