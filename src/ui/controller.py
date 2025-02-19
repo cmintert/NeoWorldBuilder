@@ -351,8 +351,17 @@ class TimelineMixin:
 
     def _setup_timeline_calendar(self) -> None:
         """Set up calendar data for timeline nodes."""
+        # First ensure timeline tab exists
+        if not hasattr(self.ui, "timeline_tab") or not self.ui.timeline_tab:
+            logger.debug("Creating timeline tab")
+            from ui.components.timeline_component.timeline_widget import TimelineTab
+
+            self.ui.timeline_tab = TimelineTab(self)
+            self.ui.tabs.addTab(self.ui.timeline_tab, "Timeline")
+
+        # Now handle the event query
         if not self.current_node_element_id:
-            logger.error("No element_id available for calendar lookup")
+            logger.error("No element_id available for timeline events")
             return
 
         calendar_query = """
