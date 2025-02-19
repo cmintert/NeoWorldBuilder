@@ -33,6 +33,7 @@ from ui.components.image_group import ImageGroup
 from ui.components.map_tab import MapTab
 from ui.components.search_component.search_panel import SearchPanel
 from ui.components.text_editor.text_editor import TextEditor
+from ui.components.timeline_component.timeline_tab import TimelineTab
 
 logger = get_logger(__name__)
 
@@ -160,6 +161,27 @@ class WorldBuildingUI(QWidget):
 
         # Apply styles
         self.apply_styles()
+
+    def _update_timeline_tab_visibility(self, should_show_timeline: bool) -> None:
+        """Update timeline tab visibility."""
+        if should_show_timeline:
+            self._ensure_timeline_tab_exists()
+        else:
+            self._remove_timeline_tab_if_exists()
+
+    def _ensure_timeline_tab_exists(self) -> None:
+        """Create and configure timeline tab if it doesn't exist."""
+        if not hasattr(self, "timeline_tab") or not self.timeline_tab:
+            self.timeline_tab = TimelineTab(controller=self.controller)
+            self.tabs.addTab(self.timeline_tab, "Timeline")
+
+    def _remove_timeline_tab_if_exists(self) -> None:
+        """Remove timeline tab if it exists."""
+        if hasattr(self, "timeline_tab") and self.timeline_tab:
+            timeline_tab_index = self.tabs.indexOf(self.timeline_tab)
+            if timeline_tab_index != -1:
+                self.tabs.removeTab(timeline_tab_index)
+                self.timeline_tab = None
 
     def show_loading(self, is_loading: bool) -> None:
         """
@@ -835,6 +857,9 @@ class WorldBuildingUI(QWidget):
 
             # Handle Event tab
             self._update_event_tab_visibility("EVENT" in current_labels)
+
+            # Handle Timeline tab
+            self._update_timeline_tab_visibility("TIMELINE" in current_labels)
 
         except Exception as e:
             self._handle_tab_error(e)

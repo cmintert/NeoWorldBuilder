@@ -346,6 +346,218 @@ class CalendarMixin:
         self.worker_manager.execute_worker("validate_calendar", operation)
 
 
+class TimelineMixin:
+    """Mixin providing timeline functionality for controllers."""
+
+    def _setup_timeline_calendar(self) -> None:
+        """Set up calendar data for timeline nodes."""
+        # First ensure timeline tab exists
+        if not hasattr(self.ui, "timeline_tab") or not self.ui.timeline_tab:
+            logger.debug("Creating timeline tab")
+            from ui.components.timeline_component.timeline_widget import TimelineTab
+
+            self.ui.timeline_tab = TimelineTab(self)
+            self.ui.tabs.addTab(self.ui.timeline_tab, "Timeline")
+
+        # Now handle the event query
+        if not self.current_node_element_id:
+            logger.error("No element_id available for timeline events")
+            return
+
+        calendar_query = """
+        MATCH (n)-[r:USES_CALENDAR]->(c:CALENDAR)
+        WHERE elementId(n) = $element_id
+        AND n._project = $project
+        RETURN {
+            month_names: c.calendar_month_names,
+            month_days: c.calendar_month_days,
+            weekday_names: c.calendar_weekday_names,
+            days_per_week: toInteger(c.calendar_days_per_week),
+            year_length: toInteger(c.calendar_year_length),
+            current_year: toInteger(c.calendar_current_year)
+        } as calendar_data
+        """
+
+        worker = self.model.execute_read_query(
+            calendar_query,
+            {
+                "element_id": self.current_node_element_id,
+                "project": self.config.user.PROJECT,
+            },
+        )
+
+        worker.query_finished.connect(self._handle_calendar_query_finished)
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=None,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Calendar query failed: {msg}"
+            ),
+            operation_name="calendar_lookup",
+        )
+
+        self.worker_manager.execute_worker("calendar", operation)
+
+    def _setup_timeline_tab(self) -> None:
+        """Set up timeline data for timeline nodes."""
+        # First ensure timeline tab exists
+        if not hasattr(self.ui, "timeline_tab") or not self.ui.timeline_tab:
+            logger.debug("Creating timeline tab")
+            from ui.components.timeline_component.timeline_widget import TimelineTab
+
+            self.ui.timeline_tab = TimelineTab(self)
+            self.ui.tabs.addTab(self.ui.timeline_tab, "Timeline")
+
+        # Now handle the event query
+        if not self.current_node_element_id:
+            logger.error("No element_id available for timeline events")
+            return
+
+        # Create worker for event query
+        query = """
+        MATCH (t)-[:USES_CALENDAR]->(c:CALENDAR)<-[:USES_CALENDAR]-(e:EVENT)
+        WHERE elementId(t) = $element_id
+          AND t._project = $project
+        RETURN {
+            name: e.name,
+            temporal_data: e.temporal_data,
+            parsed_date_year: toInteger(e.parsed_date_year), 
+            parsed_date_month: toInteger(e.parsed_date_month),
+            parsed_date_day: toInteger(e.parsed_date_day),
+            event_type: e.event_type
+        } as event
+        ORDER BY e.parsed_date_year, e.parsed_date_month, e.parsed_date_day
+        """
+
+        def handle_timeline_events(results):
+            logger.debug(
+                "Timeline handler received results",
+                result_count=len(results) if results else 0,
+                raw_results=results,
+            )
+
+            # Extract and validate events
+            events = []
+            for record in results:
+                logger.debug("Processing record", type=type(record), record=record)
+
+                # Neo4j returns Records, which we can access with record[0]
+                # This gets our event data directly
+                event_data = record[0]
+                logger.debug("Extracted event data", data=event_data)
+
+                # Direct validation of the event data
+                if isinstance(event_data, dict) and "parsed_date_year" in event_data:
+                    logger.debug("Event data valid, adding to list")
+                    events.append(event_data)
+                    logger.debug("Added to events list", data=event_data)
+                else:
+                    logger.warning(
+                        "Event data invalid or missing required field", data=event_data
+                    )
+
+            logger.debug(
+                "Timeline events processed",
+                event_count=len(events),
+                processed_events=events,
+            )
+
+            if not events:
+                logger.warning("No valid events extracted from query results")
+                return
+
+            if not hasattr(self.ui, "timeline_tab"):
+                logger.error("Timeline tab not available for event data")
+                return
+
+            logger.debug(
+                "About to set timeline event data",
+                event_count=len(events),
+                first_event=events[0] if events else None,
+            )
+
+            self.ui.timeline_tab.set_event_data(events)
+            logger.debug("Timeline event data set")
+
+        logger.debug(
+            "Creating timeline events worker", element_id=self.current_node_element_id
+        )
+
+        worker = self.model.execute_read_query(
+            query,
+            {
+                "element_id": self.current_node_element_id,
+                "project": self.config.user.PROJECT,
+            },
+        )
+
+        # Explicitly connect the signal before creating operation
+        worker.query_finished.connect(handle_timeline_events)
+        logger.debug("Connected query_finished signal to handler")
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=handle_timeline_events,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Timeline event query failed: {msg}"
+            ),
+            operation_name="timeline_events",
+        )
+
+        logger.debug("Created worker operation, about to execute")
+        self.worker_manager.execute_worker("timeline", operation)
+        logger.debug("Worker operation executed")
+
+    def _get_events_for_timeline(self) -> List[Dict[str, Any]]:
+        """Get event data for timeline visualization.
+
+        Returns:
+            List[Dict[str, Any]]: List of event data dictionaries
+        """
+        if not self.current_node_element_id:
+            logger.error("No element_id available for timeline query")
+            return []
+
+        query = """
+        MATCH (t)-[:USES_CALENDAR]->(c:CALENDAR)<-[:USES_CALENDAR]-(e:EVENT)
+        WHERE elementId(t) = $element_id
+          AND t._project = $project
+        RETURN e { 
+            name: e.name,
+            temporal_data: e.temporal_data,
+            parsed_date_year: toInteger(e.parsed_date_year),
+            parsed_date_month: toInteger(e.parsed_date_month),
+            parsed_date_day: toInteger(e.parsed_date_day),
+            event_type: e.event_type
+        } as event
+        ORDER BY e.parsed_date_year, e.parsed_date_month, e.parsed_date_day
+        """
+
+        worker = self.model.execute_read_query(
+            query,
+            {
+                "element_id": self.current_node_element_id,
+                "project": self.config.user.PROJECT,
+            },
+        )
+
+        def handle_results(results):
+            events = []
+            for result in results:
+                if "event" in result:
+                    events.append(result["event"])
+            logger.debug(
+                "Timeline events retrieved from database",
+                event_count=len(events),
+                raw_events=events,
+            )
+            return events
+
+        worker.query_finished.connect(handle_results)
+        return []  # Initial empty return while query executes
+
+
 class EventMixin:
 
     def _setup_event_calendar(self) -> None:
@@ -1030,6 +1242,7 @@ class WorldBuildingController(
     EventMixin,
     MapMixin,
     ImageMixin,
+    TimelineMixin,
 ):
     """
     Controller class managing interaction between UI and Neo4j model using QThread workers.
@@ -1451,6 +1664,11 @@ class WorldBuildingController(
                         if hasattr(self.ui, "event_tab") and self.ui.event_tab:
                             self.ui.event_tab.update_calendar_name(rel.get("end", ""))
                         break
+
+            # Handle TIMELINE nodes
+            if "TIMELINE" in labels:
+                self._setup_timeline_tab()
+                self._setup_timeline_calendar()
 
         except Exception as e:
             self.error_handler.handle_error(f"Error populating node fields: {str(e)}")
