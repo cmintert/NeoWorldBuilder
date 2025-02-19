@@ -43,7 +43,19 @@ class TimelineContent(QWidget):
 
     def set_data(self, events: List[Dict[str, Any]], scale: str) -> None:
         """Set the timeline data and trigger redraw."""
-        logger.debug("Setting timeline widget data", events=events, scale=scale)
+        logger.debug(
+            "TimelineContent received data",
+            event_count=len(events),
+            event_details=[
+                {
+                    "name": e.get("name"),
+                    "year": e.get("parsed_date_year"),
+                    "full_event": e,
+                }
+                for e in events
+            ],
+        )
+
         self.events = events
         self.scale = scale
 
@@ -169,9 +181,6 @@ class TimelineContent(QWidget):
                 continue
 
             x = self._get_x_position(int(year))
-            logger.debug(
-                f"Drawing event: {event.get('name', 'Unknown')}, year: {year}, x: {x}"
-            )
 
             # Draw vertical connection line
             line_height = 30
@@ -200,7 +209,7 @@ class TimelineContent(QWidget):
             else:
                 text_y = base_y + line_height + 15
 
-            painter.drawText(text_x, text_y, text)
+            painter.drawText(int(text_x), int(text_y), text)
 
 
 class TimelineWidget(QWidget):

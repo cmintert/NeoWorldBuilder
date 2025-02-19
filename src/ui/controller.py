@@ -392,8 +392,17 @@ class TimelineMixin:
 
     def _setup_timeline_tab(self) -> None:
         """Set up timeline data for timeline nodes."""
+        # First ensure timeline tab exists
         if not hasattr(self.ui, "timeline_tab") or not self.ui.timeline_tab:
-            logger.error("Timeline tab not available")
+            logger.debug("Creating timeline tab")
+            from ui.components.timeline_component.timeline_widget import TimelineTab
+
+            self.ui.timeline_tab = TimelineTab(self)
+            self.ui.tabs.addTab(self.ui.timeline_tab, "Timeline")
+
+        # Now handle the event query
+        if not self.current_node_element_id:
+            logger.error("No element_id available for timeline events")
             return
 
         # Create worker for event query
@@ -414,39 +423,30 @@ class TimelineMixin:
 
         def handle_timeline_events(results):
             logger.debug(
-                "Raw timeline query results",
+                "Timeline handler received results",
                 result_count=len(results) if results else 0,
-                results=results,
-            )
-
-            logger.debug(
-                "Handling timeline events", result_count=len(results) if results else 0
+                raw_results=results,
             )
 
             # Extract and validate events
             events = []
-            for result in results:
-                event_data = None
+            for record in results:
+                logger.debug("Processing record", type=type(record), record=record)
 
-                # Handle different result structures
-                if isinstance(result, dict):
-                    if "event" in result:
-                        event_data = result["event"]
-                    else:
-                        event_data = result
-                elif isinstance(result, (list, tuple)) and result:
-                    if isinstance(result[0], dict):
-                        event_data = result[0]
+                # Neo4j returns Records, which we can access with record[0]
+                # This gets our event data directly
+                event_data = record[0]
+                logger.debug("Extracted event data", data=event_data)
 
-                # Validate required fields
-                if event_data and isinstance(event_data, dict):
-                    if "parsed_date_year" in event_data:
-                        events.append(event_data)
-                    else:
-                        logger.warning(
-                            "Event missing required field parsed_date_year",
-                            event=event_data,
-                        )
+                # Direct validation of the event data
+                if isinstance(event_data, dict) and "parsed_date_year" in event_data:
+                    logger.debug("Event data valid, adding to list")
+                    events.append(event_data)
+                    logger.debug("Added to events list", data=event_data)
+                else:
+                    logger.warning(
+                        "Event data invalid or missing required field", data=event_data
+                    )
 
             logger.debug(
                 "Timeline events processed",
@@ -463,13 +463,13 @@ class TimelineMixin:
                 return
 
             logger.debug(
-                "Setting timeline event data",
+                "About to set timeline event data",
                 event_count=len(events),
                 first_event=events[0] if events else None,
             )
 
-            logger.debug("Sending events to timeline tab", event_count=len(events))
             self.ui.timeline_tab.set_event_data(events)
+            logger.debug("Timeline event data set")
 
         logger.debug(
             "Creating timeline events worker", element_id=self.current_node_element_id
@@ -483,6 +483,10 @@ class TimelineMixin:
             },
         )
 
+        # Explicitly connect the signal before creating operation
+        worker.query_finished.connect(handle_timeline_events)
+        logger.debug("Connected query_finished signal to handler")
+
         operation = WorkerOperation(
             worker=worker,
             success_callback=handle_timeline_events,
@@ -492,7 +496,9 @@ class TimelineMixin:
             operation_name="timeline_events",
         )
 
+        logger.debug("Created worker operation, about to execute")
         self.worker_manager.execute_worker("timeline", operation)
+        logger.debug("Worker operation executed")
 
     def _get_events_for_timeline(self) -> List[Dict[str, Any]]:
         """Get event data for timeline visualization.
@@ -532,6 +538,11 @@ class TimelineMixin:
             for result in results:
                 if "event" in result:
                     events.append(result["event"])
+            logger.debug(
+                "Timeline events retrieved from database",
+                event_count=len(events),
+                raw_events=events,
+            )
             return events
 
         worker.query_finished.connect(handle_results)
