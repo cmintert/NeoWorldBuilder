@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add calendar lookup functionality and improve event data handling in timeline tab">
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Enhance timeline tab setup and data loading with improved error handling and event processing">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/controller.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/timeline_component/timeline_widget.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/timeline_component/timeline_widget.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -249,7 +250,7 @@
       <workItem from="1739874983928" duration="1722000" />
       <workItem from="1739905686647" duration="5686000" />
       <workItem from="1739950326140" duration="4595000" />
-      <workItem from="1739995749751" duration="1504000" />
+      <workItem from="1739995749751" duration="4118000" />
     </task>
     <task id="LOCAL-00001" summary="Implemented a first basic calendar property system.">
       <option name="closed" value="true" />
@@ -475,7 +476,15 @@
       <option name="project" value="LOCAL" />
       <updated>1739997041415</updated>
     </task>
-    <option name="localTasksCounter" value="29" />
+    <task id="LOCAL-00029" summary="Enhance timeline tab setup and data loading with improved error handling and event processing">
+      <option name="closed" value="true" />
+      <created>1739997335381</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1739997335381</updated>
+    </task>
+    <option name="localTasksCounter" value="30" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -528,7 +537,8 @@
     <MESSAGE value="Add TimelineMixin and TimelineTab for enhanced timeline functionality in controllers. This is the first try to implement a timeline tab. No real functionality for now." />
     <MESSAGE value="Enhance timeline functionality with improved event handling and visualization in controllers. further debugging." />
     <MESSAGE value="Add calendar lookup functionality and improve event data handling in timeline tab" />
-    <option name="LAST_COMMIT_MESSAGE" value="Add calendar lookup functionality and improve event data handling in timeline tab" />
+    <MESSAGE value="Enhance timeline tab setup and data loading with improved error handling and event processing" />
+    <option name="LAST_COMMIT_MESSAGE" value="Enhance timeline tab setup and data loading with improved error handling and event processing" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -552,7 +562,7 @@
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController_test_delete_node_debounce.coverage" NAME="pytest for test_node_operations.TestBaseController.test_delete_node_debounce Coverage Results" MODIFIED="1739346351305" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$main.coverage" NAME="main Coverage Results" MODIFIED="1737189065102" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$.coverage" NAME=" Coverage Results" MODIFIED="1737584858616" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1739997268174" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1739999911199" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$card_based_calendar_widget.coverage" NAME="card_based_calendar_widget Coverage Results" MODIFIED="1737485046740" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui/components/calendar_component" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_calendar_config_dialog_test_py.coverage" NAME="pytest in calendar_config_dialog_test.py Coverage Results" MODIFIED="1737662433154" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
