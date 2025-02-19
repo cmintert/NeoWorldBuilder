@@ -4,8 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="">
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add timeline tab creation and event error logging in controller">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/controller.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,7 +24,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="master" />
+        <entry key="$PROJECT_DIR$" value="timeline_tab" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -68,7 +70,7 @@
     &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
     &quot;SONARLINT_PRECOMMIT_ANALYSIS&quot;: &quot;true&quot;,
     &quot;ToolWindow.Run.ShowToolbar&quot;: &quot;false&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;timeline__tab&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;C:/Users/chris/PycharmProjects/NeoWorldBuilder/src/main.py&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
@@ -184,10 +186,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python tests.pytest for test_node_operations.TestBaseController" />
         <item itemvalue="Python tests.pytest for test_node_operations.TestBaseController.test_load_empty_state" />
-        <item itemvalue="Python tests.pytest for test_node_operations.test_load_node_data" />
         <item itemvalue="Python tests.pytest for test_node_operations.TestBaseController.test_delete_node_debounce" />
+        <item itemvalue="Python tests.pytest for test_node_operations.TestBaseController" />
+        <item itemvalue="Python tests.pytest for test_node_operations.test_load_node_data" />
+        <item itemvalue="Python tests.pytest for test_node_operations.TestBaseController" />
       </list>
     </recent_temporary>
   </component>
@@ -247,6 +250,7 @@
       <workItem from="1739874983928" duration="1722000" />
       <workItem from="1739905686647" duration="5686000" />
       <workItem from="1739950326140" duration="4595000" />
+      <workItem from="1739995749751" duration="1194000" />
     </task>
     <task id="LOCAL-00001" summary="Implemented a first basic calendar property system.">
       <option name="closed" value="true" />
@@ -540,7 +544,7 @@
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController_test_delete_node_debounce.coverage" NAME="pytest for test_node_operations.TestBaseController.test_delete_node_debounce Coverage Results" MODIFIED="1739346351305" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$main.coverage" NAME="main Coverage Results" MODIFIED="1737189065102" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$.coverage" NAME=" Coverage Results" MODIFIED="1737584858616" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1739954866882" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1739996833528" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$card_based_calendar_widget.coverage" NAME="card_based_calendar_widget Coverage Results" MODIFIED="1737485046740" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui/components/calendar_component" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_calendar_config_dialog_test_py.coverage" NAME="pytest in calendar_config_dialog_test.py Coverage Results" MODIFIED="1737662433154" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />

@@ -414,6 +414,48 @@ class TimelineMixin:
             logger.error("No element_id available for timeline events")
             return
 
+        # Query to get calendar relationship
+        calendar_query = """
+        MATCH (t)-[r:USES_CALENDAR]->(c:CALENDAR)
+        WHERE elementId(t) = $element_id
+          AND t._project = $project
+        RETURN c.name as calendar_name
+        """
+
+        def handle_calendar_result(results):
+            """Handle calendar query results"""
+            if results and results[0].get("calendar_name"):
+                calendar_name = results[0]["calendar_name"]
+                if hasattr(self.ui, "timeline_tab") and self.ui.timeline_tab:
+                    # Block signals temporarily
+                    old_state = self.ui.timeline_tab.calendar_input.blockSignals(True)
+                    self.ui.timeline_tab.calendar_input.setText(calendar_name)
+                    self.ui.timeline_tab.calendar_input.blockSignals(old_state)
+                    # Update validation state
+                    self.ui.timeline_tab._update_validation_state(True)
+
+        # Execute calendar query
+        calendar_worker = self.model.execute_read_query(
+            calendar_query,
+            {
+                "element_id": self.current_node_element_id,
+                "project": self.config.user.PROJECT,
+            },
+        )
+
+        calendar_worker.query_finished.connect(handle_calendar_result)
+
+        operation = WorkerOperation(
+            worker=calendar_worker,
+            success_callback=None,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Calendar lookup failed: {msg}"
+            ),
+            operation_name="calendar_lookup",
+        )
+
+        self.worker_manager.execute_worker("calendar_lookup", operation)
+
         # Create worker for event query
         query = """
         MATCH (t)-[:USES_CALENDAR]->(c:CALENDAR)<-[:USES_CALENDAR]-(e:EVENT)
@@ -467,8 +509,10 @@ class TimelineMixin:
                 logger.warning("No valid events extracted from query results")
                 return
 
-            if not hasattr(self.ui, "timeline_tab"):
-                logger.error("Timeline tab not available for event data")
+            if not hasattr(self.ui, "timeline_tab") or not self.ui.timeline_tab:
+                logger.warning(
+                    "Timeline tab not ready yet, skipping event data setting"
+                )
                 return
 
             logger.debug(
