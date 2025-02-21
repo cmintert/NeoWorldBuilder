@@ -2,14 +2,11 @@ from typing import List, Optional, Dict, Any, Tuple
 from PyQt6.QtWidgets import (
     QWidget,
     QScrollArea,
-    QHBoxLayout,
     QVBoxLayout,
-    QLabel,
-    QFrame,
     QApplication,
 )
-from PyQt6.QtCore import Qt, QSize, QRectF, QEvent
-from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QFont, QFontMetrics
+from PyQt6.QtCore import Qt, QRectF, QEvent
+from PyQt6.QtGui import QPainter, QPen, QColor, QFontMetrics
 from structlog import get_logger
 
 logger = get_logger(__name__)
@@ -322,7 +319,7 @@ class TimelineContent(QWidget):
         # Get visible rect
         self.visible_rect = event.rect()
 
-        # Draw base line
+        # Draw baseline
         base_y = self.height() // 2
         painter.setPen(QPen(Qt.GlobalColor.black, 2))
         painter.drawLine(self.PADDING, base_y, self.width() - self.PADDING, base_y)
@@ -364,10 +361,7 @@ class TimelineContent(QWidget):
             x = self._get_x_position(year)
 
             # Only draw if in visible area
-            if (
-                x >= self.visible_rect.left() - 10
-                and x <= self.visible_rect.right() + 10
-            ):
+            if self.visible_rect.left() - 10 <= x <= self.visible_rect.right() + 10:
                 # Draw vertical line
                 painter.drawLine(x, 0, x, self.height())
 
@@ -381,10 +375,7 @@ class TimelineContent(QWidget):
 
         for year in range(start_year, self.max_year + major_interval, major_interval):
             x = self._get_x_position(year)
-            if (
-                x >= self.visible_rect.left() - 10
-                and x <= self.visible_rect.right() + 10
-            ):
+            if self.visible_rect.left() - 10 <= x <= self.visible_rect.right() + 10:
                 painter.drawLine(x, 0, x, self.height())
 
     def _draw_events(self, painter: QPainter, base_y: int) -> None:
