@@ -1,507 +1,679 @@
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Dict, Any, Optional, Set, Tuple
 from PyQt6.QtWidgets import (
     QWidget,
-    QScrollArea,
     QVBoxLayout,
-    QApplication,
+    QHBoxLayout,
+    QScrollArea,
+    QFrame,
+    QLabel,
+    QComboBox,
+    QPushButton,
+    QSizePolicy,
 )
-from PyQt6.QtCore import Qt, QRectF, QEvent
-from PyQt6.QtGui import QPainter, QPen, QColor, QFontMetrics
+from PyQt6.QtCore import (
+    Qt,
+    QRectF,
+    QPoint,
+    QPointF,
+    pyqtSignal,
+    QSize,
+    QEasingCurve,
+    QPropertyAnimation,
+)
+from PyQt6.QtGui import (
+    QPainter,
+    QPen,
+    QColor,
+    QBrush,
+    QFont,
+    QFontMetrics,
+    QLinearGradient,
+    QPainterPath,
+    QMouseEvent,
+    QWheelEvent,
+)
+
 from structlog import get_logger
 
 logger = get_logger(__name__)
 
 
-class TimelineContent(QWidget):
-    """Optimized timeline visualization widget."""
+class EventCard(QFrame):
+    """Interactive card representing a timeline event"""
 
-    def __init__(self):
-        super().__init__()
-        self.events = []
-        self.scale = "Years"
-        self.visible_rect = QRectF()  # Track visible area
-        self.event_layout_cache = {}  # Cache event positions
+    clicked = pyqtSignal(dict)  # Signal emitting event data when clicked
 
-        # Add panning variables
-        self.panning = False
-        self.last_mouse_pos = None
+    def __init__(self, event_data: Dict[str, Any], parent=None):
+        super().__init__(parent)
+        self.event_data = event_data
+        self.setFrameShape(QFrame.Shape.StyledPanel)
+        self.setMinimumWidth(200)
+        self.setMaximumWidth(250)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setup_ui()
 
-        # Add zoom control properties
-        self.zoom_level = 1.0  # Default zoom level
-        self.min_zoom = 0.1
-        self.max_zoom = 10.0
-        self.pixels_per_year_base = 50  # Base scaling factor
+    def setup_ui(self):
+        """Set up the card UI elements"""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)
 
-        # Visualization constants
-        self.PADDING = 40  # Increased padding for better spacing
-        self.MARKER_RADIUS = 6
-        self.MIN_LABEL_SPACING = 80  # Minimum pixels between labels
-        self.LEVEL_HEIGHT = 30  # Height for each level of events
+        # Create title with bold font
+        title = QLabel(self.event_data.get("name", "Unknown Event"))
+        title.setStyleSheet("font-weight: bold; font-size: 13px;")
+        title.setWordWrap(True)
 
-        # Default range
-        self.default_span = 500
-        self.default_year = 0
-        self.min_year = self.default_year - self.default_span // 2
-        self.max_year = self.default_year + self.default_span // 2
+        # Create date display
+        year = self.event_data.get("parsed_date_year")
+        month = self.event_data.get("parsed_date_month")
+        day = self.event_data.get("parsed_date_day")
 
-        # Setup widget
-        self.setMinimumHeight(300)  # Increased minimum height
-        self.setMouseTracking(True)
-        self._setup_widget()
+        date_text = f"{year}"
+        if month:
+            date_text += f"/{month}"
+            if day:
+                date_text += f"/{day}"
 
-    def wheelEvent(self, event):
-        """Handle mouse wheel for zooming"""
-        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            # Add debug logging
-            logger.debug(
-                "Timeline content wheel event",
-                zoom_level_before=self.zoom_level,
-                mouse_x=event.position().x(),
-                delta_y=event.angleDelta().y(),
-            )
+        date = QLabel(date_text)
+        date.setStyleSheet("color: #666; font-size: 11px;")
 
-            # Calculate zoom factor based on wheel delta
-            zoom_factor = 1.1 if event.angleDelta().y() > 0 else 0.9
+        # Create summary/description if available
+        description = self.event_data.get("description", "")
+        if not description and "temporal_data" in self.event_data:
+            description = self.event_data.get("temporal_data", "")
 
-            # Get mouse position for zoom center
-            mouse_x = event.position().x()
+        summary = QLabel(description[:100] + ("..." if len(description) > 100 else ""))
+        summary.setWordWrap(True)
+        summary.setStyleSheet("font-size: 12px;")
 
-            # Calculate year at mouse position before zoom
-            year_at_mouse = self._get_year_at_position(mouse_x)
+        # Add all elements to layout
+        layout.addWidget(title)
+        layout.addWidget(date)
+        if description:
+            layout.addWidget(summary)
 
-            # Apply zoom
-            old_zoom = self.zoom_level
-            self.zoom_level = max(
-                self.min_zoom, min(self.max_zoom, self.zoom_level * zoom_factor)
-            )
+        # Set border color based on event type
+        event_type = self.event_data.get("event_type", "Occurrence")
+        self.set_card_style(event_type)
 
-            # Add more debug logging
-            logger.debug(
-                "Zoom calculation",
-                old_zoom=old_zoom,
-                new_zoom=self.zoom_level,
-                year_at_mouse=year_at_mouse,
-            )
+    def set_card_style(self, event_type: str):
+        """Apply style based on event type"""
+        base_style = """
+            QFrame {
+                border-radius: 6px;
+                background-color: white;
+                border: 1px solid #ddd;
+            }
+            QFrame:hover {
+                border: 1px solid #aaa;
+                background-color: #f9f9f9;
+            }
+        """
 
-            # Only proceed if zoom actually changed
-            if old_zoom != self.zoom_level:
-                # Recalculate positions and update
-                self._calculate_event_positions()
+        # Color mapping for different event types
+        colors = {
+            "battle": "#e74c3c",
+            "war": "#e74c3c",
+            "conflict": "#e74c3c",
+            "political": "#3498db",
+            "coronation": "#3498db",
+            "treaty": "#3498db",
+            "cultural": "#2ecc71",
+            "foundation": "#2ecc71",
+            "founding": "#2ecc71",
+            "discovery": "#f39c12",
+            "death": "#7f8c8d",
+            "birth": "#9b59b6",
+            "occurrence": "#34495e",
+            "default": "#95a5a6",
+        }
 
-                # Calculate scroll adjustment
-                new_x = self._get_x_position(int(year_at_mouse))
-                delta_x = new_x - mouse_x
+        # Get color for event type, defaulting to occurrence or generic default
+        color = colors.get(
+            event_type.lower(), colors.get("occurrence", colors["default"])
+        )
 
-                # Get scroll area and scrollbar
-                scroll_area = self.parent().parent()
-                scrollbar = scroll_area.horizontalScrollBar()
-
-                # Set new scroll value
-                new_scroll_value = int(scrollbar.value() + delta_x)
-                scrollbar.setValue(new_scroll_value)
-
-                # Force immediate UI updates
-                self.update()
-                scroll_area.viewport().update()
-                scroll_area.update()
-
-                # Process pending events to ensure updates are rendered
-                QApplication.processEvents()
-
-            event.accept()
-            super().wheelEvent(event)
-        else:
-            event.ignore()
-            super().wheelEvent(event)
+        # Apply style with left border in the type color
+        self.setStyleSheet(
+            base_style
+            + f"""
+            QFrame {{
+                border-left: 4px solid {color};
+            }}
+        """
+        )
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.panning = True
-            self.last_mouse_pos = event.pos()
-            self.setCursor(Qt.ClosedHandCursor)
+        """Handle mouse press to emit clicked signal"""
+        self.clicked.emit(self.event_data)
+        super().mousePressEvent(event)
 
-    def mouseReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.panning = False
-            self.setCursor(Qt.ArrowCursor)
+    def sizeHint(self):
+        """Provide a reasonable default size"""
+        return QSize(220, 100)
 
-    def mouseMoveEvent(self, event):
-        if self.panning:
-            delta = event.pos() - self.last_mouse_pos
-            scrollbar = self.parent().horizontalScrollBar()
-            scrollbar.setValue(scrollbar.value() - delta.x())
-            self.last_mouse_pos = event.pos()
 
-    def _get_pixels_per_year(self) -> float:
-        """Get dynamic pixels per year based on zoom level"""
-        return self.pixels_per_year_base * self.zoom_level
+class TimelineLane(QWidget):
+    """A horizontal lane for a category of events"""
 
-    def _get_year_at_position(self, x: float) -> float:
-        """Convert x coordinate to year"""
-        usable_width = self.width() - (self.PADDING * 2)
-        year_span = self.max_year - self.min_year
-        year = ((x - self.PADDING) / usable_width * year_span) + self.min_year
-        return year
+    def __init__(self, category: str, parent=None):
+        super().__init__(parent)
+        self.category = category
+        self.events = []
+        self.min_year = 0
+        self.max_year = 100
+        self.pixels_per_year = 50  # Default scale
+        self.cards = []  # Keep track of created cards
+        self.setMinimumHeight(140)
+        self.setup_ui()
 
-    def _setup_widget(self):
-        """Initialize widget properties."""
-        self.setAutoFillBackground(True)
-        palette = self.palette()
-        palette.setColor(self.backgroundRole(), Qt.GlobalColor.white)
-        self.setPalette(palette)
-        self.setMouseTracking(True)
+    def setup_ui(self):
+        """Set up the lane UI elements"""
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 5, 0, 15)  # Add bottom margin for connection lines
 
-    def set_data(self, events: List[Dict[str, Any]], scale: str) -> None:
-        """Set timeline data with improved range calculation."""
-        logger.debug(
-            "Timeline content set_data",
-            event_count=len(events) if events else 0,
-            old_scale=self.scale,
-            new_scale=scale,
-        )
+        # Category label on the left
+        self.label = QLabel(self.category)
+        self.label.setStyleSheet("font-weight: bold; color: #555;")
+        self.label.setFixedWidth(120)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
 
-        old_scale = self.scale
-        self.events = events
-        self.scale = scale
+        # Content area for events
+        self.content_area = QWidget()
+        self.content_area.setMinimumHeight(120)
 
-        # Force recalculation of dimensions if scale changed
-        if old_scale != scale:
-            pixels_per_year = self._get_pixels_per_year()
-            width = (self.max_year - self.min_year) * pixels_per_year + self.PADDING * 2
-            self.setMinimumWidth(int(max(width, 800)))
+        layout.addWidget(self.label)
+        layout.addWidget(self.content_area, 1)  # Content area stretches
 
-            # Clear cache and force recalculation
-            self.event_layout_cache.clear()
-            self._calculate_event_positions()
-
-            # Force complete redraw
+    def set_scale(self, pixels_per_year: float):
+        """Update the horizontal scale and reposition events"""
+        if pixels_per_year != self.pixels_per_year:
+            self.pixels_per_year = pixels_per_year
+            self.position_event_cards()
             self.update()
 
-            # Update parent scroll area
-            if self.parent():
-                self.parent().update()
+    def set_year_range(self, min_year: int, max_year: int):
+        """Set the visible year range"""
+        if min_year != self.min_year or max_year != self.max_year:
+            self.min_year = min_year
+            self.max_year = max_year
+            self.position_event_cards()
 
-            logger.debug(
-                "Scale change applied", new_width=width, pixels_per_year=pixels_per_year
-            )
+    def clear_events(self):
+        """Clear all events from the lane"""
+        # Remove all cards
+        for card in self.cards:
+            card.deleteLater()
+        self.cards = []
+        self.events = []
 
-        if events:
-            # Extract and validate years
-            years = [
-                int(event.get("parsed_date_year", 0))
-                for event in events
-                if event.get("parsed_date_year") is not None
-            ]
+    def add_events(self, events: List[Dict[str, Any]]):
+        """Add events to the lane with proper positioning"""
+        self.events = events
 
-            if years:
-                self.min_year = min(years)
-                self.max_year = max(years)
+        # Clear any existing event cards
+        for card in self.cards:
+            card.deleteLater()
+        self.cards = []
 
-                # Calculate padding based on time range
-                year_span = self.max_year - self.min_year
-                padding_years = max(year_span * 0.1, 5)  # At least 5 years padding
-                self.min_year = int(self.min_year - padding_years)
-                self.max_year = int(self.max_year + padding_years)
-            else:
-                self._set_default_range()
-        else:
-            self._set_default_range()
+        # Create event cards
+        for event in events:
+            card = EventCard(event, self.content_area)
+            self.cards.append(card)
 
-        # Calculate widget width
-        pixels_per_year = self._get_pixels_per_year()
-        width = (self.max_year - self.min_year) * pixels_per_year + self.PADDING * 2
-        self.setMinimumWidth(int(max(width, 800)))
+        # Position the cards
+        self.position_event_cards()
 
-        # Clear layout cache
-        self.event_layout_cache.clear()
-
-        # Calculate event positions
-        self._calculate_event_positions()
-
-        self.update()
-
-    def _set_default_range(self):
-        """Set default time range."""
-        self.min_year = self.default_year - self.default_span // 2
-        self.max_year = self.default_year + self.default_span // 2
-
-    def _get_pixels_per_year(self) -> float:
-        """Get dynamic pixels per year based on scale and zoom."""
-        base_pixels = {"Decades": 5, "Years": 50, "Months": 100, "Days": 200}
-        # Apply zoom level to base pixels
-        pixels = base_pixels.get(self.scale, 50) * self.zoom_level
-
-        logger.debug(
-            "Getting pixels per year",
-            scale=self.scale,
-            base_pixels=base_pixels.get(self.scale, 50),
-            zoom_level=self.zoom_level,
-            final_pixels=pixels,
-        )
-
-        return pixels
-
-    def _calculate_event_positions(self) -> None:
-        """Calculate and cache event positions using improved layout algorithm."""
-        if not self.events:
+    def position_event_cards(self):
+        """Position all event cards based on their dates and current scale"""
+        if not self.events or not self.cards:
             return
 
-        # Sort events by date
-        sorted_events = sorted(
-            self.events,
-            key=lambda e: (
-                e.get("parsed_date_year", 0),
-                e.get("parsed_date_month", 0),
-                e.get("parsed_date_day", 0),
+        year_span = max(1, self.max_year - self.min_year)
+
+        # Order cards by date
+        events_with_cards = sorted(
+            zip(self.events, self.cards),
+            key=lambda pair: (
+                pair[0].get("parsed_date_year", 0),
+                pair[0].get("parsed_date_month", 0),
+                pair[0].get("parsed_date_day", 0),
             ),
         )
 
-        # Track occupied spaces for each level
-        levels: List[List[Tuple[float, float]]] = [
-            []
-        ]  # List of (start_x, end_x) tuples
+        # Calculate vertical positions to prevent overlaps
+        used_ranges = []  # List of (x_start, x_end) of used horizontal ranges
 
-        for event in sorted_events:
-            x = self._get_x_position(event.get("parsed_date_year", 0))
-            text = (
-                f"{event.get('name', 'Unknown')} ({event.get('parsed_date_year', '?')})"
-            )
+        for event, card in events_with_cards:
+            year = event.get("parsed_date_year", self.min_year)
 
-            # Calculate text width
-            metrics = QFontMetrics(self.font())
-            text_width = metrics.horizontalAdvance(text)
+            # Calculate x position based on year
+            x_pos = (year - self.min_year) * self.pixels_per_year
+            card_width = card.width()
 
-            # Calculate space needed
-            space_start = x - text_width / 2 - self.PADDING
-            space_end = x + text_width / 2 + self.PADDING
+            # Check for overlaps with existing cards
+            card_start = x_pos - card_width / 2
+            card_end = x_pos + card_width / 2
 
-            # Find level for event
+            # Find vertical level for card (0 = top, increments for lower positions)
             level = 0
-            space_found = False
+            overlap = True
 
-            while not space_found:
-                if level >= len(levels):
-                    levels.append([])
-                    space_found = True
+            while (
+                overlap and level < 3
+            ):  # Limit to 3 levels to prevent excessive stacking
+                overlap = False
+                for start, end in used_ranges:
+                    if not (card_end < start or card_start > end):
+                        overlap = True
+                        break
+
+                if overlap:
+                    level += 1
                 else:
-                    # Check if space is available at current level
-                    space_available = True
-                    for used_space in levels[level]:
-                        if not (
-                            space_end < used_space[0] or space_start > used_space[1]
-                        ):
-                            space_available = False
-                            break
+                    used_ranges.append((card_start, card_end))
 
-                    if space_available:
-                        space_found = True
-                    else:
-                        level += 1
+            # Position the card
+            y_pos = level * 40  # 40 pixels per level
+            card.move(int(card_start), int(y_pos))
+            card.show()
 
-            # Add event position to cache and occupied spaces
-            self.event_layout_cache[event.get("name")] = {
-                "x": x,
-                "level": level,
-                "text": text,
-                "text_width": text_width,
-            }
-            levels[level].append((space_start, space_end))
+        # Update height based on levels used
+        max_level = 0
+        for event, card in events_with_cards:
+            max_level = max(max_level, card.y() // 40)
 
-        # Update widget height based on number of levels
-        total_height = (len(levels) + 1) * self.LEVEL_HEIGHT + self.PADDING * 2
-        self.setMinimumHeight(max(300, total_height))
+        self.setMinimumHeight(140 + max_level * 40)
 
     def paintEvent(self, event):
-        """Optimized paint event with improved scale drawing."""
+        """Draw connecting lines from cards to timeline"""
+        super().paintEvent(event)
+
+        if not self.cards:
+            return
+
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # Get visible rect
-        self.visible_rect = event.rect()
+        # Line style for connections
+        painter.setPen(QPen(QColor("#ccc"), 1, Qt.PenStyle.DashLine))
 
-        # Draw baseline
-        base_y = self.height() // 2
-        painter.setPen(QPen(Qt.GlobalColor.black, 2))
-        painter.drawLine(self.PADDING, base_y, self.width() - self.PADDING, base_y)
+        # Draw connection from each card to the timeline
+        timeline_y = self.height() - 10
 
-        # Draw scale based on current view
-        self._draw_scale(painter, base_y)
+        for event, card in zip(self.events, self.cards):
+            # Calculate event center x-coordinate
+            year = event.get("parsed_date_year", self.min_year)
+            x_pos = (year - self.min_year) * self.pixels_per_year
 
-        # Draw events
-        if self.events:
-            self._draw_events(painter, base_y)
+            # Calculate bottom center of card
+            card_bottom_x = card.x() + card.width() / 2
+            card_bottom_y = card.y() + card.height()
 
-    def _draw_scale(self, painter: QPainter, base_y: int) -> None:
-        """Draw improved timeline grid with adaptive intervals"""
-        pixels_per_year = self._get_pixels_per_year()
+            # Draw dot at timeline position
+            painter.setBrush(QBrush(QColor("#666")))
+            painter.setPen(QPen(QColor("#666"), 1))
+            painter.drawEllipse(QPointF(x_pos, timeline_y), 3, 3)
 
-        logger.debug(
-            "Drawing scale",
-            scale=self.scale,
-            pixels_per_year=pixels_per_year,
-            zoom_level=self.zoom_level,
-        )
+            # Draw connection line from card to timeline dot
+            path = QPainterPath()
+            path.moveTo(card_bottom_x, card_bottom_y)
 
-        # Calculate optimal interval based on zoom level
-        min_pixels_between_lines = 80
-        interval = 1
-        while (interval * pixels_per_year) < min_pixels_between_lines:
-            if interval < 10:
-                interval += 1
-            elif interval < 100:
-                interval += 10
-            else:
-                interval += 100
-
-        # Draw vertical grid lines
-        painter.setPen(QPen(QColor(200, 200, 200), 1))  # Light gray
-        start_year = (self.min_year // interval) * interval
-
-        for year in range(start_year, self.max_year + interval, interval):
-            x = self._get_x_position(year)
-
-            # Only draw if in visible area
-            if self.visible_rect.left() - 10 <= x <= self.visible_rect.right() + 10:
-                # Draw vertical line
-                painter.drawLine(x, 0, x, self.height())
-
-                # Draw year label
-                painter.setPen(Qt.GlobalColor.black)
-                painter.drawText(x - 20, 20, str(year))
-
-        # Draw major intervals with darker lines
-        major_interval = interval * 5
-        painter.setPen(QPen(QColor(150, 150, 150), 1))  # Darker gray
-
-        for year in range(start_year, self.max_year + major_interval, major_interval):
-            x = self._get_x_position(year)
-            if self.visible_rect.left() - 10 <= x <= self.visible_rect.right() + 10:
-                painter.drawLine(x, 0, x, self.height())
-
-    def _draw_events(self, painter: QPainter, base_y: int) -> None:
-        """Draw events using cached positions."""
-        visible_min_x = self.visible_rect.x()
-        visible_max_x = self.visible_rect.x() + self.visible_rect.width()
-
-        for event in self.events:
-            event_cache = self.event_layout_cache.get(event.get("name"))
-            if not event_cache:
-                continue
-
-            x = event_cache["x"]
-
-            # Skip if event is not visible
-            if x < visible_min_x - 100 or x > visible_max_x + 100:
-                continue
-
-            level = event_cache["level"]
-            text = event_cache["text"]
-            text_width = event_cache["text_width"]
-
-            # Calculate y position based on level
-            y_offset = (level + 1) * self.LEVEL_HEIGHT * (1 if level % 2 == 0 else -1)
-            text_y = base_y + y_offset
-
-            # Draw connection line
-            painter.setPen(QPen(Qt.GlobalColor.gray, 1))
-            painter.drawLine(x, base_y, x, text_y)
-
-            # Draw event marker
-            painter.setPen(QPen(Qt.GlobalColor.blue, 2))
-            painter.setBrush(Qt.GlobalColor.white)
-            painter.drawEllipse(
-                x - self.MARKER_RADIUS,
-                base_y - self.MARKER_RADIUS,
-                self.MARKER_RADIUS * 2,
-                self.MARKER_RADIUS * 2,
+            # Use a curved connection line for better visual appearance
+            control_y = (card_bottom_y + timeline_y) / 2
+            path.cubicTo(
+                card_bottom_x,
+                control_y,  # First control point
+                x_pos,
+                control_y,  # Second control point
+                x_pos,
+                timeline_y,  # End point
             )
 
-            # Draw text
+            painter.setPen(QPen(QColor("#ccc"), 1, Qt.PenStyle.DashLine))
+            painter.drawPath(path)
+
+
+class TimelineAxisWidget(QWidget):
+    """Widget displaying the time axis with markers"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.min_year = 0
+        self.max_year = 100
+        self.pixels_per_year = 50
+        self.setMinimumHeight(50)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+    def set_scale(self, pixels_per_year: float):
+        """Set the horizontal scale for the axis"""
+        self.pixels_per_year = pixels_per_year
+        self.update()
+
+    def set_year_range(self, min_year: int, max_year: int):
+        """Set the year range for the axis"""
+        self.min_year = min_year
+        self.max_year = max_year
+        self.update()
+
+    def paintEvent(self, event):
+        """Draw the axis and year markers"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Draw main axis line
+        painter.setPen(QPen(QColor("#aaa"), 2))
+        y_pos = 20
+        painter.drawLine(0, y_pos, self.width(), y_pos)
+
+        # Calculate marker interval based on zoom level
+        year_span = self.max_year - self.min_year
+        width_in_pixels = year_span * self.pixels_per_year
+
+        # Calculate appropriate interval based on pixels per year
+        if self.pixels_per_year >= 100:  # Very detailed
+            interval = 1  # Show every year
+        elif self.pixels_per_year >= 20:
+            interval = 5  # Every 5 years
+        elif self.pixels_per_year >= 10:
+            interval = 10  # Every decade
+        elif self.pixels_per_year >= 5:
+            interval = 20  # Every 20 years
+        elif self.pixels_per_year >= 2:
+            interval = 50  # Every 50 years
+        else:
+            interval = 100  # Every century
+
+        # Draw markers
+        painter.setPen(QPen(QColor("#666"), 1))
+
+        # Calculate a nice starting year that aligns with the interval
+        start_year = (int(self.min_year) // interval) * interval
+        if start_year < self.min_year:
+            start_year += interval
+
+        for year in range(int(start_year), int(self.max_year) + 1, interval):
+            # Calculate x position
+            x_pos = (year - self.min_year) * self.pixels_per_year
+
+            # Skip if outside visible area with some padding
+            if x_pos < -100 or x_pos > self.width() + 100:
+                continue
+
+            # Draw tick mark
+            painter.drawLine(int(x_pos), y_pos - 5, int(x_pos), y_pos + 5)
+
+            # Draw year text
             painter.drawText(
-                int(x - text_width / 2),
-                int(text_y + (5 if level % 2 == 0 else -5)),
-                text,
+                QRectF(x_pos - 30, y_pos + 10, 60, 20),
+                Qt.AlignmentFlag.AlignCenter,
+                str(year),
             )
 
-    def _get_x_position(self, year: int) -> int:
-        """Calculate x position for a given year."""
-        usable_width = self.width() - (self.PADDING * 2)
-        year_span = max(1, self.max_year - self.min_year)
-        # Use scaled pixels per year
-        position = (((year - self.min_year) / year_span) * usable_width) + self.PADDING
 
-        logger.debug(
-            "Calculating x position",
-            year=year,
-            scale=self.scale,
-            pixels_per_year=self._get_pixels_per_year(),
-            position=position,
+class TimelineContent(QWidget):
+    """Main widget containing the timeline content with lanes and axis"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.events = []
+        self.event_types = set()  # Unique event types
+        self.lanes = {}  # Maps event_type to TimelineLane
+        self.min_year = 0
+        self.max_year = 100
+        self.pixels_per_year = 50.0  # Default scale
+
+        # Minimum and maximum zoom levels
+        self.min_pixels_per_year = 1.0  # Most zoomed out
+        self.max_pixels_per_year = 200.0  # Most zoomed in
+
+        # For panning support
+        self.panning = False
+        self.last_mouse_pos = None
+
+        # Initialize UI
+        self.setMinimumSize(800, 400)
+        self.setup_ui()
+
+        # Set up mouse tracking
+        self.setMouseTracking(True)
+
+    def setup_ui(self):
+        """Set up UI components"""
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(10, 10, 10, 10)
+        self.layout.setSpacing(0)
+
+        # Add the axis widget
+        self.axis = TimelineAxisWidget()
+        self.layout.addWidget(self.axis)
+
+        # Lanes will be added dynamically
+        self.layout.addStretch()
+
+    def set_scale(self, pixels_per_year: float):
+        """Set the timeline scale (pixels per year)"""
+        # Clamp scale within limits
+        pixels_per_year = max(
+            self.min_pixels_per_year, min(self.max_pixels_per_year, pixels_per_year)
         )
 
-        return int(position)
+        if pixels_per_year != self.pixels_per_year:
+            self.pixels_per_year = pixels_per_year
+
+            # Update axis scale
+            self.axis.set_scale(pixels_per_year)
+
+            # Update all lanes
+            for lane in self.lanes.values():
+                lane.set_scale(pixels_per_year)
+
+            # Update widget size
+            self.updateGeometry()
+
+    def set_data(self, events: List[Dict[str, Any]], scale: str):
+        """Set timeline data and update display"""
+        self.events = events
+
+        # Extract year range
+        years = [
+            event.get("parsed_date_year", 0)
+            for event in events
+            if event.get("parsed_date_year") is not None
+        ]
+
+        if years:
+            self.min_year = min(years)
+            self.max_year = max(years)
+
+            # Add padding
+            year_span = self.max_year - self.min_year
+            padding = max(year_span * 0.1, 5)
+            self.min_year = int(self.min_year - padding)
+            self.max_year = int(self.max_year + padding)
+        else:
+            self.min_year = 0
+            self.max_year = 100
+
+        # Set initial scale based on selected option
+        if scale == "Decades":
+            self.pixels_per_year = 5
+        elif scale == "Years":
+            self.pixels_per_year = 50
+        elif scale == "Months":
+            self.pixels_per_year = 100
+        elif scale == "Days":
+            self.pixels_per_year = 200
+        else:
+            self.pixels_per_year = 50  # Default to years
+
+        # Update axis
+        self.axis.set_year_range(self.min_year, self.max_year)
+        self.axis.set_scale(self.pixels_per_year)
+
+        # Organize events by type
+        self.organize_events_by_type()
+
+        # Update widget size
+        self.updateGeometry()
+
+    def organize_events_by_type(self):
+        """Create lanes for each event type"""
+        # Extract event types
+        self.event_types = set()
+        for event in self.events:
+            event_type = event.get("event_type", "Occurrence")
+            self.event_types.add(event_type)
+
+        # Clear existing lanes
+        for lane in self.lanes.values():
+            self.layout.removeWidget(lane)
+            lane.deleteLater()
+
+        self.lanes = {}
+
+        # Create new lanes for each event type
+        for event_type in sorted(self.event_types):
+            # Get events for this type
+            type_events = [
+                e
+                for e in self.events
+                if e.get("event_type", "Occurrence") == event_type
+            ]
+
+            # Create lane
+            lane = TimelineLane(event_type)
+            lane.set_year_range(self.min_year, self.max_year)
+            lane.set_scale(self.pixels_per_year)
+            lane.add_events(type_events)
+
+            # Add to layout before the stretch
+            self.layout.insertWidget(self.layout.count() - 1, lane)
+
+            # Store in dictionary
+            self.lanes[event_type] = lane
+
+    def sizeHint(self):
+        """Calculate size based on timeline span and lanes"""
+        width = (
+            self.max_year - self.min_year
+        ) * self.pixels_per_year + 200  # Add margin
+        height = 50  # Start with axis height
+
+        # Add height for each lane
+        for lane in self.lanes.values():
+            height += lane.minimumHeight()
+
+        return QSize(int(width), int(height))
+
+    def wheelEvent(self, event: QWheelEvent):
+        """Handle mouse wheel for zooming"""
+        # Get mouse position for zoom focus
+        mouse_pos = event.position()
+
+        # Calculate year at cursor position before zoom
+        year_at_cursor = self.min_year + (mouse_pos.x() / self.pixels_per_year)
+
+        # Calculate new scale
+        delta = event.angleDelta().y()
+        zoom_factor = 1.0 + (delta / 1200.0)  # Smoother zoom rate
+        new_scale = self.pixels_per_year * zoom_factor
+
+        # Apply new scale
+        self.set_scale(new_scale)
+
+        # Adjust min_year to keep the year under cursor at the same position
+        new_x = mouse_pos.x()
+        new_year_at_cursor = self.min_year + (new_x / self.pixels_per_year)
+        year_offset = year_at_cursor - new_year_at_cursor
+
+        self.min_year += year_offset
+        self.max_year = self.min_year + (self.width() / self.pixels_per_year)
+
+        # Update axis and lanes
+        self.axis.set_year_range(self.min_year, self.max_year)
+        for lane in self.lanes.values():
+            lane.set_year_range(self.min_year, self.max_year)
+
+        # Accept event
+        event.accept()
+
+    def mousePressEvent(self, event: QMouseEvent):
+        """Handle mouse press for panning"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.panning = True
+            self.last_mouse_pos = event.position()
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            event.accept()
+        else:
+            super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent):
+        """Handle mouse move for panning"""
+        if self.panning and self.last_mouse_pos:
+            # Calculate movement in pixels
+            delta_x = event.position().x() - self.last_mouse_pos.x()
+
+            # Convert to years
+            delta_years = delta_x / self.pixels_per_year
+
+            # Update year range
+            self.min_year -= delta_years
+            self.max_year -= delta_years
+
+            # Update axis and lanes
+            self.axis.set_year_range(self.min_year, self.max_year)
+            for lane in self.lanes.values():
+                lane.set_year_range(self.min_year, self.max_year)
+
+            # Update last position
+            self.last_mouse_pos = event.position()
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        """Handle mouse release for panning"""
+        if event.button() == Qt.MouseButton.LeftButton and self.panning:
+            self.panning = False
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+            event.accept()
+        else:
+            super().mouseReleaseEvent(event)
 
 
 class TimelineWidget(QWidget):
-    def __init__(self):
-        super().__init__()
-        self._setup_ui()
+    """Main timeline widget providing scrolling and controls"""
 
-    def _setup_ui(self):
-        """Setup the UI components."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setup_ui()
+
+    def setup_ui(self):
+        """Set up the main UI components"""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        # Create scroll area with explicit policy settings
+        # Create scroll area
         self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOn
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
         self.scroll_area.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
-        self.scroll_area.setWidgetResizable(True)
 
-        # Make sure viewport accepts wheel events
-        self.scroll_area.viewport().setAttribute(
-            Qt.WidgetAttribute.WA_AcceptTouchEvents, False
-        )
-        self.scroll_area.viewport().setFocusPolicy(Qt.FocusPolicy.WheelFocus)
-
-        # Create and set content widget
+        # Create content widget
         self.content = TimelineContent()
         self.scroll_area.setWidget(self.content)
 
-        # Enable mouse tracking
-        self.scroll_area.setMouseTracking(True)
-        self.scroll_area.viewport().setMouseTracking(True)
-
-        # Install event filter
-        self.scroll_area.viewport().installEventFilter(self)
-
         layout.addWidget(self.scroll_area)
 
-    def eventFilter(self, obj, event):
-        """Filter events to pass wheel events to content widget when Ctrl is pressed"""
-        if (
-            obj == self.scroll_area.viewport()
-            and event.type() == QEvent.Type.Wheel
-            and event.modifiers() & Qt.KeyboardModifier.ControlModifier
-        ):
-            # Add debug logging
-            logger.debug(
-                "Wheel event received",
-                ctrl_pressed=bool(
-                    event.modifiers() & Qt.KeyboardModifier.ControlModifier
-                ),
-                delta_y=event.angleDelta().y(),
-            )
-            self.content.wheelEvent(event)
-            return True
-        return super().eventFilter(obj, event)
-
     def set_data(self, events: List[Dict[str, Any]], scale: str) -> None:
-        """Update the timeline with new data.
-
-        Delegates to the content widget's set_data method.
-        """
+        """Update the timeline with new data"""
+        logger.debug(
+            "TimelineWidget.set_data called", event_count=len(events), scale=scale
+        )
         self.content.set_data(events, scale)

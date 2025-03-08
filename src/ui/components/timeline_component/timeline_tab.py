@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional
 
-from PyQt6.QtCore import Qt, QEvent
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
@@ -68,7 +68,11 @@ class TimelineTab(QWidget):
         scale_label = QLabel("Scale:")
         self.scale_combo = QComboBox()
         self.scale_combo.addItems(["Decades", "Years", "Months", "Days"])
-        self.scale_combo.installEventFilter(self)
+        self.scale_combo.setCurrentText("Years")  # Default to Years
+
+        # Help label
+        help_label = QLabel("Tip: Use mouse wheel to zoom and drag to pan")
+        help_label.setStyleSheet("color: #666; font-style: italic;")
 
         # Layout assembly
         calendar_layout.addWidget(QLabel("Calendar:"))
@@ -78,6 +82,8 @@ class TimelineTab(QWidget):
 
         scale_layout.addWidget(scale_label)
         scale_layout.addWidget(self.scale_combo)
+        scale_layout.addStretch()
+        scale_layout.addWidget(help_label)
 
         controls_layout.addLayout(calendar_layout)
         controls_layout.addSpacing(20)
@@ -97,9 +103,7 @@ class TimelineTab(QWidget):
         self.calendar_input.textChanged.connect(self._on_calendar_input_changed)
         self.calendar_completer.activated.connect(self._on_calendar_selected)
         self.calendar_completer.highlighted.connect(self._on_completion_highlighted)
-        logger.debug("Connecting scale signal")
         self.scale_combo.currentTextChanged.connect(self._on_scale_changed)
-        logger.debug("Scale signal connected")
 
     def _on_calendar_input_changed(self, text: str):
         """Handle changes to calendar input."""
@@ -194,10 +198,3 @@ class TimelineTab(QWidget):
             calendar_data: Dictionary containing calendar configuration
         """
         self.calendar_data = calendar_data
-
-    def eventFilter(self, obj, event):
-        if obj == self.scale_combo and event.type() == QEvent.Type.MouseButtonRelease:
-            logger.debug(
-                "Scale combo clicked", current_text=self.scale_combo.currentText()
-            )
-        return super().eventFilter(obj, event)
