@@ -68,6 +68,11 @@ class TimelineTab(QWidget):
         scale_label = QLabel("Scale:")
         self.scale_combo = QComboBox()
         self.scale_combo.addItems(["Decades", "Years", "Months", "Days"])
+        self.scale_combo.setCurrentText("Years")  # Default to Years
+
+        # Help label
+        help_label = QLabel("Tip: Use mouse wheel to zoom and drag to pan")
+        help_label.setStyleSheet("color: #666; font-style: italic;")
 
         # Layout assembly
         calendar_layout.addWidget(QLabel("Calendar:"))
@@ -77,6 +82,8 @@ class TimelineTab(QWidget):
 
         scale_layout.addWidget(scale_label)
         scale_layout.addWidget(self.scale_combo)
+        scale_layout.addStretch()
+        scale_layout.addWidget(help_label)
 
         controls_layout.addLayout(calendar_layout)
         controls_layout.addSpacing(20)

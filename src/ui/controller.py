@@ -42,6 +42,7 @@ from PyQt6.QtCore import QObject
 from PyQt6.QtWidgets import QMessageBox
 from structlog import get_logger
 
+
 logger = get_logger(__name__)
 
 
