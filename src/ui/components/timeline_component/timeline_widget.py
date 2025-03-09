@@ -1,4 +1,5 @@
-from typing import List, Dict, Any, Optional, Set, Tuple
+import traceback
+from typing import List, Dict, Any, Optional, Tuple, Union
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -6,8 +7,6 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QFrame,
     QLabel,
-    QComboBox,
-    QPushButton,
     QSizePolicy,
 )
 from PyQt6.QtCore import (
@@ -17,9 +16,6 @@ from PyQt6.QtCore import (
     QPointF,
     pyqtSignal,
     QSize,
-    QEasingCurve,
-    QPropertyAnimation,
-    QRect,
     QTimer,
 )
 from PyQt6.QtGui import (
@@ -27,17 +23,193 @@ from PyQt6.QtGui import (
     QPen,
     QColor,
     QBrush,
-    QFont,
-    QFontMetrics,
-    QLinearGradient,
     QPainterPath,
     QMouseEvent,
     QWheelEvent,
 )
 
 from structlog import get_logger
+from ui.components.calendar_component.calendar import CalendarHandler, CalendarDate
 
 logger = get_logger(__name__)
+
+
+class CalendarDateConverter:
+    """Utility for converting between standard and calendar dates."""
+
+    def __init__(self, calendar_handler: CalendarHandler):
+        """Initialize with a calendar handler."""
+        self.calendar_handler = calendar_handler
+        self._date_pixel_cache = {}  # Cache for date to pixel conversions
+
+    def year_to_pixels(
+        self, year: int, min_year: float, pixels_per_year: float
+    ) -> float:
+        """Convert year to pixel position with calendar awareness."""
+        if year in self._date_pixel_cache:
+            return self._date_pixel_cache[year]
+
+        # Calculate relative position within the calendar year system
+        result = (year - min_year) * pixels_per_year
+        self._date_pixel_cache[year] = result
+        return result
+
+    # In CalendarDateConverter.date_to_pixels method:
+    def date_to_pixels(self, year, month, day, min_year, pixels_per_year):
+        """Convert complete date to pixel position."""
+        cache_key = (year, month, day)
+        if cache_key in self._date_pixel_cache:
+            return self._date_pixel_cache[cache_key]
+
+        # Basic year position
+        position = (year - min_year) * pixels_per_year
+        logger.debug(
+            "Date position calculation",
+            event="date_position_base",
+            year=year,
+            month=month,
+            day=day,
+            base_position=position,
+        )
+
+        # If we have month and day information, refine the position
+        if month is not None and day is not None:
+            try:
+                # Get month information
+                month_days = self.calendar_handler.calendar_data["month_days"]
+                month_names = self.calendar_handler.calendar_data.get("month_names", [])
+                month_name = (
+                    month_names[month - 1]
+                    if month <= len(month_names)
+                    else f"Month {month}"
+                )
+
+                # Get days into year
+                days_into_year = 0
+                for m in range(1, month):
+                    days_in_month = month_days[m - 1]
+                    days_into_year += days_in_month
+                    logger.debug(
+                        "Month calculation",
+                        event="month_days_calculation",
+                        month_number=m,
+                        month_name=(
+                            month_names[m - 1]
+                            if m <= len(month_names)
+                            else f"Month {m}"
+                        ),
+                        days_in_month=days_in_month,
+                        running_total=days_into_year,
+                    )
+
+                days_into_year += day
+
+                # Get fraction of year
+                year_length = self.calendar_handler.calendar_data["year_length"]
+                year_fraction = days_into_year / year_length
+
+                # Add fractional position
+                fractional_position = year_fraction * pixels_per_year
+                position += fractional_position
+
+                logger.debug(
+                    "Final date position",
+                    event="date_position_final",
+                    year=year,
+                    month=month,
+                    month_name=month_name,
+                    day=day,
+                    days_into_year=days_into_year,
+                    year_length=year_length,
+                    year_fraction=year_fraction,
+                    final_position=position,
+                )
+
+            except Exception as e:
+                logger.error(
+                    "Error calculating date position",
+                    event="date_position_error",
+                    error=str(e),
+                    year=year,
+                    month=month,
+                    day=day,
+                    exc_info=True,
+                )
+
+        self._date_pixel_cache[cache_key] = position
+        return position
+
+    def pixels_to_year(
+        self, pixels: float, min_year: float, pixels_per_year: float
+    ) -> float:
+        """Convert pixel position to year with calendar awareness."""
+        return min_year + (pixels / pixels_per_year)
+
+    def format_date(
+        self, year: int, month: Optional[int] = None, day: Optional[int] = None
+    ) -> str:
+        """Format date using calendar system."""
+        # Just year
+        if month is None or day is None:
+            # Find which epoch this year belongs to
+            epoch_names = self.calendar_handler.calendar_data.get("epoch_names", [""])
+            epoch_abbrs = self.calendar_handler.calendar_data.get(
+                "epoch_abbreviations", [""]
+            )
+            epoch_starts = self.calendar_handler.calendar_data.get(
+                "epoch_start_years", [0]
+            )
+            epoch_ends = self.calendar_handler.calendar_data.get(
+                "epoch_end_years", [99999]
+            )
+
+            # Find matching epoch
+            epoch_index = 0
+            for i, (start, end) in enumerate(zip(epoch_starts, epoch_ends)):
+                if start <= year <= end:
+                    epoch_index = i
+                    break
+
+            epoch_abbr = (
+                epoch_abbrs[epoch_index] if epoch_index < len(epoch_abbrs) else ""
+            )
+            return f"{year} {epoch_abbr}"
+
+        # Full date
+        if month <= len(self.calendar_handler.calendar_data["month_names"]):
+            month_name = self.calendar_handler.calendar_data["month_names"][month - 1]
+            return f"{day} {month_name}, {year}"
+
+        # Fallback
+        return f"{year}/{month}/{day}"
+
+    def get_interval_and_format(self, pixels_per_year: float) -> Tuple[int, str]:
+        """Determine appropriate date interval and format based on scale."""
+        year_length = self.calendar_handler.calendar_data["year_length"]
+
+        # Adjust intervals based on custom year length
+        year_length_ratio = year_length / 365.0  # Ratio compared to standard year
+
+        if pixels_per_year >= 100 * year_length_ratio:  # Very detailed
+            interval = 1  # Show every year
+            format_type = "year_month"
+        elif pixels_per_year >= 20 * year_length_ratio:
+            interval = 5  # Every 5 years
+            format_type = "year"
+        elif pixels_per_year >= 10 * year_length_ratio:
+            interval = 10  # Every decade
+            format_type = "year"
+        elif pixels_per_year >= 5 * year_length_ratio:
+            interval = 20  # Every 20 years
+            format_type = "year"
+        elif pixels_per_year >= 2 * year_length_ratio:
+            interval = 50  # Every 50 years
+            format_type = "year"
+        else:
+            interval = 100  # Every century
+            format_type = "year"
+
+        return interval, format_type
 
 
 class EventCard(QFrame):
@@ -45,9 +217,15 @@ class EventCard(QFrame):
 
     clicked = pyqtSignal(dict)  # Signal emitting event data when clicked
 
-    def __init__(self, event_data: Dict[str, Any], parent=None):
+    def __init__(
+        self,
+        event_data: Dict[str, Any],
+        calendar_converter: Optional[CalendarDateConverter] = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.event_data = event_data
+        self.calendar_converter = calendar_converter
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setMinimumWidth(200)
         self.setMaximumWidth(250)
@@ -71,11 +249,16 @@ class EventCard(QFrame):
         month = self.event_data.get("parsed_date_month")
         day = self.event_data.get("parsed_date_day")
 
-        date_text = f"{year}"
-        if month:
-            date_text += f"/{month}"
-            if day:
-                date_text += f"/{day}"
+        # Format date based on available calendar information
+        if self.calendar_converter and year is not None:
+            date_text = self.calendar_converter.format_date(year, month, day)
+        else:
+            # Fallback to standard formatting
+            date_text = f"{year}"
+            if month:
+                date_text += f"/{month}"
+                if day:
+                    date_text += f"/{day}"
 
         date = QLabel(date_text)
         date.setStyleSheet("color: #666; font-size: 11px;")
@@ -148,7 +331,7 @@ class EventCard(QFrame):
 
     def mousePressEvent(self, event):
         """Handle mouse press to emit clicked signal"""
-        self.clicked.emit(self.event_data)
+        self.clicked.emit(self.event_data)  # type: ignore
         super().mousePressEvent(event)
 
     def sizeHint(self):
@@ -159,7 +342,12 @@ class EventCard(QFrame):
 class TimelineLane(QWidget):
     """A horizontal lane for a category of events"""
 
-    def __init__(self, category: str, parent=None):
+    def __init__(
+        self,
+        category: str,
+        calendar_converter: Optional[CalendarDateConverter] = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.category = category
         self.events = []
@@ -167,6 +355,9 @@ class TimelineLane(QWidget):
         self.max_year = 100
         self.pixels_per_year = 50  # Default scale
         self.cards = []  # Keep track of created cards
+        self.content_area = None  # Initialize here
+        self.calendar_converter = calendar_converter
+        self.calendar_mode = calendar_converter is not None
         self.setMinimumHeight(140)
         self.setup_ui()
 
@@ -186,6 +377,12 @@ class TimelineLane(QWidget):
     def get_category(self) -> str:
         """Return the category name for this lane"""
         return self.category
+
+    def set_calendar_handler(self, handler: CalendarHandler) -> None:
+        """Set the calendar handler for this lane."""
+        self.calendar_converter = CalendarDateConverter(handler)
+        self.calendar_mode = True
+        self.position_event_cards()  # Reposition with new calendar
 
     def set_scale(self, pixels_per_year: float):
         """Update the horizontal scale and reposition events"""
@@ -220,7 +417,7 @@ class TimelineLane(QWidget):
 
         # Create event cards
         for event in events:
-            card = EventCard(event, self.content_area)
+            card = EventCard(event, self.calendar_converter, self.content_area)
             self.cards.append(card)
 
         # Position the cards
@@ -230,8 +427,6 @@ class TimelineLane(QWidget):
         """Position all event cards based on their dates and current scale"""
         if not self.events or not self.cards:
             return
-
-        year_span = max(1, self.max_year - self.min_year)
 
         # Order cards by date
         events_with_cards = sorted(
@@ -248,9 +443,19 @@ class TimelineLane(QWidget):
 
         for event, card in events_with_cards:
             year = event.get("parsed_date_year", self.min_year)
+            month = event.get("parsed_date_month")
+            day = event.get("parsed_date_day")
 
-            # Calculate x position based on year
-            x_pos = (year - self.min_year) * self.pixels_per_year
+            # Calculate x position based on date
+            if self.calendar_converter and self.calendar_mode:
+                # Use calendar-aware positioning
+                x_pos = self.calendar_converter.date_to_pixels(
+                    year, month, day, self.min_year, self.pixels_per_year
+                )
+            else:
+                # Standard positioning
+                x_pos = (year - self.min_year) * self.pixels_per_year
+
             card_width = card.width()
 
             # Check for overlaps with existing cards
@@ -282,7 +487,7 @@ class TimelineLane(QWidget):
 
         # Update height based on levels used
         max_level = 0
-        for event, card in events_with_cards:
+        for _, card in events_with_cards:
             max_level = max(max_level, card.y() // 40)
 
         self.setMinimumHeight(140 + max_level * 40)
@@ -306,7 +511,16 @@ class TimelineLane(QWidget):
         for event, card in zip(self.events, self.cards):
             # Calculate event center x-coordinate
             year = event.get("parsed_date_year", self.min_year)
-            x_pos = (year - self.min_year) * self.pixels_per_year
+            month = event.get("parsed_date_month")
+            day = event.get("parsed_date_day")
+
+            # Calculate x position with calendar awareness if available
+            if self.calendar_converter and self.calendar_mode:
+                x_pos = self.calendar_converter.date_to_pixels(
+                    year, month, day, self.min_year, self.pixels_per_year
+                )
+            else:
+                x_pos = (year - self.min_year) * self.pixels_per_year
 
             # Calculate bottom center of card
             card_bottom_x = card.x() + card.width() / 2
@@ -344,12 +558,42 @@ class TimelineAxisWidget(QWidget):
         self.min_year = 0
         self.max_year = 100
         self.pixels_per_year = 50
+        self.display_mode = "years"  # years, months, days
+        self.calendar_handler = None
+        self.calendar_converter = None
+        self.calendar_mode = False
         self.setMinimumHeight(50)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+    def set_calendar_handler(self, handler: CalendarHandler) -> None:
+        """Set the calendar handler for this axis."""
+        self.calendar_handler = handler
+        self.calendar_converter = CalendarDateConverter(handler)
+        self.calendar_mode = True
+        self.update()  # Redraw with calendar awareness
+
+    def set_display_mode(self, mode: str) -> None:
+        """Set the display mode for the axis (years, months, days)."""
+        if mode in ("years", "months", "days"):
+            self.display_mode = mode
+            self.update()
 
     def set_scale(self, pixels_per_year: float):
         """Set the horizontal scale for the axis"""
         self.pixels_per_year = pixels_per_year
+
+        # Set appropriate display mode based on scale
+        if self.calendar_mode and self.calendar_converter:
+            if pixels_per_year >= 80:  # Reduced threshold to match _paint_calendar_axis
+                self.display_mode = "months"
+                logger.debug(
+                    f"Timeline scale set to months mode: {pixels_per_year} pixels/year"
+                )
+            elif pixels_per_year >= 20:
+                self.display_mode = "years"
+            else:
+                self.display_mode = "years"
+
         self.update()
 
     def set_year_range(self, min_year: int, max_year: int):
@@ -368,10 +612,14 @@ class TimelineAxisWidget(QWidget):
         y_pos = 20
         painter.drawLine(0, y_pos, self.width(), y_pos)
 
-        # Calculate marker interval based on zoom level
-        year_span = self.max_year - self.min_year
-        width_in_pixels = year_span * self.pixels_per_year
+        # Choose rendering method based on calendar mode
+        if self.calendar_mode and self.calendar_converter and self.calendar_handler:
+            self._paint_calendar_axis(painter, y_pos)
+        else:
+            self._paint_standard_axis(painter, y_pos)
 
+    def _paint_standard_axis(self, painter: QPainter, y_pos: int):
+        """Draw standard axis with regular year intervals."""
         # Calculate appropriate interval based on pixels per year
         if self.pixels_per_year >= 100:  # Very detailed
             interval = 1  # Show every year
@@ -412,9 +660,112 @@ class TimelineAxisWidget(QWidget):
                 str(year),
             )
 
+    def _paint_calendar_axis(self, painter: QPainter, y_pos: int):
+        """Draw calendar-aware axis with proper date markers."""
+        # Get appropriate interval based on scale
+        interval, format_type = self.calendar_converter.get_interval_and_format(
+            self.pixels_per_year
+        )
+
+        # Draw markers
+        painter.setPen(QPen(QColor("#666"), 1))
+
+        # Calculate a nice starting year that aligns with the interval
+        start_year = (int(self.min_year) // interval) * interval
+        if start_year < self.min_year:
+            start_year += interval
+
+        # Draw year markers
+        for year in range(int(start_year), int(self.max_year) + 1, interval):
+            # Calculate x position
+            x_pos = self.calendar_converter.year_to_pixels(
+                year, self.min_year, self.pixels_per_year
+            )
+
+            # Skip if outside visible area with some padding
+            if x_pos < -100 or x_pos > self.width() + 100:
+                continue
+
+            # Draw tick mark
+            painter.drawLine(int(x_pos), y_pos - 5, int(x_pos), y_pos + 5)
+
+            # Format date text based on display mode
+            if format_type == "year":
+                date_text = self.calendar_converter.format_date(year)
+            else:
+                # For now, just years - month display would be implemented in a more detailed version
+                date_text = self.calendar_converter.format_date(year)
+
+            # Draw date text
+            text_rect = QRectF(x_pos - 40, y_pos + 10, 80, 20)
+            painter.drawText(
+                text_rect,
+                Qt.AlignmentFlag.AlignCenter,
+                date_text,
+            )
+
+        # Show month markers when zoomed in enough (lowered threshold)
+        if self.pixels_per_year >= 80:  # Reduced from 100 to make months appear sooner
+            self._draw_month_markers(painter, y_pos)
+
+    def _draw_month_markers(self, painter: QPainter, y_pos: int):
+        """Draw month markers when zoomed in enough."""
+        # Only show months for a reasonable range to prevent overcrowding
+        visible_years = max(1, min(20, int(self.max_year - self.min_year) + 1))
+        view_min_year = max(int(self.min_year), int(self.max_year) - visible_years)
+
+        # Log current zoom level for debugging
+        logger.debug(f"Drawing month markers at {self.pixels_per_year} pixels/year")
+
+        # For each visible year
+        for year in range(view_min_year, int(self.max_year) + 1):
+            month_names = self.calendar_handler.calendar_data["month_names"]
+            month_days = self.calendar_handler.calendar_data["month_days"]
+
+            # For each month in this year
+            cumulative_days = 0
+            for i, (month_name, days) in enumerate(zip(month_names, month_days)):
+                month_num = i + 1  # 1-based month index
+
+                # Calculate month position
+                year_start_x = self.calendar_converter.year_to_pixels(
+                    year, self.min_year, self.pixels_per_year
+                )
+                year_length = self.calendar_handler.calendar_data["year_length"]
+
+                # Position based on cumulative days
+                month_pos = (
+                    year_start_x
+                    + (cumulative_days / year_length) * self.pixels_per_year
+                )
+
+                # Skip if outside visible area
+                if month_pos < -50 or month_pos > self.width() + 50:
+                    cumulative_days += days
+                    continue
+
+                # Draw more visible month marker
+                painter.setPen(QPen(QColor("#666"), 1, Qt.PenStyle.DashLine))
+                painter.drawLine(int(month_pos), y_pos - 5, int(month_pos), y_pos + 5)
+
+                # Draw month label with lower threshold
+                if self.pixels_per_year >= 150:  # Reduced from 200
+                    painter.setPen(QPen(QColor("#666"), 1))
+                    text_rect = QRectF(month_pos - 15, y_pos + 10, 30, 15)
+                    painter.drawText(
+                        text_rect,
+                        Qt.AlignmentFlag.AlignCenter,
+                        month_name[:3],  # Abbreviate to prevent crowding
+                    )
+
+                cumulative_days += days
+
 
 class TimelineContent(QWidget):
     """Main widget containing the timeline content with lanes and axis"""
+
+    # Define a signal to notify parent of lane changes
+    lanes_changed = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -424,10 +775,19 @@ class TimelineContent(QWidget):
         self.min_year = 0
         self.max_year = 100
         self.pixels_per_year = 50.0  # Default scale
+        self.layout = None  # Initialize here
+        self.axis = None  # Initialize here
+
+        # Calendar support
+        self.calendar_handler = None
+        self.calendar_converter = None
+        self.calendar_mode = False
 
         # Minimum and maximum zoom levels
         self.min_pixels_per_year = 1.0  # Most zoomed out
-        self.max_pixels_per_year = 200.0  # Most zoomed in
+        self.max_pixels_per_year = (
+            5000.0  # Most zoomed in (increased to allow deeper zoom)
+        )
 
         # For panning support
         self.panning = False
@@ -453,6 +813,44 @@ class TimelineContent(QWidget):
         # Lanes will be added dynamically
         self.layout.addStretch()
 
+    def set_calendar_data(self, calendar_data: Dict[str, Any]) -> None:
+        """Set calendar data for timeline content."""
+        if not calendar_data:
+            return
+
+        try:
+            # Store calendar handler
+            self.calendar_handler = CalendarHandler(calendar_data)
+
+            # Create converter for date calculations
+            self.calendar_converter = CalendarDateConverter(self.calendar_handler)
+
+            # CRITICAL FIX 5: Set calendar mode to True
+            self.calendar_mode = True
+
+            # CRITICAL FIX 6: Propagate to axis
+            if hasattr(self, "axis") and self.axis:
+                self.axis.set_calendar_handler(self.calendar_handler)
+
+            # CRITICAL FIX 7: Propagate to existing lanes
+            if hasattr(self, "lanes"):
+                for lane in self.lanes.values():
+                    lane.set_calendar_handler(self.calendar_handler)
+
+            logger.debug(
+                "Calendar data set in TimelineContent",
+                calendar_mode=self.calendar_mode,
+                has_handler=self.calendar_handler is not None,
+                has_converter=self.calendar_converter is not None,
+                propagated_to_lanes=hasattr(self, "lanes"),
+            )
+        except Exception as e:
+            logger.error(
+                "Error setting calendar data in TimelineContent",
+                error=str(e),
+                traceback=traceback.format_exc(),
+            )
+
     def set_scale(self, pixels_per_year: float):
         """Set the timeline scale (pixels per year)"""
         # Clamp scale within limits
@@ -475,6 +873,10 @@ class TimelineContent(QWidget):
 
     def set_data(self, events: List[Dict[str, Any]], scale: str):
         """Set timeline data and update display"""
+
+        if not hasattr(self, "calendar_mode"):
+            self.calendar_mode = False
+
         self.events = events
 
         # Extract year range
@@ -497,21 +899,35 @@ class TimelineContent(QWidget):
             self.min_year = 0
             self.max_year = 100
 
-        # Set initial scale based on selected option
+        # Set initial scale based on selected option and calendar awareness
+        year_length_factor = 1.0
+        if self.calendar_mode and self.calendar_handler:
+            # Adjust scale for custom calendar year length
+            year_length = self.calendar_handler.calendar_data["year_length"]
+            year_length_factor = year_length / 365.0  # Rough approximation
+
         if scale == "Decades":
-            self.pixels_per_year = 5
+            self.pixels_per_year = 5 * year_length_factor
         elif scale == "Years":
-            self.pixels_per_year = 50
+            self.pixels_per_year = 50 * year_length_factor
         elif scale == "Months":
-            self.pixels_per_year = 100
+            self.pixels_per_year = 100 * year_length_factor
         elif scale == "Days":
-            self.pixels_per_year = 200
+            self.pixels_per_year = 200 * year_length_factor
         else:
-            self.pixels_per_year = 50  # Default to years
+            self.pixels_per_year = 50 * year_length_factor  # Default to years
 
         # Update axis
         self.axis.set_year_range(self.min_year, self.max_year)
         self.axis.set_scale(self.pixels_per_year)
+
+        logger.debug(
+            "TimelineContent.set_data - Before organizing events",
+            event_count=len(events),
+            calendar_mode=self.calendar_mode,
+            has_converter=hasattr(self, "calendar_converter")
+            and self.calendar_converter is not None,
+        )
 
         # Organize events by type
         self.organize_events_by_type()
@@ -543,8 +959,10 @@ class TimelineContent(QWidget):
                 if e.get("event_type", "Occurrence") == event_type
             ]
 
-            # Create lane
-            lane = TimelineLane(event_type)
+            # Create lane with calendar awareness if available
+            lane = TimelineLane(
+                event_type, self.calendar_converter if self.calendar_mode else None
+            )
             lane.set_year_range(self.min_year, self.max_year)
             lane.set_scale(self.pixels_per_year)
             lane.add_events(type_events)
@@ -559,31 +977,21 @@ class TimelineContent(QWidget):
         self.updateGeometry()
         self.update()
 
-        # Notify parent after layout has been processed
-        QTimer.singleShot(10, self._notify_parent)
-
-    def _notify_parent(self):
-        """Notify parent that lanes have been updated after layout processing"""
-        if hasattr(self.parent(), "on_lanes_changed"):
-            self.parent().on_lanes_changed()
-
-    def _notify_lanes_changed(self):
-        """Notify parent widget that lanes have changed after layout is updated"""
-        if hasattr(self.parent(), "on_lanes_changed"):
-            self.parent().on_lanes_changed()
+        # Emit signal after layout has been processed
+        QTimer.singleShot(10, self.lanes_changed.emit)  # type: ignore
 
     def sizeHint(self):
         """Calculate size based on timeline span and lanes"""
-        width = (
-            self.max_year - self.min_year
-        ) * self.pixels_per_year + 200  # Add margin
+        width = int(
+            (self.max_year - self.min_year) * self.pixels_per_year + 200
+        )  # Add margin
         height = 50  # Start with axis height
 
         # Add height for each lane
         for lane in self.lanes.values():
             height += lane.minimumHeight()
 
-        return QSize(int(width), int(height))
+        return QSize(width, int(height))
 
     def wheelEvent(self, event: QWheelEvent):
         """Handle mouse wheel for zooming"""
@@ -591,11 +999,16 @@ class TimelineContent(QWidget):
         mouse_pos = event.position()
 
         # Calculate year at cursor position before zoom
-        year_at_cursor = self.min_year + (mouse_pos.x() / self.pixels_per_year)
+        if self.calendar_converter and self.calendar_mode:
+            year_at_cursor = self.calendar_converter.pixels_to_year(
+                mouse_pos.x(), self.min_year, self.pixels_per_year
+            )
+        else:
+            year_at_cursor = self.min_year + (mouse_pos.x() / self.pixels_per_year)
 
         # Calculate new scale
         delta = event.angleDelta().y()
-        zoom_factor = 1.0 + (delta / 1200.0)  # Smoother zoom rate
+        zoom_factor = 1.0 + (delta / 800.0)  # Increased zoom rate for faster zooming
         new_scale = self.pixels_per_year * zoom_factor
 
         # Apply new scale
@@ -603,7 +1016,14 @@ class TimelineContent(QWidget):
 
         # Adjust min_year to keep the year under cursor at the same position
         new_x = mouse_pos.x()
-        new_year_at_cursor = self.min_year + (new_x / self.pixels_per_year)
+
+        if self.calendar_converter and self.calendar_mode:
+            new_year_at_cursor = self.calendar_converter.pixels_to_year(
+                new_x, self.min_year, self.pixels_per_year
+            )
+        else:
+            new_year_at_cursor = self.min_year + (new_x / self.pixels_per_year)
+
         year_offset = year_at_cursor - new_year_at_cursor
 
         self.min_year += year_offset
@@ -645,6 +1065,10 @@ class TimelineContent(QWidget):
             for lane in self.lanes.values():
                 lane.set_year_range(self.min_year, self.max_year)
 
+            # Force repaint and update widget sizing
+            self.updateGeometry()
+            self.update()
+
             # Update last position
             self.last_mouse_pos = event.position()
             event.accept()
@@ -666,6 +1090,12 @@ class TimelineWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.labels_area = None  # Initialize here
+        self.scroll_area = None  # Initialize here
+        self.content = None  # Initialize here
+        self.lane_labels = {}  # Initialize here
+        self.calendar_handler = None  # Initialize calendar handler
+        self.calendar_mode = False
         self.setup_ui()
 
     def setup_ui(self):
@@ -698,6 +1128,9 @@ class TimelineWidget(QWidget):
         self.content = TimelineContent()
         self.scroll_area.setWidget(self.content)
 
+        # Connect the signal
+        self.content.lanes_changed.connect(self.on_lanes_changed)  # type: ignore
+
         # Add widgets to container
         container_layout.addWidget(self.labels_area)
         container_layout.addWidget(self.scroll_area)
@@ -706,10 +1139,44 @@ class TimelineWidget(QWidget):
         layout.addWidget(container)
 
         # Connect scroll signal
-        self.scroll_area.verticalScrollBar().valueChanged.connect(self.update_labels)
+        self.scroll_area.verticalScrollBar().valueChanged.connect(self.update_labels)  # type: ignore
 
-        # Dictionary to track labels
-        self.lane_labels = {}
+    def set_calendar_data(self, calendar_data: Dict[str, Any]) -> None:
+        """Set calendar data for timeline."""
+        logger.debug("Setting calendar data in TimelineWidget")
+
+        if not calendar_data:
+            logger.debug("No calendar data provided")
+            return
+
+        try:
+            # Store and create handler
+            self.calendar_handler = CalendarHandler(calendar_data)
+
+            # CRITICAL FIX 1: Explicitly set calendar awareness in this widget
+            self.calendar_mode = True
+
+            # Pass to content widget
+            if self.content:
+                # CRITICAL FIX 2: Now that we have calendar data, propagate it to content
+                self.content.set_calendar_data(calendar_data)
+                logger.debug(
+                    "Calendar data propagation status",
+                    content_calendar_mode=(
+                        self.content.calendar_mode
+                        if hasattr(self.content, "calendar_mode")
+                        else False
+                    ),
+                    content_has_converter=(
+                        self.content.calendar_converter is not None
+                        if hasattr(self.content, "calendar_converter")
+                        else False
+                    ),
+                )
+
+        except Exception as e:
+            logger.error(f"Error setting calendar data: {e}")
+            self.calendar_handler = None
 
     def on_lanes_changed(self):
         """Handle changes in timeline lanes"""
@@ -721,7 +1188,7 @@ class TimelineWidget(QWidget):
             self.add_lane_label(lane)
 
         # Update positions
-        self.update_labels(self.scroll_area.verticalScrollBar().value())
+        self.update_labels()
 
     def add_lane_label(self, lane):
         """Add a label for a timeline lane"""
@@ -749,16 +1216,16 @@ class TimelineWidget(QWidget):
             label.deleteLater()
         self.lane_labels.clear()
 
-    def update_labels(self, scroll_value):
+    def update_labels(self):
         """Update label positions based on current scroll position"""
         if not self.content or not hasattr(self.content, "lanes"):
             logger.debug("update_labels: No content or lanes found")
             return
 
         # Use QTimer.singleShot to wait for layout to settle
-        QTimer.singleShot(0, lambda: self._update_labels_after_layout(scroll_value))
+        QTimer.singleShot(0, self._update_labels_after_layout)
 
-    def _update_labels_after_layout(self, scroll_value):
+    def _update_labels_after_layout(self):
         """Update labels after the layout has settled"""
         if not hasattr(self.content, "lanes"):
             return
@@ -844,14 +1311,28 @@ class TimelineWidget(QWidget):
     def resizeEvent(self, event):
         """Handle resize event"""
         super().resizeEvent(event)
-        self.update_labels(self.scroll_area.verticalScrollBar().value())
+        self.update_labels()
 
     def set_data(self, events: List[Dict[str, Any]], scale: str) -> None:
-        """Update the timeline with new data"""
+        """Update the timeline with new data."""
         logger.debug(
-            "TimelineWidget.set_data called", event_count=len(events), scale=scale
+            "TimelineWidget.set_data called",
+            event_count=len(events),
+            scale=scale,
+            # CRITICAL FIX 3: Use self.calendar_mode instead of checking handler
+            has_calendar=self.calendar_mode,
         )
-        self.content.set_data(events, scale)
 
-        # Update labels for new lanes
-        self.on_lanes_changed()
+        # CRITICAL FIX 4: If we have calendar data but content doesn't, reapply it
+        if self.calendar_mode and self.calendar_handler and self.content:
+            if (
+                not hasattr(self.content, "calendar_mode")
+                or not self.content.calendar_mode
+            ):
+                self.content.set_calendar_data(self.calendar_handler.calendar_data)
+                logger.debug(
+                    "Reapplied calendar data to timeline content before setting events"
+                )
+
+        # Now pass the events to content
+        self.content.set_data(events, scale)
