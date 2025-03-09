@@ -19,6 +19,8 @@ from PyQt6.QtCore import (
     QSize,
     QEasingCurve,
     QPropertyAnimation,
+    QRect,
+    QTimer,
 )
 from PyQt6.QtGui import (
     QPainter,
@@ -173,18 +175,17 @@ class TimelineLane(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 5, 0, 15)  # Add bottom margin for connection lines
 
-        # Category label on the left
-        self.label = QLabel(self.category)
-        self.label.setStyleSheet("font-weight: bold; color: #555;")
-        self.label.setFixedWidth(120)
-        self.label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
-
         # Content area for events
         self.content_area = QWidget()
         self.content_area.setMinimumHeight(120)
 
-        layout.addWidget(self.label)
         layout.addWidget(self.content_area, 1)  # Content area stretches
+
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+    def get_category(self) -> str:
+        """Return the category name for this lane"""
+        return self.category
 
     def set_scale(self, pixels_per_year: float):
         """Update the horizontal scale and reposition events"""
@@ -533,8 +534,8 @@ class TimelineContent(QWidget):
 
         self.lanes = {}
 
-        # Create new lanes for each event type
-        for event_type in sorted(self.event_types):
+        # Create new lanes for each event type with vertical separation
+        for i, event_type in enumerate(sorted(self.event_types)):
             # Get events for this type
             type_events = [
                 e
@@ -553,6 +554,23 @@ class TimelineContent(QWidget):
 
             # Store in dictionary
             self.lanes[event_type] = lane
+
+        # Update widget size
+        self.updateGeometry()
+        self.update()
+
+        # Notify parent after layout has been processed
+        QTimer.singleShot(10, self._notify_parent)
+
+    def _notify_parent(self):
+        """Notify parent that lanes have been updated after layout processing"""
+        if hasattr(self.parent(), "on_lanes_changed"):
+            self.parent().on_lanes_changed()
+
+    def _notify_lanes_changed(self):
+        """Notify parent widget that lanes have changed after layout is updated"""
+        if hasattr(self.parent(), "on_lanes_changed"):
+            self.parent().on_lanes_changed()
 
     def sizeHint(self):
         """Calculate size based on timeline span and lanes"""
@@ -655,6 +673,17 @@ class TimelineWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
+        # Create container widget to hold both labels and timeline
+        container = QWidget()
+        container_layout = QHBoxLayout(container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(0)
+
+        # Create labels area with fixed width
+        self.labels_area = QWidget()
+        self.labels_area.setFixedWidth(120)
+        self.labels_area.setStyleSheet("background-color: white;")
+
         # Create scroll area
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
@@ -669,7 +698,153 @@ class TimelineWidget(QWidget):
         self.content = TimelineContent()
         self.scroll_area.setWidget(self.content)
 
-        layout.addWidget(self.scroll_area)
+        # Add widgets to container
+        container_layout.addWidget(self.labels_area)
+        container_layout.addWidget(self.scroll_area)
+
+        # Add container to main layout
+        layout.addWidget(container)
+
+        # Connect scroll signal
+        self.scroll_area.verticalScrollBar().valueChanged.connect(self.update_labels)
+
+        # Dictionary to track labels
+        self.lane_labels = {}
+
+    def on_lanes_changed(self):
+        """Handle changes in timeline lanes"""
+        # Clear existing labels
+        self.clear_lane_labels()
+
+        # Create new labels for each lane
+        for lane in self.content.lanes.values():
+            self.add_lane_label(lane)
+
+        # Update positions
+        self.update_labels(self.scroll_area.verticalScrollBar().value())
+
+    def add_lane_label(self, lane):
+        """Add a label for a timeline lane"""
+        # Create label widget as direct child of labels area for precise positioning
+        label = QLabel(lane.get_category(), self.labels_area)
+        label.setStyleSheet(
+            """
+            font-weight: bold; 
+            color: #555; 
+            font-size: 12px; 
+            padding: 5px;
+            background-color: rgba(255, 255, 255, 210);
+            border-radius: 3px;
+        """
+        )
+        label.setFixedWidth(100)
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+        # Store reference
+        self.lane_labels[lane] = label
+
+    def clear_lane_labels(self):
+        """Remove all lane labels"""
+        for label in self.lane_labels.values():
+            label.deleteLater()
+        self.lane_labels.clear()
+
+    def update_labels(self, scroll_value):
+        """Update label positions based on current scroll position"""
+        if not self.content or not hasattr(self.content, "lanes"):
+            logger.debug("update_labels: No content or lanes found")
+            return
+
+        # Use QTimer.singleShot to wait for layout to settle
+        QTimer.singleShot(0, lambda: self._update_labels_after_layout(scroll_value))
+
+    def _update_labels_after_layout(self, scroll_value):
+        """Update labels after the layout has settled"""
+        if not hasattr(self.content, "lanes"):
+            return
+
+        # Create any missing labels
+        for lane_type, lane in self.content.lanes.items():
+            if lane not in self.lane_labels:
+                self.add_lane_label(lane)
+
+        # Remove obsolete labels
+        to_remove = [
+            lane for lane in self.lane_labels if lane not in self.content.lanes.values()
+        ]
+        for lane in to_remove:
+            if lane in self.lane_labels:
+                self.lane_labels[lane].deleteLater()
+                del self.lane_labels[lane]
+
+        # Ensure each lane has a unique vertical position by forcing layout update
+        for i, lane in enumerate(self.content.lanes.values()):
+            lane.updateGeometry()
+
+        # Process each lane
+        lane_positions = {}
+        label_positions = []
+
+        # First pass - get actual positions
+        for lane, label in self.lane_labels.items():
+            # Map lane position to viewport coordinates
+            lane_rect = lane.geometry()
+            lane_pos = lane.mapToGlobal(QPoint(0, 0))
+            viewport_pos = self.scroll_area.viewport().mapFromGlobal(lane_pos)
+
+            # Calculate center position
+            lane_center_y = viewport_pos.y() + (lane_rect.height() // 2)
+
+            # Store actual vertical position and height
+            lane_positions[lane] = {
+                "y": viewport_pos.y(),
+                "height": lane_rect.height(),
+                "center_y": lane_center_y,
+                "category": lane.get_category(),
+            }
+
+            # Log actual position of each lane
+            logger.debug(
+                f"Lane '{lane.get_category()}' actual position: y={viewport_pos.y()}, "
+                f"height={lane_rect.height()}, center={lane_center_y}"
+            )
+
+        # Sort lanes by vertical position to prevent overlapping labels
+        for lane, info in sorted(lane_positions.items(), key=lambda x: x[1]["y"]):
+            label = self.lane_labels[lane]
+            category = info["category"]
+
+            # Calculate label position
+            label_height = label.height()
+            label_y = info["center_y"] - (label_height // 2)
+
+            # Check if lane is visible in viewport
+            viewport_height = self.scroll_area.viewport().height()
+            lane_y = info["y"]
+            lane_height = info["height"]
+            is_visible = lane_y < viewport_height and (lane_y + lane_height) > 0
+
+            if is_visible:
+                logger.debug(f"Positioning label for '{category}' at y={label_y}")
+                label.move(10, int(label_y))
+                label.show()
+
+                # Store this position to check for overlaps with next label
+                label_positions.append((label_y, label_y + label_height))
+            else:
+                label.hide()
+
+        # Log final positions
+        logger.debug("Final label positions:")
+        for lane, label in self.lane_labels.items():
+            logger.debug(
+                f"  - {lane.get_category()}: at {label.pos()}, visible: {label.isVisible()}"
+            )
+
+    def resizeEvent(self, event):
+        """Handle resize event"""
+        super().resizeEvent(event)
+        self.update_labels(self.scroll_area.verticalScrollBar().value())
 
     def set_data(self, events: List[Dict[str, Any]], scale: str) -> None:
         """Update the timeline with new data"""
@@ -677,3 +852,6 @@ class TimelineWidget(QWidget):
             "TimelineWidget.set_data called", event_count=len(events), scale=scale
         )
         self.content.set_data(events, scale)
+
+        # Update labels for new lanes
+        self.on_lanes_changed()
