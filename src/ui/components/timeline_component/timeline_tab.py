@@ -166,17 +166,25 @@ class TimelineTab(QWidget):
             self.calendar_validation_label.setStyleSheet("color: red")
             self.calendar_input.setStyleSheet("border: 1px solid red")
 
-    def set_event_data(self, events: List[Dict[str, Any]]) -> None:
+    def set_event_data(
+        self,
+        events: List[Dict[str, Any]],
+        calendar_data: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Set event data for the timeline."""
         logger.debug(
             "TimelineTab.set_event_data called",
             event_count=len(events) if events else 0,
             has_timeline_widget=hasattr(self, "timeline_widget"),
+            has_calendar_data=calendar_data is not None,
             events=events,
         )
 
         # Store events
         self.events = events
+        self.calendar_data = (
+            calendar_data or self.calendar_data
+        )  # Use provided or existing
 
         # Pass to timeline widget
         if hasattr(self, "timeline_widget"):
@@ -186,7 +194,7 @@ class TimelineTab(QWidget):
                 event_count=len(events) if events else 0,
                 scale=current_scale,
             )
-            self.timeline_widget.set_data(events, current_scale)
+            self.timeline_widget.set_data(events, current_scale, self.calendar_data)
             logger.debug("Events passed to timeline widget")
         else:
             logger.error("Timeline widget not found")

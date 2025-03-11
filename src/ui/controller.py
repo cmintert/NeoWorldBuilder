@@ -369,13 +369,15 @@ class TimelineMixin:
         MATCH (n)-[r:USES_CALENDAR]->(c:CALENDAR)
         WHERE elementId(n) = $element_id
         AND n._project = $project
+        WITH c, properties(c) as props
         RETURN {
-            month_names: c.calendar_month_names,
-            month_days: c.calendar_month_days,
-            weekday_names: c.calendar_weekday_names,
-            days_per_week: toInteger(c.calendar_days_per_week),
-            year_length: toInteger(c.calendar_year_length),
-            current_year: toInteger(c.calendar_current_year)
+            month_names: props.calendar_month_names,
+            month_days: props.calendar_month_days,
+            weekday_names: props.calendar_weekday_names,
+            days_per_week: toInteger(props.calendar_days_per_week),
+            year_length: toInteger(props.calendar_year_length),
+            current_year: toInteger(props.calendar_current_year),
+            all_props: props
         } as calendar_data
         """
 
@@ -400,6 +402,25 @@ class TimelineMixin:
 
         self.worker_manager.execute_worker("calendar", operation)
 
+    def _handle_calendar_query_finished(self, result: list) -> None:
+        """Handle the result from the calendar query worker."""
+        logger.debug("_handle_calendar_query_finished: Signal received", result=result)
+
+        if not result or not result[0].get("calendar_data"):
+            logger.error("No calendar data found")
+            return
+
+        # Store calendar data for later use
+        self.current_calendar_data = result[0]["calendar_data"]
+        logger.debug("Calendar data stored", calendar_data=self.current_calendar_data)
+
+        # Handle the calendar data as before
+        self.handle_calendar_data(result)
+
+        # After handling calendar data, load timeline events with this calendar context
+        if hasattr(self.ui, "timeline_tab") and self.ui.timeline_tab:
+            self._load_timeline_events_with_calendar(self.current_calendar_data)
+
     def _setup_timeline_tab(self) -> None:
         """
         Set up the timeline tab and load associated data.
@@ -415,7 +436,7 @@ class TimelineMixin:
             return
 
         self._load_calendar_data()
-        self._load_timeline_events()
+        # Don't load events here, they'll be loaded after calendar data is available
 
     def _ensure_timeline_tab(self) -> bool:
         """
@@ -491,13 +512,148 @@ class TimelineMixin:
         # Update validation state
         self.ui.timeline_tab._update_validation_state(True)
 
+        # Load the actual calendar data structure for positioning
+        self._load_detailed_calendar_data(calendar_name)
+
+    def _load_detailed_calendar_data(self, calendar_name: str) -> None:
+        """Load detailed calendar data for timeline event positioning.
+
+        Args:
+            calendar_name: Name of the calendar
+        """
+        query = """
+        MATCH (c:CALENDAR {name: $calendar_name, _project: $project})
+        WITH c, properties(c) as props
+        RETURN {
+            month_names: props.calendar_month_names,
+            month_days: props.calendar_month_days,
+            weekday_names: props.calendar_weekday_names,
+            days_per_week: toInteger(props.calendar_days_per_week),
+            year_length: toInteger(props.calendar_year_length),
+            current_year: toInteger(props.calendar_current_year),
+            all_props: props
+        } as calendar_data
+        """
+
+        worker = self.model.execute_read_query(
+            query,
+            {
+                "calendar_name": calendar_name,
+                "project": self.config.user.PROJECT,
+            },
+        )
+
+        def handle_calendar_data(results: list) -> None:
+            if not results or not results[0].get("calendar_data"):
+                logger.error("Failed to load detailed calendar data")
+                return
+
+            # Store the calendar data
+            self.current_calendar_data = results[0]["calendar_data"]
+            logger.debug(
+                "Loaded detailed calendar data",
+                calendar_data=self.current_calendar_data,
+            )
+
+            # Now load events with this calendar context
+            self._load_timeline_events_with_calendar(self.current_calendar_data)
+
+        worker.query_finished.connect(handle_calendar_data)
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=handle_calendar_data,
+            error_callback=self._create_error_handler(
+                "Detailed calendar lookup failed"
+            ),
+            operation_name="detailed_calendar_lookup",
+        )
+
+        self.worker_manager.execute_worker("detailed_calendar", operation)
+
+    def _load_timeline_events_with_calendar(
+        self, calendar_data: Dict[str, Any]
+    ) -> None:
+        """Load timeline events with calendar data for proper positioning."""
+        if not self.current_node_element_id:
+            logger.error("No element_id available for timeline events")
+            return
+
+        query = """
+        MATCH (t)-[:USES_CALENDAR]->(c:CALENDAR)<-[:USES_CALENDAR]-(e:EVENT)
+        WHERE elementId(t) = $element_id
+          AND t._project = $project
+        RETURN {
+            name: e.name,
+            temporal_data: e.temporal_data,
+            parsed_date_year: toInteger(e.parsed_date_year), 
+            parsed_date_month: toInteger(e.parsed_date_month),
+            parsed_date_day: toInteger(e.parsed_date_day),
+            event_type: e.event_type
+        } as event
+        ORDER BY e.parsed_date_year, e.parsed_date_month, e.parsed_date_day
+        """
+
+        worker = self.model.execute_read_query(
+            query,
+            {
+                "element_id": self.current_node_element_id,
+                "project": self.config.user.PROJECT,
+            },
+        )
+
+        # Create a new handler that includes calendar data
+        def handle_events_with_calendar(results: list) -> None:
+            """Process events with calendar data."""
+            events = self._process_event_results(results)
+
+            if not events:
+                logger.warning("No valid events extracted from query results")
+                return
+
+            if not hasattr(self.ui, "timeline_tab") or not self.ui.timeline_tab:
+                logger.warning(
+                    "Timeline tab not ready yet, skipping event data setting"
+                )
+                return
+
+            # Pass both events AND calendar data to the timeline tab
+            logger.debug(
+                "Setting timeline event data with calendar",
+                event_count=len(events),
+                has_calendar=True,
+            )
+            self.ui.timeline_tab.set_event_data(events, calendar_data)
+
+        worker.query_finished.connect(handle_events_with_calendar)
+
+        operation = WorkerOperation(
+            worker=worker,
+            success_callback=handle_events_with_calendar,
+            error_callback=lambda msg: self.error_handler.handle_error(
+                f"Timeline event query failed: {msg}"
+            ),
+            operation_name="timeline_events_with_calendar",
+        )
+
+        logger.debug("Created worker operation for timeline events with calendar data")
+        self.worker_manager.execute_worker("timeline_events", operation)
+
     def _load_timeline_events(self) -> None:
         """
         Load timeline events for the current node.
 
-        Queries the database for event data associated with the current
-        node's calendar and updates the timeline display.
+        This method is kept for compatibility but now calendar data is loaded first,
+        and events are loaded through _load_timeline_events_with_calendar.
         """
+        # This method is now a fallback and shouldn't be used directly
+        # When possible, use _load_timeline_events_with_calendar
+        logger.debug("_load_timeline_events called (legacy method)")
+
+        if hasattr(self, "current_calendar_data") and self.current_calendar_data:
+            self._load_timeline_events_with_calendar(self.current_calendar_data)
+            return
+
         query = """
         MATCH (t)-[:USES_CALENDAR]->(c:CALENDAR)<-[:USES_CALENDAR]-(e:EVENT)
         WHERE elementId(t) = $element_id
@@ -555,8 +711,17 @@ class TimelineMixin:
             logger.warning("Timeline tab not ready yet, skipping event data setting")
             return
 
-        logger.debug("Setting timeline event data", event_count=len(events))
-        self.ui.timeline_tab.set_event_data(events)
+        # Use current_calendar_data if it exists
+        logger.debug(
+            "Setting timeline event data",
+            event_count=len(events),
+            has_calendar=hasattr(self, "current_calendar_data"),
+        )
+
+        if hasattr(self, "current_calendar_data") and self.current_calendar_data:
+            self.ui.timeline_tab.set_event_data(events, self.current_calendar_data)
+        else:
+            self.ui.timeline_tab.set_event_data(events)
 
     def _process_event_results(self, results: list) -> list:
         """
@@ -652,13 +817,15 @@ class EventMixin:
         MATCH (n)-[r:USES_CALENDAR]->(c:CALENDAR)
         WHERE elementId(n) = $element_id
         AND n._project = $project
+        WITH c, properties(c) as props
         RETURN {
-            month_names: c.calendar_month_names,
-            month_days: c.calendar_month_days,
-            weekday_names: c.calendar_weekday_names,
-            days_per_week: toInteger(c.calendar_days_per_week),
-            year_length: toInteger(c.calendar_year_length),
-            current_year: toInteger(c.calendar_current_year)
+            month_names: props.calendar_month_names,
+            month_days: props.calendar_month_days,
+            weekday_names: props.calendar_weekday_names,
+            days_per_week: toInteger(props.calendar_days_per_week),
+            year_length: toInteger(props.calendar_year_length),
+            current_year: toInteger(props.calendar_current_year),
+            all_props: props
         } as calendar_data
         """
 
