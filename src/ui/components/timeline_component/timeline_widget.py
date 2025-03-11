@@ -344,8 +344,6 @@ class TimelineLane(QWidget):
             day = event.get("parsed_date_day", 1)
 
             # Calculate position with calendar awareness
-            year_fraction = 0
-
             if hasattr(self, "calendar_data") and self.calendar_data:
                 month_days = self.calendar_data.get("month_days", [])
                 year_length = self.calendar_data.get("year_length", 360)
@@ -402,13 +400,14 @@ class TimelineLane(QWidget):
 
 
 class TimelineAxisWidget(QWidget):
-    """Widget displaying the time axis with markers"""
+    """Widget displaying the time axis with markers at various detail levels"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.min_year = 0
         self.max_year = 100
         self.pixels_per_year = 50
+        self.calendar_data = None  # Store calendar data
         self.setMinimumHeight(50)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
@@ -423,8 +422,13 @@ class TimelineAxisWidget(QWidget):
         self.max_year = max_year
         self.update()
 
+    def set_calendar_data(self, calendar_data: Dict[str, Any]) -> None:
+        """Set calendar data for accurate month/day calculations"""
+        self.calendar_data = calendar_data
+        self.update()
+
     def paintEvent(self, event):
-        """Draw the axis and year markers"""
+        """Draw the axis with year, month, or day markers based on zoom level"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -433,12 +437,18 @@ class TimelineAxisWidget(QWidget):
         y_pos = 20
         painter.drawLine(0, y_pos, self.width(), y_pos)
 
-        # Calculate marker interval based on zoom level
-        year_span = self.max_year - self.min_year
-        width_in_pixels = year_span * self.pixels_per_year
+        # Determine the visualization mode based on zoom level
+        if self.pixels_per_year >= 300:
+            self._draw_day_markers(painter, y_pos)
+        elif self.pixels_per_year >= 100:
+            self._draw_month_markers(painter, y_pos)
+        else:
+            self._draw_year_markers(painter, y_pos)
 
+    def _draw_year_markers(self, painter, y_pos):
+        """Draw year markers based on zoom level"""
         # Calculate appropriate interval based on pixels per year
-        if self.pixels_per_year >= 100:  # Very detailed
+        if self.pixels_per_year >= 100:
             interval = 1  # Show every year
         elif self.pixels_per_year >= 20:
             interval = 5  # Every 5 years
@@ -477,6 +487,218 @@ class TimelineAxisWidget(QWidget):
                 str(year),
             )
 
+    def _draw_month_markers(self, painter, y_pos):
+        """Draw month markers when zoomed in enough"""
+        painter.setPen(QPen(QColor("#666"), 1))
+
+        # Get visible year range (floor and ceiling)
+        visible_min_year = int(self.min_year)
+        visible_max_year = int(self.max_year) + 1
+
+        # Get month names from calendar data or use defaults
+        month_names = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+        ]
+
+        if self.calendar_data and "month_names" in self.calendar_data:
+            month_names = self.calendar_data["month_names"]
+            # If we only have abbreviated versions, use those
+            if all(len(name) <= 3 for name in month_names):
+                pass
+            else:
+                # Create abbreviated versions
+                month_names = [name[:3] for name in month_names]
+
+        # Get number of months per year from calendar data or use default (12)
+        months_per_year = 12
+        if self.calendar_data and "months_per_year" in self.calendar_data:
+            months_per_year = self.calendar_data["months_per_year"]
+
+        # Draw month markers
+        for year in range(visible_min_year, visible_max_year):
+            for month in range(1, months_per_year + 1):
+                # Calculate month position (year + month/months_per_year)
+                x_pos = (
+                    year - self.min_year + (month - 1) / months_per_year
+                ) * self.pixels_per_year
+
+                # Skip if outside visible area
+                if x_pos < -50 or x_pos > self.width() + 50:
+                    continue
+
+                # Determine tick height and label visibility
+                if month == 1:  # First month of year gets taller tick and year label
+                    tick_height = 8
+                    painter.setPen(QPen(QColor("#444"), 1.5))  # Darker for year start
+
+                    # Draw year label (only at first month of year)
+                    painter.drawText(
+                        QRectF(x_pos - 20, y_pos - 25, 40, 20),
+                        Qt.AlignmentFlag.AlignCenter,
+                        str(year),
+                    )
+                else:
+                    tick_height = 5
+                    painter.setPen(QPen(QColor("#666"), 1))
+
+                # Draw tick mark
+                painter.drawLine(
+                    int(x_pos), y_pos - tick_height, int(x_pos), y_pos + tick_height
+                )
+
+                # Draw month label (every 1, 3, or 6 months depending on zoom)
+                draw_label = False
+                if self.pixels_per_year >= 200:  # Very detailed, show every month
+                    draw_label = True
+                elif self.pixels_per_year >= 150:  # Detailed, show every other month
+                    draw_label = month % 2 == 1
+                else:  # Less detailed, show every quarter
+                    draw_label = month % 3 == 1
+
+                if draw_label and month <= len(month_names):
+                    painter.drawText(
+                        QRectF(x_pos - 15, y_pos + 10, 30, 20),
+                        Qt.AlignmentFlag.AlignCenter,
+                        month_names[month - 1],
+                    )
+
+    def _draw_day_markers(self, painter, y_pos):
+        """Draw day markers when zoomed in very close"""
+        painter.setPen(QPen(QColor("#666"), 1))
+
+        # Get visible year range (floor and ceiling)
+        visible_min_year = int(self.min_year)
+        visible_max_year = int(self.max_year) + 1
+
+        # Get month days from calendar data or use defaults
+        month_days = [
+            31,
+            28,
+            31,
+            30,
+            31,
+            30,
+            31,
+            31,
+            30,
+            31,
+            30,
+            31,
+        ]  # Standard calendar
+
+        if self.calendar_data and "month_days" in self.calendar_data:
+            month_days = self.calendar_data["month_days"]
+
+        # Get month names for labels
+        month_names = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+        ]
+
+        if self.calendar_data and "month_names" in self.calendar_data:
+            month_names = [name[:3] for name in self.calendar_data["month_names"]]
+
+        # Calculate year_length for positioning
+        year_length = sum(month_days)
+
+        # For extremely zoomed in views, limit to displaying only a portion of the timeline
+        visible_span = self.width() / self.pixels_per_year
+        if visible_span < 0.5:  # Less than half a year visible
+            # Determine day interval based on zoom level
+            if self.pixels_per_year >= 800:
+                day_interval = 1  # Every day
+            elif self.pixels_per_year >= 500:
+                day_interval = 2  # Every other day
+            else:
+                day_interval = 5  # Every fifth day
+
+            # Draw day markers for visible range
+            for year in range(visible_min_year, visible_max_year):
+                day_in_year = 1
+                for month_idx, days in enumerate(month_days):
+                    month = month_idx + 1
+                    for day in range(1, days + 1):
+                        # Calculate day position
+                        day_fraction = day_in_year / year_length
+                        x_pos = (
+                            year - self.min_year + day_fraction
+                        ) * self.pixels_per_year
+
+                        # Skip if outside visible area
+                        if x_pos < -20 or x_pos > self.width() + 20:
+                            day_in_year += 1
+                            continue
+
+                        # Only draw markers at specified intervals
+                        if day % day_interval == 0 or day == 1:
+                            # Taller tick for first day of month
+                            tick_height = 7 if day == 1 else 3
+
+                            # Darker tick for first day of month
+                            if day == 1:
+                                painter.setPen(QPen(QColor("#444"), 1.5))
+                            else:
+                                painter.setPen(QPen(QColor("#999"), 0.8))
+
+                            # Draw tick mark
+                            painter.drawLine(
+                                int(x_pos),
+                                y_pos - tick_height,
+                                int(x_pos),
+                                y_pos + tick_height,
+                            )
+
+                            # Draw day number (only at specified intervals)
+                            if day == 1 or day % 5 == 0:
+                                if day == 1:
+                                    # Draw month name for first day
+                                    painter.drawText(
+                                        QRectF(x_pos - 15, y_pos - 20, 30, 20),
+                                        Qt.AlignmentFlag.AlignCenter,
+                                        month_names[month_idx],
+                                    )
+
+                                    # Also add year if first month
+                                    if month == 1:
+                                        painter.drawText(
+                                            QRectF(x_pos - 20, y_pos - 35, 40, 20),
+                                            Qt.AlignmentFlag.AlignCenter,
+                                            str(year),
+                                        )
+
+                                # Draw day number
+                                painter.drawText(
+                                    QRectF(x_pos - 10, y_pos + 8, 20, 15),
+                                    Qt.AlignmentFlag.AlignCenter,
+                                    str(day),
+                                )
+
+                        day_in_year += 1
+        else:
+            # When more than half a year is visible, show simplified view with month divisions
+            self._draw_month_markers(painter, y_pos)
+
 
 class TimelineContent(QWidget):
     """Main widget containing the timeline content with lanes and axis"""
@@ -493,7 +715,7 @@ class TimelineContent(QWidget):
 
         # Minimum and maximum zoom levels
         self.min_pixels_per_year = 1.0  # Most zoomed out
-        self.max_pixels_per_year = 200.0  # Most zoomed in
+        self.max_pixels_per_year = 1500  # Most zoomed in
 
         # For panning support
         self.panning = False
@@ -509,9 +731,18 @@ class TimelineContent(QWidget):
     def set_calendar_data(self, calendar_data: Dict[str, Any]) -> None:
         """Set calendar data for date calculations"""
         self.calendar_data = calendar_data
+
+        # Pass calendar data to the axis widget
+        if hasattr(self, "axis") and hasattr(self.axis, "set_calendar_data"):
+            self.axis.set_calendar_data(calendar_data)
+
         # Update existing lanes with calendar data
         for lane in self.lanes.values():
             lane.set_calendar_data(calendar_data)
+
+        # Update display if we have events
+        if self.events:
+            self.update()
 
     def setup_ui(self):
         """Set up UI components"""
@@ -578,7 +809,7 @@ class TimelineContent(QWidget):
         elif scale == "Months":
             self.pixels_per_year = 100
         elif scale == "Days":
-            self.pixels_per_year = 200
+            self.pixels_per_year = 500
         else:
             self.pixels_per_year = 50  # Default to years
 
@@ -673,7 +904,7 @@ class TimelineContent(QWidget):
 
         # Calculate new scale
         delta = event.angleDelta().y()
-        zoom_factor = 1.0 + (delta / 1200.0)  # Smoother zoom rate
+        zoom_factor = 1.0 + (delta / 800)  # Smoother zoom rate
         new_scale = self.pixels_per_year * zoom_factor
 
         # Apply new scale
