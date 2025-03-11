@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Enhance calendar and timeline integration by loading detailed calendar data before timeline events, ensuring accurate event positioning. Update timeline tab to accept calendar data for improved event display.">
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Enhance timeline widget with detailed calendar data integration, improving event visualization and marker accuracy based on zoom level. Update calendar data handling for better month and day marker rendering.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ui/components/timeline_component/timeline_widget.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/timeline_component/timeline_widget.py" afterDir="false" />
@@ -254,7 +254,7 @@
       <workItem from="1740147881751" duration="95000" />
       <workItem from="1740147984026" duration="3635000" />
       <workItem from="1741513917925" duration="3540000" />
-      <workItem from="1741729990813" duration="649000" />
+      <workItem from="1741729990813" duration="1662000" />
     </task>
     <task id="LOCAL-00001" summary="Implemented a first basic calendar property system.">
       <option name="closed" value="true" />
@@ -520,7 +520,15 @@
       <option name="project" value="LOCAL" />
       <updated>1741725175889</updated>
     </task>
-    <option name="localTasksCounter" value="34" />
+    <task id="LOCAL-00034" summary="Enhance timeline widget with detailed calendar data integration, improving event visualization and marker accuracy based on zoom level. Update calendar data handling for better month and day marker rendering.">
+      <option name="closed" value="true" />
+      <created>1741730904819</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1741730904819</updated>
+    </task>
+    <option name="localTasksCounter" value="35" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -550,7 +558,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Updated visuals of calendar data." />
     <MESSAGE value="Config now works at all times." />
     <MESSAGE value="Started adding unit tests" />
     <MESSAGE value="Added unit tests for additional calendar components." />
@@ -575,7 +582,8 @@
     <MESSAGE value="Fix mouse move event handling to ensure widget updates correctly" />
     <MESSAGE value="Refactor calendar data retrieval to use properties for improved data access, both for setup event calendar and timeline calendar. Works kind of." />
     <MESSAGE value="Enhance calendar and timeline integration by loading detailed calendar data before timeline events, ensuring accurate event positioning. Update timeline tab to accept calendar data for improved event display." />
-    <option name="LAST_COMMIT_MESSAGE" value="Enhance calendar and timeline integration by loading detailed calendar data before timeline events, ensuring accurate event positioning. Update timeline tab to accept calendar data for improved event display." />
+    <MESSAGE value="Enhance timeline widget with detailed calendar data integration, improving event visualization and marker accuracy based on zoom level. Update calendar data handling for better month and day marker rendering." />
+    <option name="LAST_COMMIT_MESSAGE" value="Enhance timeline widget with detailed calendar data integration, improving event visualization and marker accuracy based on zoom level. Update calendar data handling for better month and day marker rendering." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -599,7 +607,7 @@
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController_test_delete_node_debounce.coverage" NAME="pytest for test_node_operations.TestBaseController.test_delete_node_debounce Coverage Results" MODIFIED="1739346351305" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$main.coverage" NAME="main Coverage Results" MODIFIED="1737189065102" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$.coverage" NAME=" Coverage Results" MODIFIED="1737584858616" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1741730472324" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1741731668823" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$card_based_calendar_widget.coverage" NAME="card_based_calendar_widget Coverage Results" MODIFIED="1737485046740" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui/components/calendar_component" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_calendar_config_dialog_test_py.coverage" NAME="pytest in calendar_config_dialog_test.py Coverage Results" MODIFIED="1737662433154" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />

@@ -205,6 +205,7 @@ class TimelineLane(QWidget):
             self.min_year = min_year
             self.max_year = max_year
             self.position_event_cards()
+            self.update()
 
     def clear_events(self):
         """Clear all events from the lane"""
@@ -230,6 +231,8 @@ class TimelineLane(QWidget):
 
         # Position the cards
         self.position_event_cards()
+
+        QTimer.singleShot(50, self.update)
 
     def position_event_cards(self):
         """Position all event cards based on their dates and current scale"""
@@ -320,6 +323,11 @@ class TimelineLane(QWidget):
             max_level = max(max_level, card.y() // 40)
 
         self.setMinimumHeight(140 + max_level * 40)
+
+        self.updateGeometry()
+        self.update()
+
+        QTimer.singleShot(0, self.update)
 
     def paintEvent(self, event):
         """Draw connecting lines from cards to timeline"""
