@@ -369,13 +369,15 @@ class TimelineMixin:
         MATCH (n)-[r:USES_CALENDAR]->(c:CALENDAR)
         WHERE elementId(n) = $element_id
         AND n._project = $project
+        WITH c, properties(c) as props
         RETURN {
-            month_names: c.calendar_month_names,
-            month_days: c.calendar_month_days,
-            weekday_names: c.calendar_weekday_names,
-            days_per_week: toInteger(c.calendar_days_per_week),
-            year_length: toInteger(c.calendar_year_length),
-            current_year: toInteger(c.calendar_current_year)
+            month_names: props.calendar_month_names,
+            month_days: props.calendar_month_days,
+            weekday_names: props.calendar_weekday_names,
+            days_per_week: toInteger(props.calendar_days_per_week),
+            year_length: toInteger(props.calendar_year_length),
+            current_year: toInteger(props.calendar_current_year),
+            all_props: props
         } as calendar_data
         """
 
@@ -652,13 +654,15 @@ class EventMixin:
         MATCH (n)-[r:USES_CALENDAR]->(c:CALENDAR)
         WHERE elementId(n) = $element_id
         AND n._project = $project
+        WITH c, properties(c) as props
         RETURN {
-            month_names: c.calendar_month_names,
-            month_days: c.calendar_month_days,
-            weekday_names: c.calendar_weekday_names,
-            days_per_week: toInteger(c.calendar_days_per_week),
-            year_length: toInteger(c.calendar_year_length),
-            current_year: toInteger(c.calendar_current_year)
+            month_names: props.calendar_month_names,
+            month_days: props.calendar_month_days,
+            weekday_names: props.calendar_weekday_names,
+            days_per_week: toInteger(props.calendar_days_per_week),
+            year_length: toInteger(props.calendar_year_length),
+            current_year: toInteger(props.calendar_current_year),
+            all_props: props
         } as calendar_data
         """
 
