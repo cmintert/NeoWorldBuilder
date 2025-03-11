@@ -647,6 +647,7 @@ class TimelineContent(QWidget):
 
             # Update last position
             self.last_mouse_pos = event.position()
+            self.update()
             event.accept()
         else:
             super().mouseMoveEvent(event)
