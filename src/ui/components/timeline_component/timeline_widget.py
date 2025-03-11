@@ -167,8 +167,13 @@ class TimelineLane(QWidget):
         self.max_year = 100
         self.pixels_per_year = 50  # Default scale
         self.cards = []  # Keep track of created cards
+        self.calendar_data = None
         self.setMinimumHeight(140)
         self.setup_ui()
+
+    def set_calendar_data(self, calendar_data: Dict[str, Any]) -> None:
+        """Set calendar data for precise date positioning"""
+        self.calendar_data = calendar_data
 
     def setup_ui(self):
         """Set up the lane UI elements"""
@@ -248,9 +253,38 @@ class TimelineLane(QWidget):
 
         for event, card in events_with_cards:
             year = event.get("parsed_date_year", self.min_year)
+            month = event.get("parsed_date_month", 1)
+            day = event.get("parsed_date_day", 1)
 
-            # Calculate x position based on year
-            x_pos = (year - self.min_year) * self.pixels_per_year
+            # Calculate position within year based on custom calendar
+            year_fraction = 0
+
+            if self.calendar_data:
+                month_days = self.calendar_data.get("month_days", [])
+                year_length = self.calendar_data.get("year_length", 360)
+
+                # Calculate days into year
+                days_into_year = 0
+
+                # Add days from previous months
+                for i in range(month - 1):
+                    if i < len(month_days):
+                        days_into_year += month_days[i]
+                    else:
+                        # Fallback value if month_days doesn't have enough entries
+                        days_into_year += 30
+
+                # Add days from current month
+                days_into_year += day - 1  # -1 because day 1 is at start of month
+
+                # Calculate year fraction
+                year_fraction = days_into_year / year_length if year_length > 0 else 0
+            else:
+                # Fallback if no calendar data is available
+                year_fraction = (month - 1) / 12
+
+            # Calculate x position including the year fraction
+            x_pos = (year - self.min_year + year_fraction) * self.pixels_per_year
             card_width = card.width()
 
             # Check for overlaps with existing cards
@@ -304,9 +338,40 @@ class TimelineLane(QWidget):
         timeline_y = self.height() - 10
 
         for event, card in zip(self.events, self.cards):
-            # Calculate event center x-coordinate
+            # Get basic event information
             year = event.get("parsed_date_year", self.min_year)
-            x_pos = (year - self.min_year) * self.pixels_per_year
+            month = event.get("parsed_date_month", 1)
+            day = event.get("parsed_date_day", 1)
+
+            # Calculate position with calendar awareness
+            year_fraction = 0
+
+            if hasattr(self, "calendar_data") and self.calendar_data:
+                month_days = self.calendar_data.get("month_days", [])
+                year_length = self.calendar_data.get("year_length", 360)
+
+                # Calculate days into year
+                days_into_year = 0
+
+                # Add days from previous months
+                for i in range(month - 1):
+                    if i < len(month_days):
+                        days_into_year += month_days[i]
+                    else:
+                        # Fallback value if month_days doesn't have enough entries
+                        days_into_year += 30
+
+                # Add days from current month
+                days_into_year += day - 1  # -1 because day 1 is at start of month
+
+                # Calculate year fraction
+                year_fraction = days_into_year / year_length if year_length > 0 else 0
+            else:
+                # Fallback if no calendar data is available
+                year_fraction = (month - 1) / 12
+
+            # Calculate event center x-coordinate with year fraction
+            x_pos = (year - self.min_year + year_fraction) * self.pixels_per_year
 
             # Calculate bottom center of card
             card_bottom_x = card.x() + card.width() / 2
@@ -424,6 +489,7 @@ class TimelineContent(QWidget):
         self.min_year = 0
         self.max_year = 100
         self.pixels_per_year = 50.0  # Default scale
+        self.calendar_data = None
 
         # Minimum and maximum zoom levels
         self.min_pixels_per_year = 1.0  # Most zoomed out
@@ -439,6 +505,13 @@ class TimelineContent(QWidget):
 
         # Set up mouse tracking
         self.setMouseTracking(True)
+
+    def set_calendar_data(self, calendar_data: Dict[str, Any]) -> None:
+        """Set calendar data for date calculations"""
+        self.calendar_data = calendar_data
+        # Update existing lanes with calendar data
+        for lane in self.lanes.values():
+            lane.set_calendar_data(calendar_data)
 
     def setup_ui(self):
         """Set up UI components"""
@@ -547,6 +620,11 @@ class TimelineContent(QWidget):
             lane = TimelineLane(event_type)
             lane.set_year_range(self.min_year, self.max_year)
             lane.set_scale(self.pixels_per_year)
+
+            # Pass calendar data if available
+            if self.calendar_data:
+                lane.set_calendar_data(self.calendar_data)
+
             lane.add_events(type_events)
 
             # Add to layout before the stretch
@@ -847,11 +925,24 @@ class TimelineWidget(QWidget):
         super().resizeEvent(event)
         self.update_labels(self.scroll_area.verticalScrollBar().value())
 
-    def set_data(self, events: List[Dict[str, Any]], scale: str) -> None:
+    def set_data(
+        self,
+        events: List[Dict[str, Any]],
+        scale: str,
+        calendar_data: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Update the timeline with new data"""
         logger.debug(
-            "TimelineWidget.set_data called", event_count=len(events), scale=scale
+            "TimelineWidget.set_data called",
+            event_count=len(events),
+            scale=scale,
+            has_calendar_data=calendar_data is not None,
         )
+
+        # Set calendar data first so it's available when processing events
+        if calendar_data:
+            self.content.set_calendar_data(calendar_data)
+
         self.content.set_data(events, scale)
 
         # Update labels for new lanes
