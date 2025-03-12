@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QCompleter,
     QApplication,
+    QComboBox,
 )
 
 from date_parser_module.dateparser import DateParser, ParsedDate, DatePrecision
@@ -70,6 +71,28 @@ class EventTab(QWidget):
         calendar_layout.addWidget(self.link_calendar_btn)
         form_layout.addRow("Calendar:", calendar_layout)
 
+        # Add event type selection dropdown
+        self.event_type_combo = QComboBox()
+        self.event_type_combo.setEditable(True)
+        # Add event types that match what's used in timeline_widget.py
+        event_types = [
+            "Occurrence",  # Default
+            "Battle",
+            "War",
+            "Conflict",
+            "Political",
+            "Coronation",
+            "Treaty",
+            "Cultural",
+            "Foundation",
+            "Founding",
+            "Discovery",
+            "Death",
+            "Birth",
+        ]
+        self.event_type_combo.addItems(event_types)
+        form_layout.addRow("Event Type:", self.event_type_combo)
+
         # Date input with validation
         self.date_input = QLineEdit()
         self.date_input.setPlaceholderText(
@@ -95,6 +118,12 @@ class EventTab(QWidget):
         self.calendar_input.textChanged.connect(self._on_calendar_input_changed)
         self.calendar_completer.activated.connect(self._on_calendar_selected)
         self.calendar_completer.highlighted.connect(self._on_completion_highlighted)
+        self.event_type_combo.currentTextChanged.connect(self._on_event_type_changed)
+
+    def _on_event_type_changed(self, event_type: str):
+        """Handle changes to the event type selection."""
+        logger.debug("Event type changed", event_type=event_type)
+        self._validate_date()
 
     def _on_calendar_input_changed(self, text: str):
         """Handle changes to calendar input."""
@@ -261,10 +290,13 @@ class EventTab(QWidget):
         # Get the basic temporal data from the input field
         temporal_data = self.date_input.text()
 
+        # Get the selected event type
+        event_type = self.event_type_combo.currentText()
+
         # Start building our event data dictionary
         data = {
             # Basic event properties
-            "event_type": "Occurence",
+            "event_type": event_type,
             "temporal_data": temporal_data,
             # Core date fields - convert numeric values to strings
             "parsed_date_year": (
@@ -393,6 +425,16 @@ class EventTab(QWidget):
             return
 
         try:
+            # Set event type if provided
+            if event_type := data.get("event_type"):
+                # Find the index for this event type
+                index = self.event_type_combo.findText(
+                    event_type, Qt.MatchFlag.MatchFixedString
+                )
+                if index >= 0:
+                    # If found, set it as the current selection
+                    self.event_type_combo.setCurrentIndex(index)
+
             # Set the temporal data directly in the date input field
             if temporal_data := data.get("temporal_data"):
                 # Temporarily disconnect textChanged signal to prevent premature validation
