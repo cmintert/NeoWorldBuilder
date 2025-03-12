@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QLabel,
     QPushButton,
     QCompleter,
-    QApplication,
     QComboBox,
 )
 
@@ -113,12 +112,12 @@ class EventTab(QWidget):
 
     def _connect_signals(self):
         """Connect UI signals to handlers"""
-        self.date_input.textChanged.connect(self._validate_date)
-        self.link_calendar_btn.clicked.connect(self._link_calendar)
-        self.calendar_input.textChanged.connect(self._on_calendar_input_changed)
-        self.calendar_completer.activated.connect(self._on_calendar_selected)
-        self.calendar_completer.highlighted.connect(self._on_completion_highlighted)
-        self.event_type_combo.currentTextChanged.connect(self._on_event_type_changed)
+        self.date_input.textChanged.connect(self._validate_date)  # type: ignore
+        self.link_calendar_btn.clicked.connect(self._link_calendar)  # type: ignore
+        self.calendar_input.textChanged.connect(self._on_calendar_input_changed)  # type: ignore
+        self.calendar_completer.activated.connect(self._on_calendar_selected)  # type: ignore
+        self.calendar_completer.highlighted.connect(self._on_completion_highlighted)  # type: ignore
+        self.event_type_combo.currentTextChanged.connect(self._on_event_type_changed)  # type: ignore
 
     def _on_event_type_changed(self, event_type: str):
         """Handle changes to the event type selection."""
@@ -417,7 +416,7 @@ class EventTab(QWidget):
             )
 
         # Emit the event with our properly formatted data
-        self.event_changed.emit(data)
+        self.event_changed.emit(data)  # type: ignore
 
     def set_event_data(self, data: Dict[str, Any]):
         """Load event data into UI components"""
@@ -438,10 +437,10 @@ class EventTab(QWidget):
             # Set the temporal data directly in the date input field
             if temporal_data := data.get("temporal_data"):
                 # Temporarily disconnect textChanged signal to prevent premature validation
-                self.date_input.textChanged.disconnect(self._validate_date)
+                self.date_input.textChanged.disconnect(self._validate_date)  # type: ignore
                 self.date_input.setText(str(temporal_data))
                 # Reconnect the signal
-                self.date_input.textChanged.connect(self._validate_date)
+                self.date_input.textChanged.connect(self._validate_date)  # type: ignore
                 # Validate if we have calendar data
                 if self.date_parser and self.calendar_data:
                     self._validate_date()
