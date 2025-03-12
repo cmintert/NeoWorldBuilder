@@ -643,7 +643,7 @@ class TimelineAxisWidget(QWidget):
 
             # Draw day markers for visible range
             for year in range(visible_min_year, visible_max_year):
-                day_in_year = 1
+                day_in_year = 0
                 for month_idx, days in enumerate(month_days):
                     month = month_idx + 1
                     for day in range(1, days + 1):
@@ -723,7 +723,7 @@ class TimelineContent(QWidget):
 
         # Minimum and maximum zoom levels
         self.min_pixels_per_year = 1.0  # Most zoomed out
-        self.max_pixels_per_year = 1500  # Most zoomed in
+        self.max_pixels_per_year = 50000  # Most zoomed in
 
         # For panning support
         self.panning = False
