@@ -682,7 +682,7 @@ class TimelineAxisWidget(QWidget):
                                 if day == 1:
                                     # Draw month name for first day
                                     painter.drawText(
-                                        QRectF(x_pos - 15, y_pos - 20, 30, 20),
+                                        QRectF(x_pos - 15, y_pos + 10, 30, 20),
                                         Qt.AlignmentFlag.AlignCenter,
                                         month_names[month_idx],
                                     )
@@ -690,17 +690,23 @@ class TimelineAxisWidget(QWidget):
                                     # Also add year if first month
                                     if month == 1:
                                         painter.drawText(
-                                            QRectF(x_pos - 20, y_pos - 35, 40, 20),
+                                            QRectF(x_pos - 20, y_pos - 25, 40, 20),
                                             Qt.AlignmentFlag.AlignCenter,
                                             str(year),
                                         )
 
                                 # Draw day number
-                                painter.drawText(
-                                    QRectF(x_pos - 10, y_pos + 8, 20, 15),
-                                    Qt.AlignmentFlag.AlignCenter,
-                                    str(day),
-                                )
+                                if day != 1:
+                                    original_font = painter.font()
+                                    font = QFont()
+                                    font.setPointSize(6)
+                                    painter.setFont(font)
+                                    painter.drawText(
+                                        QRectF(x_pos - 10, y_pos + 2, 20, 15),
+                                        Qt.AlignmentFlag.AlignCenter,
+                                        str(day),
+                                    )
+                                    painter.setFont(original_font)
 
                         day_in_year += 1
         else:
