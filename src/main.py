@@ -35,7 +35,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QMainWindow,
 )
-from neo4j.exceptions import AuthError, ServiceUnavailable
+
 
 from ui.components.dialogs import ConnectionSettingsDialog
 from utils.error_handler import ErrorHandler
