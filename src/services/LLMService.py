@@ -1,18 +1,26 @@
 import requests
+import logging
 from typing import Optional, Dict, Any, Callable, List
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMessageBox
 
 
 class LLMService:
-    """Service for LLM integration with OpenAI-compatible APIs."""
+    """Service for LLM integration with OpenAI-compatible APIs including LM Studio."""
 
     def __init__(self, config, node_operations):
         self.config = config
         self.node_operations = node_operations
         self.api_key = self.config.get("llm.api_key", "")
-        self.base_url = self.config.get("llm.base_url", "http://localhost:1234/v1")
-        self.model = self.config.get("llm.model", "local-model")
+
+        # Handle base URL format to avoid double-slash issues
+        base_url = self.config.get("llm.base_url", "http://localhost:5555")
+        self.base_url = base_url.rstrip("/")  # Remove trailing slash if present
+
+        self.model = self.config.get("llm.model", "mythomax-l2-13b")
+        logging.debug(
+            f"LLM Service initialized with URL: {self.base_url}, model: {self.model}"
+        )
 
     def enhance_description(
         self,
@@ -37,7 +45,15 @@ class LLMService:
             if depth > 0:
                 context = self._get_node_context(node_name, depth)
                 if context:
-                    prompt = f"Node information:\n\n{context}\n\nCurrent node description:\n\n{description}"
+                    prompt = (
+                        f"Node information:\n\n{context}\n\nCurrent "
+                        f"node description:\n\n{description}\n\nEnhance this description while maintaining the same style and format. Add more details and make it more engaging."
+                    )
+            else:
+                prompt = (
+                    f"Node name: {node_name}\n\nCurrent "
+                    f"description:\n\n{description}\n\nEnhance this description while maintaining the same style and format. Add more details and make it more engaging."
+                )
 
             headers = {"Content-Type": "application/json"}
 
@@ -51,19 +67,46 @@ class LLMService:
                 "max_tokens": 500,
             }
 
+            # Ensure the URL format is correct
+            endpoint_url = f"{self.base_url}/v1/chat/completions"
+
+            logging.debug(f"Making LLM request to: {endpoint_url}")
+            logging.debug(f"Payload: {payload}")
+
             response = requests.post(
-                f"{self.base_url}/chat/completions", headers=headers, json=payload
+                endpoint_url, headers=headers, json=payload, timeout=60
             )
 
             response.raise_for_status()
             result = response.json()
-            completion = result["choices"][0]["message"]["content"]
+            logging.debug(f"LLM response: {result}")
 
-            # Combine original with completion
-            enhanced_text = f"{description}\n\n---\n\n{completion}"
-            callback(enhanced_text, None)
+            # Handle different response formats
+            try:
+                if "choices" in result and len(result["choices"]) > 0:
+                    completion = result["choices"][0]["message"]["content"]
+                else:
+                    # Try alternative formats that might be returned by LM Studio
+                    completion = result.get(
+                        "response",
+                        result.get("content", result.get("output", str(result))),
+                    )
 
+                # Combine original with completion
+                # Only use the generated content, not the original + generated
+                enhanced_text = completion
+                callback(enhanced_text, None)
+            except Exception as format_error:
+                logging.error(
+                    f"LLM response format error: {format_error}, response: {result}"
+                )
+                callback(None, f"Failed to parse LLM response: {format_error}")
+
+        except requests.exceptions.RequestException as req_error:
+            logging.error(f"LLM request error: {req_error}")
+            callback(None, f"LLM API request failed: {req_error}")
         except Exception as e:
+            logging.error(f"LLM service error: {e}")
             callback(None, str(e))
 
     def _get_node_context(self, node_name: str, depth: int) -> str:
@@ -87,37 +130,55 @@ class LLMService:
             visited.add(name)
 
             # Get node data
-            node = self.node_operations.get_node_by_name(name)
-            if not node:
-                return
+            try:
+                node = self.node_operations.get_node_by_name(name)
+                if not node:
+                    return
 
-            # Format node info
-            prefix = f"{rel_path} -> " if rel_path else ""
-            node_info = [
-                f"{prefix}Node: {node['name']}",
-                f"Labels: {', '.join(node['labels'])}" if node.get("labels") else "",
-                f"Tags: {', '.join(node['tags'])}" if node.get("tags") else "",
-                (
-                    f"Brief: {node['description'][:100]}..."
-                    if node.get("description")
-                    else ""
-                ),
-            ]
-            context_parts.append("\n".join(filter(None, node_info)))
+                # Format node info
+                prefix = f"{rel_path} -> " if rel_path else ""
+                node_info = [
+                    f"{prefix}Node: {node['name']}",
+                    (
+                        f"Labels: {', '.join(node['labels'])}"
+                        if node.get("labels")
+                        else ""
+                    ),
+                    f"Tags: {', '.join(node['tags'])}" if node.get("tags") else "",
+                    (
+                        f"Brief: {node['description'][:100]}..."
+                        if node.get("description")
+                        else ""
+                    ),
+                ]
+                context_parts.append("\n".join(filter(None, node_info)))
 
-            # Stop if we've reached max depth
-            if current_depth == 0:
-                return
+                # Stop if we've reached max depth
+                if current_depth == 0:
+                    return
 
-            # Process relationships
-            for rel in node.get("relationships", []):
-                target = rel.get("target")
-                rel_type = rel.get("type")
-                if target and rel_type:
-                    new_path = (
-                        f"{rel_path} -[{rel_type}]" if rel_path else f"-[{rel_type}]"
+                # Process relationships
+                for rel in node.get("relationships", []):
+                    target = (
+                        rel[1]
+                        if isinstance(rel, tuple) and len(rel) > 1
+                        else rel.get("target")
                     )
-                    collect_node_info(target, current_depth - 1, new_path)
+                    rel_type = (
+                        rel[0]
+                        if isinstance(rel, tuple) and len(rel) > 0
+                        else rel.get("type")
+                    )
+                    if target and rel_type:
+                        new_path = (
+                            f"{rel_path} -[{rel_type}]"
+                            if rel_path
+                            else f"-[{rel_type}]"
+                        )
+                        collect_node_info(target, current_depth - 1, new_path)
+            except Exception as e:
+                logging.error(f"Error processing node {name}: {e}")
+                # Continue with other nodes
 
         # Start collection from the root node
         collect_node_info(node_name, depth)

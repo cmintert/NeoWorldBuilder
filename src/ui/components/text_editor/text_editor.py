@@ -52,6 +52,7 @@ class TextEditor(QWidget):
 
     # Forward the textChanged signal from internal QTextEdit
     textChanged = pyqtSignal()
+    enhancementRequested = pyqtSignal()
 
     # Signal emitted when user requests node creation from selection
     createNodeRequested = pyqtSignal(
@@ -107,6 +108,7 @@ class TextEditor(QWidget):
         """Connect internal signals."""
         self.text_edit.textChanged.connect(self._handle_text_changed)
         self.text_edit.textChanged.connect(self.textChanged.emit)
+        self.formatting_toolbar.enhancementRequested.connect(self.enhancementRequested)
 
     def _show_context_menu(self, position) -> None:
         """Show custom context menu with node creation option."""

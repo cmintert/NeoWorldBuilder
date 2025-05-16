@@ -250,3 +250,53 @@ class NodeOperationsService:
                 raise ValueError(f"Invalid JSON in relationship properties: {e}") from e
 
         return formatted_relationships
+
+    def get_node_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get node by name synchronously.
+
+        This method retrieves a node directly without using worker threads,
+        intended for cases where we need immediate access to node data.
+
+        Args:
+            name: Name of the node to retrieve
+
+        Returns:
+            Dict containing node data or None if not found
+        """
+        if not name or not name.strip():
+            return None
+
+        try:
+            with self.model.get_session() as session:
+                result = session.run(
+                    """
+                    MATCH (n {name: $name, _project: $project})
+                    WITH n, labels(n) AS labels,
+                         properties(n) AS all_props
+                    RETURN n,
+                           labels,
+                           all_props
+                    LIMIT 1
+                    """,
+                    name=name,
+                    project=self.model._project,
+                )
+                record = result.single()
+                if record:
+                    # Convert Neo4j node to dict and ensure 'name' is included
+                    node_data = dict(record["n"])  # This preserves all node properties
+
+                    # Make sure these fields are available at the top level
+                    node_data.update(
+                        {
+                            "name": name,  # Explicitly include the name
+                            "labels": record["labels"],
+                            "all_props": record["all_props"],
+                        }
+                    )
+                    return node_data
+                return None
+        except Exception as e:
+            self.error_handler.handle_error(f"Error getting node: {str(e)}")
+            return None

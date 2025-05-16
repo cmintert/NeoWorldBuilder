@@ -132,6 +132,10 @@ class WorldBuildingUI(QWidget):
             self.controller.update_unsaved_changes_indicator
         )
 
+        self.description_input.enhancementRequested.connect(
+            lambda: self.controller.enhance_node_description()
+        )
+
         # Depth spinbox change
         self.depth_spinbox.valueChanged.connect(self.controller.on_depth_changed)
 
@@ -374,6 +378,7 @@ class WorldBuildingUI(QWidget):
 
         # Description
         self.description_input = TextEditor(main_ui=self)
+
         self.description_input.setObjectName("descriptionEditor")
 
         # Labels with auto-completion

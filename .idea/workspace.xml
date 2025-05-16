@@ -4,14 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add mixins for node data handling, timeline, and events.&#10;&#10;Introduced multiple mixins to encapsulate specialized logic for node data extraction, population, mapping, timeline, and event handling. These mixins enhance modularity and code organization while adding features like calendar integration, map functionality, and timeline events. Additionally, upgraded project SDK and adjusted configuration to support Python 3.13.">
-      <change afterPath="$PROJECT_DIR$/src/resources/graphics/Into-the-wild-NWB.jpg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/services/LLMService.py" afterDir="false" />
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add LLM integration and enhance node description handling&#10;&#10;Introduced `LLMService` for node description enhancement using an LLM via API calls, with optional contextual data from connected nodes. Updated UI and initialization logic to support the feature. Additionally, removed `requirements.txt` and adjusted project settings for improved modularity.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/config/system.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/config/system.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/services/initialisation_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/initialisation_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/controller.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/LLMService.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/LLMService.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/node_operation_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/node_operation_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/text_editor/text_editor.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/text_editor/text_editor.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/text_editor/text_toolbar.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/text_editor/text_toolbar.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -53,6 +54,7 @@
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
+    <option name="sortKey" value="BY_TIME_DESCENDING" />
   </component>
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
@@ -263,7 +265,7 @@
       <workItem from="1741764757833" duration="3073000" />
       <workItem from="1747383906758" duration="1521000" />
       <workItem from="1747422198415" duration="413000" />
-      <workItem from="1747426733327" duration="2002000" />
+      <workItem from="1747426733327" duration="5067000" />
     </task>
     <task id="LOCAL-00001" summary="Implemented a first basic calendar property system.">
       <option name="closed" value="true" />
@@ -553,7 +555,15 @@
       <option name="project" value="LOCAL" />
       <updated>1741765084453</updated>
     </task>
-    <option name="localTasksCounter" value="37" />
+    <task id="LOCAL-00037" summary="Add LLM integration and enhance node description handling&#10;&#10;Introduced `LLMService` for node description enhancement using an LLM via API calls, with optional contextual data from connected nodes. Updated UI and initialization logic to support the feature. Additionally, removed `requirements.txt` and adjusted project settings for improved modularity.">
+      <option name="closed" value="true" />
+      <created>1747428792980</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1747428792980</updated>
+    </task>
+    <option name="localTasksCounter" value="38" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -583,8 +593,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="We are getting there, got a calendar connection established." />
-    <MESSAGE value="Testing parser" />
     <MESSAGE value="Refactor event component by removing unused UI elements and signals" />
     <MESSAGE value="Add calendar selection and link functionality" />
     <MESSAGE value="Enable calendar link button and improve validation feedback" />
@@ -608,14 +616,16 @@
     <MESSAGE value="Enhance timeline widget with improved event update handling and geometry adjustments for better rendering. Add periodic updates to ensure visual consistency." />
     <MESSAGE value="Fix day marker drawing logic and increase maximum zoom level for improved timeline detail" />
     <MESSAGE value="Add mixins for node data handling, timeline, and events.&#10;&#10;Introduced multiple mixins to encapsulate specialized logic for node data extraction, population, mapping, timeline, and event handling. These mixins enhance modularity and code organization while adding features like calendar integration, map functionality, and timeline events. Additionally, upgraded project SDK and adjusted configuration to support Python 3.13." />
-    <option name="LAST_COMMIT_MESSAGE" value="Add mixins for node data handling, timeline, and events.&#10;&#10;Introduced multiple mixins to encapsulate specialized logic for node data extraction, population, mapping, timeline, and event handling. These mixins enhance modularity and code organization while adding features like calendar integration, map functionality, and timeline events. Additionally, upgraded project SDK and adjusted configuration to support Python 3.13." />
+    <MESSAGE value="Add LLMService for enhanced node descriptions and UI integration&#10;&#10;Implemented LLMService to enhance node descriptions using OpenAI-like APIs, with support for contextual depth and asynchronous handling. Updated the UI controller to integrate the enhancement feature and added necessary configurations. Removed unused dependencies from requirements.txt and cleaned up workspace files." />
+    <MESSAGE value="Add LLM integration and enhance node description handling&#10;&#10;Introduced `LLMService` for node description enhancement using an LLM via API calls, with optional contextual data from connected nodes. Updated UI and initialization logic to support the feature. Additionally, removed `requirements.txt` and adjusted project settings for improved modularity." />
+    <option name="LAST_COMMIT_MESSAGE" value="Add LLM integration and enhance node description handling&#10;&#10;Introduced `LLMService` for node description enhancement using an LLM via API calls, with optional contextual data from connected nodes. Updated UI and initialization logic to support the feature. Additionally, removed `requirements.txt` and adjusted project settings for improved modularity." />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_parser_py.coverage" NAME="pytest in test_parser.py Coverage Results" MODIFIED="1738141005495" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$core.coverage" NAME="core Coverage Results" MODIFIED="1738140645253" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/dateparser" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1737189591173" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$calendar_model.coverage" NAME="calendar_model Coverage Results" MODIFIED="1737581064214" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/models" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1747428070391" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1747431150738" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController_test_delete_node_debounce.coverage" NAME="pytest for test_node_operations.TestBaseController.test_delete_node_debounce Coverage Results" MODIFIED="1739346351305" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_test_load_node_data.coverage" NAME="pytest for test_node_operations.test_load_node_data Coverage Results" MODIFIED="1739348948172" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />

@@ -166,6 +166,7 @@ class TextToolbar(QWidget):
     # Signals
     styleChanged = pyqtSignal(str)  # Style name
     formatChanged = pyqtSignal(QTextCharFormat)
+    enhancementRequested = pyqtSignal()
 
     def __init__(
         self,
@@ -291,6 +292,13 @@ class TextToolbar(QWidget):
         bg_color_button.clicked.connect(self._choose_background_color)
         toolbar.addWidget(bg_color_button)
 
+        # Add AI enhancement button
+        enhance_button = QToolButton(toolbar)
+        enhance_button.setText("Enhance with AI")
+        enhance_button.setToolTip("Use AI to enhance the text description")
+        enhance_button.clicked.connect(self._request_enhancement)
+        toolbar.addWidget(enhance_button)
+
     def _add_alignment_controls(self, toolbar: QToolBar) -> None:
         """Add text alignment controls."""
         alignments = {
@@ -400,6 +408,12 @@ class TextToolbar(QWidget):
             char_format = cursor.charFormat()
             char_format.setFontUnderline(checked)
             cursor.setCharFormat(char_format)
+
+    def _request_enhancement(self) -> None:
+        """Request AI enhancement of the text."""
+        # Default to depth 1, or you could add a depth selector
+
+        self.enhancementRequested.emit()
 
     def _choose_color(self) -> None:
         """Open color picker dialog."""
