@@ -16,6 +16,7 @@ from services.search_analysis_service.search_analysis_service import (
 )
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
+from services.LLMService import LLMService
 from ui.styles import StyleManager
 from utils.exporters import Exporter
 from utils.path_helper import get_resource_path
@@ -117,6 +118,8 @@ class InitializationService:
             self.error_handler,
         )
 
+        self.llm_service = LLMService(self.config, self.node_operations)
+
         self.suggestion_service = SuggestionService(
             self.model,
             self.config,
@@ -167,6 +170,7 @@ class InitializationService:
         self.controller.tree_model = self.tree_model
         self.controller.relationship_tree_service = self.relationship_tree_service
         self.controller.search_service = self.search_service
+        self.controller.llm_service = self.llm_service
         self.ui.description_input.name_cache_service = self.name_cache_service
 
         # Initialize search panel handlers

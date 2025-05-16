@@ -41,9 +41,9 @@ from PyQt6.QtCore import QObject
 from PyQt6.QtWidgets import QMessageBox
 from structlog import get_logger
 
-from src.ui.mixins.calendarmixin import CalendarMixin
-from src.ui.mixins.timelinemixin import TimelineMixin
-from src.ui.mixins.eventmixin import EventMixin
+from ui.mixins.calendarmixin import CalendarMixin
+from ui.mixins.timelinemixin import TimelineMixin
+from ui.mixins.eventmixin import EventMixin
 
 logger = get_logger(__name__)
 
@@ -1115,3 +1115,36 @@ class WorldBuildingController(
         # Switch to the main tab if we're in search
         if self.ui.tabs.currentWidget() == self.ui.search_panel:
             self.ui.tabs.setCurrentIndex(0)
+
+    def enhance_node_description(self, depth: int = 1) -> None:
+        """
+        Use LLM to enhance the current node description with context.
+
+        Args:
+            depth: How many levels of connected nodes to include
+        """
+        current_node = self.ui.name_input.text().strip()
+        current_description = self.ui.description_input.toHtml().strip()
+
+        if not current_description:
+            QMessageBox.information(
+                self.ui,
+                "Empty Description",
+                "Please enter a description before enhancing.",
+            )
+            return
+
+        self.ui.show_loading(True)
+
+        def handle_completion(enhanced_text: str, error: Optional[str]) -> None:
+            self.ui.show_loading(False)
+            if error:
+                self.error_handler.handle_error(f"LLM Generation Error: {error}")
+            elif enhanced_text:
+                self.ui.description_input.setHtml(enhanced_text)
+                self.update_unsaved_changes_indicator()
+
+        # Call the LLM service with depth parameter
+        self.llm_service.enhance_description(
+            current_node, current_description, handle_completion, depth
+        )
