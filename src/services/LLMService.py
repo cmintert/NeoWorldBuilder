@@ -1,9 +1,7 @@
-import requests
 import logging
 from typing import Optional, Dict, Any, Callable, List, Set, Tuple, Union, TypedDict
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QMessageBox
+import requests
 
 
 class NodeType(TypedDict, total=False):
@@ -18,6 +16,7 @@ class NodeType(TypedDict, total=False):
             to other nodes. Can be either tuples of (type, target) or dictionaries with
             'type' and 'target' keys.
     """
+
     name: str
     labels: List[str]
     tags: List[str]
@@ -153,14 +152,14 @@ class LLMService:
                 logging.error(
                     f"LLM response format error: {format_error}, response: {result}"
                 )
-                callback(None, f"Failed to parse LLM response: {format_error}")
+                callback("", f"Failed to parse LLM response: {format_error}")
 
         except requests.exceptions.RequestException as req_error:
             logging.error(f"LLM request error: {req_error}")
-            callback(None, f"LLM API request failed: {req_error}")
+            callback("", f"LLM API request failed: {req_error}")
         except Exception as e:
             logging.error(f"LLM service error: {e}")
-            callback(None, str(e))
+            callback("", str(e))
 
     def _get_node_context(self, node_name: str, depth: int) -> str:
         """Recursively fetches and formats context information from connected nodes.
