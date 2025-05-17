@@ -50,13 +50,13 @@ class LLMService:
         """
         self.config: Any = config
         self.node_operations: Any = node_operations
-        self.api_key: str = self.config.get("llm.api_key", "")
+        self.api_key: str = self.config.get("LLM.API_KEY", "")
 
         # Handle base URL format to avoid double-slash issues
-        base_url: str = self.config.get("llm.base_url", "http://localhost:5555")
+        base_url: str = self.config.get("LLM.BASE_URL", "http://localhost:5555")
         self.base_url: str = base_url.rstrip("/")  # Remove trailing slash if present
 
-        self.model: str = self.config.get("llm.model", "mythomax-l2-13b")
+        self.model: str = self.config.get("LLM.MODEL", "mythomax-l2-13b")
         logging.debug(
             f"LLM Service initialized with URL: {self.base_url}, model: {self.model}"
         )
@@ -257,3 +257,136 @@ class LLMService:
         collect_node_info(node_name, depth)
 
         return "\n\n".join(context_parts)
+
+    # Add a property for the template service
+    @property
+    def prompt_template_service(self):
+        """Gets the prompt template service used for template-based LLM requests.
+
+        Returns:
+            Any: The prompt template service instance used by this LLM service.
+        """
+        return self._prompt_template_service
+
+    @prompt_template_service.setter
+    def prompt_template_service(self, service):
+        """Sets the prompt template service for template-based LLM requests.
+
+        Args:
+            service: The prompt template service instance to be used by this LLM service.
+        """
+        self._prompt_template_service = service
+
+    def enhance_description_with_template(
+        self,
+        node_name: str,
+        description: str,
+        template_id: str,
+        focus_type: str,
+        context_depth: int,
+        custom_instructions: str,
+        callback: Callable[[str, Optional[str]], None],
+    ) -> None:
+        """Enhances a node's description using a template-based approach with focus.
+
+        This method uses predefined templates to generate enhanced descriptions. It retrieves
+        node context if requested, applies the appropriate template, and processes the LLM response.
+        The method includes fallback mechanisms if the requested template is not available.
+
+        Args:
+            node_name (str): The name of the node whose description should be enhanced.
+            description (str): The current description of the node.
+            template_id (str): ID of the template to use for enhancement.
+            focus_type (str): Type of enhancement focus (general, details, style, consistency).
+                Used as a fallback if template_id is not found.
+            context_depth (int): Number of levels of connected nodes to include as context.
+            custom_instructions (str): Additional instructions from the user to guide the enhancement.
+            callback (Callable[[str, Optional[str]], None]): A callback function that takes
+                two arguments: the enhanced description (str) and an optional error message (str).
+
+        Note:
+            The callback function is called with (enhanced_text, None) on success,
+            or ("", error_message) on failure.
+
+        Raises:
+            No exceptions are raised directly; all errors are passed to the callback.
+        """
+        try:
+            # Validate that template service is available
+            if not self._prompt_template_service:
+                callback("", "Prompt template service not available")
+                return
+
+            # Get node context if depth > 0
+            context = ""
+            if context_depth > 0:
+                context = self._get_node_context(node_name, context_depth)
+
+            # Get node data for variable substitution
+            node = self.node_operations.get_node_by_name(node_name)
+            if not node:
+                callback("", f"Could not find node: {node_name}")
+                return
+
+            # Get prompt template
+            template = self._prompt_template_service.get_template(template_id)
+            if not template:
+                # Fall back to focus type if template not found
+                template = self._prompt_template_service.get_template(focus_type)
+                if not template:
+                    # Fall back to general template as last resort
+                    template = self._prompt_template_service.get_template("general")
+                    if not template:
+                        callback("", "No suitable template found")
+                        return
+
+            # Prepare variables
+            variables = self._prompt_template_service.prepare_context_variables(
+                node_data=node, context=context, custom_instructions=custom_instructions
+            )
+
+            # Format the template
+            prompt = template.format(variables)
+
+            # Send to LLM API (using existing API call mechanism)
+            headers = {"Content-Type": "application/json"}
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
+
+            payload = {
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.7,
+                "max_tokens": 1000,
+            }
+
+            endpoint_url = f"{self.base_url}/v1/chat/completions"
+
+            logging.debug(f"Making enhanced LLM request to: {endpoint_url}")
+            logging.debug(f"Template used: {template.name}")
+            logging.debug(f"Payload: {payload}")
+
+            response = requests.post(
+                endpoint_url, headers=headers, json=payload, timeout=60
+            )
+
+            response.raise_for_status()
+            result = response.json()
+            logging.debug(f"Enhanced LLM response: {result}")
+
+            # Process response
+            if "choices" in result and len(result["choices"]) > 0:
+                completion = result["choices"][0]["message"]["content"]
+            else:
+                # Try alternative formats
+                completion = result.get(
+                    "response",
+                    result.get("content", result.get("output", str(result))),
+                )
+
+            # Return enhanced text
+            callback(completion, None)
+
+        except Exception as e:
+            logging.error(f"Error in enhanced LLM request: {e}")
+            callback("", str(e))

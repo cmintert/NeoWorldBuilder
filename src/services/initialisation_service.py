@@ -17,6 +17,7 @@ from services.search_analysis_service.search_analysis_service import (
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
 from services.LLMService import LLMService
+from services.prompt_template import PromptTemplateService
 from ui.styles import StyleManager
 from utils.exporters import Exporter
 from utils.path_helper import get_resource_path
@@ -100,6 +101,9 @@ class InitializationService:
         # Initialize the name cache for the first time
         self.name_cache_service.rebuild_cache()
 
+        # Prompt templates for LLM enhancement of descriptions
+        self.prompt_template_service = PromptTemplateService()
+
         # Services requiring UI
         self.auto_completion_service = AutoCompletionService(
             self.model,
@@ -119,6 +123,8 @@ class InitializationService:
         )
 
         self.llm_service = LLMService(self.config, self.node_operations)
+        self.llm_service.prompt_template_service = self.prompt_template_service
+        self.controller.prompt_template_service = self.prompt_template_service
 
         self.suggestion_service = SuggestionService(
             self.model,
@@ -240,6 +246,10 @@ class InitializationService:
 
         # Depth spinbox
         self.ui.depth_spinbox.valueChanged.connect(self.controller.on_depth_changed)
+
+        self.ui.description_input.enhancedEnhancementRequested.connect(
+            self.controller.enhance_node_description_with_template
+        )
 
     def _load_default_state(self) -> None:
         """Initialize default UI state."""

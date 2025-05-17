@@ -4,10 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add LLM integration and text enhancement UI feature&#10;&#10;Introduced `LLMService` for text enhancement using AI via API calls, with support for context-based node descriptions. Updated the text editor UI to include an &quot;Enhance with AI&quot; button and implemented backend functionality for handling enhancement requests. Added configuration support for API key, URL, and model specifications, alongside improved error handling and logging.">
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Fix LLM response handling to return empty string instead of None on errors">
+      <change afterPath="$PROJECT_DIR$/src/services/prompt_template.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/ui/components/enhanced_prompt_dialog.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/config/system.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/config/system.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/services/LLMService.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/LLMService.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/initialisation_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/initialisation_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/text_editor/text_editor.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/text_editor/text_editor.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/text_editor/text_toolbar.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/text_editor/text_toolbar.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/controller.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -261,7 +268,7 @@
       <workItem from="1747383906758" duration="1521000" />
       <workItem from="1747422198415" duration="413000" />
       <workItem from="1747426733327" duration="5165000" />
-      <workItem from="1747460119206" duration="461000" />
+      <workItem from="1747460119206" duration="10652000" />
     </task>
     <task id="LOCAL-00001" summary="Implemented a first basic calendar property system.">
       <option name="closed" value="true" />
@@ -567,7 +574,23 @@
       <option name="project" value="LOCAL" />
       <updated>1747431946054</updated>
     </task>
-    <option name="localTasksCounter" value="39" />
+    <task id="LOCAL-00039" summary="Add LLMService for enhanced node description and UI integration&#10;&#10;Introduced `LLMService` to enhance node descriptions using AI via API calls, with support for context-based information from connected nodes. Updated the text editor UI to include an &quot;Enhance with AI&quot; button and implemented backend functionality for handling enhancement requests. Added configuration support for API key, URL, and model specifications, alongside improved error handling and logging.">
+      <option name="closed" value="true" />
+      <created>1747460856546</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1747460856546</updated>
+    </task>
+    <task id="LOCAL-00040" summary="Fix LLM response handling to return empty string instead of None on errors">
+      <option name="closed" value="true" />
+      <created>1747471686985</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1747471686985</updated>
+    </task>
+    <option name="localTasksCounter" value="41" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -597,8 +620,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Add calendar selection and link functionality" />
-    <MESSAGE value="Enable calendar link button and improve validation feedback" />
     <MESSAGE value="Refactor BaseController and WorldBuildingController for improved structure and functionality" />
     <MESSAGE value="Refactor BaseController methods and add unit tests for improved functionality and error handling" />
     <MESSAGE value="Implement save_node functionality and add unit tests for improved error handling and data validation" />
@@ -622,14 +643,16 @@
     <MESSAGE value="Add LLMService for enhanced node descriptions and UI integration&#10;&#10;Implemented LLMService to enhance node descriptions using OpenAI-like APIs, with support for contextual depth and asynchronous handling. Updated the UI controller to integrate the enhancement feature and added necessary configurations. Removed unused dependencies from requirements.txt and cleaned up workspace files." />
     <MESSAGE value="Add LLM integration and enhance node description handling&#10;&#10;Introduced `LLMService` for node description enhancement using an LLM via API calls, with optional contextual data from connected nodes. Updated UI and initialization logic to support the feature. Additionally, removed `requirements.txt` and adjusted project settings for improved modularity." />
     <MESSAGE value="Add LLM integration and text enhancement UI feature&#10;&#10;Introduced `LLMService` for text enhancement using AI via API calls, with support for context-based node descriptions. Updated the text editor UI to include an &quot;Enhance with AI&quot; button and implemented backend functionality for handling enhancement requests. Added configuration support for API key, URL, and model specifications, alongside improved error handling and logging." />
-    <option name="LAST_COMMIT_MESSAGE" value="Add LLM integration and text enhancement UI feature&#10;&#10;Introduced `LLMService` for text enhancement using AI via API calls, with support for context-based node descriptions. Updated the text editor UI to include an &quot;Enhance with AI&quot; button and implemented backend functionality for handling enhancement requests. Added configuration support for API key, URL, and model specifications, alongside improved error handling and logging." />
+    <MESSAGE value="Add LLMService for enhanced node description and UI integration&#10;&#10;Introduced `LLMService` to enhance node descriptions using AI via API calls, with support for context-based information from connected nodes. Updated the text editor UI to include an &quot;Enhance with AI&quot; button and implemented backend functionality for handling enhancement requests. Added configuration support for API key, URL, and model specifications, alongside improved error handling and logging." />
+    <MESSAGE value="Fix LLM response handling to return empty string instead of None on errors" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fix LLM response handling to return empty string instead of None on errors" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_parser_py.coverage" NAME="pytest in test_parser.py Coverage Results" MODIFIED="1738141005495" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$core.coverage" NAME="core Coverage Results" MODIFIED="1738140645253" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/dateparser" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1737189591173" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$calendar_model.coverage" NAME="calendar_model Coverage Results" MODIFIED="1737581064214" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/models" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1747460578944" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1747477622294" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController_test_delete_node_debounce.coverage" NAME="pytest for test_node_operations.TestBaseController.test_delete_node_debounce Coverage Results" MODIFIED="1739346351305" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_test_load_node_data.coverage" NAME="pytest for test_node_operations.test_load_node_data Coverage Results" MODIFIED="1739348948172" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />

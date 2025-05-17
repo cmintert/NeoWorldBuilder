@@ -1148,3 +1148,39 @@ class WorldBuildingController(
         self.llm_service.enhance_description(
             current_node, current_description, handle_completion, depth
         )
+
+    def enhance_node_description_with_template(
+        self, template_id: str, focus_type: str, depth: int, instructions: str
+    ) -> None:
+        """Use LLM to enhance node description with template-based approach."""
+        current_node = self.ui.name_input.text().strip()
+        current_description = self.ui.description_input.toHtml().strip()
+
+        if not current_description:
+            QMessageBox.information(
+                self.ui,
+                "Empty Description",
+                "Please enter a description before enhancing.",
+            )
+            return
+
+        self.ui.show_loading(True)
+
+        def handle_completion(enhanced_text: str, error: Optional[str]) -> None:
+            self.ui.show_loading(False)
+            if error:
+                self.error_handler.handle_error(f"LLM Generation Error: {error}")
+            elif enhanced_text:
+                self.ui.description_input.setHtml(enhanced_text)
+                self.update_unsaved_changes_indicator()
+
+        # Call the enhanced LLM service
+        self.llm_service.enhance_description_with_template(
+            current_node,
+            current_description,
+            template_id,
+            focus_type,
+            depth,
+            instructions,
+            handle_completion,
+        )

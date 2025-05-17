@@ -12,8 +12,8 @@
   "ENVIRONMENT": "development",
   "NAME_INPUT_DEBOUNCE_TIME_MS": 100,
   "KEY": "O5g51hWHqFFyLI-w2YrB-puJ91t9XGTiyumit01RC88=",
-  "llm.api_key": "",
-  "llm.base_url": "http://192.168.178.67:5555",
-  "llm.model": "mythomax-l2-13b"
+  "LLM.API_KEY": "",
+  "LLM.BASE_URL": "http://192.168.178.67:5555",
+  "LLM.MODEL": "mythomax-l2-13b"
 
 }
