@@ -554,33 +554,53 @@ class TextToolbar(QWidget):
         return action
 
     def _request_enhanced_enhancement(self) -> None:
-        """Request AI enhancement with template options.
-
-        Shows a dialog for configuring advanced AI enhancement options
-        and emits a signal with the selected parameters.
-        """
+        """Request AI enhancement with template options."""
         from ui.components.enhanced_prompt_dialog import EnhancedPromptDialog
+        import logging
 
-        # Get access to the prompt template service
-        prompt_template_service = (
-            self.text_edit.window().controller.prompt_template_service
-        )
-        templates = prompt_template_service.get_all_templates()
+        logger = logging.getLogger(__name__)
 
-        # Create and show the dialog
-        dialog = EnhancedPromptDialog(self.text_edit.window(), templates)
-        if dialog.exec():
-            template = dialog.get_selected_template()
-            focus_type = dialog.get_focus_type()
-            context_depth = dialog.get_context_depth()
-            custom_instructions = dialog.get_custom_instructions()
+        try:
+            # Find parent until WorldBuildingUI
+            parent = self.text_edit.parent()
+            while parent and not parent.__class__.__name__ == "WorldBuildingUI":
+                parent = parent.parent()
 
-            # Emit signal with enhancement parameters
-            self.enhancedEnhancementRequested.emit(
-                template.name if template else focus_type,
-                focus_type,
-                context_depth,
-                custom_instructions,
+            # Get the controller from WorldBuildingUI
+            if parent and hasattr(parent, "controller"):
+                controller = parent.controller
+                prompt_template_service = controller.prompt_template_service
+
+                # Create and show the dialog
+                templates = prompt_template_service.get_all_templates()
+                dialog = EnhancedPromptDialog(self.text_edit.window(), templates)
+                if dialog.exec():
+                    template = dialog.get_selected_template()
+                    focus_type = dialog.get_focus_type()
+                    context_depth = dialog.get_context_depth()
+                    custom_instructions = dialog.get_custom_instructions()
+
+                    # Emit signal with enhancement parameters
+                    self.enhancedEnhancementRequested.emit(
+                        template.name if template else focus_type,
+                        focus_type,
+                        context_depth,
+                        custom_instructions,
+                    )
+            else:
+                from PyQt6.QtWidgets import QMessageBox
+
+                QMessageBox.critical(
+                    self.text_edit.window(),
+                    "Feature Unavailable",
+                    "Cannot access template service. The application structure may have changed.",
+                )
+        except Exception as e:
+            logger.error(f"Error in _request_enhanced_enhancement: {str(e)}")
+            from PyQt6.QtWidgets import QMessageBox
+
+            QMessageBox.critical(
+                self.text_edit.window(), "Error", f"An error occurred: {str(e)}"
             )
 
     def _connect_signals(self) -> None:
