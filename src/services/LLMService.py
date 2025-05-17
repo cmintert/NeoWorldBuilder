@@ -1,23 +1,63 @@
 import requests
 import logging
-from typing import Optional, Dict, Any, Callable, List
+from typing import Optional, Dict, Any, Callable, List, Set, Tuple, Union, TypedDict
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMessageBox
 
 
-class LLMService:
-    """Service for LLM integration with OpenAI-compatible APIs including LM Studio."""
+class NodeType(TypedDict, total=False):
+    """A type definition for nodes in the graph database.
 
-    def __init__(self, config, node_operations):
-        self.config = config
-        self.node_operations = node_operations
-        self.api_key = self.config.get("llm.api_key", "")
+    Attributes:
+        name (str): The unique name identifier of the node.
+        labels (List[str]): A list of labels/categories assigned to the node.
+        tags (List[str]): A list of tags associated with the node.
+        description (str): The textual description of the node.
+        relationships (List[Union[Tuple[str, str], Dict[str, str]]]): List of relationships
+            to other nodes. Can be either tuples of (type, target) or dictionaries with
+            'type' and 'target' keys.
+    """
+    name: str
+    labels: List[str]
+    tags: List[str]
+    description: str
+    relationships: List[Union[Tuple[str, str], Dict[str, str]]]
+
+
+class LLMService:
+    """Service for integrating with OpenAI-compatible Language Model APIs.
+
+    This service handles communication with LLM APIs, including LM Studio and other
+    OpenAI-compatible endpoints. It provides functionality for enhancing node descriptions
+    using AI and managing context-aware content generation.
+
+    Attributes:
+        config (Any): Configuration object containing LLM settings.
+        node_operations (Any): Service for performing node operations.
+        api_key (str): Authentication key for the LLM API.
+        base_url (str): Base URL for the LLM API endpoint.
+        model (str): Name of the language model to use.
+    """
+
+    def __init__(self, config: Any, node_operations: Any) -> None:
+        """Initialize the LLM service with configuration and node operations.
+
+        Args:
+            config: Configuration object containing LLM settings including API key,
+                base URL, and model name.
+            node_operations: Service object for performing node-related operations
+                in the graph database.
+        """
+        self.config: Any = config
+        self.node_operations: Any = node_operations
+        self.api_key: str = self.config.get("llm.api_key", "")
 
         # Handle base URL format to avoid double-slash issues
-        base_url = self.config.get("llm.base_url", "http://localhost:5555")
-        self.base_url = base_url.rstrip("/")  # Remove trailing slash if present
+        base_url: str = self.config.get("llm.base_url", "http://localhost:5555")
+        self.base_url: str = base_url.rstrip("/")  # Remove trailing slash if present
 
-        self.model = self.config.get("llm.model", "mythomax-l2-13b")
+        self.model: str = self.config.get("llm.model", "mythomax-l2-13b")
         logging.debug(
             f"LLM Service initialized with URL: {self.base_url}, model: {self.model}"
         )
@@ -29,14 +69,27 @@ class LLMService:
         callback: Callable[[str, Optional[str]], None],
         depth: int = 0,
     ) -> None:
-        """
-        Send the description to LLM with optional context from neighboring nodes.
+        """Enhances a node's description using the LLM API with contextual awareness.
+
+        This method sends the current node's description to the LLM API along with optional
+        context from neighboring nodes to generate an enhanced, more detailed description
+        while maintaining the original style and format.
 
         Args:
-            node_name: Current node's name
-            description: Current node description
-            depth: How many levels of connected nodes to include (0=none)
-            callback: Function to call with result or error
+            node_name (str): The name of the node whose description should be enhanced.
+            description (str): The current description of the node.
+            callback (Callable[[str, Optional[str]], None]): A callback function that takes
+                two arguments: the enhanced description (str) and an optional error message
+                (str). The first argument will be None if there's an error.
+            depth (int, optional): The number of levels of connected nodes to include as
+                context. Defaults to 0 (no context).
+
+        Note:
+            The callback function is called with (enhanced_text, None) on success,
+            or (None, error_message) on failure.
+
+        Raises:
+            No exceptions are raised directly; all errors are passed to the callback.
         """
         try:
             prompt = description
@@ -110,20 +163,41 @@ class LLMService:
             callback(None, str(e))
 
     def _get_node_context(self, node_name: str, depth: int) -> str:
-        """
-        Recursively fetch connected nodes and format as context.
+        """Recursively fetches and formats context information from connected nodes.
+
+        This internal method traverses the node graph starting from the given node,
+        collecting information about connected nodes up to the specified depth.
+        It handles both incoming and outgoing relationships and formats the information
+        in a human-readable format.
 
         Args:
-            node_name: The name of the starting node
-            depth: How deep to traverse the graph
+            node_name (str): The name of the starting node from which to gather context.
+            depth (int): The maximum number of relationship hops to traverse when
+                gathering context. A depth of 0 means only the starting node.
 
         Returns:
-            Formatted string containing node context information
-        """
-        visited = set()
-        context_parts = []
+            str: A formatted string containing information about the node and its
+                connected nodes, including names, labels, tags, and relationship paths.
+                Returns an empty string if no context could be gathered.
 
-        def collect_node_info(name: str, current_depth: int, rel_path: str = ""):
+        Note:
+            The method uses an internal visited set to prevent cycles in the graph
+            traversal and handles various relationship formats (tuples and dicts).
+        """
+        visited: Set[str] = set()
+        context_parts: List[str] = []
+
+        def collect_node_info(
+            name: str, current_depth: int, rel_path: str = ""
+        ) -> None:
+            """Recursively collects and formats information about nodes and their relationships.
+
+            Args:
+                name (str): Name of the current node being processed.
+                current_depth (int): Current depth in the traversal, decrements with each hop.
+                rel_path (str, optional): String representing the relationship path taken
+                    to reach this node. Defaults to empty string for the starting node.
+            """
             if current_depth < 0 or name in visited:
                 return
 
@@ -131,13 +205,13 @@ class LLMService:
 
             # Get node data
             try:
-                node = self.node_operations.get_node_by_name(name)
+                node: Optional[NodeType] = self.node_operations.get_node_by_name(name)
                 if not node:
                     return
 
                 # Format node info
-                prefix = f"{rel_path} -> " if rel_path else ""
-                node_info = [
+                prefix: str = f"{rel_path} -> " if rel_path else ""
+                node_info: List[str] = [
                     f"{prefix}Node: {node['name']}",
                     (
                         f"Labels: {', '.join(node['labels'])}"
@@ -159,18 +233,18 @@ class LLMService:
 
                 # Process relationships
                 for rel in node.get("relationships", []):
-                    target = (
+                    target: Optional[str] = (
                         rel[1]
                         if isinstance(rel, tuple) and len(rel) > 1
                         else rel.get("target")
                     )
-                    rel_type = (
+                    rel_type: Optional[str] = (
                         rel[0]
                         if isinstance(rel, tuple) and len(rel) > 0
                         else rel.get("type")
                     )
                     if target and rel_type:
-                        new_path = (
+                        new_path: str = (
                             f"{rel_path} -[{rel_type}]"
                             if rel_path
                             else f"-[{rel_type}]"
