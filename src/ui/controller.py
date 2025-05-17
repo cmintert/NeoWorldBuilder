@@ -1141,7 +1141,14 @@ class WorldBuildingController(
             if error:
                 self.error_handler.handle_error(f"LLM Generation Error: {error}")
             elif enhanced_text:
-                self.ui.description_input.setHtml(enhanced_text)
+                current_description = self.ui.description_input.toHtml().strip()
+                logger.debug(
+                    "enhanced_description",
+                    current_description=current_description,
+                    enhanced_text=enhanced_text,
+                )
+                new_description = f"{current_description}<hr>⬆️Old                      New⬇️<hr>{enhanced_text}"
+                self.ui.description_input.setHtml(new_description)
                 self.update_unsaved_changes_indicator()
 
         # Call the LLM service with depth parameter
@@ -1171,7 +1178,14 @@ class WorldBuildingController(
             if error:
                 self.error_handler.handle_error(f"LLM Generation Error: {error}")
             elif enhanced_text:
-                self.ui.description_input.setHtml(enhanced_text)
+                current_description = self.ui.description_input.toHtml().strip()
+                logger.debug(
+                    "enhanced_description",
+                    current_description=current_description,
+                    enhanced_text=enhanced_text,
+                )
+                new_description = f"{current_description}<hr>⬆️Old                      New⬇️<hr>{enhanced_text}"
+                self.ui.description_input.setHtml(new_description)
                 self.update_unsaved_changes_indicator()
 
         # Call the enhanced LLM service

@@ -48,7 +48,6 @@ You are helping to enhance a description for a world-building project.
 
 Node Information:
 - Name: {node_name}
-- Type: {node_type}
 - Labels: {labels}
 - Tags: {tags}
 
@@ -61,8 +60,10 @@ Current Description:
 Please enhance this description by:
 1. Adding more vivid details
 2. Improving the writing style
+3. Structure the description in logical paragraphs and add <br> between them
 3. Ensuring consistency with the connected nodes
-4. Maintaining the original tone and factual information
+4. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph.
+5. Maintaining the original tone and factual information
 
 Your task is to produce an improved version that maintains all existing information while making it more engaging and detailed.""",
             ),
@@ -75,7 +76,6 @@ You are helping to add more details to a description for a world-building projec
 
 Node Information:
 - Name: {node_name}
-- Type: {node_type}
 - Labels: {labels}
 - Tags: {tags}
 
@@ -85,7 +85,11 @@ Connected Nodes:
 Current Description:
 {description}
 
-Please enhance this description by adding more sensory details, background information, and specific characteristics. Focus on expanding the existing content rather than changing the style. Maintain the original tone and all factual information.""",
+Please enhance this description by:
+1. adding more sensory details, background information, and specific characteristics.
+2. Focus on expanding the existing content rather than changing the style. 
+3. Maintain the original tone and all factual information.
+4. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph.""",
             ),
             "style": PromptTemplate(
                 name="Improve Style",
@@ -96,7 +100,6 @@ You are helping to improve the writing style of a description for a world-buildi
 
 Node Information:
 - Name: {node_name}
-- Type: {node_type}
 - Labels: {labels}
 - Tags: {tags}
 
@@ -107,10 +110,12 @@ Current Description:
 {description}
 
 Please improve the writing style of this description while maintaining all factual information. Focus on:
-1. Making the prose more engaging
-2. Improving flow and readability
-3. Using more vivid language
-4. Maintaining consistency with the original tone""",
+
+1. Improving flow and readability
+2. Using more vivid language
+3. Correct grammar and punctuation
+4. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph.
+5. Maintaining consistency with the original tone""",
             ),
         }
 
@@ -143,34 +148,15 @@ Please improve the writing style of this description while maintaining all factu
         """Prepare variables for template substitution."""
         # Extract labels and determine node type
         labels = node_data.get("labels", [])
-        node_type = "General"
-
-        # Attempt to determine a more specific node type from labels
-        type_mapping = {
-            "CHARACTER": "Character",
-            "LOCATION": "Location",
-            "ITEM": "Item",
-            "EVENT": "Event",
-            "TIMELINE": "Timeline",
-            "MAP": "Map",
-            "FACTION": "Faction",
-            "ORGANIZATION": "Organization",
-        }
-
-        for label in labels:
-            if label.upper() in type_mapping:
-                node_type = type_mapping[label.upper()]
-                break
 
         # Build variables dictionary
         variables = {
             "node_name": node_data.get("name", ""),
-            "node_type": node_type,
             "labels": ", ".join(labels),
             "tags": node_data.get("tags", ""),
             "description": node_data.get("description", ""),
             "context": context or "No connected nodes available",
             "custom_instructions": custom_instructions,
         }
-
+        logging.debug(f"Prepared variables for template: {variables}")
         return variables

@@ -17,7 +17,7 @@ from services.search_analysis_service.search_analysis_service import (
 from services.suggestion_service import SuggestionService
 from services.worker_manager_service import WorkerManagerService
 from services.LLMService import LLMService
-from services.prompt_template import PromptTemplateService
+from services.prompt_template_service import PromptTemplateService
 from ui.styles import StyleManager
 from utils.exporters import Exporter
 from utils.path_helper import get_resource_path

@@ -99,12 +99,18 @@ class LLMService:
                 if context:
                     prompt = (
                         f"Node information:\n\n{context}\n\nCurrent "
-                        f"node description:\n\n{description}\n\nEnhance this description while maintaining the same style and format. Add more details and make it more engaging."
+                        f"node description:\n\n{description}\n\nEnhance this "
+                        f"description while maintaining the same style and "
+                        f"format. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph. "
+                        f"Add more details and make it more engaging."
                     )
             else:
                 prompt = (
                     f"Node name: {node_name}\n\nCurrent "
-                    f"description:\n\n{description}\n\nEnhance this description while maintaining the same style and format. Add more details and make it more engaging."
+                    f"description:\n\n{description}\n\nEnhance this "
+                    f"description while maintaining the same style and "
+                    f"format. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph."
+                    f"Add more details and make it more engaging."
                 )
 
             headers = {"Content-Type": "application/json"}
@@ -116,7 +122,7 @@ class LLMService:
                 "model": self.model,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.7,
-                "max_tokens": 500,
+                "max_tokens": 1000,
             }
 
             # Ensure the URL format is correct
