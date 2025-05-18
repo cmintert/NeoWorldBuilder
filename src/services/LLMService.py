@@ -1,6 +1,7 @@
 import logging
 from typing import Optional, Dict, Any, Callable, List, Set, Tuple, Union, TypedDict
-
+import os
+from dotenv import load_dotenv
 import requests
 
 
@@ -48,15 +49,15 @@ class LLMService:
             node_operations: Service object for performing node-related operations
                 in the graph database.
         """
+        load_dotenv()  # Load environment variables from .env file
         self.config: Any = config
         self.node_operations: Any = node_operations
-        self.api_key: str = self.config.get("LLM.API_KEY", "")
+        self.api_key: str = os.getenv("OPENAI_API_KEY")
 
         # Handle base URL format to avoid double-slash issues
-        base_url: str = self.config.get("LLM.BASE_URL", "http://localhost:5555")
-        self.base_url: str = base_url.rstrip("/")  # Remove trailing slash if present
+        self.base_url: str = os.getenv("OPENAI_BASE_URL")
 
-        self.model: str = self.config.get("LLM.MODEL", "mythomax-l2-13b")
+        self.model: str = os.getenv("OPENAI_MODEL")
         logging.debug(
             f"LLM Service initialized with URL: {self.base_url}, model: {self.model}"
         )
@@ -68,104 +69,31 @@ class LLMService:
         callback: Callable[[str, Optional[str]], None],
         depth: int = 0,
     ) -> None:
-        """Enhances a node's description using the LLM API with contextual awareness.
+        """Wrapper method that calls the template-based enhancement with default parameters.
 
-        This method sends the current node's description to the LLM API along with optional
-        context from neighboring nodes to generate an enhanced, more detailed description
-        while maintaining the original style and format.
+        This method preserves backward compatibility while using the template system.
 
         Args:
             node_name (str): The name of the node whose description should be enhanced.
             description (str): The current description of the node.
-            callback (Callable[[str, Optional[str]], None]): A callback function that takes
-                two arguments: the enhanced description (str) and an optional error message
-                (str). The first argument will be None if there's an error.
-            depth (int, optional): The number of levels of connected nodes to include as
-                context. Defaults to 0 (no context).
-
-        Note:
-            The callback function is called with (enhanced_text, None) on success,
-            or (None, error_message) on failure.
-
-        Raises:
-            No exceptions are raised directly; all errors are passed to the callback.
+            callback (Callable[[str, Optional[str]], None]): A callback function.
+            depth (int, optional): The number of levels of connected nodes to include as context.
         """
-        try:
-            prompt = description
+        # Use the quick template as default for quick enhancement
+        template_id = "quick"
+        focus_type = "general"
+        custom_instructions = ""
 
-            # If depth > 0, fetch and add context from connected nodes
-            if depth > 0:
-                context = self._get_node_context(node_name, depth)
-                if context:
-                    prompt = (
-                        f"Node information:\n\n{context}\n\nCurrent "
-                        f"node description:\n\n{description}\n\nEnhance this "
-                        f"description while maintaining the same style and "
-                        f"format. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph. "
-                        f"Add more details and make it more engaging."
-                    )
-            else:
-                prompt = (
-                    f"Node name: {node_name}\n\nCurrent "
-                    f"description:\n\n{description}\n\nEnhance this "
-                    f"description while maintaining the same style and "
-                    f"format. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph."
-                    f"Add more details and make it more engaging."
-                )
-
-            headers = {"Content-Type": "application/json"}
-
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
-
-            payload = {
-                "model": self.model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.7,
-                "max_tokens": 1000,
-            }
-
-            # Ensure the URL format is correct
-            endpoint_url = f"{self.base_url}/v1/chat/completions"
-
-            logging.debug(f"Making LLM request to: {endpoint_url}")
-            logging.debug(f"Payload: {payload}")
-
-            response = requests.post(
-                endpoint_url, headers=headers, json=payload, timeout=60
-            )
-
-            response.raise_for_status()
-            result = response.json()
-            logging.debug(f"LLM response: {result}")
-
-            # Handle different response formats
-            try:
-                if "choices" in result and len(result["choices"]) > 0:
-                    completion = result["choices"][0]["message"]["content"]
-                else:
-                    # Try alternative formats that might be returned by LM Studio
-                    completion = result.get(
-                        "response",
-                        result.get("content", result.get("output", str(result))),
-                    )
-
-                # Combine original with completion
-                # Only use the generated content, not the original + generated
-                enhanced_text = completion
-                callback(enhanced_text, None)
-            except Exception as format_error:
-                logging.error(
-                    f"LLM response format error: {format_error}, response: {result}"
-                )
-                callback("", f"Failed to parse LLM response: {format_error}")
-
-        except requests.exceptions.RequestException as req_error:
-            logging.error(f"LLM request error: {req_error}")
-            callback("", f"LLM API request failed: {req_error}")
-        except Exception as e:
-            logging.error(f"LLM service error: {e}")
-            callback("", str(e))
+        # Delegate to the template-based method
+        self.enhance_description_with_template(
+            node_name,
+            description,
+            template_id,
+            focus_type,
+            depth,
+            custom_instructions,
+            callback,
+        )
 
     def _get_node_context(self, node_name: str, depth: int) -> str:
         """Recursively fetches and formats context information from connected nodes.
@@ -346,6 +274,8 @@ class LLMService:
                         callback("", "No suitable template found")
                         return
 
+            node["description"] = description
+
             # Prepare variables
             variables = self._prompt_template_service.prepare_context_variables(
                 node_data=node, context=context, custom_instructions=custom_instructions
@@ -362,11 +292,11 @@ class LLMService:
             payload = {
                 "model": self.model,
                 "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.7,
-                "max_tokens": 1000,
+                "temperature": float(os.getenv("OPENAI_TEMPERATURE", 0.7)),
+                "max_tokens": int(os.getenv("OPENAI_MAX_TOKENS", 1000)),
             }
 
-            endpoint_url = f"{self.base_url}/v1/chat/completions"
+            endpoint_url = self.base_url
 
             logging.debug(f"Making enhanced LLM request to: {endpoint_url}")
             logging.debug(f"Template used: {template.name}")

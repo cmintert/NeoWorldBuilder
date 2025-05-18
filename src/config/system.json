@@ -15,5 +15,4 @@
   "LLM.API_KEY": "",
   "LLM.BASE_URL": "http://192.168.178.67:5555",
   "LLM.MODEL": "mythomax-l2-13b"
-
 }

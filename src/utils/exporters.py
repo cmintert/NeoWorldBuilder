@@ -3,7 +3,7 @@ import json
 from typing import Callable, Tuple
 from typing import Dict, Any, List
 
-from PyQt6.QtWidgets import QFileDialog, QMessageBox
+from PyQt6.QtWidgets import QFileDialog, QMessageBox, QTextEdit
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
@@ -134,7 +134,8 @@ class Exporter:
         """
         return "; ".join(f"{key}: {value}" for key, value in properties.items())
 
-    def _format_description(self, description_input: Any, format_type: str) -> str:
+    def _format_description(self, description_input: QTextEdit, format_type: str) -> (
+            str):
         """
         Get description in appropriate format based on export type.
 

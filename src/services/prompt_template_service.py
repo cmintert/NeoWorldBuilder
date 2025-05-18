@@ -1,4 +1,4 @@
-import json
+import yaml
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List
@@ -37,87 +37,41 @@ class PromptTemplateService:
         self.templates = self._initialize_default_templates()
 
     def _initialize_default_templates(self) -> Dict[str, PromptTemplate]:
-        """Initialize default templates."""
-        return {
-            "general": PromptTemplate(
-                name="General Enhancement",
-                description="Improve the overall quality of the description",
-                focus_type="general",
-                template="""
-You are helping to enhance a description for a world-building project.
+        """Initialize templates from JSON file."""
+        templates = {}
+        templates_path = (
+            Path(__file__).parent.parent / "config"
+        )  # Or use a config setting
+        template_file = templates_path / "prompt_templates.yaml"
 
-Node Information:
-- Name: {node_name}
-- Labels: {labels}
-- Tags: {tags}
+        # Check if template file exists
+        if not template_file.exists():
+            self.logger.warning(
+                f"Template file not found at {template_file}. No templates loaded."
+            )
+            self.logger.info("Please create a template file to use prompt templates.")
+            return templates
 
-Connected Nodes:
-{context}
+        try:
+            with open(template_file, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
 
-Current Description:
-{description}
+            for template_data in data.get("templates", []):
+                template_id = template_data.get("id")
+                if template_id:
+                    templates[template_id] = PromptTemplate(
+                        name=template_data.get("name", template_id),
+                        description=template_data.get("description", ""),
+                        focus_type=template_data.get("focus_type", "general"),
+                        template=template_data.get("template", ""),
+                    )
 
-Please enhance this description by:
-1. Adding more vivid details
-2. Improving the writing style
-3. Structure the description in logical paragraphs and add <br> between them
-3. Ensuring consistency with the connected nodes
-4. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph.
-5. Maintaining the original tone and factual information
+            self.logger.info(f"Loaded {len(templates)} templates from {template_file}")
+            return templates
 
-Your task is to produce an improved version that maintains all existing information while making it more engaging and detailed.""",
-            ),
-            "details": PromptTemplate(
-                name="Add Details",
-                description="Expand the description with additional details",
-                focus_type="details",
-                template="""
-You are helping to add more details to a description for a world-building project.
-
-Node Information:
-- Name: {node_name}
-- Labels: {labels}
-- Tags: {tags}
-
-Connected Nodes:
-{context}
-
-Current Description:
-{description}
-
-Please enhance this description by:
-1. adding more sensory details, background information, and specific characteristics.
-2. Focus on expanding the existing content rather than changing the style. 
-3. Maintain the original tone and all factual information.
-4. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph.""",
-            ),
-            "style": PromptTemplate(
-                name="Improve Style",
-                description="Refine the writing style while preserving content",
-                focus_type="style",
-                template="""
-You are helping to improve the writing style of a description for a world-building project.
-
-Node Information:
-- Name: {node_name}
-- Labels: {labels}
-- Tags: {tags}
-
-Connected Nodes:
-{context}
-
-Current Description:
-{description}
-
-Please improve the writing style of this description while maintaining all factual information. Focus on:
-
-1. Improving flow and readability
-2. Using more vivid language
-3. Correct grammar and punctuation
-4. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph.
-5. Maintaining consistency with the original tone""",
-            ),
-        }
+        except Exception as e:
+            self.logger.error(f"Error loading templates: {str(e)}")
+            return templates  # Return empty dict if there's an error
 
     def get_template(self, template_id: str) -> Optional[PromptTemplate]:
         """Get a template by ID."""
