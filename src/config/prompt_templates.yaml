@@ -4,7 +4,6 @@
       "id": "general",
       "name": "General Enhancement",
       "description": "Improve the overall quality of the description",
-      "focus_type": "general",
       "template": "You are helping to enhance a description for a world-building project.
 
         Node Information:
@@ -35,7 +34,6 @@
       "id": "details",
       "name": "Add Details",
       "description": "Expand the description with additional details",
-      "focus_type": "details",
       "template": "You are helping to add more details to a description for a world-building project.
 
         Node Information:
@@ -65,7 +63,6 @@
       "id": "style",
       "name": "Improve Style",
       "description": "Refine the writing style while preserving content",
-      "focus_type": "style",
       "template": "You are helping to improve the writing style of a description for a world-building project.
 
         Node Information:
@@ -91,7 +88,6 @@
       "id": "quick",
       "name": "Quick Enhancement",
       "description": "Fast improvement with minimal configuration",
-      "focus_type": "general",
       "template": "You are helping to enhance a description for a world-building project.
 
         Node Information:
@@ -118,6 +114,38 @@
         6.  Maintaining the original tone and factual information
         7.  Follow the provided custom instructions: {custom_instructions}
         
+        Focus on making quick, meaningful improvements without changing the core information."
+    },
+    {
+      "id": "physical",
+      "name": "Create Physical Description",
+      "description": "Generate a physical description of a character, object,
+       or place based on the provided information",
+      "template": "You are helping to create a physical description for a world-building project.
+
+        Node Information:
+        - Name: {node_name}
+        - Labels: {labels}
+        - Tags: {tags}
+
+        Connected Nodes:
+        {context}
+
+        Current Description:
+        {description}
+
+        Please create a physical description by:
+        1.  Adding more vivid details while keeping it concise
+        2.  Make the physical description in 80 words or less
+        3.  Optimize the physical description to be processed by a text-to-image AI
+        4.  If the Connected Nodes section above contains only *No connected 
+            nodes available*, focus solely on enhancing this node based on its own description and metadata.
+            Otherwise, ensure consistency with information from connected 
+            nodes while creating the physical description.
+        5.  Your response must be valid HTML with proper paragraph tags (<p>) 
+            for each paragraph.
+        6.  Follow the provided custom instructions: {custom_instructions}
+
         Focus on making quick, meaningful improvements without changing the core information."
     }
   ]
