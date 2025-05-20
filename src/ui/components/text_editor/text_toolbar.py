@@ -289,7 +289,7 @@ class TextToolbar(QWidget):
     styleChanged = pyqtSignal(str)  # Style name
     formatChanged = pyqtSignal(QTextCharFormat)
     enhancementRequested = pyqtSignal()
-    enhancedEnhancementRequested = pyqtSignal(str, str, int, str)
+    enhancedEnhancementRequested = pyqtSignal(str, int, str)
 
     def __init__(
         self,
@@ -576,14 +576,12 @@ class TextToolbar(QWidget):
                 dialog = EnhancedPromptDialog(self.text_edit.window(), templates)
                 if dialog.exec():
                     template = dialog.get_selected_template()
-                    focus_type = dialog.get_focus_type()
                     context_depth = dialog.get_context_depth()
                     custom_instructions = dialog.get_custom_instructions()
 
                     # Emit signal with enhancement parameters
                     self.enhancedEnhancementRequested.emit(
-                        template.id if template else focus_type,
-                        focus_type,
+                        template.id,
                         context_depth,
                         custom_instructions,
                     )

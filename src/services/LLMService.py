@@ -222,7 +222,6 @@ class LLMService:
         node_name: str,
         description: str,
         template_id: str,
-        focus_type: str,
         context_depth: int,
         custom_instructions: str,
         callback: Callable[[str, Optional[str]], None],
@@ -258,7 +257,7 @@ class LLMService:
             )
 
             # Format the template
-            template = self._get_appropriate_template(template_id, focus_type)
+            template = self._get_appropriate_template(template_id)
             if not template:
                 callback("", "No suitable template found")
                 return
@@ -308,13 +307,10 @@ class LLMService:
             logging.error(f"Error in enhanced LLM request: {e}")
             callback("", str(e))
 
-    def _get_appropriate_template(self, template_id: str, focus_type: str):
+    def _get_appropriate_template(self, template_id: str):
         """Get the appropriate template, falling back as needed."""
         template = self._prompt_template_service.get_template(template_id)
         if not template:
             # Fall back to focus type if template not found
-            template = self._prompt_template_service.get_template(focus_type)
-            if not template:
-                # Fall back to general template as last resort
-                template = self._prompt_template_service.get_template("general")
+            template = self._prompt_template_service.get_template("general")
         return template

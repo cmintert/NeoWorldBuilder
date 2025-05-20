@@ -27,6 +27,7 @@
             Otherwise, ensure consistency with information from connected nodes while enhancing this description. 
         5.  Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph.
         6.  Maintaining the original tone and factual information
+        7.  Follow the provided custom instructions: {custom_instructions}
         
         Your task is to produce an improved version that maintains all existing information while making it more engaging and detailed."
     },
@@ -56,7 +57,9 @@
             nodes available*, focus solely on enhancing this node based on its own description and metadata.
             Otherwise, ensure consistency with information from connected nodes while enhancing this description.
         5.  Your response must be valid HTML with proper paragraph tags (<p>) 
-            for each paragraph."
+            for each paragraph.
+        7.  Follow the provided custom instructions: {custom_instructions}
+        "
     },
     {
       "id": "style",
@@ -79,7 +82,10 @@
         2. Using more vivid language
         3. Correct grammar and punctuation
         4. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph.
-        5. Maintaining consistency with the original tone"
+        5. Maintaining consistency with the original tone
+        7.  Follow the provided custom instructions: {custom_instructions}
+        "
+
     },
     {
       "id": "quick",
@@ -110,6 +116,7 @@
         5.  Your response must be valid HTML with proper paragraph tags (<p>) 
             for each paragraph.
         6.  Maintaining the original tone and factual information
+        7.  Follow the provided custom instructions: {custom_instructions}
         
         Focus on making quick, meaningful improvements without changing the core information."
     }

@@ -1,5 +1,6 @@
 from typing import Optional, List, Any
 
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -12,6 +13,7 @@ from PyQt6.QtWidgets import (
     QRadioButton,
     QButtonGroup,
     QGroupBox,
+    QPushButton,
 )
 
 
@@ -73,29 +75,6 @@ class EnhancedPromptDialog(QDialog):
         template_layout.addWidget(self.template_combo)
         layout.addLayout(template_layout)
 
-        # Enhancement focus
-        focus_group = QGroupBox("Enhancement Focus")
-        focus_layout = QVBoxLayout(focus_group)
-        self.focus_buttons = QButtonGroup(self)
-
-        focus_options = [
-            ("general", "General Enhancement", "Improve overall quality"),
-            ("details", "Add Details", "Expand with additional information"),
-            ("style", "Improve Style", "Refine the writing style"),
-            ("consistency", "Fix Inconsistencies", "Align with connected nodes"),
-        ]
-
-        for focus_id, text, tooltip in focus_options:
-            radio = QRadioButton(text)
-            radio.setToolTip(tooltip)
-            radio.setProperty("focus_id", focus_id)
-            self.focus_buttons.addButton(radio)
-            focus_layout.addWidget(radio)
-
-        # Select the first option by default
-        self.focus_buttons.buttons()[0].setChecked(True)
-        layout.addWidget(focus_group)
-
         # Context depth
         depth_layout = QHBoxLayout()
         depth_layout.addWidget(QLabel("Context Depth:"))
@@ -114,10 +93,34 @@ class EnhancedPromptDialog(QDialog):
         layout.addWidget(QLabel("Additional Instructions:"))
         self.instructions_edit = QTextEdit()
         self.instructions_edit.setPlaceholderText(
-            "Enter any specific instructions here..."
+            "Enter any specific instructions here... {custom_instructions}"
         )
         self.instructions_edit.setMaximumHeight(100)
         layout.addWidget(self.instructions_edit)
+
+        # Template Preview Section
+        preview_group = QGroupBox("Template Preview")
+        preview_layout = QVBoxLayout(preview_group)
+
+        # Add refresh button and explanation
+        preview_header = QHBoxLayout()
+        preview_header.addWidget(QLabel("See what prompt will be sent to the AI:"))
+        # refresh_button = QPushButton("Refresh Preview")
+        # refresh_button.clicked.connect(self._update_template_preview)
+        # preview_header.addWidget(refresh_button)
+        preview_layout.addLayout(preview_header)
+
+        # Template content preview
+        self.template_preview = QTextEdit()
+        self.template_preview.setReadOnly(True)
+        self.template_preview.setMinimumHeight(200)
+        preview_layout.addWidget(self.template_preview)
+
+        layout.addWidget(preview_group)
+
+        # Update preview when template selection changes
+        self.template_combo.currentIndexChanged.connect(self._update_template_preview)
+        self.depth_spin.valueChanged.connect(self._update_template_preview)
 
         # Buttons
         button_box = QDialogButtonBox(
@@ -127,6 +130,69 @@ class EnhancedPromptDialog(QDialog):
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
 
+        # Initialize preview
+        QTimer.singleShot(100, self._update_template_preview)
+
+    def _update_template_preview(self) -> None:
+        """Update the template preview with the current node's data."""
+        try:
+            # Get selected template
+            selected_template = self.get_selected_template()
+            if not selected_template:
+                self.template_preview.setText("No template selected")
+                return
+
+            # Find the controller
+            parent = self
+            while parent and not hasattr(parent, "controller"):
+                parent = parent.parent()
+
+            if not parent or not hasattr(parent, "controller"):
+                # Fallback to just showing the raw template
+                self.template_preview.setText(selected_template.template)
+                return
+
+            controller = parent.controller
+
+            # Get current node data
+            node_name = controller.ui.name_input.text().strip()
+            if not node_name:
+                self.template_preview.setText(
+                    "No node selected. Please enter a node name first."
+                )
+                return
+
+            # Get the node data from the UI
+            node_data = controller._get_current_node_data()
+
+            # Get the context based on depth
+            context = ""
+            if self.depth_spin.value() > 0:
+                context = controller._get_node_context(
+                    node_name, self.depth_spin.value()
+                )
+
+            # Prepare variables
+            variables = controller.prompt_template_service.prepare_context_variables(
+                node_data=node_data,
+                context=context,
+                custom_instructions=self.instructions_edit.toPlainText(),
+            )
+
+            # Format template with variables
+            try:
+                formatted_template = selected_template.format(variables)
+                self.template_preview.setHtml(
+                    f"<h3>Template Preview</h3><hr><pre>{formatted_template}</pre>"
+                )
+            except Exception as e:
+                self.template_preview.setText(
+                    f"Error formatting template: {str(e)}\n\nRaw template:\n{selected_template.template}"
+                )
+
+        except Exception as e:
+            self.template_preview.setText(f"Error generating preview: {str(e)}")
+
     def get_selected_template(self) -> Any:
         """Get the currently selected prompt template.
 
@@ -134,16 +200,6 @@ class EnhancedPromptDialog(QDialog):
             Any: The selected template object from the combo box.
         """
         return self.template_combo.currentData()
-
-    def get_focus_type(self) -> str:
-        """Get the selected enhancement focus type.
-
-        Returns:
-            str: The focus type ID ('general', 'details', 'style', or 'consistency').
-                Returns 'general' if no button is selected.
-        """
-        checked_button = self.focus_buttons.checkedButton()
-        return checked_button.property("focus_id") if checked_button else "general"
 
     def get_context_depth(self) -> int:
         """Get the selected context depth value.

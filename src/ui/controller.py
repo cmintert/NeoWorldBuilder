@@ -1126,7 +1126,6 @@ class WorldBuildingController(
         """
         # Define default parameters for quick enhancement
         template_id = "general"
-        focus_type = "general"
         instructions = ""
 
         # Ensure templates are available
@@ -1142,12 +1141,10 @@ class WorldBuildingController(
             return
 
         # Delegate to the template-based method
-        self.enhance_node_description_with_template(
-            template_id, focus_type, depth, instructions
-        )
+        self.enhance_node_description_with_template(template_id, depth, instructions)
 
     def enhance_node_description_with_template(
-        self, template_id: str, focus_type: str, depth: int, instructions: str
+        self, template_id: str, depth: int, instructions: str
     ) -> None:
         """Use LLM to enhance node description with template-based approach."""
         current_node = self.ui.name_input.text().strip()
@@ -1178,7 +1175,9 @@ class WorldBuildingController(
                     payload_description=payload_description,
                     enhanced_text=enhanced_text,
                 )
-                new_description = f"{current_description}<hr>⬆️Old                      New⬇️<hr>{enhanced_text}"
+                new_description = (
+                    f"{current_description}<br>⬆️Old   New⬇️<br>{enhanced_text}"
+                )
                 self.ui.description_input.setHtml(new_description)
                 self.update_unsaved_changes_indicator()
 
@@ -1187,7 +1186,6 @@ class WorldBuildingController(
             current_node,
             payload_description,
             template_id,
-            focus_type,
             depth,
             instructions,
             handle_completion,

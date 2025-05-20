@@ -112,7 +112,7 @@ class TextEditor(QWidget):
     textChanged = pyqtSignal()
     enhancementRequested = pyqtSignal()
     enhancedEnhancementRequested = pyqtSignal(
-        str, str, int, str
+        str, int, str
     )  # template, focus, depth, instructions
     createNodeRequested = pyqtSignal(
         str, str, str, str
