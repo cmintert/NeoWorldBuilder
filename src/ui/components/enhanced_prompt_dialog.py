@@ -104,7 +104,7 @@ class EnhancedPromptDialog(QDialog):
         self.depth_spin.setFixedWidth(60)
         self.depth_spin.setMinimum(0)
         self.depth_spin.setMaximum(3)
-        self.depth_spin.setValue(1)
+        self.depth_spin.setValue(0)
         self.depth_spin.setToolTip("Number of relationship hops to include as context")
         depth_layout.addWidget(self.depth_spin)
         depth_layout.addStretch()

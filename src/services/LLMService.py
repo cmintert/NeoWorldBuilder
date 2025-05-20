@@ -110,17 +110,24 @@ class LLMService:
         context_parts: List[str] = []
 
         def strip_html(html_text: str) -> str:
-            """Remove HTML tags from text."""
+            """Extract clean text content from HTML using BeautifulSoup."""
             if not html_text:
                 return ""
-            import re
 
-            # Remove HTML tags
-            text = re.sub(r"<[^>]+>", " ", html_text)
-            # Remove doctype and other declarations
-            text = re.sub(r"<!DOCTYPE[^>]+>", "", text)
-            # Normalize whitespace
-            text = re.sub(r"\s+", " ", text).strip()
+            # Import conditionally to avoid startup overhead
+            from bs4 import BeautifulSoup
+
+            # Parse HTML and extract text
+            soup = BeautifulSoup(html_text, "html.parser")
+
+            # Remove script and style elements
+            for element in soup(["script", "style"]):
+                element.decompose()
+
+            # Get text and clean up whitespace
+            text = soup.get_text(separator=" ")
+            text = " ".join(text.split())
+
             return text
 
         def collect_node_info(
@@ -150,11 +157,6 @@ class LLMService:
                 # Get a clean, HTML-stripped description
                 description = node.get("description", "")
                 clean_description = strip_html(description)
-                brief = (
-                    clean_description[:150] + "..."
-                    if len(clean_description) > 150
-                    else clean_description
-                )
 
                 node_info = [
                     f"{prefix}Node: {node['name']}",
@@ -164,7 +166,7 @@ class LLMService:
                         else ""
                     ),
                     f"Tags: {', '.join(node['tags'])}" if node.get("tags") else "",
-                    f"Brief: {brief}" if brief else "",
+                    f"Brief: {clean_description}" if clean_description else "",
                 ]
                 context_parts.append("\n".join(filter(None, node_info)))
 

@@ -7,26 +7,28 @@
       "focus_type": "general",
       "template": "You are helping to enhance a description for a world-building project.
 
-Node Information:
-- Name: {node_name}
-- Labels: {labels}
-- Tags: {tags}
-
-Connected Nodes:
-{context}
-
-Current Description:
-{description}
-
-Please enhance this description by:
-1. Adding more vivid details
-2. Improving the writing style
-3. Structure the description in logical paragraphs and add <br> between them
-4. Ensuring consistency with the connected nodes
-5. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph.
-6. Maintaining the original tone and factual information
-
-Your task is to produce an improved version that maintains all existing information while making it more engaging and detailed."
+        Node Information:
+        - Name: {node_name}
+        - Labels: {labels}
+        - Tags: {tags}
+        
+        Connected Nodes:
+        {context}
+        
+        Current Description:
+        {description}
+        
+        Please enhance this description by:
+        1.  Adding more vivid details
+        2.  Improving the writing style
+        3.  Structure the description in logical paragraphs
+        4.  If the Connected Nodes section above contains only *No connected 
+            nodes available*, focus solely on enhancing this node based on its own description and metadata.
+            Otherwise, ensure consistency with information from connected nodes while enhancing this description. 
+        5.  Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph.
+        6.  Maintaining the original tone and factual information
+        
+        Your task is to produce an improved version that maintains all existing information while making it more engaging and detailed."
     },
     {
       "id": "details",
@@ -35,22 +37,26 @@ Your task is to produce an improved version that maintains all existing informat
       "focus_type": "details",
       "template": "You are helping to add more details to a description for a world-building project.
 
-Node Information:
-- Name: {node_name}
-- Labels: {labels}
-- Tags: {tags}
-
-Connected Nodes:
-{context}
-
-Current Description:
-{description}
-
-Please enhance this description by:
-1. adding more sensory details, background information, and specific characteristics.
-2. Focus on expanding the existing content rather than changing the style.
-3. Maintain the original tone and all factual information.
-4. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph."
+        Node Information:
+        - Name: {node_name}
+        - Labels: {labels}
+        - Tags: {tags}
+        
+        Connected Nodes:
+        {context}
+        
+        Current Description:
+        {description}
+        
+        Please enhance this description by:
+        1.  adding more sensory details, background information, and specific characteristics.
+        2.  Focus on expanding the existing content rather than changing the style.
+        3.  Maintain the original tone and all factual information.
+        4.  If the Connected Nodes section above contains only *No connected 
+            nodes available*, focus solely on enhancing this node based on its own description and metadata.
+            Otherwise, ensure consistency with information from connected nodes while enhancing this description.
+        5.  Your response must be valid HTML with proper paragraph tags (<p>) 
+            for each paragraph."
     },
     {
       "id": "style",
@@ -59,24 +65,21 @@ Please enhance this description by:
       "focus_type": "style",
       "template": "You are helping to improve the writing style of a description for a world-building project.
 
-Node Information:
-- Name: {node_name}
-- Labels: {labels}
-- Tags: {tags}
-
-Connected Nodes:
-{context}
-
-Current Description:
-{description}
-
-Please improve the writing style of this description while maintaining all factual information. Focus on:
-
-1. Improving flow and readability
-2. Using more vivid language
-3. Correct grammar and punctuation
-4. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph.
-5. Maintaining consistency with the original tone"
+        Node Information:
+        - Name: {node_name}
+        - Labels: {labels}
+        - Tags: {tags}
+        
+        Current Description:
+        {description}
+        
+        Please improve the writing style of this description while maintaining all factual information. Focus on:
+        
+        1. Improving flow and readability
+        2. Using more vivid language
+        3. Correct grammar and punctuation
+        4. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph.
+        5. Maintaining consistency with the original tone"
     },
     {
       "id": "quick",
@@ -85,25 +88,30 @@ Please improve the writing style of this description while maintaining all factu
       "focus_type": "general",
       "template": "You are helping to enhance a description for a world-building project.
 
-Node Information:
-- Name: {node_name}
-- Labels: {labels}
-- Tags: {tags}
-
-Connected Nodes:
-{context}
-
-Current Description:
-{description}
-
-Please enhance this description by:
-1. Adding more vivid details while keeping it concise
-2. Improving the writing style for better flow
-3. Structure the description in logical paragraphs and add <br> between them
-4. Your response must be valid HTML with proper paragraph tags (<p>) for each paragraph.
-5. Maintaining the original tone and factual information
-
-Focus on making quick, meaningful improvements without changing the core information."
+        Node Information:
+        - Name: {node_name}
+        - Labels: {labels}
+        - Tags: {tags}
+        
+        Connected Nodes:
+        {context}
+        
+        Current Description:
+        {description}
+        
+        Please enhance this description by:
+        1.  Adding more vivid details while keeping it concise
+        2.  Stick to the current description length, a minimum of 40 words
+        2.  Improving the writing style for better flow
+        3.  Structure the description in logical paragraphs
+        4.  If the Connected Nodes section above contains only *No connected 
+            nodes available*, focus solely on enhancing this node based on its own description and metadata.
+            Otherwise, ensure consistency with information from connected nodes while enhancing this description.
+        5.  Your response must be valid HTML with proper paragraph tags (<p>) 
+            for each paragraph.
+        6.  Maintaining the original tone and factual information
+        
+        Focus on making quick, meaningful improvements without changing the core information."
     }
   ]
 }

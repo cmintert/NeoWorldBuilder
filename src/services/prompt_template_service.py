@@ -13,11 +13,13 @@ class PromptTemplate:
         template: str,
         description: str = "",
         focus_type: str = "general",
+        id: str = "",
     ):
         self.name = name
         self.template = template
         self.description = description
         self.focus_type = focus_type  # "general", "details", "style", "consistency"
+        self.id = id
 
     def format(self, variables: Dict[str, Any]) -> str:
         """Format the template by replacing variables with values."""
@@ -64,6 +66,7 @@ class PromptTemplateService:
                         description=template_data.get("description", ""),
                         focus_type=template_data.get("focus_type", "general"),
                         template=template_data.get("template", ""),
+                        id=template_id,
                     )
 
             self.logger.info(f"Loaded {len(templates)} templates from {template_file}")

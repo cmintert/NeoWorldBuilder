@@ -1116,7 +1116,7 @@ class WorldBuildingController(
         if self.ui.tabs.currentWidget() == self.ui.search_panel:
             self.ui.tabs.setCurrentIndex(0)
 
-    def enhance_node_description(self, depth: int = 1) -> None:
+    def enhance_node_description(self, depth: int = 0) -> None:
         """
         Use LLM to enhance the current node description with a default template.
         This is a simplified wrapper around the template-based enhancement.

@@ -582,7 +582,7 @@ class TextToolbar(QWidget):
 
                     # Emit signal with enhancement parameters
                     self.enhancedEnhancementRequested.emit(
-                        template.name if template else focus_type,
+                        template.id if template else focus_type,
                         focus_type,
                         context_depth,
                         custom_instructions,
