@@ -3,6 +3,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Callable
 
+from structlog import get_logger
+
 from config.config import Config
 from core.neo4jmodel import Neo4jModel
 from models.property_model import PropertyItem
@@ -15,6 +17,8 @@ from utils.validation import (
     ValidationResult,
     validate_node_name as validate_node_name_logic,
 )
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -253,10 +257,7 @@ class NodeOperationsService:
 
     def get_node_by_name(self, name: str) -> Optional[Dict[str, Any]]:
         """
-        Get node by name synchronously.
-
-        This method retrieves a node directly without using worker threads,
-        intended for cases where we need immediate access to node data.
+        Get node by name synchronously with relationship data.
 
         Args:
             name: Name of the node to retrieve
@@ -273,8 +274,11 @@ class NodeOperationsService:
                     """
                     MATCH (n {name: $name, _project: $project})
                     WITH n, labels(n) AS labels,
+                         [(n)-[r]->(m) | {target: m.name, type: type(r), direction: 'OUTGOING'}] AS out_rels,
+                         [(n)<-[r2]-(o) | {target: o.name, type: type(r2), direction: 'INCOMING'}] AS in_rels,
                          properties(n) AS all_props
                     RETURN n,
+                           out_rels + in_rels AS relationships,
                            labels,
                            all_props
                     LIMIT 1
@@ -290,11 +294,14 @@ class NodeOperationsService:
                     # Make sure these fields are available at the top level
                     node_data.update(
                         {
-                            "name": name,  # Explicitly include the name
+                            "name": name,
                             "labels": record["labels"],
                             "all_props": record["all_props"],
+                            "relationships": record["relationships"],
                         }
                     )
+                    # Remove reserved properties
+                    logger.debug(f"Node data from get_node_by_name:" f" {node_data}")
                     return node_data
                 return None
         except Exception as e:

@@ -4,15 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add LLM integration and enhance node description handling&#10;&#10;Introduced `LLMService` for node description enhancement using an LLM via API calls, with optional contextual data from connected nodes. Updated UI and initialization logic to support the feature. Additionally, removed `requirements.txt` and adjusted project settings for improved modularity.">
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Refactor LLMService and prompt template service for improved context handling and error management">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/config/prompt_templates.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/config/prompt_templates.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/config/system.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/config/system.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/services/LLMService.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/LLMService.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/services/node_operation_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/node_operation_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/text_editor/text_editor.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/text_editor/text_editor.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/prompt_template_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/prompt_template_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/enhanced_prompt_dialog.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/enhanced_prompt_dialog.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ui/components/text_editor/text_toolbar.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/text_editor/text_toolbar.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/controller.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -76,7 +77,7 @@
     &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
     &quot;SONARLINT_PRECOMMIT_ANALYSIS&quot;: &quot;true&quot;,
     &quot;ToolWindow.Run.ShowToolbar&quot;: &quot;false&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;ai-dev&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;C:/Users/chris/PycharmProjects/NeoWorldBuilder/src/main.py&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
@@ -84,7 +85,7 @@
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;ml.llm.LLMThirdPartyAiProvidersConfigurable&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
@@ -265,7 +266,11 @@
       <workItem from="1741764757833" duration="3073000" />
       <workItem from="1747383906758" duration="1521000" />
       <workItem from="1747422198415" duration="413000" />
-      <workItem from="1747426733327" duration="5067000" />
+      <workItem from="1747426733327" duration="5165000" />
+      <workItem from="1747460119206" duration="17186000" />
+      <workItem from="1747554734618" duration="11677000" />
+      <workItem from="1747673179578" duration="2153000" />
+      <workItem from="1747721660142" duration="6899000" />
     </task>
     <task id="LOCAL-00001" summary="Implemented a first basic calendar property system.">
       <option name="closed" value="true" />
@@ -563,7 +568,87 @@
       <option name="project" value="LOCAL" />
       <updated>1747428792980</updated>
     </task>
-    <option name="localTasksCounter" value="38" />
+    <task id="LOCAL-00038" summary="Add LLM integration and text enhancement UI feature&#10;&#10;Introduced `LLMService` for text enhancement using AI via API calls, with support for context-based node descriptions. Updated the text editor UI to include an &quot;Enhance with AI&quot; button and implemented backend functionality for handling enhancement requests. Added configuration support for API key, URL, and model specifications, alongside improved error handling and logging.">
+      <option name="closed" value="true" />
+      <created>1747431946054</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1747431946054</updated>
+    </task>
+    <task id="LOCAL-00039" summary="Add LLMService for enhanced node description and UI integration&#10;&#10;Introduced `LLMService` to enhance node descriptions using AI via API calls, with support for context-based information from connected nodes. Updated the text editor UI to include an &quot;Enhance with AI&quot; button and implemented backend functionality for handling enhancement requests. Added configuration support for API key, URL, and model specifications, alongside improved error handling and logging.">
+      <option name="closed" value="true" />
+      <created>1747460856546</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1747460856546</updated>
+    </task>
+    <task id="LOCAL-00040" summary="Fix LLM response handling to return empty string instead of None on errors">
+      <option name="closed" value="true" />
+      <created>1747471686985</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1747471686985</updated>
+    </task>
+    <task id="LOCAL-00041" summary="Add prompt template service and enhanced description feature&#10;&#10;Introduced a new PromptTemplateService for managing LLM prompt templates, enabling enhanced node descriptions through template-based approaches. Updated the LLMService to utilize this service, allowing for context-aware enhancements. Added a new UI dialog for configuring enhancement options, including template selection and focus type. Improved error handling and user feedback for empty descriptions.">
+      <option name="closed" value="true" />
+      <created>1747478222527</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1747478222527</updated>
+    </task>
+    <task id="LOCAL-00042" summary="Add error handling and logging to AI enhancement request process&#10;&#10;Enhanced the _request_enhanced_enhancement method to include error handling and logging. Improved user feedback for template service access issues and added logging for exceptions during the enhancement request process. Updated the UI dialog to ensure a smoother user experience when configuring AI enhancement options.">
+      <option name="closed" value="true" />
+      <created>1747478466781</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1747478466781</updated>
+    </task>
+    <task id="LOCAL-00043" summary="Enhance LLM description handling and improve prompt template service&#10;&#10;- Updated LLMService to require valid HTML responses with paragraph tags for enhanced descriptions.&#10;- Improved error handling and logging in the AI enhancement request process.&#10;- Refactored prompt template service to clarify instructions for generating engaging descriptions.&#10;- Adjusted UI to display both current and enhanced descriptions for better user feedback.">
+      <option name="closed" value="true" />
+      <created>1747489304372</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1747489304372</updated>
+    </task>
+    <task id="LOCAL-00044" summary="Enhance LLM description handling and improve prompt template service&#10;&#10;- Refactored enhance_node_description to utilize a default template for enhancements.&#10;- Added error handling for missing templates in the prompt template service.&#10;- Updated LLMService to support template-based enhancements with improved parameter handling.&#10;- Introduced YAML-based template loading for better flexibility and maintainability.">
+      <option name="closed" value="true" />
+      <created>1747600186155</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1747600186155</updated>
+    </task>
+    <task id="LOCAL-00045" summary="Enhance LLM description handling and improve prompt template service&#10;&#10;- Refactored enhance_node_description to utilize a default template for enhancements.&#10;- Added error handling for missing templates in the prompt template service.&#10;- Updated LLMService to support template-based enhancements with improved parameter handling.&#10;- Introduced YAML-based template loading for better flexibility and maintainability.">
+      <option name="closed" value="true" />
+      <created>1747722014982</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1747722014982</updated>
+    </task>
+    <task id="LOCAL-00046" summary="Refactor logging statement for improved readability in node operation service">
+      <option name="closed" value="true" />
+      <created>1747722033271</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1747722033271</updated>
+    </task>
+    <task id="LOCAL-00047" summary="Refactor LLMService and prompt template service for improved context handling and error management">
+      <option name="closed" value="true" />
+      <created>1747723114941</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1747723114941</updated>
+    </task>
+    <option name="localTasksCounter" value="48" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -593,15 +678,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Refactor event component by removing unused UI elements and signals" />
-    <MESSAGE value="Add calendar selection and link functionality" />
-    <MESSAGE value="Enable calendar link button and improve validation feedback" />
-    <MESSAGE value="Refactor BaseController and WorldBuildingController for improved structure and functionality" />
-    <MESSAGE value="Refactor BaseController methods and add unit tests for improved functionality and error handling" />
-    <MESSAGE value="Implement save_node functionality and add unit tests for improved error handling and data validation" />
-    <MESSAGE value="Refactor cleanup and error handling methods in controllers for improved resource management" />
-    <MESSAGE value="Add ExportMixin for enhanced export functionality in controllers" />
-    <MESSAGE value="Add NodeDataMixin for enhanced node data handling in controllers" />
     <MESSAGE value="Add CalendarMixin for enhanced calendar functionality in controllers" />
     <MESSAGE value="Add MapMixin for enhanced map functionality in controllers" />
     <MESSAGE value="Add EventMixin and ImageMixin for enhanced event and image handling in controllers" />
@@ -618,14 +694,34 @@
     <MESSAGE value="Add mixins for node data handling, timeline, and events.&#10;&#10;Introduced multiple mixins to encapsulate specialized logic for node data extraction, population, mapping, timeline, and event handling. These mixins enhance modularity and code organization while adding features like calendar integration, map functionality, and timeline events. Additionally, upgraded project SDK and adjusted configuration to support Python 3.13." />
     <MESSAGE value="Add LLMService for enhanced node descriptions and UI integration&#10;&#10;Implemented LLMService to enhance node descriptions using OpenAI-like APIs, with support for contextual depth and asynchronous handling. Updated the UI controller to integrate the enhancement feature and added necessary configurations. Removed unused dependencies from requirements.txt and cleaned up workspace files." />
     <MESSAGE value="Add LLM integration and enhance node description handling&#10;&#10;Introduced `LLMService` for node description enhancement using an LLM via API calls, with optional contextual data from connected nodes. Updated UI and initialization logic to support the feature. Additionally, removed `requirements.txt` and adjusted project settings for improved modularity." />
-    <option name="LAST_COMMIT_MESSAGE" value="Add LLM integration and enhance node description handling&#10;&#10;Introduced `LLMService` for node description enhancement using an LLM via API calls, with optional contextual data from connected nodes. Updated UI and initialization logic to support the feature. Additionally, removed `requirements.txt` and adjusted project settings for improved modularity." />
+    <MESSAGE value="Add LLM integration and text enhancement UI feature&#10;&#10;Introduced `LLMService` for text enhancement using AI via API calls, with support for context-based node descriptions. Updated the text editor UI to include an &quot;Enhance with AI&quot; button and implemented backend functionality for handling enhancement requests. Added configuration support for API key, URL, and model specifications, alongside improved error handling and logging." />
+    <MESSAGE value="Add LLMService for enhanced node description and UI integration&#10;&#10;Introduced `LLMService` to enhance node descriptions using AI via API calls, with support for context-based information from connected nodes. Updated the text editor UI to include an &quot;Enhance with AI&quot; button and implemented backend functionality for handling enhancement requests. Added configuration support for API key, URL, and model specifications, alongside improved error handling and logging." />
+    <MESSAGE value="Fix LLM response handling to return empty string instead of None on errors" />
+    <MESSAGE value="Add prompt template service and enhanced description feature&#10;&#10;Introduced a new PromptTemplateService for managing LLM prompt templates, enabling enhanced node descriptions through template-based approaches. Updated the LLMService to utilize this service, allowing for context-aware enhancements. Added a new UI dialog for configuring enhancement options, including template selection and focus type. Improved error handling and user feedback for empty descriptions." />
+    <MESSAGE value="Add error handling and logging to AI enhancement request process&#10;&#10;Enhanced the _request_enhanced_enhancement method to include error handling and logging. Improved user feedback for template service access issues and added logging for exceptions during the enhancement request process. Updated the UI dialog to ensure a smoother user experience when configuring AI enhancement options." />
+    <MESSAGE value="Enhance LLM description handling and improve prompt template service&#10;&#10;- Updated LLMService to require valid HTML responses with paragraph tags for enhanced descriptions.&#10;- Improved error handling and logging in the AI enhancement request process.&#10;- Refactored prompt template service to clarify instructions for generating engaging descriptions.&#10;- Adjusted UI to display both current and enhanced descriptions for better user feedback." />
+    <MESSAGE value="Enhance LLM description handling and improve prompt template service&#10;&#10;- Refactored enhance_node_description to utilize a default template for enhancements.&#10;- Added error handling for missing templates in the prompt template service.&#10;- Updated LLMService to support template-based enhancements with improved parameter handling.&#10;- Introduced YAML-based template loading for better flexibility and maintainability." />
+    <MESSAGE value="Refactor logging statement for improved readability in node operation service" />
+    <MESSAGE value="Refactor LLMService and prompt template service for improved context handling and error management" />
+    <option name="LAST_COMMIT_MESSAGE" value="Refactor LLMService and prompt template service for improved context handling and error management" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/services/LLMService.py</url>
+          <line>286</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_parser_py.coverage" NAME="pytest in test_parser.py Coverage Results" MODIFIED="1738141005495" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$core.coverage" NAME="core Coverage Results" MODIFIED="1738140645253" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/dateparser" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1737189591173" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$calendar_model.coverage" NAME="calendar_model Coverage Results" MODIFIED="1737581064214" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/models" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1747431150738" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1747728430116" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController_test_delete_node_debounce.coverage" NAME="pytest for test_node_operations.TestBaseController.test_delete_node_debounce Coverage Results" MODIFIED="1739346351305" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_test_load_node_data.coverage" NAME="pytest for test_node_operations.test_load_node_data Coverage Results" MODIFIED="1739348948172" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />

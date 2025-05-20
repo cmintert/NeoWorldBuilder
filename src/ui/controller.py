@@ -1116,15 +1116,43 @@ class WorldBuildingController(
         if self.ui.tabs.currentWidget() == self.ui.search_panel:
             self.ui.tabs.setCurrentIndex(0)
 
-    def enhance_node_description(self, depth: int = 1) -> None:
+    def enhance_node_description(self, depth: int = 0) -> None:
         """
-        Use LLM to enhance the current node description with context.
+        Use LLM to enhance the current node description with a default template.
+        This is a simplified wrapper around the template-based enhancement.
 
         Args:
             depth: How many levels of connected nodes to include
         """
+        # Define default parameters for quick enhancement
+        template_id = "general"
+        focus_type = "general"
+        instructions = ""
+
+        # Ensure templates are available
+        if (
+            not self.prompt_template_service
+            or not self.prompt_template_service.get_template(template_id)
+        ):
+            QMessageBox.warning(
+                self.ui,
+                "Template Not Found",
+                f"The template '{template_id}' was not found. Please ensure your template file exists and contains this template.",
+            )
+            return
+
+        # Delegate to the template-based method
+        self.enhance_node_description_with_template(
+            template_id, focus_type, depth, instructions
+        )
+
+    def enhance_node_description_with_template(
+        self, template_id: str, focus_type: str, depth: int, instructions: str
+    ) -> None:
+        """Use LLM to enhance node description with template-based approach."""
         current_node = self.ui.name_input.text().strip()
         current_description = self.ui.description_input.toHtml().strip()
+        payload_description = self.ui.description_input.toPlainText().strip()
 
         if not current_description:
             QMessageBox.information(
@@ -1141,10 +1169,26 @@ class WorldBuildingController(
             if error:
                 self.error_handler.handle_error(f"LLM Generation Error: {error}")
             elif enhanced_text:
-                self.ui.description_input.setHtml(enhanced_text)
+                current_description = self.ui.description_input.toHtml().strip()
+                payload_description = self.ui.description_input.toPlainText().strip()
+
+                logger.debug(
+                    "enhanced_description",
+                    current_description=current_description,
+                    payload_description=payload_description,
+                    enhanced_text=enhanced_text,
+                )
+                new_description = f"{current_description}<hr>⬆️Old                      New⬇️<hr>{enhanced_text}"
+                self.ui.description_input.setHtml(new_description)
                 self.update_unsaved_changes_indicator()
 
-        # Call the LLM service with depth parameter
-        self.llm_service.enhance_description(
-            current_node, current_description, handle_completion, depth
+        # Call the enhanced LLM service
+        self.llm_service.enhance_description_with_template(
+            current_node,
+            payload_description,
+            template_id,
+            focus_type,
+            depth,
+            instructions,
+            handle_completion,
         )

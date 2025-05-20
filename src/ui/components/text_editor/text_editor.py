@@ -1,29 +1,66 @@
-import re
-from typing import Optional
+"""Text editor component with link detection and rich text formatting capabilities.
 
-from PyQt6.QtCore import pyqtSignal, Qt, QTimer
-from PyQt6.QtGui import QMouseEvent
-from PyQt6.QtWidgets import QTextEdit, QWidget, QVBoxLayout
+This module provides a specialized text editor implementation that supports clickable
+links, rich text formatting, and node name detection. It consists of two main classes:
+LinkableTextEdit for basic link functionality and TextEditor which adds advanced
+features like node name scanning and formatting tools.
+
+Classes:
+    LinkableTextEdit: A QTextEdit subclass that supports clickable links.
+    TextEditor: Main text editor component with formatting and node detection.
+"""
+
+import re
+from typing import Optional, Dict, TYPE_CHECKING
+
+from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QPoint
+from PyQt6.QtGui import QMouseEvent, QTextCursor
+from PyQt6.QtWidgets import QTextEdit, QWidget, QVBoxLayout, QMenu
 from structlog import get_logger
 
 from ui.components.quick_relation_dialog import QuickRelationDialog
 from ui.components.text_editor.text_toolbar import TextToolbar
 
+if TYPE_CHECKING:
+    from ui.main_window import WorldBuildingUI
+    from services.name_cache_service import NameCacheService
+
 logger = get_logger(__name__)
 
 
 class LinkableTextEdit(QTextEdit):
-    """Custom QTextEdit that supports clickable links."""
+    """A QTextEdit subclass that implements clickable link functionality.
+
+    This class extends QTextEdit to provide support for clickable links within the text.
+    It tracks mouse movement to update cursor appearance and emits signals when links
+    are clicked.
+
+    Attributes:
+        linkClicked (pyqtSignal): Signal emitted when a link is clicked, passes the node name.
+        _clickable_links (Dict[int, str]): Maps text positions to node names.
+    """
 
     linkClicked = pyqtSignal(str)  # Emit the node name when clicked
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        """Initialize the LinkableTextEdit widget.
+
+        Args:
+            parent: Optional parent widget. Defaults to None.
+        """
         super().__init__(parent)
         self.setMouseTracking(True)
-        self._clickable_links = {}  # Maps positions to node names
+        self._clickable_links: Dict[int, str] = {}  # Maps positions to node names
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        """Handle mouse press events to detect link clicks."""
+        """Handle mouse press events to detect link clicks.
+
+        Checks if the clicked position contains a link and emits the linkClicked
+        signal if a link is found.
+
+        Args:
+            event: The mouse event containing click information.
+        """
         if event.button() == Qt.MouseButton.LeftButton:
             cursor = self.cursorForPosition(event.pos())
             char_format = cursor.charFormat()
@@ -35,7 +72,13 @@ class LinkableTextEdit(QTextEdit):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        """Handle mouse movement to update cursor."""
+        """Handle mouse movement to update the cursor appearance.
+
+        Changes the cursor to a pointing hand when hovering over links.
+
+        Args:
+            event: The mouse event containing movement information.
+        """
         cursor = self.cursorForPosition(event.pos())
         char_format = cursor.charFormat()
 
@@ -48,33 +91,50 @@ class LinkableTextEdit(QTextEdit):
 
 
 class TextEditor(QWidget):
-    """Enhanced text editor component with formatting capabilities."""
+    """Enhanced text editor component with formatting capabilities.
 
-    # Forward the textChanged signal from internal QTextEdit
+    This widget provides a rich text editor with additional features like node name
+    detection, link support, and text formatting. It includes a toolbar for text
+    formatting options and supports creating nodes from selected text.
+
+    Attributes:
+        textChanged (pyqtSignal): Emitted when the text content changes.
+        enhancementRequested (pyqtSignal): Emitted when text enhancement is requested.
+        enhancedEnhancementRequested (pyqtSignal): Emitted for enhanced text enhancement.
+        createNodeRequested (pyqtSignal): Emitted when node creation is requested.
+        main_ui (WorldBuildingUI): Reference to the main UI.
+        name_cache_service (NameCacheService): Service for caching node names.
+        scan_timer (QTimer): Timer for scheduling node name scans.
+        text_edit (LinkableTextEdit): The main text editing widget.
+        formatting_toolbar (TextToolbar): Toolbar with formatting options.
+    """
+
     textChanged = pyqtSignal()
     enhancementRequested = pyqtSignal()
-
-    # Signal emitted when user requests node creation from selection
+    enhancedEnhancementRequested = pyqtSignal(
+        str, str, int, str
+    )  # template, focus, depth, instructions
     createNodeRequested = pyqtSignal(
         str, str, str, str
-    )  # selected_text, surrounding_context
+    )  # target, rel_type, direction, properties
 
     def __init__(
         self, main_ui: "WorldBuildingUI", parent: Optional[QWidget] = None
     ) -> None:
-        """
-        Initialize the text editor component.
+        """Initialize the text editor component.
 
-               Args:
-                   main_ui: Reference to the main WorldBuildingUI instance
-                   parent: Optional parent widget
+        Args:
+            main_ui: Reference to the main WorldBuildingUI instance for coordination.
+            parent: Optional parent widget. Defaults to None.
         """
         super().__init__(parent)
-        self.main_ui = main_ui
-        self.name_cache_service = None
+        self.main_ui: "WorldBuildingUI" = main_ui
+        self.name_cache_service: Optional["NameCacheService"] = None
+        self.scan_timer: QTimer = QTimer(self)
+        self.text_edit: LinkableTextEdit
+        self.formatting_toolbar: TextToolbar
 
         # Setup scanning timer
-        self.scan_timer = QTimer(self)
         self.scan_timer.setInterval(2000)  # 2 seconds
         self.scan_timer.setSingleShot(True)
         self.scan_timer.timeout.connect(self._scan_for_node_names)
@@ -83,7 +143,14 @@ class TextEditor(QWidget):
         self._connect_signals()
 
     def _setup_ui(self) -> None:
-        """Initialize UI components."""
+        """Initialize and arrange the UI components.
+
+        Creates and configures:
+            - Main text editor widget with link support
+            - Formatting toolbar
+            - Layout arrangement
+            - Context menu support
+        """
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -105,14 +172,30 @@ class TextEditor(QWidget):
         layout.addWidget(self.text_edit)
 
     def _connect_signals(self) -> None:
-        """Connect internal signals."""
+        """Connect internal signal handlers.
+
+        Connects:
+            - Text change handlers
+            - Enhancement request signals
+            - Text formatting signals
+        """
         self.text_edit.textChanged.connect(self._handle_text_changed)
         self.text_edit.textChanged.connect(self.textChanged.emit)
         self.formatting_toolbar.enhancementRequested.connect(self.enhancementRequested)
+        self.formatting_toolbar.enhancedEnhancementRequested.connect(
+            self.enhancedEnhancementRequested.emit
+        )
 
-    def _show_context_menu(self, position) -> None:
-        """Show custom context menu with node creation option."""
-        menu = self.text_edit.createStandardContextMenu()
+    def _show_context_menu(self, position: QPoint) -> None:
+        """Display the context menu at the specified position.
+
+        Shows a custom context menu with additional options like node creation
+        when text is selected.
+
+        Args:
+            position: Screen coordinates where the menu should appear.
+        """
+        menu: QMenu = self.text_edit.createStandardContextMenu()
 
         # Only add the create node option if there's selected text
         if self.text_edit.textCursor().hasSelection():
@@ -123,43 +206,55 @@ class TextEditor(QWidget):
         menu.exec(self.text_edit.mapToGlobal(position))
 
     def _scan_for_node_names(self) -> None:
-        """Scan the text content for node names and format them while preserving rich text."""
+        """Scan and format node names in the text content.
+
+        Searches for known node names in the text and formats them as clickable links
+        while preserving existing rich text formatting. Handles:
+            - Node name detection
+            - Link formatting
+            - Selection preservation
+            - HTML structure preservation
+
+        Note:
+            This method is triggered by the scan timer to avoid excessive processing
+            during rapid text changes.
+        """
         if not self.name_cache_service:
             logger.warning("scan_skipped_service_not_initialized")
             return
 
         try:
             # Get current cursor and selection state
-            cursor = self.text_edit.textCursor()
-            has_selection = cursor.hasSelection()
-            selection_start = cursor.selectionStart()
-            selection_end = cursor.selectionEnd()
+            cursor: QTextCursor = self.text_edit.textCursor()
+            has_selection: bool = cursor.hasSelection()
+            selection_start: int = cursor.selectionStart()
+            selection_end: int = cursor.selectionEnd()
 
             # Store current content before formatting
-            original_content = self.text_edit.toHtml()
+            original_content: str = self.text_edit.toHtml()
 
             # Get cached node names and verify cache
-            node_names = self.name_cache_service.get_cached_names()
+            node_names: Optional[list[str]] = self.name_cache_service.get_cached_names()
             if not node_names:
                 return
 
             # Create regex pattern from node names
-            sorted_names = sorted(node_names, key=len, reverse=True)
-            pattern = (
+            sorted_names: list[str] = sorted(node_names, key=len, reverse=True)
+            pattern: str = (
                 r"\b(" + "|".join(re.escape(name) for name in sorted_names) + r")\b"
             )
 
             # Split content into HTML tags and text
-            parts = re.split(r"(<[^>]+>)", original_content)
+            parts: list[str] = re.split(r"(<[^>]+>)", original_content)
 
             # Process each part
-            processed_parts = []
+            processed_parts: list[str] = []
             for part in parts:
                 if part.startswith("<"):
                     processed_parts.append(part)  # Keep HTML tags as-is
                 else:
                     # Apply node name highlighting only to text content
-                    processed = re.sub(
+                    processed: str = re.sub(
                         pattern,
                         lambda m: (
                             f'<a href="{m.group(0)}" class="node-reference" '
@@ -173,7 +268,7 @@ class TextEditor(QWidget):
                     processed_parts.append(processed)
 
             # Join processed parts back together
-            processed_content = "".join(processed_parts)
+            processed_content: str = "".join(processed_parts)
 
             # Block signals during HTML update to prevent recursion
             self.text_edit.blockSignals(True)
@@ -195,10 +290,17 @@ class TextEditor(QWidget):
             logger.error("scan_failed", error=str(e))
 
     def _handle_create_node_request(self) -> None:
-        """Handle request to create node from selected text."""
-        cursor = self.text_edit.textCursor()
+        """Process a request to create a new node from selected text.
+
+        Opens a dialog for configuring the new node relationship and emits
+        the createNodeRequested signal with the user's configuration.
+
+        Note:
+            This is triggered from the context menu when text is selected.
+        """
+        cursor: QTextCursor = self.text_edit.textCursor()
         if cursor.hasSelection():
-            selected_text = cursor.selectedText()
+            selected_text: str = cursor.selectedText()
 
             dialog = QuickRelationDialog(selected_text, self)
 
@@ -212,28 +314,48 @@ class TextEditor(QWidget):
                 )
 
     def _handle_text_changed(self) -> None:
-        """Handle text changes and schedule a rescan."""
+        """Handle text content changes.
+
+        Starts the node name scanning timer to schedule a new scan
+        after the user stops typing.
+        """
         # Reset and restart the timer
         if self.name_cache_service:
             self.scan_timer.start()
 
-    def _handle_node_click(self, url) -> None:
-        """Handle clicks on node name links."""
-        """Handle clicks on node name links."""
+    def _handle_node_click(self, url: str) -> None:
+        """Process clicks on node name links.
+
+        Updates the main UI's name input field with the clicked node name.
+
+        Args:
+            url: The node name that was clicked (stored in the link's href).
+        """
         if url:
             self.main_ui.name_input.setText(url)
 
     def setHtml(self, text: str) -> None:
-        """Set the HTML content of the editor."""
+        """Set the editor's content as HTML.
+
+        Args:
+            text: The HTML content to display in the editor.
+        """
         self.text_edit.setHtml(text)
 
     def toHtml(self) -> str:
-        """Get the content as HTML, cleaned for saving."""
-        """Get the content as HTML, cleaned for saving."""
-        current_html = self.text_edit.toHtml()
+        """Get the editor's content as cleaned HTML.
+
+        Returns:
+            str: The HTML content with link formatting and empty paragraphs removed.
+
+        Note:
+            This method cleans up the HTML by removing the custom link formatting
+            and empty paragraphs before returning.
+        """
+        current_html: str = self.text_edit.toHtml()
 
         # First remove our link formatting
-        cleaned = re.sub(
+        cleaned: str = re.sub(
             r'<a href="[^"]*" class="node-reference"[^>]*style="[^"]*">([^<]+)</a>',
             r"\1",  # Keep just the text content
             current_html,
@@ -245,9 +367,13 @@ class TextEditor(QWidget):
         return cleaned if cleaned else ""
 
     def toPlainText(self) -> str:
-        """Get the content as plain text."""
+        """Get the editor's content as plain text.
+
+        Returns:
+            str: The unformatted text content of the editor.
+        """
         return self.text_edit.toPlainText()
 
     def clear(self) -> None:
-        """Clear the editor content."""
+        """Clear all content from the editor."""
         self.text_edit.clear()
