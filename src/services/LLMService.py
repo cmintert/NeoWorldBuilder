@@ -98,38 +98,40 @@ class LLMService:
     def _get_node_context(self, node_name: str, depth: int) -> str:
         """Recursively fetches and formats context information from connected nodes.
 
-        This internal method traverses the node graph starting from the given node,
-        collecting information about connected nodes up to the specified depth.
-        It handles both incoming and outgoing relationships and formats the information
-        in a human-readable format.
-
         Args:
             node_name (str): The name of the starting node from which to gather context.
-            depth (int): The maximum number of relationship hops to traverse when
-                gathering context. A depth of 0 means only the starting node.
+            depth (int): The maximum number of relationship hops to traverse.
 
         Returns:
             str: A formatted string containing information about the node and its
-                connected nodes, including names, labels, tags, and relationship paths.
-                Returns an empty string if no context could be gathered.
-
-        Note:
-            The method uses an internal visited set to prevent cycles in the graph
-            traversal and handles various relationship formats (tuples and dicts).
+                connected nodes, with HTML stripped from descriptions.
         """
         visited: Set[str] = set()
         context_parts: List[str] = []
 
+        def strip_html(html_text: str) -> str:
+            """Remove HTML tags from text."""
+            if not html_text:
+                return ""
+            import re
+
+            # Remove HTML tags
+            text = re.sub(r"<[^>]+>", " ", html_text)
+            # Remove doctype and other declarations
+            text = re.sub(r"<!DOCTYPE[^>]+>", "", text)
+            # Normalize whitespace
+            text = re.sub(r"\s+", " ", text).strip()
+            return text
+
         def collect_node_info(
             name: str, current_depth: int, rel_path: str = ""
         ) -> None:
-            """Recursively collects and formats information about nodes and their relationships.
+            """Recursively collects and formats information about nodes and relationships.
 
             Args:
                 name (str): Name of the current node being processed.
-                current_depth (int): Current depth in the traversal, decrements with each hop.
-                rel_path (str, optional): String representing the relationship path taken
-                    to reach this node. Defaults to empty string for the starting node.
+                current_depth (int): Current depth in the traversal.
+                rel_path (str, optional): Relationship path string.
             """
             if current_depth < 0 or name in visited:
                 return
@@ -138,13 +140,23 @@ class LLMService:
 
             # Get node data
             try:
-                node: Optional[NodeType] = self.node_operations.get_node_by_name(name)
+                node = self.node_operations.get_node_by_name(name)
                 if not node:
                     return
 
                 # Format node info
-                prefix: str = f"{rel_path} -> " if rel_path else ""
-                node_info: List[str] = [
+                prefix = f"{rel_path} -> " if rel_path else ""
+
+                # Get a clean, HTML-stripped description
+                description = node.get("description", "")
+                clean_description = strip_html(description)
+                brief = (
+                    clean_description[:150] + "..."
+                    if len(clean_description) > 150
+                    else clean_description
+                )
+
+                node_info = [
                     f"{prefix}Node: {node['name']}",
                     (
                         f"Labels: {', '.join(node['labels'])}"
@@ -152,11 +164,7 @@ class LLMService:
                         else ""
                     ),
                     f"Tags: {', '.join(node['tags'])}" if node.get("tags") else "",
-                    (
-                        f"Brief: {node['description'][:100]}..."
-                        if node.get("description")
-                        else ""
-                    ),
+                    f"Brief: {brief}" if brief else "",
                 ]
                 context_parts.append("\n".join(filter(None, node_info)))
 
@@ -164,27 +172,23 @@ class LLMService:
                 if current_depth == 0:
                     return
 
-                # Process relationships
+                # Process relationships with the new format
                 for rel in node.get("relationships", []):
-                    target: Optional[str] = (
-                        rel[1]
-                        if isinstance(rel, tuple) and len(rel) > 1
-                        else rel.get("target")
-                    )
-                    rel_type: Optional[str] = (
-                        rel[0]
-                        if isinstance(rel, tuple) and len(rel) > 0
-                        else rel.get("type")
-                    )
+                    target = rel.get("target")
+                    rel_type = rel.get("type")
+                    direction = rel.get("direction")
+
                     if target and rel_type:
-                        new_path: str = (
-                            f"{rel_path} -[{rel_type}]"
+                        arrow = "->" if direction == "OUTGOING" else "<-"
+                        new_path = (
+                            f"{rel_path} -[{rel_type}]{arrow}"
                             if rel_path
-                            else f"-[{rel_type}]"
+                            else f"-[{rel_type}]{arrow}"
                         )
                         collect_node_info(target, current_depth - 1, new_path)
+
             except Exception as e:
-                logging.error(f"Error processing node {name}: {e}")
+                logging.error(f"Error processing node {name} for context: {e}")
                 # Continue with other nodes
 
         # Start collection from the root node
@@ -221,30 +225,7 @@ class LLMService:
         custom_instructions: str,
         callback: Callable[[str, Optional[str]], None],
     ) -> None:
-        """Enhances a node's description using a template-based approach with focus.
-
-        This method uses predefined templates to generate enhanced descriptions. It retrieves
-        node context if requested, applies the appropriate template, and processes the LLM response.
-        The method includes fallback mechanisms if the requested template is not available.
-
-        Args:
-            node_name (str): The name of the node whose description should be enhanced.
-            description (str): The current description of the node.
-            template_id (str): ID of the template to use for enhancement.
-            focus_type (str): Type of enhancement focus (general, details, style, consistency).
-                Used as a fallback if template_id is not found.
-            context_depth (int): Number of levels of connected nodes to include as context.
-            custom_instructions (str): Additional instructions from the user to guide the enhancement.
-            callback (Callable[[str, Optional[str]], None]): A callback function that takes
-                two arguments: the enhanced description (str) and an optional error message (str).
-
-        Note:
-            The callback function is called with (enhanced_text, None) on success,
-            or ("", error_message) on failure.
-
-        Raises:
-            No exceptions are raised directly; all errors are passed to the callback.
-        """
+        """Enhances a node's description using a template-based approach with focus."""
         try:
             # Validate that template service is available
             if not self._prompt_template_service:
@@ -254,7 +235,11 @@ class LLMService:
             # Get node context if depth > 0
             context = ""
             if context_depth > 0:
+                logging.debug(
+                    f"Gathering context with depth {context_depth} for node: {node_name}"
+                )
                 context = self._get_node_context(node_name, context_depth)
+                logging.debug(f"Context gathered, length: {len(context)}")
 
             # Get node data for variable substitution
             node = self.node_operations.get_node_by_name(node_name)
@@ -262,18 +247,7 @@ class LLMService:
                 callback("", f"Could not find node: {node_name}")
                 return
 
-            # Get prompt template
-            template = self._prompt_template_service.get_template(template_id)
-            if not template:
-                # Fall back to focus type if template not found
-                template = self._prompt_template_service.get_template(focus_type)
-                if not template:
-                    # Fall back to general template as last resort
-                    template = self._prompt_template_service.get_template("general")
-                    if not template:
-                        callback("", "No suitable template found")
-                        return
-
+            # Strip HTML from the description for the node data
             node["description"] = description
 
             # Prepare variables
@@ -282,6 +256,11 @@ class LLMService:
             )
 
             # Format the template
+            template = self._get_appropriate_template(template_id, focus_type)
+            if not template:
+                callback("", "No suitable template found")
+                return
+
             prompt = template.format(variables)
 
             # Send to LLM API (using existing API call mechanism)
@@ -326,3 +305,14 @@ class LLMService:
         except Exception as e:
             logging.error(f"Error in enhanced LLM request: {e}")
             callback("", str(e))
+
+    def _get_appropriate_template(self, template_id: str, focus_type: str):
+        """Get the appropriate template, falling back as needed."""
+        template = self._prompt_template_service.get_template(template_id)
+        if not template:
+            # Fall back to focus type if template not found
+            template = self._prompt_template_service.get_template(focus_type)
+            if not template:
+                # Fall back to general template as last resort
+                template = self._prompt_template_service.get_template("general")
+        return template

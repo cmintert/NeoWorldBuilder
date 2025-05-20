@@ -100,14 +100,19 @@ class PromptTemplateService:
         self, node_data: Dict[str, Any], context: str, custom_instructions: str = ""
     ) -> Dict[str, Any]:
         """Prepare variables for template substitution."""
-        # Extract labels and determine node type
+        # Extract labels
         labels = node_data.get("labels", [])
+
+        # For tags, ensure we have a list
+        tags = node_data.get("tags", [])
+        if isinstance(tags, str):
+            tags = tags.split(",")
 
         # Build variables dictionary
         variables = {
             "node_name": node_data.get("name", ""),
-            "labels": ", ".join(labels),
-            "tags": node_data.get("tags", ""),
+            "labels": ", ".join(labels) if isinstance(labels, list) else labels,
+            "tags": ", ".join(tags) if isinstance(tags, list) else tags,
             "description": node_data.get("description", ""),
             "context": context or "No connected nodes available",
             "custom_instructions": custom_instructions,

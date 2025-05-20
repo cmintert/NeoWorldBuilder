@@ -4,8 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Enhance LLM description handling and improve prompt template service&#10;&#10;- Refactored enhance_node_description to utilize a default template for enhancements.&#10;- Added error handling for missing templates in the prompt template service.&#10;- Updated LLMService to support template-based enhancements with improved parameter handling.&#10;- Introduced YAML-based template loading for better flexibility and maintainability.">
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Refactor logging statement for improved readability in node operation service">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/LLMService.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/LLMService.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/prompt_template_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/prompt_template_service.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -262,6 +264,7 @@
       <workItem from="1747460119206" duration="17186000" />
       <workItem from="1747554734618" duration="11677000" />
       <workItem from="1747673179578" duration="2153000" />
+      <workItem from="1747721660142" duration="1050000" />
     </task>
     <task id="LOCAL-00001" summary="Implemented a first basic calendar property system.">
       <option name="closed" value="true" />
@@ -615,7 +618,23 @@
       <option name="project" value="LOCAL" />
       <updated>1747600186155</updated>
     </task>
-    <option name="localTasksCounter" value="45" />
+    <task id="LOCAL-00045" summary="Enhance LLM description handling and improve prompt template service&#10;&#10;- Refactored enhance_node_description to utilize a default template for enhancements.&#10;- Added error handling for missing templates in the prompt template service.&#10;- Updated LLMService to support template-based enhancements with improved parameter handling.&#10;- Introduced YAML-based template loading for better flexibility and maintainability.">
+      <option name="closed" value="true" />
+      <created>1747722014982</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1747722014982</updated>
+    </task>
+    <task id="LOCAL-00046" summary="Refactor logging statement for improved readability in node operation service">
+      <option name="closed" value="true" />
+      <created>1747722033271</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1747722033271</updated>
+    </task>
+    <option name="localTasksCounter" value="47" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -645,7 +664,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Add ExportMixin for enhanced export functionality in controllers" />
     <MESSAGE value="Add NodeDataMixin for enhanced node data handling in controllers" />
     <MESSAGE value="Add CalendarMixin for enhanced calendar functionality in controllers" />
     <MESSAGE value="Add MapMixin for enhanced map functionality in controllers" />
@@ -670,14 +688,15 @@
     <MESSAGE value="Add error handling and logging to AI enhancement request process&#10;&#10;Enhanced the _request_enhanced_enhancement method to include error handling and logging. Improved user feedback for template service access issues and added logging for exceptions during the enhancement request process. Updated the UI dialog to ensure a smoother user experience when configuring AI enhancement options." />
     <MESSAGE value="Enhance LLM description handling and improve prompt template service&#10;&#10;- Updated LLMService to require valid HTML responses with paragraph tags for enhanced descriptions.&#10;- Improved error handling and logging in the AI enhancement request process.&#10;- Refactored prompt template service to clarify instructions for generating engaging descriptions.&#10;- Adjusted UI to display both current and enhanced descriptions for better user feedback." />
     <MESSAGE value="Enhance LLM description handling and improve prompt template service&#10;&#10;- Refactored enhance_node_description to utilize a default template for enhancements.&#10;- Added error handling for missing templates in the prompt template service.&#10;- Updated LLMService to support template-based enhancements with improved parameter handling.&#10;- Introduced YAML-based template loading for better flexibility and maintainability." />
-    <option name="LAST_COMMIT_MESSAGE" value="Enhance LLM description handling and improve prompt template service&#10;&#10;- Refactored enhance_node_description to utilize a default template for enhancements.&#10;- Added error handling for missing templates in the prompt template service.&#10;- Updated LLMService to support template-based enhancements with improved parameter handling.&#10;- Introduced YAML-based template loading for better flexibility and maintainability." />
+    <MESSAGE value="Refactor logging statement for improved readability in node operation service" />
+    <option name="LAST_COMMIT_MESSAGE" value="Refactor logging statement for improved readability in node operation service" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/services/LLMService.py</url>
-          <line>305</line>
+          <line>284</line>
           <option name="timeStamp" value="1" />
         </line-breakpoint>
       </breakpoints>
