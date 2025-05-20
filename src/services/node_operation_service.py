@@ -20,6 +20,7 @@ from utils.validation import (
 
 logger = get_logger(__name__)
 
+
 @dataclass
 class NodeData:
     """Data class for node information"""
@@ -300,8 +301,7 @@ class NodeOperationsService:
                         }
                     )
                     # Remove reserved properties
-                    logger.debug(f"Node data from get_node_by_name:"
-                                 f" {node_data}")
+                    logger.debug(f"Node data from get_node_by_name:" f" {node_data}")
                     return node_data
                 return None
         except Exception as e:
