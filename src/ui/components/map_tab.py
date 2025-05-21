@@ -38,21 +38,50 @@ logger = get_logger(__name__)
 
 
 class MapImageLoader(QThread):
-    """Thread for loading map images."""
+    """Thread for loading map images.
+
+    This class loads map images in a separate thread to prevent UI freezing.
+
+    Attributes:
+        loaded (pyqtSignal): Signal emitted when image loading is complete.
+        image_path (str): Path to the image file to load.
+    """
 
     loaded = pyqtSignal(QPixmap)
 
     def __init__(self, image_path: str):
-        super().__init__()
+        """Initialize the map image loader.
+
+        Args:
+            image_path: Path to the image file to load.
+        """
+        super(MapImageLoader, self).__init__()
         self.image_path = image_path
 
     def run(self):
+        """Load the image and emit the loaded signal with the pixmap."""
         pixmap = QPixmap(self.image_path)
         self.loaded.emit(pixmap)
 
 
 class PannableLabel(QLabel):
-    """Custom QLabel that supports panning with click and drag."""
+    """Custom QLabel that supports panning with click and drag.
+
+    This label can be panned, zoomed, and supports pin and line placement.
+
+    Attributes:
+        zoom_requested (pyqtSignal): Signal for zoom requests.
+        pin_placed (pyqtSignal): Signal emitted when a pin is placed.
+        pin_clicked (pyqtSignal): Signal emitted when a pin is clicked.
+        line_completed (pyqtSignal): Signal emitted when a line drawing is completed.
+        line_clicked (pyqtSignal): Signal emitted when a line is clicked.
+        is_panning (bool): Flag indicating if panning is active.
+        pin_placement_active (bool): Flag indicating if pin placement mode is active.
+        line_drawing_active (bool): Flag indicating if line drawing mode is active.
+        current_line_points (list): Points collected during line drawing.
+        pins (Dict[str, QLabel]): Dictionary mapping node names to pin widgets.
+        lines (Dict[str, LineContainer]): Dictionary mapping node names to line containers.
+    """
 
     zoom_requested = pyqtSignal(float)  # Signal for zoom requests
     pin_placed = pyqtSignal(int, int)  # Signal for pin placement
@@ -61,7 +90,13 @@ class PannableLabel(QLabel):
     line_clicked = pyqtSignal(str)  # Emits target_node when line is clicked
 
     def __init__(self, parent=None, config=None):
-        super().__init__()
+        """Initialize the pannable label.
+
+        Args:
+            parent: Parent widget, typically the MapTab.
+            config: Configuration object with settings.
+        """
+        super(PannableLabel, self).__init__(parent)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMouseTracking(True)
         self.is_panning = False
@@ -89,13 +124,21 @@ class PannableLabel(QLabel):
         self.temp_line_coordinates = []  # Stores coordinates during drawing
 
     def resizeEvent(self, event):
-        """Handle resize events to keep pin container matched to size."""
+        """Handle resize events to keep pin container matched to size.
+
+        Args:
+            event: The resize event object.
+        """
         super().resizeEvent(event)
         self.pin_container.setGeometry(0, 0, self.width(), self.height())
         self.pin_container.raise_()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        """Handle mouse press events for panning and pin placement."""
+        """Handle mouse press events for panning and pin placement.
+
+        Args:
+            event: The mouse press event object.
+        """
         pixmap = self.pixmap()
         if pixmap:
             # Get the displayed image dimensions
@@ -146,7 +189,11 @@ class PannableLabel(QLabel):
                 self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        """Handle key press events."""
+        """Handle key press events.
+
+        Args:
+            event: The key press event object.
+        """
         print(f"Key press: {event.key()}")
 
         if event.key() == Qt.Key.Key_Escape:
@@ -189,14 +236,22 @@ class PannableLabel(QLabel):
         super().keyPressEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        """Handle mouse release events to stop panning."""
+        """Handle mouse release events to stop panning.
+
+        Args:
+            event: The mouse release event object.
+        """
         if event.button() == Qt.MouseButton.LeftButton:
             self.is_panning = False
             if not self.pin_placement_active:
                 self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        """Handle mouse movement for panning and cursor updates."""
+        """Handle mouse movement for panning and cursor updates.
+
+        Args:
+            event: The mouse move event object.
+        """
         pixmap = self.pixmap()
         if pixmap:
             # Handle panning
@@ -241,7 +296,11 @@ class PannableLabel(QLabel):
                     self.coordinate_label.hide()
 
     def wheelEvent(self, event: QWheelEvent) -> None:
-        """Handle mouse wheel events for zooming."""
+        """Handle mouse wheel events for zooming.
+
+        Args:
+            event: The wheel event object.
+        """
         # Get the number of degrees rotated (usually 120 or -120)
         delta = event.angleDelta().y()
 
@@ -251,8 +310,13 @@ class PannableLabel(QLabel):
         self.zoom_requested.emit(zoom_factor)
 
     def create_pin(self, target_node: str, x: int, y: int) -> None:
-        """Create and position a pin with tooltip."""
+        """Create and position a pin with tooltip.
 
+        Args:
+            target_node: The node name this pin represents.
+            x: Original x-coordinate of the pin.
+            y: Original y-coordinate of the pin.
+        """
         if target_node in self.pins:
             self.pins[target_node].deleteLater()
             del self.pins[target_node]
@@ -277,7 +341,11 @@ class PannableLabel(QLabel):
         self.update_pin_container_position(target_node, x, y)
 
     def batch_create_pins(self, pin_data: List[Tuple[str, int, int]]) -> None:
-        """Create multiple pins efficiently."""
+        """Create multiple pins efficiently.
+
+        Args:
+            pin_data: List of (target_node, x, y) tuples.
+        """
         # Pre-allocate widgets to minimize layout recalculations
         for target_node, x, y in pin_data:
             if target_node in self.pins:
@@ -305,7 +373,13 @@ class PannableLabel(QLabel):
             self.pin_container.update()
 
     def update_pin_container_position(self, target_node: str, x: int, y: int) -> None:
-        """Update position of a pin container."""
+        """Update position of a pin container.
+
+        Args:
+            target_node: The node name this pin represents.
+            x: Original x-coordinate of the pin.
+            y: Original y-coordinate of the pin.
+        """
         if target_node not in self.pins:
             return
 
@@ -344,9 +418,7 @@ class PannableLabel(QLabel):
         pin_container.show()
 
     def update_pin_positions(self) -> None:
-        """Update all pin and line positions using stored original
-        coordinates."""
-
+        """Update all pin and line positions using stored original coordinates."""
         for target_node, pin in self.pins.items():
             # Use the stored original coordinates rather than trying to calculate back
             if hasattr(pin, "original_x") and hasattr(pin, "original_y"):
@@ -362,7 +434,11 @@ class PannableLabel(QLabel):
         self.pins.clear()
 
     def paintEvent(self, event):
-        """Override paint event to draw temporary line while drawing."""
+        """Override paint event to draw temporary line while drawing.
+
+        Args:
+            event: The paint event object.
+        """
         super().paintEvent(event)
 
         # Draw temporary line while in drawing mode
@@ -387,8 +463,8 @@ class PannableLabel(QLabel):
         """Create and position a line feature.
 
         Args:
-            target_node (str): The node name this line represents.
-            points (List[Tuple[int, int]]): List of coordinate points making up the line.
+            target_node: The node name this line represents.
+            points: List of coordinate points making up the line.
         """
         if target_node in self.lines:
             self.lines[target_node].deleteLater()
@@ -457,7 +533,7 @@ class PannableLabel(QLabel):
         """Create multiple lines efficiently.
 
         Args:
-            line_data (List[Tuple[str, List[Tuple[int, int]]]]): List of (target_node, points) tuples.
+            line_data: List of (target_node, points) tuples.
         """
         # Pre-process any existing lines that need to be deleted
         for target_node, _ in line_data:
@@ -496,7 +572,22 @@ class PannableLabel(QLabel):
 
 
 class MapTab(QWidget):
-    """Map tab component for displaying and interacting with map images."""
+    """Map tab component for displaying and interacting with map images.
+
+    This tab allows users to view maps, place pins, and draw lines representing
+    graph nodes and their spatial relationships.
+
+    Attributes:
+        map_image_changed (pyqtSignal): Signal when map image path changes.
+        pin_mode_toggled (pyqtSignal): Signal for pin mode changes.
+        pin_created (pyqtSignal): Signal when a pin is created.
+        pin_clicked (pyqtSignal): Signal when a pin is clicked.
+        line_created (pyqtSignal): Signal when a line is created.
+        current_scale (float): Current zoom scale.
+        map_image_path (str): Path to the current map image.
+        pin_placement_active (bool): Flag indicating if pin placement mode is active.
+        line_drawing_active (bool): Flag indicating if line drawing mode is active.
+    """
 
     map_image_changed = pyqtSignal(str)  # Signal when map image path changes
     pin_mode_toggled = pyqtSignal(bool)  # Signal for pin mode changes
@@ -509,8 +600,13 @@ class MapTab(QWidget):
     )  # Signal for line creation (target_node, direction, properties)
 
     def __init__(self, parent: Optional[QWidget] = None, controller=None) -> None:
-        """Initialize the map tab."""
-        super().__init__(parent)
+        """Initialize the map tab.
+
+        Args:
+            parent: Parent widget.
+            controller: Application controller that manages data flow.
+        """
+        super(MapTab, self).__init__(parent)
         self.current_scale = 1.0
         self.map_image_path = None
         self.pin_placement_active = False
@@ -613,7 +709,11 @@ class MapTab(QWidget):
         self.setLayout(layout)
 
     def _handle_wheel_zoom(self, zoom_factor: float) -> None:
-        """Handle zoom requests from mouse wheel."""
+        """Handle zoom requests from mouse wheel.
+
+        Args:
+            zoom_factor: Factor by which to zoom.
+        """
         # Calculate new scale
         new_scale = self.current_scale * zoom_factor
 
@@ -624,7 +724,11 @@ class MapTab(QWidget):
         self.zoom_slider.setValue(int(new_scale * 100))
 
     def set_map_image(self, image_path: Optional[str]) -> None:
-        """Set the map image path and display the image."""
+        """Set the map image path and display the image.
+
+        Args:
+            image_path: Path to the map image file or None to clear.
+        """
         self.map_image_path = image_path
 
         # Early exit for no image
@@ -651,7 +755,11 @@ class MapTab(QWidget):
         self.current_loader.start()
 
     def _on_image_loaded(self, pixmap: QPixmap) -> None:
-        """Handle when image has finished loading."""
+        """Handle when image has finished loading.
+
+        Args:
+            pixmap: The loaded pixmap image.
+        """
         if pixmap.isNull():
             self.image_label.clear_pins()
             self.image_label.setText(f"Error loading map image: {self.map_image_path}")
@@ -765,7 +873,11 @@ class MapTab(QWidget):
                     )
 
     def get_map_image_path(self) -> Optional[str]:
-        """Get the current map image path."""
+        """Get the current map image path.
+
+        Returns:
+            The path to the current map image or None if no image is set.
+        """
         return self.map_image_path
 
     def _change_map_image(self) -> None:
@@ -862,7 +974,12 @@ class MapTab(QWidget):
         QTimer.singleShot(1, lambda: self._set_scroll_position(new_x, new_y))
 
     def _set_scroll_position(self, x: int, y: int) -> None:
-        """Set scroll position with boundary checking."""
+        """Set scroll position with boundary checking.
+
+        Args:
+            x: Horizontal scroll position.
+            y: Vertical scroll position.
+        """
         h_bar = self.scroll_area.horizontalScrollBar()
         v_bar = self.scroll_area.verticalScrollBar()
 
@@ -874,7 +991,11 @@ class MapTab(QWidget):
         v_bar.setValue(y)
 
     def toggle_pin_placement(self, active: bool) -> None:
-        """Toggle pin placement mode."""
+        """Toggle pin placement mode.
+
+        Args:
+            active: Whether pin placement mode should be active.
+        """
         self.pin_placement_active = active
         self.image_label.pin_placement_active = active
 
@@ -889,7 +1010,12 @@ class MapTab(QWidget):
         self.pin_mode_toggled.emit(active)
 
     def _handle_pin_placement(self, x: int, y: int) -> None:
-        """Handle pin placement at the specified coordinates."""
+        """Handle pin placement at the specified coordinates.
+
+        Args:
+            x: X-coordinate of the pin.
+            y: Y-coordinate of the pin.
+        """
         dialog = PinPlacementDialog(x, y, self, self.controller)
         dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
 
@@ -909,7 +1035,11 @@ class MapTab(QWidget):
                 self.pin_toggle_btn.setChecked(False)
 
     def toggle_line_drawing(self, active: bool) -> None:
-        """Toggle line drawing mode."""
+        """Toggle line drawing mode.
+
+        Args:
+            active: Whether line drawing mode should be active.
+        """
         # Check if we're ending a drawing session with valid points
         completing_drawing = (
             not active
@@ -953,7 +1083,11 @@ class MapTab(QWidget):
             self.image_label.update()
 
     def _handle_line_completion(self, points: List[Tuple[int, int]]) -> None:
-        """Handle a completed line."""
+        """Handle a completed line.
+
+        Args:
+            points: List of coordinate points making up the line.
+        """
         print(f"Handling line completion with {len(points)} points")
 
         if len(points) < 2:
@@ -1027,11 +1161,25 @@ class MapTab(QWidget):
 
 
 class PinContainer(QWidget):
-    """Container widget that holds both a pin and its label."""
+    """Container widget that holds both a pin and its label.
+
+    Attributes:
+        pin_clicked (pyqtSignal): Signal emitted when the pin is clicked.
+        _scale (float): Current scale factor for the pin.
+        text_label (QLabel): Label showing the node name.
+        pin_svg (QSvgWidget): The pin icon.
+    """
 
     pin_clicked = pyqtSignal(str)
 
     def __init__(self, target_node: str, parent=None, config=None):
+        """Initialize the pin container.
+
+        Args:
+            target_node: The node name this pin represents.
+            parent: Parent widget.
+            config: Configuration object with settings.
+        """
         super().__init__(parent)
         self._scale = 1.0  # Initialize scale attribute
         self.config = config
@@ -1126,7 +1274,11 @@ class PinContainer(QWidget):
         )
 
     def set_scale(self, scale: float) -> None:
-        """Set the current scale and update sizes."""
+        """Set the current scale and update sizes.
+
+        Args:
+            scale: The new scale factor.
+        """
         self._scale = scale
         self.update_pin_size()
         self.update_label_style()
@@ -1134,11 +1286,19 @@ class PinContainer(QWidget):
 
     @property
     def pin_height(self) -> int:
-        """Get the height of the pin."""
+        """Get the height of the pin.
+
+        Returns:
+            The current height of the pin widget.
+        """
         return self.pin_svg.height()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
+        """Handle mouse press events.
 
+        Args:
+            event: The mouse press event.
+        """
         if event.button() == Qt.MouseButton.LeftButton:
             self.pin_clicked.emit(self.text_label.text())
         event.accept()  # Make sure we handle the event

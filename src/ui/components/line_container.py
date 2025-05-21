@@ -45,6 +45,13 @@ class LineContainer(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._update_geometry()
 
+        # Add tooltip to show target node name on hover
+        self.setToolTip(target_node)
+
+        # Set container to be transparent
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self._update_geometry()
+
     def _update_geometry(self):
         """Update widget geometry based on line points."""
         if not self.scaled_points:
