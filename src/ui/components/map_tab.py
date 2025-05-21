@@ -691,13 +691,11 @@ class MapTab(QWidget):
 
         if self.controller:
             self.image_label.pin_clicked.connect(self.controller._handle_pin_click)
+            self.image_label.line_clicked.connect(self.controller._handle_pin_click)
         else:
-            print("Warning: No controller present for pin clicks")
+            print("Warning: No controller present for pin/line clicks")
 
         self.image_label.line_completed.connect(self._handle_line_completion)
-        self.image_label.line_clicked.connect(
-            lambda target: self.pin_clicked.emit(target)
-        )
 
         self.scroll_area.setWidget(self.image_label)
 
