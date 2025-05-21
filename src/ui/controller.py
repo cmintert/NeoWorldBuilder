@@ -304,7 +304,7 @@ class BaseController(QObject):
         self.refresh_tree_view()
         self.load_node_data()
         if self.ui.map_tab:
-            self.ui.map_tab.load_pins()
+            self.ui.map_tab.load_features()
         self.update_unsaved_changes_indicator()
 
         # Activate the basic info tab

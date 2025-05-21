@@ -4,9 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Refactor prompt templates by removing focus type parameters and adding a new physical description template">
-      <change beforePath="$PROJECT_DIR$/.idea/NeoWorldBuilder.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/NeoWorldBuilder.iml" afterDir="false" />
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Refactor project configuration files to update documentation format and enhance workspace settings">
+      <change afterPath="$PROJECT_DIR$/src/ui/components/line_container.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/autocompletion_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/autocompletion_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/dialogs.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/dialogs.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_tab.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/controller.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/mixins/mapmixin.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/mixins/mapmixin.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -88,7 +94,7 @@
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "ml.llm.mcp",
+    "settings.editor.selected.configurable": "ml.llm.LLMThirdPartyAiProvidersConfigurable",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -274,15 +280,7 @@
       <workItem from="1747554734618" duration="11677000" />
       <workItem from="1747673179578" duration="2153000" />
       <workItem from="1747721660142" duration="6899000" />
-      <workItem from="1747834253834" duration="537000" />
-    </task>
-    <task id="LOCAL-00001" summary="Implemented a first basic calendar property system.">
-      <option name="closed" value="true" />
-      <created>1737193394755</created>
-      <option name="number" value="00001" />
-      <option name="presentableId" value="LOCAL-00001" />
-      <option name="project" value="LOCAL" />
-      <updated>1737193394755</updated>
+      <workItem from="1747834253834" duration="5958000" />
     </task>
     <task id="LOCAL-00002" summary="Made writing and reading of calendar config working">
       <option name="closed" value="true" />
@@ -668,7 +666,15 @@
       <option name="project" value="LOCAL" />
       <updated>1747769598428</updated>
     </task>
-    <option name="localTasksCounter" value="50" />
+    <task id="LOCAL-00050" summary="Refactor project configuration files to update documentation format and enhance workspace settings">
+      <option name="closed" value="true" />
+      <created>1747835009045</created>
+      <option name="number" value="00050" />
+      <option name="presentableId" value="LOCAL-00050" />
+      <option name="project" value="LOCAL" />
+      <updated>1747835009045</updated>
+    </task>
+    <option name="localTasksCounter" value="51" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -698,9 +704,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Add EventMixin and ImageMixin for enhanced event and image handling in controllers" />
-    <MESSAGE value="Add TimelineMixin and TimelineTab for enhanced timeline functionality in controllers. This is the first try to implement a timeline tab. No real functionality for now." />
-    <MESSAGE value="Enhance timeline functionality with improved event handling and visualization in controllers. further debugging." />
     <MESSAGE value="Add calendar lookup functionality and improve event data handling in timeline tab" />
     <MESSAGE value="Enhance timeline tab setup and data loading with improved error handling and event processing" />
     <MESSAGE value="Fix mouse move event handling to ensure widget updates correctly" />
@@ -723,7 +726,10 @@
     <MESSAGE value="Refactor LLMService and prompt template service for improved context handling and error management" />
     <MESSAGE value="Refactor enhancement process by removing focus type parameter and improving template preview functionality" />
     <MESSAGE value="Refactor prompt templates by removing focus type parameters and adding a new physical description template" />
-    <option name="LAST_COMMIT_MESSAGE" value="Refactor prompt templates by removing focus type parameters and adding a new physical description template" />
+    <MESSAGE value="Refactor project configuration files to update documentation format and enhance workspace settings" />
+    <MESSAGE value="Add line drawing feature with customizable styles and integrate into map tab" />
+    <MESSAGE value="&lt;think&gt;&#10;Okay, I'm trying to figure out the best commit message for this set of changes. Let me look through the diffs provided.&#10;&#10;First, in `autocompletion_service.py`, there's a change where some logging statements and a comment were removed. It looks like those lines are no longer needed, so maybe the commit is about cleaning up the codebase by removing unused or redundant parts.&#10;&#10;Then, in `neoworldbuilder.log`, there are multiple log entries with timestamps that seem to be duplicates. This might indicate that there's an issue with logging configuration or duplication of entries, which could be fixed by cleaning up the logs.&#10;&#10;In `.idea/workspace.xml`, several change items were added or modified. It seems like tasks and configurations related to the project setup are being updated, probably to reflect changes in the code structure or dependencies.&#10;&#10;Looking at `mapmixin.py`, there are new signals and methods added for handling line creation and features. This suggests that new functionality is being implemented for handling lines, possibly improving how lines are drawn or interacted with on the map.&#10;&#10;In `dialogs.py`, a new dialog class `LineFeatureDialog` was created. This allows users to set properties for line features, which is a significant feature addition. Also, there's an update to how node names are auto-completed using a controller's name cache service.&#10;&#10;The `map_tab.py` file has several additions and changes. A new signal `line_created` is emitted when a line is created, which connects to the map tab's handling of line creation. There's also an improvement in how lines and pins are updated based on stored coordinates, which likely affects performance or functionality during rendering.&#10;&#10;Putting this all together, there are both refactorings (like removing unused code) and new features (like the LineFeatureDialog and line handling) being added. The commit messages should reflect these changes clearly.&#10;&#10;I think the main actions here are:&#10;1. Implementing a new line feature dialog for setting properties.&#10;2. Enhancing map tab functionality to handle lines, including creating and updating them.&#10;3. Cleaning up old logging entries and unnecessary code comments.&#10;&#10;So, the commit message needs to highlight both the new features and any cleanups. Prioritizing the main actions, it should start with something concise about the main addition, then go into more detail.&#10;&#10;Maybe something like: &quot;Implement line feature properties dialog and enhance map tab functionality.&quot; Then explain each part briefly without going into too much detail.&#10;&lt;/think&gt;&#10;&#10;```&#10;```" />
+    <option name="LAST_COMMIT_MESSAGE" value="&lt;think&gt;&#10;Okay, I'm trying to figure out the best commit message for this set of changes. Let me look through the diffs provided.&#10;&#10;First, in `autocompletion_service.py`, there's a change where some logging statements and a comment were removed. It looks like those lines are no longer needed, so maybe the commit is about cleaning up the codebase by removing unused or redundant parts.&#10;&#10;Then, in `neoworldbuilder.log`, there are multiple log entries with timestamps that seem to be duplicates. This might indicate that there's an issue with logging configuration or duplication of entries, which could be fixed by cleaning up the logs.&#10;&#10;In `.idea/workspace.xml`, several change items were added or modified. It seems like tasks and configurations related to the project setup are being updated, probably to reflect changes in the code structure or dependencies.&#10;&#10;Looking at `mapmixin.py`, there are new signals and methods added for handling line creation and features. This suggests that new functionality is being implemented for handling lines, possibly improving how lines are drawn or interacted with on the map.&#10;&#10;In `dialogs.py`, a new dialog class `LineFeatureDialog` was created. This allows users to set properties for line features, which is a significant feature addition. Also, there's an update to how node names are auto-completed using a controller's name cache service.&#10;&#10;The `map_tab.py` file has several additions and changes. A new signal `line_created` is emitted when a line is created, which connects to the map tab's handling of line creation. There's also an improvement in how lines and pins are updated based on stored coordinates, which likely affects performance or functionality during rendering.&#10;&#10;Putting this all together, there are both refactorings (like removing unused code) and new features (like the LineFeatureDialog and line handling) being added. The commit messages should reflect these changes clearly.&#10;&#10;I think the main actions here are:&#10;1. Implementing a new line feature dialog for setting properties.&#10;2. Enhancing map tab functionality to handle lines, including creating and updating them.&#10;3. Cleaning up old logging entries and unnecessary code comments.&#10;&#10;So, the commit message needs to highlight both the new features and any cleanups. Prioritizing the main actions, it should start with something concise about the main addition, then go into more detail.&#10;&#10;Maybe something like: &quot;Implement line feature properties dialog and enhance map tab functionality.&quot; Then explain each part briefly without going into too much detail.&#10;&lt;/think&gt;&#10;&#10;```&#10;```" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -741,7 +747,7 @@
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$core.coverage" NAME="core Coverage Results" MODIFIED="1738140645253" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/dateparser" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1737189591173" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$calendar_model.coverage" NAME="calendar_model Coverage Results" MODIFIED="1737581064214" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/models" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1747834258561" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1747840206531" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController_test_delete_node_debounce.coverage" NAME="pytest for test_node_operations.TestBaseController.test_delete_node_debounce Coverage Results" MODIFIED="1739346351305" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_test_load_node_data.coverage" NAME="pytest for test_node_operations.test_load_node_data Coverage Results" MODIFIED="1739348948172" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />

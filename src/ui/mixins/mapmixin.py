@@ -19,7 +19,9 @@ class MapMixin:
             self.ui.map_tab.pin_clicked.connect(self._handle_pin_click)
 
             # Add new connection for pin creation
+            print("Connecting map tab signals")
             self.ui.map_tab.pin_created.connect(self._handle_pin_created)
+            self.ui.map_tab.line_created.connect(self._handle_line_created)
 
             self.ui.tabs.addTab(self.ui.map_tab, "Map")
 
@@ -66,7 +68,7 @@ class MapMixin:
         if is_map_node:
             self._ensure_map_tab_exists()
             self._update_map_image(node_data["properties"].get("mapimage"))
-            self.ui.map_tab.load_pins()
+            self.ui.map_tab.load_features()
         else:
             self._remove_map_tab()
 
@@ -82,3 +84,31 @@ class MapMixin:
         """Update map image if map tab exists."""
         if self.ui.map_tab:
             self.ui.map_tab.set_map_image(image_path)
+
+    def _handle_line_created(
+        self, target_node: str, direction: str, properties: dict
+    ) -> None:
+        """Handle creation of a new map line relationship.
+
+        Args:
+            target_node: The node to link to
+            direction: Relationship direction
+            properties: Properties including line geometry
+        """
+        # Get current node name (the map node)
+        source_node = self.ui.name_input.text().strip()
+        print(f"Handling line created: {source_node} -> {target_node}")
+
+        if not source_node:
+            print("No source node, cannot create relationship")
+            return
+
+        # Add new relationship row with SHOWS type (same as pins)
+        print(f"Adding relationship row: SHOWS, {target_node}, {direction}")
+        self.ui.add_relationship_row(
+            "SHOWS", target_node, direction, json.dumps(properties)
+        )
+
+        # Update save state to reflect changes
+        self.update_unsaved_changes_indicator()
+        print("Line relationship created successfully")
