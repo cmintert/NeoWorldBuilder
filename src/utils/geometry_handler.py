@@ -1,6 +1,6 @@
 from typing import Dict, Tuple, List, Union
 
-from shapely.geometry import Point, Polygon, LineString, MultiPoint
+from shapely.geometry import Point, Polygon, LineString, MultiPoint, MultiLineString
 from shapely.wkt import loads, dumps
 
 
@@ -32,7 +32,32 @@ class GeometryHandler:
         return dumps(line)
 
     @staticmethod
-    def get_coordinates(wkt: str) -> Union[Tuple[int, int], List[Tuple[int, int]]]:
+    def create_multi_line(coordinates: List[List[Tuple[int, int]]]) -> str:
+        """Convert list of coordinate lists to WKT multipolygon string."""
+        lines = MultiLineString([LineString(coords) for coords in coordinates])
+        return dumps(lines)
+
+    @staticmethod
+    def is_branching_line(wkt: str) -> bool:
+        """Check if WKT represents a branching line (MultiLineString)."""
+        try:
+            geometry = loads(wkt)
+            return isinstance(geometry, MultiLineString)
+        except Exception:
+            return False
+
+    @staticmethod
+    def get_branch_count(wkt: str) -> int:
+        """Get number of branches in a MultiLineString."""
+        if GeometryHandler.is_branching_line(wkt):
+            geometry = loads(wkt)
+            return len(geometry.geoms)
+        return 1  # Single line
+
+    @staticmethod
+    def get_coordinates(
+        wkt: str,
+    ) -> tuple[int, int] | list[tuple[int, int]] | list[list[tuple[int, int]]]:
         """Extract coordinates from WKT string."""
         geometry = loads(wkt)
         if isinstance(geometry, Point):
@@ -41,8 +66,12 @@ class GeometryHandler:
             return [(int(x), int(y)) for x, y in geometry.coords]
         elif isinstance(geometry, (Polygon, LineString)):
             return [(int(x), int(y)) for x, y in geometry.coords]
+        elif isinstance(geometry, MultiLineString):
+            return [
+                [(int(x), int(y)) for x, y in line.coords] for line in geometry.geoms
+            ]
         raise ValueError(
-            "WKT string must represent Point, MultiPoint, LineString or Polygon geometry"
+            "WKT string must represent Point, MultiPoint, LineString, MultiLineString, or Polygon geometry"
         )
 
     @staticmethod
@@ -50,7 +79,9 @@ class GeometryHandler:
         """Validate if string is valid WKT format."""
         try:
             geometry = loads(wkt)
-            return isinstance(geometry, (Point, MultiPoint, Polygon, LineString))
+            return isinstance(
+                geometry, (Point, MultiPoint, Polygon, LineString, MultiLineString)
+            )
         except Exception:
             return False
 
@@ -71,4 +102,7 @@ class GeometryHandler:
             return "Polygon"
         elif isinstance(geometry, LineString):
             return "LineString"
+        elif isinstance(geometry, MultiLineString):
+            return "MultiLineString"
+
         raise ValueError("Unsupported geometry type")

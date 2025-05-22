@@ -123,6 +123,9 @@ class PannableLabel(QLabel):
         self.lines = {}  # Dictionary mapping target_node to LineContainer
         self.temp_line_coordinates = []  # Stores coordinates during drawing
 
+        # Edit mode support
+        self.edit_mode_active = False
+
     def resizeEvent(self, event):
         """Handle resize events to keep pin container matched to size.
 
@@ -611,6 +614,7 @@ class MapTab(QWidget):
         self.map_image_path = None
         self.pin_placement_active = False
         self.line_drawing_active = False
+        self.edit_mode_active = False
         self.controller = controller
         self.config = controller.config
 
@@ -655,11 +659,18 @@ class MapTab(QWidget):
             "Toggle line drawing mode (ESC to cancel, Enter to complete)"
         )
 
+        # Edit toggle button
+        self.edit_toggle_btn = QPushButton("✏️ Edit Mode")
+        self.edit_toggle_btn.setCheckable(True)
+        self.edit_toggle_btn.toggled.connect(self.toggle_edit_mode)
+        self.edit_toggle_btn.setToolTip("Edit existing lines (click line to edit)")
+
         image_controls.addWidget(self.change_map_btn)
         image_controls.addWidget(self.clear_map_btn)
         image_controls.addStretch()
         image_controls.addWidget(self.pin_toggle_btn)
         image_controls.addWidget(self.line_toggle_btn)
+        image_controls.addWidget(self.edit_toggle_btn)
         image_controls.addStretch()
 
         # Zoom controls
@@ -1079,6 +1090,36 @@ class MapTab(QWidget):
             self.image_label.current_line_points = []
             self.image_label.temp_line_coordinates = []
             self.image_label.update()
+
+    def toggle_edit_mode(self, active: bool) -> None:
+        """Toggle edit mode for existing lines.
+
+        Args:
+            active: Whether edit mode should be active.
+        """
+        self.edit_mode_active = active
+        self.image_label.edit_mode_active = active
+
+        # Disable other modes when edit mode is enabled
+        if active:
+            if self.pin_toggle_btn.isChecked():
+                self.pin_toggle_btn.setChecked(False)
+            if self.line_toggle_btn.isChecked():
+                self.line_toggle_btn.setChecked(False)
+
+        # Update cursor and button appearance
+        if active:
+            self.image_label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+            self.edit_toggle_btn.setStyleSheet("background-color: #FFA500;")
+            # Show edit controls on existing lines
+            for line_container in self.image_label.lines.values():
+                line_container.set_edit_mode(active)
+        else:
+            self.image_label.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+            self.edit_toggle_btn.setStyleSheet("")
+            # Hide edit controls
+            for line_container in self.image_label.lines.values():
+                line_container.set_edit_mode(False)
 
     def _handle_line_completion(self, points: List[Tuple[int, int]]) -> None:
         """Handle a completed line.
