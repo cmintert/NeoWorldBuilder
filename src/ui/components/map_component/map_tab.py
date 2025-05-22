@@ -29,7 +29,7 @@ from PyQt6.QtWidgets import (
 from structlog import get_logger
 
 
-from ui.components.line_container import LineContainer
+from ui.components.map_component.line_container import LineContainer
 from ui.components.dialogs import PinPlacementDialog, LineFeatureDialog
 from utils.geometry_handler import GeometryHandler
 from utils.path_helper import get_resource_path

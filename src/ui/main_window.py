@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Set, Dict, Any, List
+from typing import Optional, Set, Dict, Any
 
 from PyQt6.QtCore import pyqtSignal, Qt, QPoint, QTimer
 from PyQt6.QtWidgets import (
@@ -30,7 +30,7 @@ from structlog import get_logger
 
 from ui.components.calendar_component.calendar_tab import CalendarTab
 from ui.components.image_group import ImageGroup
-from ui.components.map_tab import MapTab
+from ui.components.map_component.map_tab import MapTab
 from ui.components.search_component.search_panel import SearchPanel
 from ui.components.text_editor.text_editor import TextEditor
 from ui.components.timeline_component.timeline_tab import TimelineTab

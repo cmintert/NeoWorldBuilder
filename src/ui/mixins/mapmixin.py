@@ -1,7 +1,7 @@
 import json
 from typing import Dict, Any, Optional
 
-from ui.components.map_tab import MapTab
+from ui.components.map_component.map_tab import MapTab
 from structlog import get_logger
 
 logger = get_logger(__name__)

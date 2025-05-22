@@ -1,6 +1,6 @@
 from typing import Optional, Dict, Any
 
-from ui.components.map_tab import MapTab
+from ui.components.map_component.map_tab import MapTab
 
 
 class MapService:
