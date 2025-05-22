@@ -4,11 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Implement line feature properties dialog and enhance map tab functionality with line drawing support">
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Enhance line feature with labels and interaction handling&#10;&#10;Added hoverable labels to lines, styled similarly to pin labels, and enabled their visibility on hover. Refined event handling for line clicks and improved label positioning and scaling based on zoom level.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/line_container.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/line_container.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_tab.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -62,38 +59,38 @@
     <option name="showLibraryContents" value="true" />
     <option name="sortKey" value="BY_TIME_DESCENDING" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python tests.Python tests in calendar_tab_test.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in calendar_test.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_node_operations.TestBaseController.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_node_operations.TestBaseController.test_delete_node_debounce.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_node_operations.TestBaseController.test_load_empty_state.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_node_operations.test_load_node_data.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in calendar_config_dialog_test.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in calendar_tab_test.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_parser.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python.Run main.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python.core.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main_window.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;SONARLINT_PRECOMMIT_ANALYSIS&quot;: &quot;true&quot;,
-    &quot;ToolWindow.Run.ShowToolbar&quot;: &quot;false&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/chris/PycharmProjects/NeoWorldBuilder/src/main.py&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;ml.llm.LLMThirdPartyAiProvidersConfigurable&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python tests.Python tests in calendar_tab_test.py.executor": "Run",
+    "Python tests.Python tests in calendar_test.py.executor": "Run",
+    "Python tests.pytest for test_node_operations.TestBaseController.executor": "Run",
+    "Python tests.pytest for test_node_operations.TestBaseController.test_delete_node_debounce.executor": "Run",
+    "Python tests.pytest for test_node_operations.TestBaseController.test_load_empty_state.executor": "Run",
+    "Python tests.pytest for test_node_operations.test_load_node_data.executor": "Run",
+    "Python tests.pytest in calendar_config_dialog_test.py.executor": "Run",
+    "Python tests.pytest in calendar_tab_test.py.executor": "Run",
+    "Python tests.pytest in test_parser.py.executor": "Run",
+    "Python.Run main.py.executor": "Run",
+    "Python.core.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.main_window.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "SONARLINT_PRECOMMIT_ANALYSIS": "true",
+    "ToolWindow.Run.ShowToolbar": "false",
+    "git-widget-placeholder": "master",
+    "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "C:/Users/chris/PycharmProjects/NeoWorldBuilder/src/main.py",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "project.propDebugger",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="C:\Users\chris\PycharmProjects\NeoWorldBuilder\src\resources\graphics" />
@@ -277,15 +274,10 @@
       <workItem from="1747673179578" duration="2153000" />
       <workItem from="1747721660142" duration="6899000" />
       <workItem from="1747834253834" duration="7626000" />
-      <workItem from="1747846703351" duration="2018000" />
-    </task>
-    <task id="LOCAL-00004" summary="Updated visuals of calendar data.">
-      <option name="closed" value="true" />
-      <created>1737406818202</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1737406818202</updated>
+      <workItem from="1747846703351" duration="3283000" />
+      <workItem from="1747920526615" duration="501000" />
+      <workItem from="1747921041988" duration="17000" />
+      <workItem from="1747921066730" duration="1830000" />
     </task>
     <task id="LOCAL-00005" summary="Config now works at all times.">
       <option name="closed" value="true" />
@@ -671,7 +663,15 @@
       <option name="project" value="LOCAL" />
       <updated>1747847430633</updated>
     </task>
-    <option name="localTasksCounter" value="53" />
+    <task id="LOCAL-00053" summary="Enhance line feature with labels and interaction handling&#10;&#10;Added hoverable labels to lines, styled similarly to pin labels, and enabled their visibility on hover. Refined event handling for line clicks and improved label positioning and scaling based on zoom level.">
+      <option name="closed" value="true" />
+      <created>1747856853727</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1747856853727</updated>
+    </task>
+    <option name="localTasksCounter" value="54" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -701,7 +701,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Enhance timeline tab setup and data loading with improved error handling and event processing" />
     <MESSAGE value="Fix mouse move event handling to ensure widget updates correctly" />
     <MESSAGE value="Refactor calendar data retrieval to use properties for improved data access, both for setup event calendar and timeline calendar. Works kind of." />
     <MESSAGE value="Enhance calendar and timeline integration by loading detailed calendar data before timeline events, ensuring accurate event positioning. Update timeline tab to accept calendar data for improved event display." />
@@ -726,7 +725,8 @@
     <MESSAGE value="Add line drawing feature with customizable styles and integrate into map tab" />
     <MESSAGE value="&lt;think&gt;&#10;Okay, I'm trying to figure out the best commit message for this set of changes. Let me look through the diffs provided.&#10;&#10;First, in `autocompletion_service.py`, there's a change where some logging statements and a comment were removed. It looks like those lines are no longer needed, so maybe the commit is about cleaning up the codebase by removing unused or redundant parts.&#10;&#10;Then, in `neoworldbuilder.log`, there are multiple log entries with timestamps that seem to be duplicates. This might indicate that there's an issue with logging configuration or duplication of entries, which could be fixed by cleaning up the logs.&#10;&#10;In `.idea/workspace.xml`, several change items were added or modified. It seems like tasks and configurations related to the project setup are being updated, probably to reflect changes in the code structure or dependencies.&#10;&#10;Looking at `mapmixin.py`, there are new signals and methods added for handling line creation and features. This suggests that new functionality is being implemented for handling lines, possibly improving how lines are drawn or interacted with on the map.&#10;&#10;In `dialogs.py`, a new dialog class `LineFeatureDialog` was created. This allows users to set properties for line features, which is a significant feature addition. Also, there's an update to how node names are auto-completed using a controller's name cache service.&#10;&#10;The `map_tab.py` file has several additions and changes. A new signal `line_created` is emitted when a line is created, which connects to the map tab's handling of line creation. There's also an improvement in how lines and pins are updated based on stored coordinates, which likely affects performance or functionality during rendering.&#10;&#10;Putting this all together, there are both refactorings (like removing unused code) and new features (like the LineFeatureDialog and line handling) being added. The commit messages should reflect these changes clearly.&#10;&#10;I think the main actions here are:&#10;1. Implementing a new line feature dialog for setting properties.&#10;2. Enhancing map tab functionality to handle lines, including creating and updating them.&#10;3. Cleaning up old logging entries and unnecessary code comments.&#10;&#10;So, the commit message needs to highlight both the new features and any cleanups. Prioritizing the main actions, it should start with something concise about the main addition, then go into more detail.&#10;&#10;Maybe something like: &quot;Implement line feature properties dialog and enhance map tab functionality.&quot; Then explain each part briefly without going into too much detail.&#10;&lt;/think&gt;&#10;&#10;```&#10;```" />
     <MESSAGE value="Implement line feature properties dialog and enhance map tab functionality with line drawing support" />
-    <option name="LAST_COMMIT_MESSAGE" value="Implement line feature properties dialog and enhance map tab functionality with line drawing support" />
+    <MESSAGE value="Enhance line feature with labels and interaction handling&#10;&#10;Added hoverable labels to lines, styled similarly to pin labels, and enabled their visibility on hover. Refined event handling for line clicks and improved label positioning and scaling based on zoom level." />
+    <option name="LAST_COMMIT_MESSAGE" value="Enhance line feature with labels and interaction handling&#10;&#10;Added hoverable labels to lines, styled similarly to pin labels, and enabled their visibility on hover. Refined event handling for line clicks and improved label positioning and scaling based on zoom level." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
