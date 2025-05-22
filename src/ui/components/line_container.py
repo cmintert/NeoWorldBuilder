@@ -13,6 +13,35 @@ class LineContainer(QWidget):
     This widget renders a line feature on the map with proper scaling and interaction.
     """
 
+    # Line appearance constants
+    DEFAULT_LINE_COLOR = "#FF0000"
+    DEFAULT_LINE_WIDTH = 2
+    DEFAULT_LINE_PATTERN = Qt.PenStyle.SolidLine
+    
+    # Control point constants
+    BASE_CONTROL_POINT_RADIUS = 4
+    MIN_CONTROL_POINT_RADIUS = 3
+    CONTROL_POINT_OUTLINE_COLOR = "#FF4444"
+    CONTROL_POINT_OUTLINE_WIDTH = 2
+    CONTROL_POINT_FILL_COLOR = QColor(255, 255, 255, 180)
+    
+    # Hit testing constants
+    CONTROL_POINT_HIT_TOLERANCE = 5  # pixels
+    LINE_SEGMENT_HIT_TOLERANCE = 5   # pixels
+    
+    # Layout and styling constants
+    WIDGET_MARGIN = 5
+    MIN_WIDGET_MARGIN = 3
+    LABEL_FONT_SIZE_BASE = 8
+    MIN_LABEL_FONT_SIZE = 6
+    LABEL_PADDING_BASE = 2
+    MIN_LABEL_PADDING = 1
+    LABEL_PADDING_HORIZONTAL_BASE = 4
+    MIN_LABEL_PADDING_HORIZONTAL = 2
+    
+    # Minimum line requirements
+    MIN_LINE_POINTS = 2
+
     line_clicked = pyqtSignal(str)
 
     def __init__(
@@ -32,9 +61,9 @@ class LineContainer(QWidget):
         self.target_node = target_node
         self.original_points = points
         self.scaled_points = points.copy()
-        self.line_color = QColor("#FF0000")  # Default color
-        self.line_width = 2  # Default width
-        self.line_pattern = Qt.PenStyle.SolidLine  # Default pattern
+        self.line_color = QColor(self.DEFAULT_LINE_COLOR)
+        self.line_width = self.DEFAULT_LINE_WIDTH
+        self.line_pattern = self.DEFAULT_LINE_PATTERN
         self.edit_mode = False
         self.control_points = []
 
@@ -90,7 +119,7 @@ class LineContainer(QWidget):
         final_max_y = max(max_y, label_bottom)
 
         # Add margin
-        margin = max(int(5 * self._scale), 3)
+        margin = max(int(self.WIDGET_MARGIN * self._scale), self.MIN_WIDGET_MARGIN)
         self.setGeometry(
             final_min_x - margin,
             final_min_y - margin,
@@ -169,13 +198,13 @@ class LineContainer(QWidget):
     def update_label_style(self) -> None:
         """Update label style based on current scale."""
         # Match the pin label style
-        font_size = max(int(8 * self._scale), 6)  # Minimum font size of 6pt
+        font_size = max(int(self.LABEL_FONT_SIZE_BASE * self._scale), self.MIN_LABEL_FONT_SIZE)
         self.text_label.setStyleSheet(
             f"""
             QLabel {{
                 background-color: rgba(0, 0, 0, 0);
                 color: white;
-                padding: {max(int(2 * self._scale), 1)}px {max(int(4 * self._scale), 2)}px;
+                padding: {max(int(self.LABEL_PADDING_BASE * self._scale), self.MIN_LABEL_PADDING)}px {max(int(self.LABEL_PADDING_HORIZONTAL_BASE * self._scale), self.MIN_LABEL_PADDING_HORIZONTAL)}px;
                 border-radius: 3px;
                 font-size: {font_size}pt;
             }}
@@ -257,7 +286,7 @@ class LineContainer(QWidget):
             control_point = {
                 "pos": point,
                 "index": i,
-                "radius": max(int(4 * self._scale), 3),  # Scale-dependent size
+                "radius": max(int(self.BASE_CONTROL_POINT_RADIUS * self._scale), self.MIN_CONTROL_POINT_RADIUS),
             }
             self.control_points.append(control_point)
 
@@ -308,10 +337,10 @@ class LineContainer(QWidget):
     def _draw_control_points(self, painter: QPainter) -> None:
         """Draw control points for editing."""
         # Set up control point style
-        control_pen = QPen(QColor("#FF4444"))  # Red outline
-        control_pen.setWidth(2)
+        control_pen = QPen(QColor(self.CONTROL_POINT_OUTLINE_COLOR))
+        control_pen.setWidth(self.CONTROL_POINT_OUTLINE_WIDTH)
         painter.setPen(control_pen)
-        painter.setBrush(QColor(255, 255, 255, 180))  # Semi-transparent white fill
+        painter.setBrush(self.CONTROL_POINT_FILL_COLOR)
 
         for cp in self.control_points:
             # Convert to widget-relative coordinates
@@ -379,6 +408,8 @@ class LineContainer(QWidget):
             original_x = int(map_x / self._scale)
             original_y = int(map_y / self._scale)
             self.original_points[self.dragged_point_index] = (original_x, original_y)
+
+            self._update_geometry()
 
             print(
                 f"Dragging point {self.dragged_point_index} to ({original_x}, {original_y})"
@@ -463,7 +494,7 @@ class LineContainer(QWidget):
             )
 
             # If close enough to the line (within tolerance)
-            if distance <= 5:  # 5 pixel tolerance
+            if distance <= self.LINE_SEGMENT_HIT_TOLERANCE:
                 return i, QPoint(int(closest_point[0]), int(closest_point[1]))
 
         return -1, QPoint()
@@ -541,11 +572,9 @@ class LineContainer(QWidget):
             point_index: Index of the control point
             pos: Position where to show the menu (widget coordinates)
         """
-        from PyQt6.QtWidgets import QMenu
-
-        # Don't allow deletion if we only have 2 points (minimum for a line)
-        if len(self.original_points) <= 2:
-            print("Cannot delete point - line must have at least 2 points")
+        # Don't allow deletion if we only have minimum required points
+        if len(self.original_points) <= self.MIN_LINE_POINTS:
+            print(f"Cannot delete point - line must have at least {self.MIN_LINE_POINTS} points")
             return
 
         menu = QMenu(self)
@@ -563,8 +592,8 @@ class LineContainer(QWidget):
         Args:
             point_index: Index of the point to delete
         """
-        if len(self.original_points) <= 2:
-            print("Cannot delete point - line must have at least 2 points")
+        if len(self.original_points) <= self.MIN_LINE_POINTS:
+            print(f"Cannot delete point - line must have at least {self.MIN_LINE_POINTS} points")
             return
 
         print(f"Deleting control point {point_index}")
