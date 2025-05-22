@@ -1,19 +1,27 @@
 import json
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Optional, List, Tuple, Dict
 
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QPainter, QKeyEvent
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QScrollArea, QSlider, QHBoxLayout, QPushButton, QFileDialog
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QScrollArea,
+    QSlider,
+    QHBoxLayout,
+    QPushButton,
+    QFileDialog,
 )
 from structlog import get_logger
 
-from .map_viewport import MapViewport
-from .feature_manager import FeatureManager
-from .drawing_manager import DrawingManager
-from .map_image_loader import ImageManager
-from ui.components.dialogs import PinPlacementDialog, LineFeatureDialog
 from utils.geometry_handler import GeometryHandler
+from .drawing_manager import DrawingManager
+from .feature_manager import FeatureManager
+from .line_feature_dialog import LineFeatureDialog
+from .map_image_loader import ImageManager
+from .map_viewport import MapViewport
+from .pin_placement_dialog import PinPlacementDialog
 
 logger = get_logger(__name__)
 
@@ -46,7 +54,7 @@ class MapTab(QWidget):
         # Core state
         self.current_scale = 1.0
         self.map_image_path = None
-        
+
         # Mode flags
         self.pin_placement_active = False
         self.line_drawing_active = False
@@ -61,10 +69,10 @@ class MapTab(QWidget):
         """Initialize all the separated component managers."""
         # Image management
         self.image_manager = ImageManager()
-        
-        # Drawing management  
+
+        # Drawing management
         self.drawing_manager = DrawingManager()
-        
+
         # Zoom management
         self.zoom_timer = QTimer()
         self.zoom_timer.setSingleShot(True)
@@ -79,7 +87,7 @@ class MapTab(QWidget):
 
         # Image controls
         image_controls = self._create_image_controls()
-        
+
         # Zoom controls
         zoom_controls = self._create_zoom_controls()
 
@@ -90,12 +98,14 @@ class MapTab(QWidget):
 
         # Create viewport for map display
         self.image_label = MapViewport(self, config=self.config)
-        
+
         # Create feature container and manager
         self.feature_container = QWidget(self.image_label)
-        self.feature_container.setGeometry(0, 0, self.image_label.width(), self.image_label.height())
+        self.feature_container.setGeometry(
+            0, 0, self.image_label.width(), self.image_label.height()
+        )
         self.feature_manager = FeatureManager(self.feature_container, self.config)
-        
+
         self.scroll_area.setWidget(self.image_label)
 
         # Add all components to layout
@@ -110,7 +120,7 @@ class MapTab(QWidget):
         # Change/Clear map buttons
         self.change_map_btn = QPushButton("Change Map Image")
         self.change_map_btn.clicked.connect(self._change_map_image)
-        
+
         self.clear_map_btn = QPushButton("Clear Map Image")
         self.clear_map_btn.clicked.connect(self._clear_map_image)
 
@@ -123,7 +133,9 @@ class MapTab(QWidget):
         self.line_toggle_btn = QPushButton("📏 Draw Line")
         self.line_toggle_btn.setCheckable(True)
         self.line_toggle_btn.toggled.connect(self.toggle_line_drawing)
-        self.line_toggle_btn.setToolTip("Toggle line drawing mode (ESC to cancel, Enter to complete)")
+        self.line_toggle_btn.setToolTip(
+            "Toggle line drawing mode (ESC to cancel, Enter to complete)"
+        )
 
         self.edit_toggle_btn = QPushButton("✏️ Edit Mode")
         self.edit_toggle_btn.setCheckable(True)
@@ -164,30 +176,34 @@ class MapTab(QWidget):
         # Viewport signals
         self.image_label.zoom_requested.connect(self._handle_wheel_zoom)
         self.image_label.click_at_coordinates.connect(self._handle_coordinate_click)
-        
+
         # Drawing manager signals
         self.drawing_manager.line_completed.connect(self._handle_line_completion)
         self.drawing_manager.drawing_updated.connect(self._handle_drawing_update)
-        
+
         # Feature manager signals
         self.feature_manager.feature_clicked.connect(self._handle_feature_click)
-        
+
         # Connect to controller if available
         if self.controller:
-            self.feature_manager.feature_clicked.connect(self.controller._handle_pin_click)
+            self.feature_manager.feature_clicked.connect(
+                self.controller._handle_pin_click
+            )
 
     def resizeEvent(self, event):
         """Handle resize events to keep feature container matched to viewport size."""
         super().resizeEvent(event)
-        if hasattr(self, 'feature_container') and hasattr(self, 'image_label'):
+        if hasattr(self, "feature_container") and hasattr(self, "image_label"):
             # Update feature container to match image label size
-            self.feature_container.setGeometry(0, 0, self.image_label.width(), self.image_label.height())
+            self.feature_container.setGeometry(
+                0, 0, self.image_label.width(), self.image_label.height()
+            )
             self.feature_container.raise_()
 
     def paintEvent(self, event):
         """Handle paint events for drawing temporary elements."""
         super().paintEvent(event)
-        
+
         # Let drawing manager handle temporary drawing
         if self.drawing_manager.is_drawing_line:
             painter = QPainter(self)
@@ -198,19 +214,19 @@ class MapTab(QWidget):
     def set_map_image(self, image_path: Optional[str]) -> None:
         """Set the map image path and display the image."""
         self.map_image_path = image_path
-        
+
         if not image_path:
             self._clear_image()
             return
 
         # Show loading state
         self.image_label.setText("Loading map...")
-        
+
         # Load image through image manager
         self.image_manager.load_image(
             image_path,
             success_callback=self._on_image_loaded,
-            error_callback=self._on_image_error
+            error_callback=self._on_image_error,
         )
 
     def _on_image_loaded(self, pixmap) -> None:
@@ -221,7 +237,9 @@ class MapTab(QWidget):
 
         # Calculate initial scale to fit width
         viewport_width = self.scroll_area.viewport().width()
-        self.current_scale = self.image_manager.calculate_fit_to_width_scale(viewport_width)
+        self.current_scale = self.image_manager.calculate_fit_to_width_scale(
+            viewport_width
+        )
         self.zoom_slider.setValue(int(self.current_scale * 100))
 
         # Update display
@@ -328,16 +346,18 @@ class MapTab(QWidget):
 
             # Use a short delay to ensure the scroll area has updated its geometry
             QTimer.singleShot(1, lambda: self._set_scroll_position(new_x, new_y))
-            
+
             # Update feature container size to match new image size
-            if hasattr(self, 'feature_container'):
-                self.feature_container.setGeometry(0, 0, scaled_pixmap.width(), scaled_pixmap.height())
+            if hasattr(self, "feature_container"):
+                self.feature_container.setGeometry(
+                    0, 0, scaled_pixmap.width(), scaled_pixmap.height()
+                )
                 self.feature_container.raise_()
-            
+
             # Update feature positions
             self.feature_manager.set_scale(self.current_scale)
             self.feature_manager.update_positions(self)
-            
+
             # Update drawing manager for any active drawing
             self.drawing_manager.update_scale(self.current_scale)
 
@@ -345,53 +365,53 @@ class MapTab(QWidget):
     def toggle_pin_placement(self, active: bool) -> None:
         """Toggle pin placement mode."""
         self.pin_placement_active = active
-        
+
         if active:
-            self.image_label.set_cursor_for_mode('crosshair')
+            self.image_label.set_cursor_for_mode("crosshair")
             self.pin_toggle_btn.setStyleSheet("background: white")
         else:
-            self.image_label.set_cursor_for_mode('default')
+            self.image_label.set_cursor_for_mode("default")
             self.pin_toggle_btn.setStyleSheet("background: grey")
-            
+
         self.pin_mode_toggled.emit(active)
 
     def toggle_line_drawing(self, active: bool) -> None:
         """Toggle line drawing mode."""
         self.line_drawing_active = active
-        
+
         if active:
             # Disable other modes
             if self.pin_toggle_btn.isChecked():
                 self.pin_toggle_btn.setChecked(False)
-                
+
             self.drawing_manager.start_line_drawing()
-            self.image_label.set_cursor_for_mode('crosshair')
+            self.image_label.set_cursor_for_mode("crosshair")
             self.line_toggle_btn.setStyleSheet("background-color: #83A00E;")
             self.image_label.setFocus()
         else:
             # Complete or cancel current drawing
             completing = self.drawing_manager.can_complete_line()
             self.drawing_manager.stop_line_drawing(complete=completing)
-            
-            self.image_label.set_cursor_for_mode('default')
+
+            self.image_label.set_cursor_for_mode("default")
             self.line_toggle_btn.setStyleSheet("")
 
     def toggle_edit_mode(self, active: bool) -> None:
         """Toggle edit mode for existing lines."""
         self.edit_mode_active = active
-        
+
         if active:
             # Disable other modes
             if self.pin_toggle_btn.isChecked():
                 self.pin_toggle_btn.setChecked(False)
             if self.line_toggle_btn.isChecked():
                 self.line_toggle_btn.setChecked(False)
-                
-            self.image_label.set_cursor_for_mode('pointing')
+
+            self.image_label.set_cursor_for_mode("pointing")
             self.edit_toggle_btn.setStyleSheet("background-color: #FFA500;")
             self.feature_manager.set_edit_mode(True)
         else:
-            self.image_label.set_cursor_for_mode('default')
+            self.image_label.set_cursor_for_mode("default")
             self.edit_toggle_btn.setStyleSheet("")
             self.feature_manager.set_edit_mode(False)
 
@@ -417,7 +437,7 @@ class MapTab(QWidget):
 
                 self.pin_created.emit(target_node, ">", properties)
                 self.feature_manager.create_pin(target_node, x, y)
-                
+
                 # Exit pin placement mode
                 self.pin_toggle_btn.setChecked(False)
 
@@ -426,7 +446,7 @@ class MapTab(QWidget):
         # Convert to scaled coordinates for display
         scaled_x = x * self.current_scale
         scaled_y = y * self.current_scale
-        
+
         self.drawing_manager.add_point(x, y, scaled_x, scaled_y)
 
     def _handle_line_completion(self, points: List[Tuple[int, int]]) -> None:
@@ -479,7 +499,7 @@ class MapTab(QWidget):
         if self.drawing_manager.handle_key_press(event.key()):
             # Drawing manager handled the key
             return
-            
+
         # Handle mode-specific keys
         if event.key() == Qt.Key.Key_Escape:
             if self.pin_placement_active:
@@ -498,7 +518,7 @@ class MapTab(QWidget):
         # Collect feature data from relationships table
         pin_data = []
         line_data = []
-        
+
         relationships_table = self.controller.ui.relationships_table
 
         for row in range(relationships_table.rowCount()):
@@ -520,8 +540,12 @@ class MapTab(QWidget):
                 if not GeometryHandler.validate_wkt(properties["geometry"]):
                     continue
 
-                geometry_type = GeometryHandler.get_geometry_type(properties["geometry"])
-                target_node = self._extract_target_node(target_item, relationships_table, row)
+                geometry_type = GeometryHandler.get_geometry_type(
+                    properties["geometry"]
+                )
+                target_node = self._extract_target_node(
+                    target_item, relationships_table, row
+                )
 
                 if geometry_type == "LineString":
                     points = GeometryHandler.get_coordinates(properties["geometry"])
@@ -552,7 +576,7 @@ class MapTab(QWidget):
             return target_item.text()
         else:
             target_widget = relationships_table.cellWidget(row, 1)
-            if hasattr(target_widget, 'text'):
+            if hasattr(target_widget, "text"):
                 return target_widget.text()
         return ""
 
@@ -560,7 +584,10 @@ class MapTab(QWidget):
     def _change_map_image(self) -> None:
         """Handle changing the map image."""
         file_name, _ = QFileDialog.getOpenFileName(
-            self, "Select Map Image", "", "Image Files (*.png *.jpg *.jpeg);;All Files (*)"
+            self,
+            "Select Map Image",
+            "",
+            "Image Files (*.png *.jpg *.jpeg);;All Files (*)",
         )
         if file_name:
             self.set_map_image(file_name)

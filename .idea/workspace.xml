@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Refactor line handling into modular components.&#10;&#10;Extracted line rendering and persistence logic into separate modules for improved modularity and maintainability. Enhanced line editing functionality with control point interactions, better rendering, and streamlined geometry updates. Updated related constants and UI components for consistency and scalability.">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Refactor map component for modularity and simplification&#10;&#10;Reorganized map-related classes into separate modules to improve code modularity and maintainability. Simplified `map_tab.py` by extracting line rendering, image loading, and drawing logic into dedicated components. This enhances readability, scalability, and future development efficiency.">
+      <change afterPath="$PROJECT_DIR$/src/ui/components/map_component/line_feature_dialog.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/ui/components/map_component/pin_placement_dialog.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/dialogs.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/dialogs.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -281,15 +282,7 @@
       <workItem from="1747920526615" duration="501000" />
       <workItem from="1747921041988" duration="17000" />
       <workItem from="1747921066730" duration="1830000" />
-      <workItem from="1747936602538" duration="4676000" />
-    </task>
-    <task id="LOCAL-00008" summary="Added unit tests for additional calendar components.">
-      <option name="closed" value="true" />
-      <created>1737662028921</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
-      <option name="project" value="LOCAL" />
-      <updated>1737662028921</updated>
+      <workItem from="1747936602538" duration="5384000" />
     </task>
     <task id="LOCAL-00009" summary="Added unit tests for additional calendar components.">
       <option name="closed" value="true" />
@@ -675,7 +668,15 @@
       <option name="project" value="LOCAL" />
       <updated>1747939951683</updated>
     </task>
-    <option name="localTasksCounter" value="57" />
+    <task id="LOCAL-00057" summary="Refactor map component for modularity and simplification&#10;&#10;Reorganized map-related classes into separate modules to improve code modularity and maintainability. Simplified `map_tab.py` by extracting line rendering, image loading, and drawing logic into dedicated components. This enhances readability, scalability, and future development efficiency.">
+      <option name="closed" value="true" />
+      <created>1747945107898</created>
+      <option name="number" value="00057" />
+      <option name="presentableId" value="LOCAL-00057" />
+      <option name="project" value="LOCAL" />
+      <updated>1747945107898</updated>
+    </task>
+    <option name="localTasksCounter" value="58" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -705,7 +706,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Fix day marker drawing logic and increase maximum zoom level for improved timeline detail" />
     <MESSAGE value="Add mixins for node data handling, timeline, and events.&#10;&#10;Introduced multiple mixins to encapsulate specialized logic for node data extraction, population, mapping, timeline, and event handling. These mixins enhance modularity and code organization while adding features like calendar integration, map functionality, and timeline events. Additionally, upgraded project SDK and adjusted configuration to support Python 3.13." />
     <MESSAGE value="Add LLMService for enhanced node descriptions and UI integration&#10;&#10;Implemented LLMService to enhance node descriptions using OpenAI-like APIs, with support for contextual depth and asynchronous handling. Updated the UI controller to integrate the enhancement feature and added necessary configurations. Removed unused dependencies from requirements.txt and cleaned up workspace files." />
     <MESSAGE value="Add LLM integration and enhance node description handling&#10;&#10;Introduced `LLMService` for node description enhancement using an LLM via API calls, with optional contextual data from connected nodes. Updated UI and initialization logic to support the feature. Additionally, removed `requirements.txt` and adjusted project settings for improved modularity." />
@@ -730,7 +730,8 @@
     <MESSAGE value="Add line editing functionality with interactive controls&#10;&#10;Implemented an edit mode for map lines, enabling users to modify lines directly with control points for vertex manipulation. Added new constants to streamline visual styles, hit detection, and geometry handling. Updated the map widget for better scaling, customization, and integration of editing features." />
     <MESSAGE value="Implement line editing functionality with control points and geometry management" />
     <MESSAGE value="Refactor line handling into modular components.&#10;&#10;Extracted line rendering and persistence logic into separate modules for improved modularity and maintainability. Enhanced line editing functionality with control point interactions, better rendering, and streamlined geometry updates. Updated related constants and UI components for consistency and scalability." />
-    <option name="LAST_COMMIT_MESSAGE" value="Refactor line handling into modular components.&#10;&#10;Extracted line rendering and persistence logic into separate modules for improved modularity and maintainability. Enhanced line editing functionality with control point interactions, better rendering, and streamlined geometry updates. Updated related constants and UI components for consistency and scalability." />
+    <MESSAGE value="Refactor map component for modularity and simplification&#10;&#10;Reorganized map-related classes into separate modules to improve code modularity and maintainability. Simplified `map_tab.py` by extracting line rendering, image loading, and drawing logic into dedicated components. This enhances readability, scalability, and future development efficiency." />
+    <option name="LAST_COMMIT_MESSAGE" value="Refactor map component for modularity and simplification&#10;&#10;Reorganized map-related classes into separate modules to improve code modularity and maintainability. Simplified `map_tab.py` by extracting line rendering, image loading, and drawing logic into dedicated components. This enhances readability, scalability, and future development efficiency." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -748,7 +749,7 @@
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$core.coverage" NAME="core Coverage Results" MODIFIED="1738140645253" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/dateparser" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1737189591173" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$calendar_model.coverage" NAME="calendar_model Coverage Results" MODIFIED="1737581064214" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/models" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1747944894760" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1747945608252" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController_test_delete_node_debounce.coverage" NAME="pytest for test_node_operations.TestBaseController.test_delete_node_debounce Coverage Results" MODIFIED="1739346351305" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_test_load_node_data.coverage" NAME="pytest for test_node_operations.test_load_node_data Coverage Results" MODIFIED="1739348948172" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
