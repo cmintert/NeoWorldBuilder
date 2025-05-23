@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add branching line configuration and dialog for map component&#10;&#10;Introduced a branching line configuration dialog to enhance user workflows for branching line creation. The dialog supports features like target node selection, line style customization, and WKT geometry preview. Enhanced signal handling, line visualization updates, and error handling across multiple components to improve reliability and user feedback.">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Enhance map component with improved edit mode integration&#10;&#10;Added initialization for an enhanced edit mode in the map component, improving user interaction workflows. Updated XML and log entries to reflect new configurations, ensuring better tracking of recent activities and changes.">
       <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -284,15 +282,7 @@
       <workItem from="1747981206894" duration="4406000" />
       <workItem from="1748000864500" duration="1067000" />
       <workItem from="1748018045013" duration="5283000" />
-      <workItem from="1748033941596" duration="410000" />
-    </task>
-    <task id="LOCAL-00014" summary="Enable calendar link button and improve validation feedback">
-      <option name="closed" value="true" />
-      <created>1739215050494</created>
-      <option name="number" value="00014" />
-      <option name="presentableId" value="LOCAL-00014" />
-      <option name="project" value="LOCAL" />
-      <updated>1739215050494</updated>
+      <workItem from="1748033941596" duration="725000" />
     </task>
     <task id="LOCAL-00015" summary="Enable calendar link button and improve validation feedback">
       <option name="closed" value="true" />
@@ -678,7 +668,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748024612467</updated>
     </task>
-    <option name="localTasksCounter" value="63" />
+    <task id="LOCAL-00063" summary="Enhance map component with improved edit mode integration&#10;&#10;Added initialization for an enhanced edit mode in the map component, improving user interaction workflows. Updated XML and log entries to reflect new configurations, ensuring better tracking of recent activities and changes.">
+      <option name="closed" value="true" />
+      <created>1748034451939</created>
+      <option name="number" value="00063" />
+      <option name="presentableId" value="LOCAL-00063" />
+      <option name="project" value="LOCAL" />
+      <updated>1748034451939</updated>
+    </task>
+    <option name="localTasksCounter" value="64" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -708,8 +706,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Add prompt template service and enhanced description feature&#10;&#10;Introduced a new PromptTemplateService for managing LLM prompt templates, enabling enhanced node descriptions through template-based approaches. Updated the LLMService to utilize this service, allowing for context-aware enhancements. Added a new UI dialog for configuring enhancement options, including template selection and focus type. Improved error handling and user feedback for empty descriptions." />
-    <MESSAGE value="Add error handling and logging to AI enhancement request process&#10;&#10;Enhanced the _request_enhanced_enhancement method to include error handling and logging. Improved user feedback for template service access issues and added logging for exceptions during the enhancement request process. Updated the UI dialog to ensure a smoother user experience when configuring AI enhancement options." />
     <MESSAGE value="Enhance LLM description handling and improve prompt template service&#10;&#10;- Updated LLMService to require valid HTML responses with paragraph tags for enhanced descriptions.&#10;- Improved error handling and logging in the AI enhancement request process.&#10;- Refactored prompt template service to clarify instructions for generating engaging descriptions.&#10;- Adjusted UI to display both current and enhanced descriptions for better user feedback." />
     <MESSAGE value="Enhance LLM description handling and improve prompt template service&#10;&#10;- Refactored enhance_node_description to utilize a default template for enhancements.&#10;- Added error handling for missing templates in the prompt template service.&#10;- Updated LLMService to support template-based enhancements with improved parameter handling.&#10;- Introduced YAML-based template loading for better flexibility and maintainability." />
     <MESSAGE value="Refactor logging statement for improved readability in node operation service" />
@@ -733,7 +729,9 @@
     <MESSAGE value="Refactor prompt templates and enhance line management logic&#10;&#10;Updated `prompt_templates.yaml` to include a new &quot;Create Plant Description&quot; template with detailed formatting and processing instructions. Refactored line scaling and geometry management in `line_geometry.py` and related components to improve modularity, ensure accurate scaling with dynamic image dimensions, and enhance debugging capabilities. Added comprehensive logging to aid in debugging and maintaining feature consistency throughout the map component hierarchy." />
     <MESSAGE value="Add functionality to branch lines from nearest points&#10;&#10;Introduced a feature to start new branches from the nearest existing points in branching line drawing mode. Enhanced `DrawingManager` and `MapTab` to calculate the closest points based on user interactions and seamlessly create new branches. Improved visual debugging with updated drawing styles, point markers, and feedback for branch creation." />
     <MESSAGE value="Add branching line configuration dialog for map component&#10;&#10;Introduced a dialog to configure branching line features, including target node selection, line style customization, and WKT geometry preview. Integrated the dialog into the map component to enhance branching line creation workflow and improve user interaction." />
-    <option name="LAST_COMMIT_MESSAGE" value="Add branching line configuration dialog for map component&#10;&#10;Introduced a dialog to configure branching line features, including target node selection, line style customization, and WKT geometry preview. Integrated the dialog into the map component to enhance branching line creation workflow and improve user interaction." />
+    <MESSAGE value="Add branching line configuration and dialog for map component&#10;&#10;Introduced a branching line configuration dialog to enhance user workflows for branching line creation. The dialog supports features like target node selection, line style customization, and WKT geometry preview. Enhanced signal handling, line visualization updates, and error handling across multiple components to improve reliability and user feedback." />
+    <MESSAGE value="Enhance map component with improved edit mode integration&#10;&#10;Added initialization for an enhanced edit mode in the map component, improving user interaction workflows. Updated XML and log entries to reflect new configurations, ensuring better tracking of recent activities and changes." />
+    <option name="LAST_COMMIT_MESSAGE" value="Enhance map component with improved edit mode integration&#10;&#10;Added initialization for an enhanced edit mode in the map component, improving user interaction workflows. Updated XML and log entries to reflect new configurations, ensuring better tracking of recent activities and changes." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -751,7 +749,7 @@
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$core.coverage" NAME="core Coverage Results" MODIFIED="1738140645253" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/dateparser" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1737189591173" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$calendar_model.coverage" NAME="calendar_model Coverage Results" MODIFIED="1737581064214" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/models" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748026300062" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748034676494" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController_test_delete_node_debounce.coverage" NAME="pytest for test_node_operations.TestBaseController.test_delete_node_debounce Coverage Results" MODIFIED="1739346351305" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_test_load_node_data.coverage" NAME="pytest for test_node_operations.test_load_node_data Coverage Results" MODIFIED="1739348948172" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
