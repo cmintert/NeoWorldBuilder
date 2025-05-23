@@ -59,6 +59,7 @@ class MapTab(QWidget):
         self.pin_placement_active = False
         self.line_drawing_active = False
         self.edit_mode_active = False
+        self.branching_line_drawing_active = False
 
         # Initialize separated components
         self._setup_components()
@@ -137,6 +138,15 @@ class MapTab(QWidget):
             "Toggle line drawing mode (ESC to cancel, Enter to complete)"
         )
 
+        self.branching_line_toggle_btn = QPushButton("🌿 Draw Branching Line")
+        self.branching_line_toggle_btn.setCheckable(True)
+        self.branching_line_toggle_btn.toggled.connect(
+            self.toggle_branching_line_drawing
+        )
+        self.branching_line_toggle_btn.setToolTip(
+            "Toggle branching line drawing mode (ESC to cancel, Enter to complete)"
+        )
+
         self.edit_toggle_btn = QPushButton("✏️ Edit Mode")
         self.edit_toggle_btn.setCheckable(True)
         self.edit_toggle_btn.toggled.connect(self.toggle_edit_mode)
@@ -147,6 +157,7 @@ class MapTab(QWidget):
         image_controls.addStretch()
         image_controls.addWidget(self.pin_toggle_btn)
         image_controls.addWidget(self.line_toggle_btn)
+        image_controls.addWidget(self.branching_line_toggle_btn)
         image_controls.addWidget(self.edit_toggle_btn)
         image_controls.addStretch()
 
@@ -203,12 +214,6 @@ class MapTab(QWidget):
     def paintEvent(self, event):
         """Handle paint events for drawing temporary elements."""
         super().paintEvent(event)
-
-        # Let drawing manager handle temporary drawing
-        if self.drawing_manager.is_drawing_line:
-            painter = QPainter(self)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            self.drawing_manager.draw_temporary_line(painter)
 
     # Image Management Methods
     def set_map_image(self, image_path: Optional[str]) -> None:
@@ -396,6 +401,17 @@ class MapTab(QWidget):
             self.image_label.set_cursor_for_mode("default")
             self.line_toggle_btn.setStyleSheet("")
 
+    def toggle_branching_line_drawing(self, active: bool) -> None:
+        """Toggle branching line drawing mode."""
+        self.branching_line_drawing_active = active
+
+        if active:
+            print(f"Branching line mode activated: {active}")
+            # TODO: Implement branching line logic
+        else:
+            print(f"Branching line mode deactivated: {active}")
+            # TODO: Clean up branching line state
+
     def toggle_edit_mode(self, active: bool) -> None:
         """Toggle edit mode for existing lines."""
         self.edit_mode_active = active
@@ -422,6 +438,8 @@ class MapTab(QWidget):
             self._handle_pin_placement(x, y)
         elif self.line_drawing_active:
             self._handle_line_point_add(x, y)
+        elif self.branching_line_drawing_active:
+            self._handle_branching_line_point_add(x, y)
 
     def _handle_pin_placement(self, x: int, y: int) -> None:
         """Handle pin placement at specified coordinates."""
@@ -486,8 +504,14 @@ class MapTab(QWidget):
             except Exception as e:
                 logger.error(f"Error creating line: {e}")
 
+    def _handle_branching_line_point_add(self, x: int, y: int) -> None:
+        """Handle adding a point to the current branching line being drawn."""
+        print(f"Branching line point added at: ({x}, {y})")
+        # TODO: Implement branching line point logic
+
     def _handle_drawing_update(self) -> None:
         """Handle updates to drawing state."""
+        self.image_label.update()  # Trigger repaint for temporary drawing of lines
         self.update()  # Trigger repaint for temporary drawing
 
     def _handle_feature_click(self, target_node: str) -> None:
