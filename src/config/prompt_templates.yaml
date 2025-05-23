@@ -117,11 +117,11 @@
         Focus on making quick, meaningful improvements without changing the core information."
     },
     {
-      "id": "physical",
-      "name": "Create Physical Description",
-      "description": "Generate a physical description of a character, object,
-       or place based on the provided information",
-      "template": "You are helping to create a physical description for a world-building project.
+      "id": "create_plant",
+      "name": "Create a Plant Description",
+      "description": "Generate a description of a plant based on the provided information",
+      "template": "You are helping to create a description for a 
+      plant in a world-building project.
 
         Node Information:
         - Name: {node_name}
@@ -134,9 +134,16 @@
         Current Description:
         {description}
 
-        Please create a physical description by:
-        1.  Adding more vivid details while keeping it concise
-        2.  Make the physical description in 80 words or less
+        Please create a description by:
+        1.  Use the current description a base
+        2.  The output format contains the following sections:
+            - A few words as told by a habitant of the world, with name and 
+            source
+            - Alternate name
+            - natural occurence biome
+            - Uses medical or other
+            - Rarity
+            - Description    
         3.  Optimize the physical description to be processed by a text-to-image AI
         4.  If the Connected Nodes section above contains only *No connected 
             nodes available*, focus solely on enhancing this node based on its own description and metadata.
@@ -147,6 +154,38 @@
         6.  Follow the provided custom instructions: {custom_instructions}
 
         Focus on making quick, meaningful improvements without changing the core information."
-    }
+    },
+      {
+          "id": "physical",
+          "name": "Create Physical Description",
+          "description": "Generate a physical description of a character, object,
+           or place based on the provided information",
+          "template": "You are helping to create a physical description for a world-building project.
+
+            Node Information:
+            - Name: {node_name}
+            - Labels: {labels}
+            - Tags: {tags}
+
+            Connected Nodes:
+            {context}
+
+            Current Description:
+            {description}
+
+            Please create a physical description by:
+            1.  Adding more vivid details while keeping it concise
+            2.  Make the physical description in 80 words or less
+            3.  Optimize the physical description to be processed by a text-to-image AI
+            4.  If the Connected Nodes section above contains only *No connected 
+                nodes available*, focus solely on enhancing this node based on its own description and metadata.
+                Otherwise, ensure consistency with information from connected 
+                nodes while creating the physical description.
+            5.  Your response must be valid HTML with proper paragraph tags (<p>) 
+                for each paragraph.
+            6.  Follow the provided custom instructions: {custom_instructions}
+
+            Focus on making quick, meaningful improvements without changing the core information."
+      }
   ]
 }

@@ -58,6 +58,7 @@ class LineContainer(QWidget):
 
         # Initialize separated concerns
         self.geometry = LineGeometry(points)
+        self.geometry.set_parent_container(self)
         self.hit_tester = LineHitTester()
         self.renderer = LineRenderer(config)
         self.persistence = LineGeometryPersistence(target_node)
@@ -167,30 +168,10 @@ class LineContainer(QWidget):
         Args:
             scale (float): The new scale factor.
         """
+        print(f"LineContainer.set_scale called with scale: {scale}")
+
+        # Let the geometry handle all the scaling logic
         self.geometry.set_scale(scale)
-        
-        # Find MapTab instance to get image manager information
-        map_tab = self._find_map_tab()
-        
-        if map_tab and hasattr(map_tab, "image_manager") and map_tab.image_manager.original_pixmap:
-            # Get original and current dimensions for more accurate scaling
-            original_width = map_tab.image_manager.original_pixmap.width()
-            original_height = map_tab.image_manager.original_pixmap.height()
-            
-            current_pixmap = map_tab.image_label.pixmap()
-            if current_pixmap:
-                current_width = current_pixmap.width()
-                current_height = current_pixmap.height()
-                
-                # Update line geometry with proper dimension ratios
-                width_ratio = current_width / original_width
-                height_ratio = current_height / original_height
-                
-                # Override scaled points with proper dimension-based scaling
-                self.geometry._scaled_points = [
-                    (int(p[0] * width_ratio), int(p[1] * height_ratio))
-                    for p in self.geometry.original_points
-                ]
 
         # Update control points if in edit mode
         if self.edit_mode:
@@ -199,27 +180,56 @@ class LineContainer(QWidget):
         # Update label style and geometry
         self.update_label_style()
         self._update_geometry()
-        
+
+        print(f"LineContainer.set_scale completed")
+
     def _find_map_tab(self):
         """Find the parent MapTab instance.
-        
+
         Returns:
             MapTab instance or None if not found
         """
+        print(f"LineContainer._find_map_tab called")
         parent_widget = self.parent()
+        print(f"Initial parent: {parent_widget}")
+
+        # Traverse up the widget hierarchy looking for MapTab
+        level = 0
         while parent_widget:
-            # Check if this is the map tab
-            if parent_widget.__class__.__name__ == "MapTab":
+            class_name = parent_widget.__class__.__name__
+            print(f"Level {level}: {class_name} - {parent_widget}")
+
+            # Direct check for MapTab
+            if class_name == "MapTab":
+                print(f"Found MapTab at level {level}")
                 return parent_widget
-                
-            # Check if parent has a controller attribute with map_tab
-            if hasattr(parent_widget, "controller") and hasattr(parent_widget.controller, "ui"):
-                if hasattr(parent_widget.controller.ui, "map_tab"):
-                    return parent_widget.controller.ui.map_tab
-                    
+
+            # Check for feature container's parent (which should be image_label)
+            if class_name == "MapViewport" and hasattr(parent_widget, "parent_map_tab"):
+                print(f"Found MapViewport with parent_map_tab at level {level}")
+                return parent_widget.parent_map_tab
+
             # Move up the hierarchy
             parent_widget = parent_widget.parent()
-            
+            level += 1
+
+            if level > 10:  # Safety break
+                print("Too many levels, breaking")
+                break
+
+        print("No MapTab found through widget hierarchy")
+
+        # Final fallback - try to find through controller chain
+        controller = self._find_controller()
+        if (
+            controller
+            and hasattr(controller, "ui")
+            and hasattr(controller.ui, "map_tab")
+        ):
+            print("Found MapTab through controller")
+            return controller.ui.map_tab
+
+        print("No MapTab found anywhere")
         return None
 
     def set_style(
@@ -395,25 +405,29 @@ class LineContainer(QWidget):
 
             # Find map tab to get proper scaling ratios
             map_tab = self._find_map_tab()
-            
-            if map_tab and hasattr(map_tab, "image_manager") and map_tab.image_manager.original_pixmap:
+
+            if (
+                map_tab
+                and hasattr(map_tab, "image_manager")
+                and map_tab.image_manager.original_pixmap
+            ):
                 # Get original and current dimensions for more accurate scaling
                 original_width = map_tab.image_manager.original_pixmap.width()
                 original_height = map_tab.image_manager.original_pixmap.height()
-                
+
                 current_pixmap = map_tab.image_label.pixmap()
                 if current_pixmap:
                     current_width = current_pixmap.width()
                     current_height = current_pixmap.height()
-                    
+
                     # Calculate inverse ratios to convert from scaled to original coordinates
                     width_ratio = original_width / current_width
                     height_ratio = original_height / current_height
-                    
+
                     # Convert to original coordinates using the proper ratios
                     original_x = int(map_x * width_ratio)
                     original_y = int(map_y * height_ratio)
-                    
+
                     # Update the geometry with the new point
                     self.geometry.update_point(
                         self.dragged_point_index, (original_x, original_y)
@@ -465,24 +479,28 @@ class LineContainer(QWidget):
         # Convert insertion point from map coordinates to original coordinates
         map_x = insertion_point.x()
         map_y = insertion_point.y()
-        
+
         # Find map tab to get proper scaling ratios
         map_tab = self._find_map_tab()
-        
-        if map_tab and hasattr(map_tab, "image_manager") and map_tab.image_manager.original_pixmap:
+
+        if (
+            map_tab
+            and hasattr(map_tab, "image_manager")
+            and map_tab.image_manager.original_pixmap
+        ):
             # Get original and current dimensions for more accurate scaling
             original_width = map_tab.image_manager.original_pixmap.width()
             original_height = map_tab.image_manager.original_pixmap.height()
-            
+
             current_pixmap = map_tab.image_label.pixmap()
             if current_pixmap:
                 current_width = current_pixmap.width()
                 current_height = current_pixmap.height()
-                
+
                 # Calculate inverse ratios to convert from scaled to original coordinates
                 width_ratio = original_width / current_width
                 height_ratio = original_height / current_height
-                
+
                 # Convert to original coordinates using the proper ratios
                 original_x = int(map_x * width_ratio)
                 original_y = int(map_y * height_ratio)

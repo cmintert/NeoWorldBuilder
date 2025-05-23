@@ -355,10 +355,26 @@ class MapTab(QWidget):
             # Use a short delay to ensure the scroll area has updated its geometry
             QTimer.singleShot(1, lambda: self._set_scroll_position(new_x, new_y))
 
-            # Update feature container size to match new image size
+            # Update feature container size AND position to match new image size
             if hasattr(self, "feature_container"):
+                # Calculate offset for centering when image is smaller than viewport
+                container_x = 0
+                container_y = 0
+
+                if new_width < viewport_width:
+                    container_x = (viewport_width - new_width) // 2
+                if new_height < viewport_height:
+                    container_y = (viewport_height - new_height) // 2
+
+                print(
+                    f"Setting feature container: pos=({container_x}, {container_y}), size=({new_width}, {new_height})"
+                )
+                print(
+                    f"Viewport size: {viewport_width}x{viewport_height}, Image size: {new_width}x{new_height}"
+                )
+
                 self.feature_container.setGeometry(
-                    0, 0, scaled_pixmap.width(), scaled_pixmap.height()
+                    container_x, container_y, new_width, new_height
                 )
                 self.feature_container.raise_()
 
