@@ -164,9 +164,22 @@ class FeatureManager(QObject):
         Args:
             line_data: List of (target_node, points, style_config) tuples
         """
+        print(f"batch_create_lines called with {len(line_data)} lines")
+        
+        # Group lines by target_node for branching lines
+        grouped_lines = {}
+        for target_node, points, style_config in line_data:
+            print(f"Processing line for {target_node} with {len(points)} points, style: {style_config}")
+            
+            if target_node not in grouped_lines:
+                grouped_lines[target_node] = []
+                
+            grouped_lines[target_node].append((points, style_config))
+
         # Remove existing lines
-        for target_node, _, _ in line_data:
+        for target_node in grouped_lines.keys():
             if target_node in self.lines:
+                print(f"Removing existing line for {target_node}")
                 self.lines[target_node].deleteLater()
                 del self.lines[target_node]
 
@@ -174,24 +187,36 @@ class FeatureManager(QObject):
         self.parent_container.setUpdatesEnabled(False)
 
         try:
-            for target_node, points, style_config in line_data:
-                line_container = LineContainer(
-                    target_node, points, self.parent_container, self.config
-                )
-                line_container.line_clicked.connect(self.feature_clicked.emit)
-                line_container.set_scale(self.current_scale)
-
-                # Apply style
-                if style_config:
-                    line_container.set_style(
-                        color=style_config.get("color"),
-                        width=style_config.get("width"),
-                        pattern=style_config.get("pattern"),
+            for target_node, branches_data in grouped_lines.items():
+                # Each branch will be a separate line container
+                for i, (points, style_config) in enumerate(branches_data):
+                    # Create a unique key for branches after the first one
+                    branch_key = target_node
+                    if i > 0:
+                        branch_key = f"{target_node}_branch_{i}"
+                    
+                    print(f"Creating line container for {branch_key} with {len(points)} points")
+                    line_container = LineContainer(
+                        branch_key, points, self.parent_container, self.config
                     )
+                    
+                    # Only connect the click event for the main branch to avoid multiple triggers
+                    if i == 0:
+                        line_container.line_clicked.connect(self.feature_clicked.emit)
+                    
+                    line_container.set_scale(self.current_scale)
 
-                self.lines[target_node] = line_container
-                line_container.show()
-                line_container.raise_()
+                    # Apply style
+                    if style_config:
+                        line_container.set_style(
+                            color=style_config.get("color"),
+                            width=style_config.get("width"),
+                            pattern=style_config.get("pattern"),
+                        )
+
+                    self.lines[branch_key] = line_container
+                    line_container.show()
+                    line_container.raise_()
         finally:
             self.parent_container.setUpdatesEnabled(True)
             self.parent_container.update()

@@ -19,6 +19,7 @@ from utils.geometry_handler import GeometryHandler
 from .drawing_manager import DrawingManager
 from .feature_manager import FeatureManager
 from .line_feature_dialog import LineFeatureDialog
+from .branching_line_feature_dialog import BranchingLineFeatureDialog
 from .map_image_loader import ImageManager
 from .map_viewport import MapViewport
 from .pin_placement_dialog import PinPlacementDialog
@@ -504,14 +505,21 @@ class MapTab(QWidget):
 
     def _handle_line_completion(self, points: List[Tuple[int, int]]) -> None:
         """Handle completion of line drawing."""
+
+        print(f"_handle_line_completion called with {len(points)} points")
+
         if len(points) < 2:
             logger.warning("Attempted to complete line with insufficient points")
+            print("Line has insufficient points, aborting")
             return
 
         dialog = LineFeatureDialog(points, self, self.controller)
         if dialog.exec():
             target_node = dialog.get_target_node()
             line_style = dialog.get_line_style()
+            print(
+                f"Dialog accepted with target_node: {target_node}, style: {line_style}"
+            )
 
             try:
                 # Create WKT LineString
@@ -523,10 +531,17 @@ class MapTab(QWidget):
                     "style_width": line_style["width"],
                     "style_pattern": line_style["pattern"],
                 }
+                print(f"Created properties: {properties}")
 
                 # Create the line and emit signals
+                print(f"About to emit line_created signal")
                 self.line_created.emit(target_node, ">", properties)
+                print(f"line_created signal emitted")
+
+                # Create visual representation
+                print(f"Creating visual line representation")
                 self.feature_manager.create_line(target_node, points, line_style)
+                print(f"Visual line created")
 
                 # Exit line drawing mode
                 self.line_toggle_btn.blockSignals(True)
@@ -535,9 +550,14 @@ class MapTab(QWidget):
                 self.line_drawing_active = False
 
                 logger.debug(f"Line created successfully: {target_node}")
+                print(f"Line creation process completed")
 
             except Exception as e:
                 logger.error(f"Error creating line: {e}")
+                print(f"Exception during line creation: {e}")
+                import traceback
+
+                print(traceback.format_exc())
 
     def _handle_branching_line_point_add(self, x: int, y: int) -> None:
         """Handle adding a point to the current branching line being drawn."""
@@ -556,24 +576,26 @@ class MapTab(QWidget):
         Args:
             branches: List of branches, each branch is a list of points
         """
+        print(f"_handle_branching_line_completion called with {len(branches)} branches")
+
         if not branches or all(len(branch) < 2 for branch in branches):
             logger.warning(
                 "Attempted to complete branching line with insufficient points"
             )
             return
 
-        # Use dedicated dialog for branching lines
-        from .branching_line_feature_dialog import BranchingLineFeatureDialog
-
+        # Use branching line feature dialog
         dialog = BranchingLineFeatureDialog(branches, self, self.controller)
-
         if dialog.exec():
             target_node = dialog.get_target_node()
             line_style = dialog.get_line_style()
-            wkt_multiline = dialog.get_geometry_wkt()
 
             try:
-                # Create properties for the relationship
+                # Create WKT MultiLineString
+                wkt_multiline = GeometryHandler.create_multi_line(branches)
+
+                print(f"Created WKT MultiLineString: {wkt_multiline[:50]}...")
+
                 properties = {
                     "geometry": wkt_multiline,
                     "geometry_type": "MultiLineString",
@@ -583,19 +605,22 @@ class MapTab(QWidget):
                     "style_pattern": line_style["pattern"],
                 }
 
-                # Create the line and emit signals
-                logger.debug(
-                    f"Creating branching line relationship: {target_node} with {len(branches)} branches"
-                )
+                print(f"Properties: {properties}")
+                print(f"About to emit line_created signal with target: {target_node}")
+
+                # Direct call to controller method instead of relying on signal
+                if self.controller:
+                    print("Calling controller._handle_line_created directly")
+                    self.controller._handle_line_created(target_node, ">", properties)
+                else:
+                    print("No controller available to handle line creation")
+
+                # Still emit the signal (for compatibility)
                 self.line_created.emit(target_node, ">", properties)
 
-                # Create visualization - for now, display all branches combined
-                all_points = []
+                # Create visual representation for ALL branches, not just the first one
                 for branch in branches:
-                    all_points.extend(branch)
-
-                # Visualize on map
-                self.feature_manager.create_line(target_node, all_points, line_style)
+                    self.feature_manager.create_line(target_node, branch, line_style)
 
                 # Exit branching line drawing mode
                 self.branching_line_toggle_btn.blockSignals(True)
@@ -603,13 +628,11 @@ class MapTab(QWidget):
                 self.branching_line_toggle_btn.blockSignals(False)
                 self.branching_line_drawing_active = False
 
-                logger.debug(f"Branching line created successfully")
-
             except Exception as e:
                 logger.error(f"Error creating branching line: {e}")
                 import traceback
 
-                logger.error(traceback.format_exc())
+                print(traceback.format_exc())
 
     def _handle_drawing_update(self) -> None:
         """Handle updates to drawing state."""
@@ -701,6 +724,17 @@ class MapTab(QWidget):
                         "pattern": properties.get("style_pattern", "solid"),
                     }
                     line_data.append((target_node, points, style_config))
+                
+                elif geometry_type == "MultiLineString":
+                    branches = GeometryHandler.get_coordinates(properties["geometry"])
+                    style_config = {
+                        "color": properties.get("style_color", "#FF0000"),
+                        "width": properties.get("style_width", 2),
+                        "pattern": properties.get("style_pattern", "solid"),
+                    }
+                    # Add each branch as a separate line for rendering
+                    for branch in branches:
+                        line_data.append((target_node, branch, style_config))
 
                 elif geometry_type == "Point":
                     x, y = GeometryHandler.get_coordinates(properties["geometry"])

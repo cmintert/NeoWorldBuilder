@@ -128,6 +128,12 @@ class BranchingLineFeatureDialog(QDialog):
         points_label = QLabel(f"Total Points: {total_points}")
         branch_info_layout.addWidget(points_label)
 
+        # For each branch, display starting and ending points
+        for i, branch in enumerate(self.branches):
+            if len(branch) >= 2:
+                branch_info = QLabel(f"Branch {i+1}: {len(branch)} points, from ({branch[0][0]}, {branch[0][1]}) to ({branch[-1][0]}, {branch[-1][1]})")
+                branch_info_layout.addWidget(branch_info)
+
         # Generate WKT preview (truncated)
         wkt = GeometryHandler.create_multi_line(self.branches)
         if len(wkt) > 50:
