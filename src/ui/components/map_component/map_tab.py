@@ -562,17 +562,54 @@ class MapTab(QWidget):
             )
             return
 
-        # For now, just log that we received the completion event
-        logger.debug(f"Branching line completed with {len(branches)} branches")
-        print(f"Branching line completed with {len(branches)} branches")
+        # Use dedicated dialog for branching lines
+        from .branching_line_feature_dialog import BranchingLineFeatureDialog
 
-        # TODO: Open dialog for target node selection and saving to database
+        dialog = BranchingLineFeatureDialog(branches, self, self.controller)
 
-        # Exit branching line drawing mode
-        self.branching_line_toggle_btn.blockSignals(True)
-        self.branching_line_toggle_btn.setChecked(False)
-        self.branching_line_toggle_btn.blockSignals(False)
-        self.branching_line_drawing_active = False
+        if dialog.exec():
+            target_node = dialog.get_target_node()
+            line_style = dialog.get_line_style()
+            wkt_multiline = dialog.get_geometry_wkt()
+
+            try:
+                # Create properties for the relationship
+                properties = {
+                    "geometry": wkt_multiline,
+                    "geometry_type": "MultiLineString",
+                    "branch_count": len(branches),
+                    "style_color": line_style["color"],
+                    "style_width": line_style["width"],
+                    "style_pattern": line_style["pattern"],
+                }
+
+                # Create the line and emit signals
+                logger.debug(
+                    f"Creating branching line relationship: {target_node} with {len(branches)} branches"
+                )
+                self.line_created.emit(target_node, ">", properties)
+
+                # Create visualization - for now, display all branches combined
+                all_points = []
+                for branch in branches:
+                    all_points.extend(branch)
+
+                # Visualize on map
+                self.feature_manager.create_line(target_node, all_points, line_style)
+
+                # Exit branching line drawing mode
+                self.branching_line_toggle_btn.blockSignals(True)
+                self.branching_line_toggle_btn.setChecked(False)
+                self.branching_line_toggle_btn.blockSignals(False)
+                self.branching_line_drawing_active = False
+
+                logger.debug(f"Branching line created successfully")
+
+            except Exception as e:
+                logger.error(f"Error creating branching line: {e}")
+                import traceback
+
+                logger.error(traceback.format_exc())
 
     def _handle_drawing_update(self) -> None:
         """Handle updates to drawing state."""
