@@ -80,6 +80,8 @@ class MapTab(QWidget):
         self.zoom_timer.setSingleShot(True)
         self.zoom_timer.timeout.connect(self._perform_zoom)
         self.pending_scale = None
+        
+        # Enhanced edit mode will be integrated after basic initialization
 
     def _setup_ui(self) -> None:
         """Setup the UI components."""
@@ -204,6 +206,10 @@ class MapTab(QWidget):
             self.feature_manager.feature_clicked.connect(
                 self.controller._handle_pin_click
             )
+            
+        # Integrate enhanced edit mode
+        from .enhanced_edit_mode import integrate_enhanced_edit_mode
+        integrate_enhanced_edit_mode(self)
 
     def resizeEvent(self, event):
         """Handle resize events to keep feature container matched to viewport size."""
