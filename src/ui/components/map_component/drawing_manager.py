@@ -1,6 +1,6 @@
 from typing import List, Tuple, Optional
-from PyQt6.QtCore import QObject, pyqtSignal, QPoint
-from PyQt6.QtGui import QPainter, QPen, QColor
+from PyQt6.QtCore import QObject, pyqtSignal, QPoint, QPointF
+from PyQt6.QtGui import QPainter, QPen, QColor, QBrush
 from PyQt6.QtCore import Qt
 from structlog import get_logger
 
@@ -32,6 +32,10 @@ class DrawingManager(QObject):
         self.current_branches = []  # List of branches, each branch is a list of points
         self.temp_branch_coordinates = []  # List of scaled coordinate lists for display
         self.current_branch_index = 0  # Which branch we're currently drawing
+
+        # Track last mouse position for branch creation
+        self.last_mouse_position = (0, 0)  # Original coordinates
+        self.last_mouse_position_scaled = (0, 0)  # Scaled coordinates
 
         # Drawing style
         self.temp_line_color = QColor("#3388FF")
@@ -78,6 +82,94 @@ class DrawingManager(QObject):
         self.drawing_updated.emit()
         logger.debug("Started branching line drawing mode")
 
+    def start_branch_from_nearest_point(self) -> bool:
+        """Start a new branch from the point closest to the current mouse position.
+
+        Returns:
+            True if a new branch was started, False if not in branching line mode
+        """
+        if not self.is_drawing_branching_line:
+            logger.debug("Not in branching line mode")
+            return False
+
+        # Use the last known mouse position
+        mouse_x, mouse_y = self.last_mouse_position
+
+        logger.debug(f"Starting branch from mouse position at ({mouse_x}, {mouse_y})")
+
+        # We'll find the point closest to the mouse position
+        nearest_point = None
+        nearest_branch_idx = -1
+        nearest_point_idx = -1
+        min_distance = float("inf")
+
+        # Go through all branches and points
+        for branch_idx, branch in enumerate(self.current_branches):
+            for point_idx, point in enumerate(branch):
+                # Calculate distance to the mouse position
+                dx = point[0] - mouse_x
+                dy = point[1] - mouse_y
+                distance = dx * dx + dy * dy
+
+                logger.debug(
+                    f"Point in branch {branch_idx}, idx {point_idx}: {point}, distance: {distance}"
+                )
+
+                # Update if this is closer than our previous best
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_point = point
+                    nearest_branch_idx = branch_idx
+                    nearest_point_idx = point_idx
+
+        # If we found a nearby point
+        if nearest_point:
+            logger.debug(
+                f"Found nearest point to mouse: {nearest_point} in branch {nearest_branch_idx}, point {nearest_point_idx}"
+            )
+
+            # Calculate current scale
+            current_scale = 1.0
+            if (
+                self.temp_branch_coordinates
+                and nearest_branch_idx < len(self.temp_branch_coordinates)
+                and self.temp_branch_coordinates[nearest_branch_idx]
+                and nearest_point_idx
+                < len(self.temp_branch_coordinates[nearest_branch_idx])
+            ):
+                # Get the scaled version of the selected point
+                temp_point = self.temp_branch_coordinates[nearest_branch_idx][
+                    nearest_point_idx
+                ]
+                if nearest_point[0] != 0:
+                    current_scale = temp_point[0] / nearest_point[0]
+                elif nearest_point[1] != 0:
+                    current_scale = temp_point[1] / nearest_point[1]
+
+                logger.debug(f"Using scale: {current_scale}")
+
+            # Create new branch starting from the nearest point
+            new_branch = [nearest_point]
+            self.current_branches.append(new_branch)
+
+            # Create corresponding scaled coordinates
+            new_temp_branch = [
+                (nearest_point[0] * current_scale, nearest_point[1] * current_scale)
+            ]
+            self.temp_branch_coordinates.append(new_temp_branch)
+
+            # Update current branch index to the newly created branch
+            self.current_branch_index = len(self.current_branches) - 1
+
+            logger.debug(
+                f"Started new branch {self.current_branch_index} from point in branch {nearest_branch_idx}, point {nearest_point_idx}"
+            )
+            self.drawing_updated.emit()
+            return True
+
+        logger.debug("No suitable point found to branch from")
+        return False
+
     def stop_branching_line_drawing(self, complete: bool = False) -> None:
         """Stop branching line drawing mode.
 
@@ -114,7 +206,7 @@ class DrawingManager(QObject):
         return any(len(branch) >= 2 for branch in self.current_branches)
 
     def draw_temporary_branching_line(self, painter: QPainter) -> None:
-        """Draw the temporary branching line being constructed.
+        """Draw the temporary branching line being constructed with visual feedback.
 
         Args:
             painter: QPainter instance to draw with
@@ -128,16 +220,61 @@ class DrawingManager(QObject):
         pen.setStyle(self.temp_line_style)
         painter.setPen(pen)
 
-        # Draw each branch
-        for branch_coords in self.temp_branch_coordinates:
+        # Draw each branch with different styles to help with debugging
+        for branch_idx, branch_coords in enumerate(self.temp_branch_coordinates):
             if len(branch_coords) < 2:
+                # Just draw a point if only one point exists
+                if len(branch_coords) == 1:
+                    painter.setBrush(
+                        QBrush(
+                            QColor(
+                                "#FF0000"
+                                if branch_idx == self.current_branch_index
+                                else "#0000FF"
+                            )
+                        )
+                    )
+                    painter.drawEllipse(
+                        QPointF(branch_coords[0][0], branch_coords[0][1]), 5, 5
+                    )
                 continue
+
+            # Use different colors for branches to distinguish them visually
+            if branch_idx == self.current_branch_index:
+                # Current branch is bright red
+                painter.setPen(
+                    QPen(
+                        QColor("#FF0000"),
+                        self.temp_line_width + 1,
+                        self.temp_line_style,
+                    )
+                )
+            else:
+                # Other branches are blue
+                painter.setPen(
+                    QPen(QColor("#0000FF"), self.temp_line_width, self.temp_line_style)
+                )
 
             # Draw line segments
             for i in range(len(branch_coords) - 1):
                 p1 = branch_coords[i]
                 p2 = branch_coords[i + 1]
                 painter.drawLine(int(p1[0]), int(p1[1]), int(p2[0]), int(p2[1]))
+
+                # Draw dots at each point with index numbers for debugging
+                painter.setBrush(QBrush(QColor("#FFFF00")))  # Yellow points
+                painter.drawEllipse(QPointF(p1[0], p1[1]), 3, 3)
+
+                # For the last point in each segment
+                if i == len(branch_coords) - 2:
+                    painter.drawEllipse(QPointF(p2[0], p2[1]), 3, 3)
+
+                    # Mark the last point of the current branch with a larger circle
+                    if branch_idx == self.current_branch_index:
+                        painter.setBrush(
+                            QBrush(QColor("#FF0000"))
+                        )  # Red for current branch endpoint
+                        painter.drawEllipse(QPointF(p2[0], p2[1]), 6, 6)
 
     def add_point(
         self, original_x: int, original_y: int, scaled_x: float, scaled_y: float
@@ -184,6 +321,10 @@ class DrawingManager(QObject):
         if not self.is_drawing_branching_line:
             return False
 
+        # Track last mouse position
+        self.last_mouse_position = (original_x, original_y)
+        self.last_mouse_position_scaled = (scaled_x, scaled_y)
+
         # Add point to the current branch
         self.current_branches[self.current_branch_index].append(
             (original_x, original_y)
@@ -193,7 +334,8 @@ class DrawingManager(QObject):
         )
 
         logger.debug(
-            f"Added point to branch {self.current_branch_index}: ({original_x}, {original_y}) - Total points: {len(self.current_branches[self.current_branch_index])}"
+            f"Added point to branch {self.current_branch_index}: ({original_x}, {original_y}) - "
+            f"Total points: {len(self.current_branches[self.current_branch_index])}"
         )
 
         self.drawing_updated.emit()
@@ -245,12 +387,22 @@ class DrawingManager(QObject):
         Returns:
             True if key was handled, False otherwise
         """
-        if key == Qt.Key.Key_Escape and self.is_drawing_line:
-            self.stop_line_drawing(complete=False)
-            return True
-        elif key == Qt.Key.Key_Return and self.can_complete_line():
-            self.stop_line_drawing(complete=True)
-            return True
+        if key == Qt.Key.Key_Escape:
+            if self.is_drawing_line:
+                self.stop_line_drawing(complete=False)
+                return True
+            elif self.is_drawing_branching_line:
+                self.stop_branching_line_drawing(complete=False)
+                return True
+        elif key == Qt.Key.Key_Return:
+            if self.is_drawing_line and self.can_complete_line():
+                self.stop_line_drawing(complete=True)
+                return True
+            elif self.is_drawing_branching_line and self._can_complete_branching_line():
+                self.stop_branching_line_drawing(complete=True)
+                return True
+
+        # Removed B key handling since it's now handled in MapTab
 
         return False
 
@@ -298,3 +450,88 @@ class DrawingManager(QObject):
 
         if self.is_drawing_line:
             self.drawing_updated.emit()
+
+    def start_branch_from_position(
+        self, original_x: int, original_y: int, scaled_x: float, scaled_y: float
+    ) -> bool:
+        """Start a new branch from the point closest to the given position.
+
+        Args:
+            original_x: X coordinate in original image space
+            original_y: Y coordinate in original image space
+            scaled_x: X coordinate in scaled display space
+            scaled_y: Y coordinate in scaled display space
+
+        Returns:
+            True if a branch was started, False otherwise
+        """
+        if not self.is_drawing_branching_line:
+            logger.debug("Not in branching line mode")
+            return False
+
+        logger.debug(
+            f"Attempting to start branch from position: ({original_x}, {original_y})"
+        )
+
+        # Find the nearest point in all branches
+        nearest_point = None
+        nearest_branch_idx = -1
+        nearest_point_idx = -1
+        min_distance = float("inf")
+
+        # Go through all branches and points
+        for branch_idx, branch in enumerate(self.current_branches):
+            for point_idx, point in enumerate(branch):
+                # Calculate distance to the mouse position
+                dx = point[0] - original_x
+                dy = point[1] - original_y
+                distance = dx * dx + dy * dy
+
+                logger.debug(f"Checking point: {point}, distance: {distance}")
+
+                # Update if this is closer than our previous best
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_point = point
+                    nearest_branch_idx = branch_idx
+                    nearest_point_idx = point_idx
+
+        # If we found a nearby point
+        if nearest_point:
+            logger.debug(
+                f"Found nearest point: {nearest_point} in branch {nearest_branch_idx}, point {nearest_point_idx}"
+            )
+
+            # Get current scale from temp coordinates
+            if (
+                self.temp_branch_coordinates
+                and nearest_branch_idx < len(self.temp_branch_coordinates)
+                and self.temp_branch_coordinates[nearest_branch_idx]
+                and nearest_point_idx
+                < len(self.temp_branch_coordinates[nearest_branch_idx])
+            ):
+
+                # Get scaled version of nearest point
+                temp_point = self.temp_branch_coordinates[nearest_branch_idx][
+                    nearest_point_idx
+                ]
+
+                # Create new branch starting from nearest point
+                new_branch = [nearest_point]
+                self.current_branches.append(new_branch)
+
+                # Create corresponding scaled coordinates
+                new_temp_branch = [temp_point]  # Use existing scaled point directly
+                self.temp_branch_coordinates.append(new_temp_branch)
+
+                # Update current branch index to the newly created branch
+                self.current_branch_index = len(self.current_branches) - 1
+
+                logger.debug(
+                    f"Started new branch {self.current_branch_index} from point in branch {nearest_branch_idx}, point {nearest_point_idx}"
+                )
+                self.drawing_updated.emit()
+                return True
+
+        logger.debug("No suitable point found to branch from")
+        return False
