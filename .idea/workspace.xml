@@ -4,13 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Modularize dialogs for map components&#10;&#10;Extracted `PinPlacementDialog` and `LineFeatureDialog` into standalone modules for improved structure and reusability. Refactored `map_tab.py` to reflect these changes, enhancing maintainability and code organization.">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add branching line drawing functionality to map feature&#10;&#10;Introduced branching line drawing mode with UI toggle support in `map_tab.py`. Added necessary handling for branching lines, including toggle status, point addition, and rendering preparation. Enhanced `line_container.py` to support modular line features required by the new functionality while improving code readability and error handling.">
       <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/drawing_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/drawing_manager.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/line_container.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/line_container.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_viewport.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_viewport.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -284,15 +279,7 @@
       <workItem from="1747921041988" duration="17000" />
       <workItem from="1747921066730" duration="1830000" />
       <workItem from="1747936602538" duration="6900000" />
-      <workItem from="1747981206894" duration="4069000" />
-    </task>
-    <task id="LOCAL-00010" summary="We are getting there, got a calendar connection established.">
-      <option name="closed" value="true" />
-      <created>1737833062463</created>
-      <option name="number" value="00010" />
-      <option name="presentableId" value="LOCAL-00010" />
-      <option name="project" value="LOCAL" />
-      <updated>1737833062463</updated>
+      <workItem from="1747981206894" duration="4406000" />
     </task>
     <task id="LOCAL-00011" summary="Testing parser">
       <option name="closed" value="true" />
@@ -678,7 +665,15 @@
       <option name="project" value="LOCAL" />
       <updated>1747945662116</updated>
     </task>
-    <option name="localTasksCounter" value="59" />
+    <task id="LOCAL-00059" summary="Add branching line drawing functionality to map feature&#10;&#10;Introduced branching line drawing mode with UI toggle support in `map_tab.py`. Added necessary handling for branching lines, including toggle status, point addition, and rendering preparation. Enhanced `line_container.py` to support modular line features required by the new functionality while improving code readability and error handling.">
+      <option name="closed" value="true" />
+      <created>1747985594279</created>
+      <option name="number" value="00059" />
+      <option name="presentableId" value="LOCAL-00059" />
+      <option name="project" value="LOCAL" />
+      <updated>1747985594279</updated>
+    </task>
+    <option name="localTasksCounter" value="60" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -708,7 +703,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Add LLMService for enhanced node descriptions and UI integration&#10;&#10;Implemented LLMService to enhance node descriptions using OpenAI-like APIs, with support for contextual depth and asynchronous handling. Updated the UI controller to integrate the enhancement feature and added necessary configurations. Removed unused dependencies from requirements.txt and cleaned up workspace files." />
     <MESSAGE value="Add LLM integration and enhance node description handling&#10;&#10;Introduced `LLMService` for node description enhancement using an LLM via API calls, with optional contextual data from connected nodes. Updated UI and initialization logic to support the feature. Additionally, removed `requirements.txt` and adjusted project settings for improved modularity." />
     <MESSAGE value="Add LLM integration and text enhancement UI feature&#10;&#10;Introduced `LLMService` for text enhancement using AI via API calls, with support for context-based node descriptions. Updated the text editor UI to include an &quot;Enhance with AI&quot; button and implemented backend functionality for handling enhancement requests. Added configuration support for API key, URL, and model specifications, alongside improved error handling and logging." />
     <MESSAGE value="Add LLMService for enhanced node description and UI integration&#10;&#10;Introduced `LLMService` to enhance node descriptions using AI via API calls, with support for context-based information from connected nodes. Updated the text editor UI to include an &quot;Enhance with AI&quot; button and implemented backend functionality for handling enhancement requests. Added configuration support for API key, URL, and model specifications, alongside improved error handling and logging." />
@@ -733,7 +727,8 @@
     <MESSAGE value="Refactor line handling into modular components.&#10;&#10;Extracted line rendering and persistence logic into separate modules for improved modularity and maintainability. Enhanced line editing functionality with control point interactions, better rendering, and streamlined geometry updates. Updated related constants and UI components for consistency and scalability." />
     <MESSAGE value="Refactor map component for modularity and simplification&#10;&#10;Reorganized map-related classes into separate modules to improve code modularity and maintainability. Simplified `map_tab.py` by extracting line rendering, image loading, and drawing logic into dedicated components. This enhances readability, scalability, and future development efficiency." />
     <MESSAGE value="Modularize dialogs for map components&#10;&#10;Extracted `PinPlacementDialog` and `LineFeatureDialog` into standalone modules for improved structure and reusability. Refactored `map_tab.py` to reflect these changes, enhancing maintainability and code organization." />
-    <option name="LAST_COMMIT_MESSAGE" value="Modularize dialogs for map components&#10;&#10;Extracted `PinPlacementDialog` and `LineFeatureDialog` into standalone modules for improved structure and reusability. Refactored `map_tab.py` to reflect these changes, enhancing maintainability and code organization." />
+    <MESSAGE value="Add branching line drawing functionality to map feature&#10;&#10;Introduced branching line drawing mode with UI toggle support in `map_tab.py`. Added necessary handling for branching lines, including toggle status, point addition, and rendering preparation. Enhanced `line_container.py` to support modular line features required by the new functionality while improving code readability and error handling." />
+    <option name="LAST_COMMIT_MESSAGE" value="Add branching line drawing functionality to map feature&#10;&#10;Introduced branching line drawing mode with UI toggle support in `map_tab.py`. Added necessary handling for branching lines, including toggle status, point addition, and rendering preparation. Enhanced `line_container.py` to support modular line features required by the new functionality while improving code readability and error handling." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

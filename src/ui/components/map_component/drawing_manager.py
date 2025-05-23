@@ -26,6 +26,12 @@ class DrawingManager(QObject):
         self.current_line_points = []  # Original coordinates
         self.temp_line_coordinates = []  # Scaled coordinates for display
 
+        # Branching line state
+        self.is_drawing_branching_line = False
+        self.current_branches = []  # List of branches, each branch is a list of points
+        self.temp_branch_coordinates = []  # List of scaled coordinate lists for display
+        self.current_branch_index = 0  # Which branch we're currently drawing
+
         # Drawing style
         self.temp_line_color = QColor("#3388FF")
         self.temp_line_width = 2
@@ -61,6 +67,43 @@ class DrawingManager(QObject):
             logger.debug("Line drawing completed")
         else:
             logger.debug("Line drawing cancelled")
+
+    def start_branching_line_drawing(self) -> None:
+        """Start branching line drawing mode."""
+        self.is_drawing_branching_line = True
+        self.current_branches = [[]]  # Start with first empty branch
+        self.temp_branch_coordinates = [[]]
+        self.current_branch_index = 0
+        self.drawing_updated.emit()
+        logger.debug("Started branching line drawing mode")
+
+    def stop_branching_line_drawing(self, complete: bool = False) -> None:
+        """Stop branching line drawing mode."""
+        if (
+            self.is_drawing_branching_line
+            and complete
+            and self._can_complete_branching_line()
+        ):
+            # Complete the branching line
+            branches = [
+                branch.copy() for branch in self.current_branches if len(branch) >= 2
+            ]
+            logger.debug(f"Completing branching line with {len(branches)} branches")
+            self.line_completed.emit(
+                branches
+            )  # Note: this will need different handling
+
+        # Reset branching state
+        self.is_drawing_branching_line = False
+        self.current_branches = []
+        self.temp_branch_coordinates = []
+        self.current_branch_index = 0
+        self.drawing_updated.emit()
+
+    def _can_complete_branching_line(self) -> bool:
+        """Check if branching line can be completed."""
+        # Need at least one branch with at least 2 points
+        return any(len(branch) >= 2 for branch in self.current_branches)
 
     def add_point(
         self, original_x: int, original_y: int, scaled_x: float, scaled_y: float
