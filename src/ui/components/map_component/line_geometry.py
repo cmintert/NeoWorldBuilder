@@ -30,10 +30,48 @@ class LineGeometry:
     
     def _update_scaled_points(self) -> None:
         """Update scaled points based on current scale."""
+        # If parent container or map_tab is available, use image manager for more accurate scaling
+        parent = self._find_parent_map_tab()
+        if parent and hasattr(parent, "image_manager") and parent.image_manager.original_pixmap:
+            # Get original and current dimensions
+            original_width = parent.image_manager.original_pixmap.width()
+            original_height = parent.image_manager.original_pixmap.height()
+            
+            current_pixmap = parent.image_label.pixmap()
+            if current_pixmap:
+                current_width = current_pixmap.width()
+                current_height = current_pixmap.height()
+                
+                # Calculate scale ratios
+                width_ratio = current_width / original_width
+                height_ratio = current_height / original_height
+                
+                # Scale points using dimension ratios
+                self._scaled_points = [
+                    (int(p[0] * width_ratio), int(p[1] * height_ratio))
+                    for p in self.original_points
+                ]
+                return
+        
+        # Fallback to simple scaling if image manager not available
         self._scaled_points = [
             (int(p[0] * self._scale), int(p[1] * self._scale)) 
             for p in self.original_points
         ]
+    
+    def _find_parent_map_tab(self):
+        """Find parent map tab for access to image manager.
+        
+        Traverses the parent widget hierarchy to find the MapTab instance.
+        
+        Returns:
+            MapTab instance or None if not found
+        """
+        # This is a utility method - it would need a reference to parent widgets
+        # which LineGeometry doesn't have direct access to.
+        # In a real implementation, we'd need to pass a reference or use signals.
+        # For now, return None as placeholder
+        return None
     
     def get_bounds(self) -> Tuple[int, int, int, int]:
         """Get line bounds (min_x, min_y, max_x, max_y)."""

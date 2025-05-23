@@ -190,6 +190,9 @@ class MapTab(QWidget):
 
         # Drawing manager signals
         self.drawing_manager.line_completed.connect(self._handle_line_completion)
+        self.drawing_manager.branching_line_completed.connect(
+            self._handle_branching_line_completion
+        )
         self.drawing_manager.drawing_updated.connect(self._handle_drawing_update)
 
         # Feature manager signals
@@ -406,11 +409,27 @@ class MapTab(QWidget):
         self.branching_line_drawing_active = active
 
         if active:
+            # Disable other modes
+            if self.pin_toggle_btn.isChecked():
+                self.pin_toggle_btn.setChecked(False)
+            if self.line_toggle_btn.isChecked():
+                self.line_toggle_btn.setChecked(False)
+            if self.edit_toggle_btn.isChecked():
+                self.edit_toggle_btn.setChecked(False)
+
+            self.drawing_manager.start_branching_line_drawing()
+            self.image_label.set_cursor_for_mode("crosshair")
+            self.branching_line_toggle_btn.setStyleSheet("background-color: #83A00E;")
+            self.image_label.setFocus()
             print(f"Branching line mode activated: {active}")
-            # TODO: Implement branching line logic
         else:
+            # Complete or cancel current drawing
+            completing = self.drawing_manager._can_complete_branching_line()
+            self.drawing_manager.stop_branching_line_drawing(complete=completing)
+
+            self.image_label.set_cursor_for_mode("default")
+            self.branching_line_toggle_btn.setStyleSheet("")
             print(f"Branching line mode deactivated: {active}")
-            # TODO: Clean up branching line state
 
     def toggle_edit_mode(self, active: bool) -> None:
         """Toggle edit mode for existing lines."""
@@ -506,8 +525,38 @@ class MapTab(QWidget):
 
     def _handle_branching_line_point_add(self, x: int, y: int) -> None:
         """Handle adding a point to the current branching line being drawn."""
+        # Convert to scaled coordinates for display
+        scaled_x = x * self.current_scale
+        scaled_y = y * self.current_scale
+
+        self.drawing_manager.add_branching_point(x, y, scaled_x, scaled_y)
         print(f"Branching line point added at: ({x}, {y})")
-        # TODO: Implement branching line point logic
+
+    def _handle_branching_line_completion(
+        self, branches: List[List[Tuple[int, int]]]
+    ) -> None:
+        """Handle completion of branching line drawing.
+
+        Args:
+            branches: List of branches, each branch is a list of points
+        """
+        if not branches or all(len(branch) < 2 for branch in branches):
+            logger.warning(
+                "Attempted to complete branching line with insufficient points"
+            )
+            return
+
+        # For now, just log that we received the completion event
+        logger.debug(f"Branching line completed with {len(branches)} branches")
+        print(f"Branching line completed with {len(branches)} branches")
+
+        # TODO: Open dialog for target node selection and saving to database
+
+        # Exit branching line drawing mode
+        self.branching_line_toggle_btn.blockSignals(True)
+        self.branching_line_toggle_btn.setChecked(False)
+        self.branching_line_toggle_btn.blockSignals(False)
+        self.branching_line_drawing_active = False
 
     def _handle_drawing_update(self) -> None:
         """Handle updates to drawing state."""

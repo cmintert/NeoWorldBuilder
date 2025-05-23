@@ -168,6 +168,29 @@ class LineContainer(QWidget):
             scale (float): The new scale factor.
         """
         self.geometry.set_scale(scale)
+        
+        # Find MapTab instance to get image manager information
+        map_tab = self._find_map_tab()
+        
+        if map_tab and hasattr(map_tab, "image_manager") and map_tab.image_manager.original_pixmap:
+            # Get original and current dimensions for more accurate scaling
+            original_width = map_tab.image_manager.original_pixmap.width()
+            original_height = map_tab.image_manager.original_pixmap.height()
+            
+            current_pixmap = map_tab.image_label.pixmap()
+            if current_pixmap:
+                current_width = current_pixmap.width()
+                current_height = current_pixmap.height()
+                
+                # Update line geometry with proper dimension ratios
+                width_ratio = current_width / original_width
+                height_ratio = current_height / original_height
+                
+                # Override scaled points with proper dimension-based scaling
+                self.geometry._scaled_points = [
+                    (int(p[0] * width_ratio), int(p[1] * height_ratio))
+                    for p in self.geometry.original_points
+                ]
 
         # Update control points if in edit mode
         if self.edit_mode:
@@ -176,6 +199,28 @@ class LineContainer(QWidget):
         # Update label style and geometry
         self.update_label_style()
         self._update_geometry()
+        
+    def _find_map_tab(self):
+        """Find the parent MapTab instance.
+        
+        Returns:
+            MapTab instance or None if not found
+        """
+        parent_widget = self.parent()
+        while parent_widget:
+            # Check if this is the map tab
+            if parent_widget.__class__.__name__ == "MapTab":
+                return parent_widget
+                
+            # Check if parent has a controller attribute with map_tab
+            if hasattr(parent_widget, "controller") and hasattr(parent_widget.controller, "ui"):
+                if hasattr(parent_widget.controller.ui, "map_tab"):
+                    return parent_widget.controller.ui.map_tab
+                    
+            # Move up the hierarchy
+            parent_widget = parent_widget.parent()
+            
+        return None
 
     def set_style(
         self, color: str = None, width: int = None, pattern: str = None
@@ -348,12 +393,38 @@ class LineContainer(QWidget):
             # Update the control point position
             self.control_points[self.dragged_point_index]["pos"] = (map_x, map_y)
 
-            # Update the geometry
-            original_x = int(map_x / self.geometry.scale)
-            original_y = int(map_y / self.geometry.scale)
-            self.geometry.update_point(
-                self.dragged_point_index, (original_x, original_y)
-            )
+            # Find map tab to get proper scaling ratios
+            map_tab = self._find_map_tab()
+            
+            if map_tab and hasattr(map_tab, "image_manager") and map_tab.image_manager.original_pixmap:
+                # Get original and current dimensions for more accurate scaling
+                original_width = map_tab.image_manager.original_pixmap.width()
+                original_height = map_tab.image_manager.original_pixmap.height()
+                
+                current_pixmap = map_tab.image_label.pixmap()
+                if current_pixmap:
+                    current_width = current_pixmap.width()
+                    current_height = current_pixmap.height()
+                    
+                    # Calculate inverse ratios to convert from scaled to original coordinates
+                    width_ratio = original_width / current_width
+                    height_ratio = original_height / current_height
+                    
+                    # Convert to original coordinates using the proper ratios
+                    original_x = int(map_x * width_ratio)
+                    original_y = int(map_y * height_ratio)
+                    
+                    # Update the geometry with the new point
+                    self.geometry.update_point(
+                        self.dragged_point_index, (original_x, original_y)
+                    )
+            else:
+                # Fallback to simple scaling if image manager not available
+                original_x = int(map_x / self.geometry.scale)
+                original_y = int(map_y / self.geometry.scale)
+                self.geometry.update_point(
+                    self.dragged_point_index, (original_x, original_y)
+                )
 
             # Update widget geometry and trigger repaint
             self._update_geometry()
@@ -392,8 +463,33 @@ class LineContainer(QWidget):
     ) -> None:
         """Insert a new control point at the specified segment."""
         # Convert insertion point from map coordinates to original coordinates
-        original_x = int(insertion_point.x() / self.geometry.scale)
-        original_y = int(insertion_point.y() / self.geometry.scale)
+        map_x = insertion_point.x()
+        map_y = insertion_point.y()
+        
+        # Find map tab to get proper scaling ratios
+        map_tab = self._find_map_tab()
+        
+        if map_tab and hasattr(map_tab, "image_manager") and map_tab.image_manager.original_pixmap:
+            # Get original and current dimensions for more accurate scaling
+            original_width = map_tab.image_manager.original_pixmap.width()
+            original_height = map_tab.image_manager.original_pixmap.height()
+            
+            current_pixmap = map_tab.image_label.pixmap()
+            if current_pixmap:
+                current_width = current_pixmap.width()
+                current_height = current_pixmap.height()
+                
+                # Calculate inverse ratios to convert from scaled to original coordinates
+                width_ratio = original_width / current_width
+                height_ratio = original_height / current_height
+                
+                # Convert to original coordinates using the proper ratios
+                original_x = int(map_x * width_ratio)
+                original_y = int(map_y * height_ratio)
+        else:
+            # Fallback to simple scaling if image manager not available
+            original_x = int(map_x / self.geometry.scale)
+            original_y = int(map_y / self.geometry.scale)
 
         print(
             f"Inserting point at segment {segment_index}: ({original_x}, {original_y})"

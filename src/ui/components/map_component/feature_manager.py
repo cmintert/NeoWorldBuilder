@@ -223,18 +223,33 @@ class FeatureManager(QObject):
         viewport_width = parent_map_tab.scroll_area.viewport().width()
         viewport_height = parent_map_tab.scroll_area.viewport().height()
         
-        # Calculate scaled position
-        scaled_x = x * self.current_scale
-        scaled_y = y * self.current_scale
+        # Get current scaled pixmap
+        pixmap = parent_map_tab.image_label.pixmap()
+        if not pixmap:
+            return
+            
+        # Get scaled dimensions
+        scaled_width = pixmap.width()
+        scaled_height = pixmap.height()
+        
+        # Get original dimensions
+        original_width = parent_map_tab.image_manager.original_pixmap.width()
+        original_height = parent_map_tab.image_manager.original_pixmap.height()
+        
+        # Calculate scale ratios
+        width_ratio = scaled_width / original_width
+        height_ratio = scaled_height / original_height
+        
+        # Calculate scaled position directly using the ratios
+        # This ensures consistent positioning regardless of how the image was scaled
+        scaled_x = x * width_ratio
+        scaled_y = y * height_ratio
         
         # Account for image centering in viewport
-        if pixmap := parent_map_tab.image_label.pixmap():
-            image_width = pixmap.width()
-            image_height = pixmap.height()
-            if image_width < viewport_width:
-                scaled_x += (viewport_width - image_width) / 2
-            if image_height < viewport_height:
-                scaled_y += (viewport_height - image_height) / 2
+        if scaled_width < viewport_width:
+            scaled_x += (viewport_width - scaled_width) / 2
+        if scaled_height < viewport_height:
+            scaled_y += (viewport_height - scaled_height) / 2
         
         # Position pin (align bottom with coordinate)
         pin_x = int(scaled_x - (pin_container.pin_svg.width() / 2))

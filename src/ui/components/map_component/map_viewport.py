@@ -83,15 +83,17 @@ class MapViewport(QLabel):
         super().paintEvent(event)
 
         # Draw temporary line if parent is in line drawing mode
-        if (
-            self.parent_map_tab
-            and hasattr(self.parent_map_tab, "drawing_manager")
-            and self.parent_map_tab.drawing_manager.is_drawing_line
-        ):
-
-            painter = QPainter(self)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            self.parent_map_tab.drawing_manager.draw_temporary_line(painter)
+        if self.parent_map_tab and hasattr(self.parent_map_tab, "drawing_manager"):
+            if self.parent_map_tab.drawing_manager.is_drawing_line:
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                self.parent_map_tab.drawing_manager.draw_temporary_line(painter)
+            elif self.parent_map_tab.drawing_manager.is_drawing_branching_line:
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                self.parent_map_tab.drawing_manager.draw_temporary_branching_line(
+                    painter
+                )
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Handle mouse release to stop panning."""
@@ -167,17 +169,36 @@ class MapViewport(QLabel):
         scaled_x = widget_pos.x() - offset_x
         scaled_y = widget_pos.y() - offset_y
 
-        # Check if within image bounds
+        # Check if within image bounds (use < instead of <= for end boundaries)
         if not (
-            0 <= scaled_x <= pixmap_size.width()
-            and 0 <= scaled_y <= pixmap_size.height()
+            0 <= scaled_x < pixmap_size.width() and 0 <= scaled_y < pixmap_size.height()
         ):
             return None
 
-        # Convert to original coordinates
+        # Get the current image scale
         current_scale = getattr(self.parent_map_tab, "current_scale", 1.0)
-        original_x = int(scaled_x / current_scale)
-        original_y = int(scaled_y / current_scale)
+
+        # Use the original image dimensions rather than the scaled dimensions
+        # for coordinate conversion when the image is smaller than the viewport
+        if (
+            hasattr(self.parent_map_tab, "image_manager")
+            and self.parent_map_tab.image_manager.original_pixmap
+        ):
+            # Get original image dimensions
+            original_width = self.parent_map_tab.image_manager.original_pixmap.width()
+            original_height = self.parent_map_tab.image_manager.original_pixmap.height()
+
+            # Calculate the ratio between scaled and original dimensions
+            x_ratio = original_width / pixmap_size.width()
+            y_ratio = original_height / pixmap_size.height()
+
+            # Convert to original coordinates using the ratio
+            original_x = int(scaled_x * x_ratio)
+            original_y = int(scaled_y * y_ratio)
+        else:
+            # Fallback to old method if image manager not accessible
+            original_x = int(scaled_x / current_scale)
+            original_y = int(scaled_y / current_scale)
 
         return original_x, original_y
 
@@ -189,6 +210,7 @@ class MapViewport(QLabel):
         return (
             getattr(self.parent_map_tab, "pin_placement_active", False)
             or getattr(self.parent_map_tab, "line_drawing_active", False)
+            or getattr(self.parent_map_tab, "branching_line_drawing_active", False)
             or getattr(self.parent_map_tab, "edit_mode_active", False)
         )
 

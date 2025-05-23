@@ -16,6 +16,7 @@ class DrawingManager(QObject):
     # Drawing signals
     line_completed = pyqtSignal(list)  # Emits list of points when line is complete
     drawing_updated = pyqtSignal()  # Signals that drawing state changed
+    branching_line_completed = pyqtSignal(list)  # Emits list of branches when complete
 
     def __init__(self):
         """Initialize the drawing manager."""
@@ -78,7 +79,11 @@ class DrawingManager(QObject):
         logger.debug("Started branching line drawing mode")
 
     def stop_branching_line_drawing(self, complete: bool = False) -> None:
-        """Stop branching line drawing mode."""
+        """Stop branching line drawing mode.
+
+        Args:
+            complete: Whether to complete the branching line (emit signal) or just cancel
+        """
         if (
             self.is_drawing_branching_line
             and complete
@@ -89,9 +94,7 @@ class DrawingManager(QObject):
                 branch.copy() for branch in self.current_branches if len(branch) >= 2
             ]
             logger.debug(f"Completing branching line with {len(branches)} branches")
-            self.line_completed.emit(
-                branches
-            )  # Note: this will need different handling
+            self.branching_line_completed.emit(branches)
 
         # Reset branching state
         self.is_drawing_branching_line = False
@@ -100,10 +103,41 @@ class DrawingManager(QObject):
         self.current_branch_index = 0
         self.drawing_updated.emit()
 
+        if complete:
+            logger.debug("Branching line drawing completed")
+        else:
+            logger.debug("Branching line drawing cancelled")
+
     def _can_complete_branching_line(self) -> bool:
         """Check if branching line can be completed."""
         # Need at least one branch with at least 2 points
         return any(len(branch) >= 2 for branch in self.current_branches)
+
+    def draw_temporary_branching_line(self, painter: QPainter) -> None:
+        """Draw the temporary branching line being constructed.
+
+        Args:
+            painter: QPainter instance to draw with
+        """
+        if not self.is_drawing_branching_line:
+            return
+
+        # Set up pen for temporary line
+        pen = QPen(self.temp_line_color)
+        pen.setWidth(self.temp_line_width)
+        pen.setStyle(self.temp_line_style)
+        painter.setPen(pen)
+
+        # Draw each branch
+        for branch_coords in self.temp_branch_coordinates:
+            if len(branch_coords) < 2:
+                continue
+
+            # Draw line segments
+            for i in range(len(branch_coords) - 1):
+                p1 = branch_coords[i]
+                p2 = branch_coords[i + 1]
+                painter.drawLine(int(p1[0]), int(p1[1]), int(p2[0]), int(p2[1]))
 
     def add_point(
         self, original_x: int, original_y: int, scaled_x: float, scaled_y: float
@@ -128,6 +162,38 @@ class DrawingManager(QObject):
         logger.debug(
             f"Added point to line: ({original_x}, {original_y}) - "
             f"Total points: {len(self.current_line_points)}"
+        )
+
+        self.drawing_updated.emit()
+        return True
+
+    def add_branching_point(
+        self, original_x: int, original_y: int, scaled_x: float, scaled_y: float
+    ) -> bool:
+        """Add a point to the current branch being drawn.
+
+        Args:
+            original_x: X coordinate in original image space
+            original_y: Y coordinate in original image space
+            scaled_x: X coordinate in scaled display space
+            scaled_y: Y coordinate in scaled display space
+
+        Returns:
+            True if point was added, False if not in drawing mode
+        """
+        if not self.is_drawing_branching_line:
+            return False
+
+        # Add point to the current branch
+        self.current_branches[self.current_branch_index].append(
+            (original_x, original_y)
+        )
+        self.temp_branch_coordinates[self.current_branch_index].append(
+            (scaled_x, scaled_y)
+        )
+
+        logger.debug(
+            f"Added point to branch {self.current_branch_index}: ({original_x}, {original_y}) - Total points: {len(self.current_branches[self.current_branch_index])}"
         )
 
         self.drawing_updated.emit()
@@ -194,14 +260,21 @@ class DrawingManager(QObject):
         Args:
             scale: New scale factor
         """
-        if not self.is_drawing_line:
-            return
+        if self.is_drawing_line:
+            # Recalculate temp coordinates from original points
+            self.temp_line_coordinates = [
+                (point[0] * scale, point[1] * scale)
+                for point in self.current_line_points
+            ]
+            self.drawing_updated.emit()
 
-        # Recalculate temp coordinates from original points
-        self.temp_line_coordinates = [
-            (point[0] * scale, point[1] * scale) for point in self.current_line_points
-        ]
-        self.drawing_updated.emit()
+        if self.is_drawing_branching_line:
+            # Recalculate temp coordinates for each branch
+            for i, branch in enumerate(self.current_branches):
+                self.temp_branch_coordinates[i] = [
+                    (point[0] * scale, point[1] * scale) for point in branch
+                ]
+            self.drawing_updated.emit()
 
     def set_drawing_style(
         self,
