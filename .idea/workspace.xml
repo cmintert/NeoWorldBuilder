@@ -4,13 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Savepoint">
-      <change afterPath="$PROJECT_DIR$/src/ui/components/map_component/feature_manager_integration.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/ui/components/map_component/unified_feature_manager.py" afterDir="false" />
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Refactor to rename and streamline feature management components&#10;&#10;Renamed `unified_feature_manager.py` to `feature_manager.py` for clarity and updated references accordingly. Improved code formatting and organization, including refactoring multiline statements for readability. Cleaned up unnecessary whitespace and redundant code, ensuring consistency across map component handling.">
+      <change afterPath="$PROJECT_DIR$/src/resources/fast_injects/herb.fi" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/enhanced_edit_mode.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/feature_manager.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/fast_inject_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/fast_inject_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/controller.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -64,40 +63,43 @@
     <option name="showLibraryContents" value="true" />
     <option name="sortKey" value="BY_TIME_DESCENDING" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python tests.Python tests in calendar_tab_test.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in calendar_test.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_node_operations.TestBaseController.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_node_operations.TestBaseController.test_delete_node_debounce.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_node_operations.TestBaseController.test_load_empty_state.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_node_operations.test_load_node_data.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in calendar_config_dialog_test.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in calendar_tab_test.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_enhanced_mode.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_parser.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python.Run main.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python.core.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main_window.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;SONARLINT_PRECOMMIT_ANALYSIS&quot;: &quot;true&quot;,
-    &quot;ToolWindow.Run.ShowToolbar&quot;: &quot;false&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;line-features&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/chris/PycharmProjects/NeoWorldBuilder/src/main.py&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python tests.Python tests in calendar_tab_test.py.executor": "Run",
+    "Python tests.Python tests in calendar_test.py.executor": "Run",
+    "Python tests.pytest for test_node_operations.TestBaseController.executor": "Run",
+    "Python tests.pytest for test_node_operations.TestBaseController.test_delete_node_debounce.executor": "Run",
+    "Python tests.pytest for test_node_operations.TestBaseController.test_load_empty_state.executor": "Run",
+    "Python tests.pytest for test_node_operations.test_load_node_data.executor": "Run",
+    "Python tests.pytest in calendar_config_dialog_test.py.executor": "Run",
+    "Python tests.pytest in calendar_tab_test.py.executor": "Run",
+    "Python tests.pytest in test_enhanced_mode.py.executor": "Run",
+    "Python tests.pytest in test_parser.py.executor": "Run",
+    "Python.Run main.py.executor": "Run",
+    "Python.core.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.main_window.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "SONARLINT_PRECOMMIT_ANALYSIS": "true",
+    "ToolWindow.Run.ShowToolbar": "false",
+    "git-widget-placeholder": "line-features",
+    "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "C:/Users/chris/PycharmProjects/NeoWorldBuilder/src/resources/fast_injects",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\chris\PycharmProjects\NeoWorldBuilder\src\resources\fast_injects" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="C:\Users\chris\PycharmProjects\NeoWorldBuilder\src\ui\components\map_component" />
       <recent name="C:\Users\chris\PycharmProjects\NeoWorldBuilder\src\resources\graphics" />
@@ -289,22 +291,7 @@
       <workItem from="1748000864500" duration="1067000" />
       <workItem from="1748018045013" duration="5283000" />
       <workItem from="1748033941596" duration="1130000" />
-    </task>
-    <task id="LOCAL-00018" summary="Implement save_node functionality and add unit tests for improved error handling and data validation">
-      <option name="closed" value="true" />
-      <created>1739359870460</created>
-      <option name="number" value="00018" />
-      <option name="presentableId" value="LOCAL-00018" />
-      <option name="project" value="LOCAL" />
-      <updated>1739359870460</updated>
-    </task>
-    <task id="LOCAL-00019" summary="Refactor cleanup and error handling methods in controllers for improved resource management">
-      <option name="closed" value="true" />
-      <created>1739642959047</created>
-      <option name="number" value="00019" />
-      <option name="presentableId" value="LOCAL-00019" />
-      <option name="project" value="LOCAL" />
-      <updated>1739642959047</updated>
+      <workItem from="1748071212074" duration="3258000" />
     </task>
     <task id="LOCAL-00020" summary="Add ExportMixin for enhanced export functionality in controllers">
       <option name="closed" value="true" />
@@ -682,7 +669,23 @@
       <option name="project" value="LOCAL" />
       <updated>1748064200197</updated>
     </task>
-    <option name="localTasksCounter" value="67" />
+    <task id="LOCAL-00067" summary="Savepoint">
+      <option name="closed" value="true" />
+      <created>1748065008486</created>
+      <option name="number" value="00067" />
+      <option name="presentableId" value="LOCAL-00067" />
+      <option name="project" value="LOCAL" />
+      <updated>1748065008486</updated>
+    </task>
+    <task id="LOCAL-00068" summary="Refactor to rename and streamline feature management components&#10;&#10;Renamed `unified_feature_manager.py` to `feature_manager.py` for clarity and updated references accordingly. Improved code formatting and organization, including refactoring multiline statements for readability. Cleaned up unnecessary whitespace and redundant code, ensuring consistency across map component handling.">
+      <option name="closed" value="true" />
+      <created>1748065064488</created>
+      <option name="number" value="00068" />
+      <option name="presentableId" value="LOCAL-00068" />
+      <option name="project" value="LOCAL" />
+      <updated>1748065064488</updated>
+    </task>
+    <option name="localTasksCounter" value="69" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -712,7 +715,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Refactor enhancement process by removing focus type parameter and improving template preview functionality" />
     <MESSAGE value="Refactor prompt templates by removing focus type parameters and adding a new physical description template" />
     <MESSAGE value="Refactor project configuration files to update documentation format and enhance workspace settings" />
     <MESSAGE value="Add line drawing feature with customizable styles and integrate into map tab" />
@@ -737,7 +739,8 @@
     <MESSAGE value="Add enhanced edit mode debugging tools and test script&#10;&#10;Introduce `enhanced_edit_mode_debug.py` for diagnosing and fixing issues in enhanced edit mode. Also, add `test_enhanced_mode.py` to validate functionality, including branching lines and edit mode integration." />
     <MESSAGE value="Enhance map component edit mode and update workspace config&#10;&#10;Connected enhanced features to controller's pin click handler and improved feature click event handling for branches. Updated workspace and coverage configurations to reflect changes in the enhanced edit mode and related tests." />
     <MESSAGE value="Savepoint" />
-    <option name="LAST_COMMIT_MESSAGE" value="Savepoint" />
+    <MESSAGE value="Refactor to rename and streamline feature management components&#10;&#10;Renamed `unified_feature_manager.py` to `feature_manager.py` for clarity and updated references accordingly. Improved code formatting and organization, including refactoring multiline statements for readability. Cleaned up unnecessary whitespace and redundant code, ensuring consistency across map component handling." />
+    <option name="LAST_COMMIT_MESSAGE" value="Refactor to rename and streamline feature management components&#10;&#10;Renamed `unified_feature_manager.py` to `feature_manager.py` for clarity and updated references accordingly. Improved code formatting and organization, including refactoring multiline statements for readability. Cleaned up unnecessary whitespace and redundant code, ensuring consistency across map component handling." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -755,7 +758,7 @@
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$core.coverage" NAME="core Coverage Results" MODIFIED="1738140645253" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/dateparser" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1737189591173" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$calendar_model.coverage" NAME="calendar_model Coverage Results" MODIFIED="1737581064214" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/models" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748064841469" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748080585856" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController_test_delete_node_debounce.coverage" NAME="pytest for test_node_operations.TestBaseController.test_delete_node_debounce Coverage Results" MODIFIED="1739346351305" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_test_load_node_data.coverage" NAME="pytest for test_node_operations.test_load_node_data Coverage Results" MODIFIED="1739348948172" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />

@@ -1,0 +1,52 @@
+{
+    "name": "Herb Template",
+    "description": "Template for herbs of all kinds, including medicinal, culinary, and magical properties.",
+    "content": {
+        "labels": [
+            "Herb",
+            "Plant"
+        ],
+        "tags": [
+            "herb",
+            "plant",
+            "medicinal",
+            "culinary",
+            "supernatural",
+            "aromatic",
+            "toxic"
+        ],
+        "properties": {
+            "type": [
+                "Healing Plant",
+                "Poisonous Plant",
+                "Utility Plant",
+                "Psychotropic Plant",
+                "Somatic Plant",
+                "Monstrous Plant",
+                "Supernatural Plant"
+            ],
+            "rarity": [
+                "Ubiquitous",
+                "Common",
+                "Uncommon",
+                "Rare",
+                "Very Rare",
+                "Legendary"
+            ],
+            "temperature": [
+                "Cold",
+                "Temperate",
+                "Warm",
+                "Hot"
+            ],
+            "environment": [
+                "Forest",
+                "Jungle",
+                "Desert",
+                "Mountain",
+                "Swamp",
+                "Grassland"
+            ]
+        }
+    }
+}

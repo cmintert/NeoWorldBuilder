@@ -1040,7 +1040,10 @@ class WorldBuildingController(
     def handle_fast_inject(self) -> None:
         """Handle the Fast Inject button click."""
         file_path = QFileDialog.getOpenFileName(
-            self.ui, "Select Fast Inject Template", "", "Fast Inject Files (*.fi)"
+            self.ui,
+            "Select Fast Inject Template",
+            "",
+            "Fast Inject Files (*.fi);;All Files (*.*)",
         )[0]
 
         if not file_path:
