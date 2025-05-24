@@ -666,14 +666,22 @@ class FastInjectDialog(QDialog):
         self.property_value_widgets: Dict[str, PropertyValueWidget] = {}
 
         for i, (key, value) in enumerate(props.items()):
-            # Checkbox column
+            # Checkbox column with centered container
             checkbox = QCheckBox()
             checkbox.setChecked(True)
             checkbox.stateChanged.connect(
                 lambda state, k=key: self._update_property_selection(k, state)
             )
             self.property_checkboxes[key] = checkbox
-            self.props_table.setCellWidget(i, 0, checkbox)
+            
+            # Create a container widget to center the checkbox
+            container = QWidget()
+            container_layout = QHBoxLayout(container)
+            container_layout.setContentsMargins(0, 0, 0, 0)
+            container_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            container_layout.addWidget(checkbox)
+            
+            self.props_table.setCellWidget(i, 0, container)
 
             # Property name column
             name_item = QTableWidgetItem(key)
@@ -879,10 +887,15 @@ class PropertyValueWidget(QWidget):
             input_layout.addWidget(self.value_container)
             input_layout.addWidget(edit_button)
         else:
-            # Use line edit for single value
+            # Use line edit for single value without any container border
             self.line_edit = QLineEdit(str(self.values[0]))
-            self.value_layout.addWidget(self.line_edit)
-            input_layout.addWidget(self.value_container)
+            # Remove any border from the line edit
+            self.line_edit.setStyleSheet("border: none; background: transparent;")
+            # Add directly to input layout to avoid extra container
+            input_layout.addWidget(self.line_edit)
+            
+            # No need to use the value container for single values
+            self.value_container.hide()
 
     def edit_values(self) -> None:
         """Open dialog to edit selectable values."""
@@ -964,7 +977,7 @@ class PropertyValueWidget(QWidget):
         if hasattr(self, "checkboxes"):
             # Return a list of selected values
             selected = [cb.text() for cb in self.checkboxes if cb.isChecked()]
-            return selected
+            return selected if selected else []  # Return empty list instead of None
         else:
             return self.line_edit.text()
 
