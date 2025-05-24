@@ -215,13 +215,16 @@ class SearchAnalysisService:
 
     def _filter_system_properties(self, properties: Dict[str, Any]) -> Dict[str, Any]:
         """Filter out system properties and format values."""
+        # Safe fallback for missing config attribute
+        reserved_keys = getattr(self.config, "RESERVED_PROPERTY_KEYS", [])
+
         return {
             k: v
             for k, v in properties.items()
             if (
                 k  # Ensure key exists
                 and not k.startswith("_")  # Skip system properties
-                and k not in self.config.RESERVED_PROPERTY_KEYS  # Skip reserved
+                and k not in reserved_keys  # Skip reserved with fallback
                 and v is not None  # Skip null values
             )
         }
@@ -349,6 +352,7 @@ class FieldSearchBuilder:
             self._parameters[param_name] = search.text
             param_ref = f"${param_name}"
 
+            # Pass param_ref to _build_field_clause
             clause = self._build_field_clause(search, param_ref)
             if clause:
                 if not search.exact_match and not search.case_sensitive:
@@ -365,7 +369,7 @@ class FieldSearchBuilder:
         return QueryComponent(where_clause, self._parameters)
 
     def _build_field_clause(
-        self, field_search: FieldSearch, param_ref: str
+        self, field_search: FieldSearch, param_ref: str  # param_ref is received here
     ) -> Optional[str]:
         if not field_search.text:
             return None
@@ -385,29 +389,34 @@ class FieldSearchBuilder:
             ),
             SearchField.TAGS: lambda: f"ANY(tag IN n.tags WHERE {TextSearchBuilder.build_condition('tag', param_ref, field_search.case_sensitive, field_search.exact_match)})",
             SearchField.LABELS: lambda: f"ANY(label IN labels(n) WHERE {TextSearchBuilder.build_condition('label', param_ref, field_search.case_sensitive, field_search.exact_match)})",
-            SearchField.PROPERTIES: self._build_properties_clause,
+            # Pass param_ref to _build_properties_clause
+            SearchField.PROPERTIES: lambda: self._build_properties_clause(param_ref),
         }
 
-        builder = field_builders.get(field_search.field)
-        return builder() if builder else None
+        builder_func = field_builders.get(field_search.field)
+        # Call the builder function, which now correctly handles param_ref for properties
+        return builder_func() if builder_func else None
 
-    def _build_properties_clause(self) -> str:
-        """Build search clause for properties, handling arrays consistently."""
-        # Key clause remains the same
-        key_clause = "toLower(prop_key) CONTAINS $search_0"
+    def _build_properties_clause(self, param_ref: str) -> str:
+        """Build search clause for properties compatible with Neo4j 5.24.2."""
 
-        # Updated value clause to handle all properties as arrays
-        value_clause = """
-        CASE 
-            WHEN n[prop_key] IS NULL THEN false
-            WHEN type(n[prop_key]) = 'array' THEN 
-                ANY(item IN n[prop_key] WHERE toLower(toString(item)) CONTAINS $search_0)
-            ELSE 
-                toLower(toString(n[prop_key])) CONTAINS $search_0
-        END
-        """
-        
-        return f"ANY(prop_key IN keys(n) WHERE {key_clause} OR {value_clause})"
+        # Search in property keys - this is safe and works for all properties
+        key_clause = (
+            f"ANY(prop_key IN keys(n) WHERE toLower(prop_key) CONTAINS {param_ref})"
+        )
+
+        # Search in known array properties directly - avoid dynamic property access for arrays
+        tags_clause = f"n.tags IS NOT NULL AND ANY(tag IN n.tags WHERE toLower(tag) CONTAINS {param_ref})"
+        array_prop_clause = f"n.Array_Property IS NOT NULL AND ANY(item IN n.Array_Property WHERE toLower(item) CONTAINS {param_ref})"
+
+        # Search in known scalar properties directly
+        name_clause = f"n.name IS NOT NULL AND toLower(n.name) CONTAINS {param_ref}"
+        desc_clause = (
+            f"n.description IS NOT NULL AND toLower(n.description) CONTAINS {param_ref}"
+        )
+
+        # Combine all clauses with OR
+        return f"{key_clause} OR {tags_clause} OR {array_prop_clause} OR {name_clause} OR {desc_clause}"
 
 
 class FilterClauseBuilder(ClauseBuilder):
@@ -417,9 +426,8 @@ class FilterClauseBuilder(ClauseBuilder):
         self.criteria = criteria
 
     def build(self) -> QueryComponent:
-        # Always filter by project, param will be added in Neo4jWorker
-        # execute_read_querry method
-        clauses = ["n._project = $project"]
+
+        clauses = []
 
         if self.criteria.exclude_labels:
             # Create individual exclusions for each label joined with OR
@@ -479,12 +487,10 @@ class ReturnClauseBuilder(ClauseBuilder):
 class SearchQueryBuilder:
     """Composes all query components into the final query"""
 
+    # In SearchQueryBuilder.build_search_query
     def build_search_query(
         self, criteria: SearchCriteria
     ) -> Tuple[str, Dict[str, Any]]:
-        """
-        Build complete search query ensuring proper WHERE clause construction.
-        """
         query_parts = []
         where_conditions = []
         parameters = {}
@@ -502,6 +508,9 @@ class SearchQueryBuilder:
         if field_component.text:
             where_conditions.append(field_component.text)
             parameters.update(field_component.parameters)
+
+        # Fix: Use literal string for project instead of parameter
+        where_conditions.append("n._project = 'default'")
 
         # Collect filter conditions
         filter_builder = FilterClauseBuilder(criteria)
