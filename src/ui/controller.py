@@ -25,9 +25,9 @@ from ui.components.dialogs import (
     StyleSettingsDialog,
     ConnectionSettingsDialog,
     SuggestionDialog,
-    FastInjectDialog,
     ProjectSettingsDialog,
 )
+from ui.components.fast_inject_component.fast_inject_dialog import FastInjectDialog
 from ui.mixins.exportmixin import ExportMixin
 from ui.mixins.imagemixin import ImageMixin
 from ui.mixins.mapmixin import MapMixin
