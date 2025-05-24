@@ -4,9 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Refactor to rename and streamline feature management components&#10;&#10;Renamed `unified_feature_manager.py` to `feature_manager.py` for clarity and updated references accordingly. Improved code formatting and organization, including refactoring multiline statements for readability. Cleaned up unnecessary whitespace and redundant code, ensuring consistency across map component handling.">
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Refactor and enhance fast inject functionality&#10;&#10;Renamed and streamlined feature management components for clarity and consistency. Updated fast inject service to support JSON templates and added a new herb template with comprehensive properties. Improved UI file selection to support multiple file types and enhanced code structure for readability.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/property_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/property_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/search_analysis_service/search_analysis_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/search_analysis_service/search_analysis_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/mixins/nodedatapopulationmixin.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/mixins/nodedatapopulationmixin.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/property_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/property_utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -289,14 +292,6 @@
       <workItem from="1748018045013" duration="5283000" />
       <workItem from="1748033941596" duration="1130000" />
       <workItem from="1748071212074" duration="3258000" />
-    </task>
-    <task id="LOCAL-00020" summary="Add ExportMixin for enhanced export functionality in controllers">
-      <option name="closed" value="true" />
-      <created>1739643223842</created>
-      <option name="number" value="00020" />
-      <option name="presentableId" value="LOCAL-00020" />
-      <option name="project" value="LOCAL" />
-      <updated>1739643223842</updated>
     </task>
     <task id="LOCAL-00021" summary="Add NodeDataMixin for enhanced node data handling in controllers">
       <option name="closed" value="true" />
@@ -682,7 +677,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748065064488</updated>
     </task>
-    <option name="localTasksCounter" value="69" />
+    <task id="LOCAL-00069" summary="Refactor and enhance fast inject functionality&#10;&#10;Renamed and streamlined feature management components for clarity and consistency. Updated fast inject service to support JSON templates and added a new herb template with comprehensive properties. Improved UI file selection to support multiple file types and enhanced code structure for readability.">
+      <option name="closed" value="true" />
+      <created>1748088071570</created>
+      <option name="number" value="00069" />
+      <option name="presentableId" value="LOCAL-00069" />
+      <option name="project" value="LOCAL" />
+      <updated>1748088071570</updated>
+    </task>
+    <option name="localTasksCounter" value="70" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -712,7 +715,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Refactor prompt templates by removing focus type parameters and adding a new physical description template" />
     <MESSAGE value="Refactor project configuration files to update documentation format and enhance workspace settings" />
     <MESSAGE value="Add line drawing feature with customizable styles and integrate into map tab" />
     <MESSAGE value="&lt;think&gt;&#10;Okay, I'm trying to figure out the best commit message for this set of changes. Let me look through the diffs provided.&#10;&#10;First, in `autocompletion_service.py`, there's a change where some logging statements and a comment were removed. It looks like those lines are no longer needed, so maybe the commit is about cleaning up the codebase by removing unused or redundant parts.&#10;&#10;Then, in `neoworldbuilder.log`, there are multiple log entries with timestamps that seem to be duplicates. This might indicate that there's an issue with logging configuration or duplication of entries, which could be fixed by cleaning up the logs.&#10;&#10;In `.idea/workspace.xml`, several change items were added or modified. It seems like tasks and configurations related to the project setup are being updated, probably to reflect changes in the code structure or dependencies.&#10;&#10;Looking at `mapmixin.py`, there are new signals and methods added for handling line creation and features. This suggests that new functionality is being implemented for handling lines, possibly improving how lines are drawn or interacted with on the map.&#10;&#10;In `dialogs.py`, a new dialog class `LineFeatureDialog` was created. This allows users to set properties for line features, which is a significant feature addition. Also, there's an update to how node names are auto-completed using a controller's name cache service.&#10;&#10;The `map_tab.py` file has several additions and changes. A new signal `line_created` is emitted when a line is created, which connects to the map tab's handling of line creation. There's also an improvement in how lines and pins are updated based on stored coordinates, which likely affects performance or functionality during rendering.&#10;&#10;Putting this all together, there are both refactorings (like removing unused code) and new features (like the LineFeatureDialog and line handling) being added. The commit messages should reflect these changes clearly.&#10;&#10;I think the main actions here are:&#10;1. Implementing a new line feature dialog for setting properties.&#10;2. Enhancing map tab functionality to handle lines, including creating and updating them.&#10;3. Cleaning up old logging entries and unnecessary code comments.&#10;&#10;So, the commit message needs to highlight both the new features and any cleanups. Prioritizing the main actions, it should start with something concise about the main addition, then go into more detail.&#10;&#10;Maybe something like: &quot;Implement line feature properties dialog and enhance map tab functionality.&quot; Then explain each part briefly without going into too much detail.&#10;&lt;/think&gt;&#10;&#10;```&#10;```" />
@@ -737,7 +739,8 @@
     <MESSAGE value="Enhance map component edit mode and update workspace config&#10;&#10;Connected enhanced features to controller's pin click handler and improved feature click event handling for branches. Updated workspace and coverage configurations to reflect changes in the enhanced edit mode and related tests." />
     <MESSAGE value="Savepoint" />
     <MESSAGE value="Refactor to rename and streamline feature management components&#10;&#10;Renamed `unified_feature_manager.py` to `feature_manager.py` for clarity and updated references accordingly. Improved code formatting and organization, including refactoring multiline statements for readability. Cleaned up unnecessary whitespace and redundant code, ensuring consistency across map component handling." />
-    <option name="LAST_COMMIT_MESSAGE" value="Refactor to rename and streamline feature management components&#10;&#10;Renamed `unified_feature_manager.py` to `feature_manager.py` for clarity and updated references accordingly. Improved code formatting and organization, including refactoring multiline statements for readability. Cleaned up unnecessary whitespace and redundant code, ensuring consistency across map component handling." />
+    <MESSAGE value="Refactor and enhance fast inject functionality&#10;&#10;Renamed and streamlined feature management components for clarity and consistency. Updated fast inject service to support JSON templates and added a new herb template with comprehensive properties. Improved UI file selection to support multiple file types and enhanced code structure for readability." />
+    <option name="LAST_COMMIT_MESSAGE" value="Refactor and enhance fast inject functionality&#10;&#10;Renamed and streamlined feature management components for clarity and consistency. Updated fast inject service to support JSON templates and added a new herb template with comprehensive properties. Improved UI file selection to support multiple file types and enhanced code structure for readability." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -755,7 +758,7 @@
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$core.coverage" NAME="core Coverage Results" MODIFIED="1738140645253" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/dateparser" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1737189591173" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$calendar_model.coverage" NAME="calendar_model Coverage Results" MODIFIED="1737581064214" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/models" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748086830675" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748090552575" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController_test_delete_node_debounce.coverage" NAME="pytest for test_node_operations.TestBaseController.test_delete_node_debounce Coverage Results" MODIFIED="1739346351305" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_test_load_node_data.coverage" NAME="pytest for test_node_operations.test_load_node_data Coverage Results" MODIFIED="1739348948172" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
