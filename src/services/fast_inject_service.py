@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, Set
+from typing import Dict, Any, Optional, Set, Union, List
 
 from PyQt6.QtWidgets import QTableWidgetItem
 
@@ -66,7 +66,7 @@ class FastInjectService:
         template: Dict[str, Any],
         selected_labels: Set[str],
         selected_tags: Set[str],
-        selected_properties: Dict[str, str],
+        selected_properties: Dict[str, Union[str, List[str]]],
     ) -> None:
         """Apply template data to the current UI state.
 
@@ -75,7 +75,7 @@ class FastInjectService:
             template: Template data to apply
             selected_labels: Set of label names to apply
             selected_tags: Set of tag names to apply
-            selected_properties: Set of property names to apply
+            selected_properties: Dictionary of property names to values (which can be strings or lists of strings)
         """
         # Apply selected labels
         if selected_labels:
@@ -108,6 +108,14 @@ class FastInjectService:
                     row = ui.properties_table.rowCount()
                     ui.properties_table.insertRow(row)
                     ui.properties_table.setItem(row, 0, QTableWidgetItem(key))
-                    ui.properties_table.setItem(row, 1, QTableWidgetItem(str(value)))
+                    
+                    # Handle multi-selected values (convert list to string if needed)
+                    if isinstance(value, list):
+                        # Join multiple selected values with commas
+                        value_str = ", ".join(value)
+                    else:
+                        value_str = str(value)
+                        
+                    ui.properties_table.setItem(row, 1, QTableWidgetItem(value_str))
                     delete_button = ui.create_delete_button(ui.properties_table, row)
                     ui.properties_table.setCellWidget(row, 2, delete_button)
