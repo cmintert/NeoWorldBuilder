@@ -200,9 +200,9 @@ class FeatureManager(QObject):
                         branch_key, points, self.parent_container, self.config
                     )
                     
-                    # Only connect the click event for the main branch to avoid multiple triggers
-                    if i == 0:
-                        line_container.line_clicked.connect(self.feature_clicked.emit)
+                    # Connect click event for all branches but make sure they emit the original target_node
+                    # Use lambda with default argument to capture current value of target_node
+                    line_container.line_clicked.connect(lambda clicked_node, tn=target_node: self.feature_clicked.emit(tn))
                     
                     line_container.set_scale(self.current_scale)
 

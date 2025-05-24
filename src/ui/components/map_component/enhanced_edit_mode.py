@@ -730,6 +730,12 @@ def integrate_enhanced_edit_mode(map_tab_instance):
         map_tab_instance._handle_feature_click
     )
     
+    # IMPORTANT: Also connect to controller's pin_click handler for navigation
+    if map_tab_instance.controller:
+        map_tab_instance.enhanced_feature_manager.feature_clicked.connect(
+            map_tab_instance.controller._handle_pin_click
+        )
+    
     # Handle geometry changes from enhanced features
     def handle_geometry_change(target_node: str, branches: List[List[Tuple[int, int]]]):
         """Handle geometry changes from enhanced features."""
