@@ -27,7 +27,7 @@ class FastInjectService:
             FileNotFoundError: If the file doesn't exist
         """
         try:
-            if not file_path.suffix == ".fi":
+            if file_path.suffix not in [".fi", ".json"]:
                 raise ValueError("Invalid file format. Must be .fi file")
 
             with open(file_path, "r", encoding="utf-8") as f:

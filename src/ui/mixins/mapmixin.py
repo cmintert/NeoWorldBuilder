@@ -12,16 +12,30 @@ class MapMixin:
     def _ensure_map_tab_exists(self) -> None:
         """Create map tab if it doesn't exist."""
         if not self.ui.map_tab:
-
+            print("Creating map tab and connecting signals...")
             self.ui.map_tab = MapTab(controller=self)
 
+            print("Connecting map_image_changed signal")
             self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
+
+            print("Connecting pin_clicked signal")
             self.ui.map_tab.pin_clicked.connect(self._handle_pin_click)
 
             # Add new connection for pin creation
-            print("Connecting map tab signals")
+            print("Connecting pin_created signal")
             self.ui.map_tab.pin_created.connect(self._handle_pin_created)
+
+            print("Connecting line_created signal")
             self.ui.map_tab.line_created.connect(self._handle_line_created)
+
+            # Check if connections were successful
+            print(f"Signal connections status:")
+            print(
+                f"- map_image_changed: {self.ui.map_tab.map_image_changed.receivers() > 0}"
+            )
+            print(f"- pin_clicked: {self.ui.map_tab.pin_clicked.receivers() > 0}")
+            print(f"- pin_created: {self.ui.map_tab.pin_created.receivers() > 0}")
+            print(f"- line_created: {self.ui.map_tab.line_created.receivers() > 0}")
 
             self.ui.tabs.addTab(self.ui.map_tab, "Map")
 
@@ -95,9 +109,14 @@ class MapMixin:
             direction: Relationship direction
             properties: Properties including line geometry
         """
+        print(
+            f"*** _handle_line_created called with target={target_node}, direction={direction}"
+        )
+        print(f"*** Properties: {properties}")
+
         # Get current node name (the map node)
         source_node = self.ui.name_input.text().strip()
-        print(f"Handling line created: {source_node} -> {target_node}")
+        print(f"Source node: {source_node}")
 
         if not source_node:
             print("No source node, cannot create relationship")
@@ -105,10 +124,20 @@ class MapMixin:
 
         # Add new relationship row with SHOWS type (same as pins)
         print(f"Adding relationship row: SHOWS, {target_node}, {direction}")
-        self.ui.add_relationship_row(
-            "SHOWS", target_node, direction, json.dumps(properties)
-        )
+        try:
+            properties_json = json.dumps(properties)
+            print(f"Properties JSON: {properties_json[:100]}...")
+            self.ui.add_relationship_row(
+                "SHOWS", target_node, direction, properties_json
+            )
+            print("Relationship row added successfully")
+        except Exception as e:
+            print(f"Error adding relationship row: {e}")
+            import traceback
+
+            print(traceback.format_exc())
+            return
 
         # Update save state to reflect changes
         self.update_unsaved_changes_indicator()
-        print("Line relationship created successfully")
+        print("Line relationship creation completed")

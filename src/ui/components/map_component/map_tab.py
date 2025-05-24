@@ -17,11 +17,12 @@ from structlog import get_logger
 
 from utils.geometry_handler import GeometryHandler
 from .drawing_manager import DrawingManager
-from .feature_manager import FeatureManager
 from .line_feature_dialog import LineFeatureDialog
+from .branching_line_feature_dialog import BranchingLineFeatureDialog
 from .map_image_loader import ImageManager
 from .map_viewport import MapViewport
 from .pin_placement_dialog import PinPlacementDialog
+from .feature_manager import UnifiedFeatureManager
 
 logger = get_logger(__name__)
 
@@ -29,7 +30,7 @@ logger = get_logger(__name__)
 class MapTab(QWidget):
     """Refactored map tab with separated concerns.
 
-    Coordinates between viewport, features, drawing, and image management components
+    Coordinates between viewport, features, drawing_decap, and image management components
     to provide a complete map editing experience.
     """
 
@@ -80,6 +81,8 @@ class MapTab(QWidget):
         self.zoom_timer.timeout.connect(self._perform_zoom)
         self.pending_scale = None
 
+        # Enhanced edit mode will be integrated after basic initialization
+
     def _setup_ui(self) -> None:
         """Setup the UI components."""
         layout = QVBoxLayout(self)
@@ -105,7 +108,11 @@ class MapTab(QWidget):
         self.feature_container.setGeometry(
             0, 0, self.image_label.width(), self.image_label.height()
         )
-        self.feature_manager = FeatureManager(self.feature_container, self.config)
+
+        # Initialize the unified feature manager
+        self.feature_manager = UnifiedFeatureManager(
+            self.feature_container, self.config
+        )
 
         self.scroll_area.setWidget(self.image_label)
 
@@ -135,7 +142,7 @@ class MapTab(QWidget):
         self.line_toggle_btn.setCheckable(True)
         self.line_toggle_btn.toggled.connect(self.toggle_line_drawing)
         self.line_toggle_btn.setToolTip(
-            "Toggle line drawing mode (ESC to cancel, Enter to complete)"
+            "Toggle line drawing_decap mode (ESC to cancel, Enter to complete)"
         )
 
         self.branching_line_toggle_btn = QPushButton("🌿 Draw Branching Line")
@@ -144,7 +151,7 @@ class MapTab(QWidget):
             self.toggle_branching_line_drawing
         )
         self.branching_line_toggle_btn.setToolTip(
-            "Toggle branching line drawing mode (ESC to cancel, Enter to complete)"
+            "Toggle branching line drawing_decap mode (ESC to cancel, Enter to complete)"
         )
 
         self.edit_toggle_btn = QPushButton("✏️ Edit Mode")
@@ -215,7 +222,7 @@ class MapTab(QWidget):
             self.feature_container.raise_()
 
     def paintEvent(self, event):
-        """Handle paint events for drawing temporary elements."""
+        """Handle paint events for drawing_decap temporary elements."""
         super().paintEvent(event)
 
     # Image Management Methods
@@ -382,7 +389,7 @@ class MapTab(QWidget):
             self.feature_manager.set_scale(self.current_scale)
             self.feature_manager.update_positions(self)
 
-            # Update drawing manager for any active drawing
+            # Update drawing_decap manager for any active drawing_decap
             self.drawing_manager.update_scale(self.current_scale)
 
     # Mode Management Methods
@@ -400,7 +407,7 @@ class MapTab(QWidget):
         self.pin_mode_toggled.emit(active)
 
     def toggle_line_drawing(self, active: bool) -> None:
-        """Toggle line drawing mode."""
+        """Toggle line drawing_decap mode."""
         self.line_drawing_active = active
 
         if active:
@@ -413,7 +420,7 @@ class MapTab(QWidget):
             self.line_toggle_btn.setStyleSheet("background-color: #83A00E;")
             self.image_label.setFocus()
         else:
-            # Complete or cancel current drawing
+            # Complete or cancel current drawing_decap
             completing = self.drawing_manager.can_complete_line()
             self.drawing_manager.stop_line_drawing(complete=completing)
 
@@ -421,7 +428,7 @@ class MapTab(QWidget):
             self.line_toggle_btn.setStyleSheet("")
 
     def toggle_branching_line_drawing(self, active: bool) -> None:
-        """Toggle branching line drawing mode."""
+        """Toggle branching line drawing_decap mode."""
         self.branching_line_drawing_active = active
 
         if active:
@@ -439,7 +446,7 @@ class MapTab(QWidget):
             self.image_label.setFocus()
             print(f"Branching line mode activated: {active}")
         else:
-            # Complete or cancel current drawing
+            # Complete or cancel current drawing_decap
             completing = self.drawing_manager._can_complete_branching_line()
             self.drawing_manager.stop_branching_line_drawing(complete=completing)
 
@@ -450,6 +457,7 @@ class MapTab(QWidget):
     def toggle_edit_mode(self, active: bool) -> None:
         """Toggle edit mode for existing lines."""
         self.edit_mode_active = active
+        logger.info(f"Toggle edit mode: {active}")
 
         if active:
             # Disable other modes
@@ -460,11 +468,17 @@ class MapTab(QWidget):
 
             self.image_label.set_cursor_for_mode("pointing")
             self.edit_toggle_btn.setStyleSheet("background-color: #FFA500;")
+
+            # Set edit mode on feature manager
             self.feature_manager.set_edit_mode(True)
+            logger.info("Edit mode activated on feature manager")
         else:
             self.image_label.set_cursor_for_mode("default")
             self.edit_toggle_btn.setStyleSheet("")
+
+            # Disable edit mode on feature manager
             self.feature_manager.set_edit_mode(False)
+            logger.info("Edit mode deactivated on feature manager")
 
     # Event Handling Methods
     def _handle_coordinate_click(self, x: int, y: int) -> None:
@@ -503,15 +517,22 @@ class MapTab(QWidget):
         self.drawing_manager.add_point(x, y, scaled_x, scaled_y)
 
     def _handle_line_completion(self, points: List[Tuple[int, int]]) -> None:
-        """Handle completion of line drawing."""
+        """Handle completion of line drawing_decap."""
+
+        print(f"_handle_line_completion called with {len(points)} points")
+
         if len(points) < 2:
             logger.warning("Attempted to complete line with insufficient points")
+            print("Line has insufficient points, aborting")
             return
 
         dialog = LineFeatureDialog(points, self, self.controller)
         if dialog.exec():
             target_node = dialog.get_target_node()
             line_style = dialog.get_line_style()
+            print(
+                f"Dialog accepted with target_node: {target_node}, style: {line_style}"
+            )
 
             try:
                 # Create WKT LineString
@@ -523,21 +544,33 @@ class MapTab(QWidget):
                     "style_width": line_style["width"],
                     "style_pattern": line_style["pattern"],
                 }
+                print(f"Created properties: {properties}")
 
                 # Create the line and emit signals
+                print(f"About to emit line_created signal")
                 self.line_created.emit(target_node, ">", properties)
-                self.feature_manager.create_line(target_node, points, line_style)
+                print(f"line_created signal emitted")
 
-                # Exit line drawing mode
+                # Create visual representation
+                print(f"Creating visual line representation")
+                self.feature_manager.create_line(target_node, points, line_style)
+                print(f"Visual line created")
+
+                # Exit line drawing_decap mode
                 self.line_toggle_btn.blockSignals(True)
                 self.line_toggle_btn.setChecked(False)
                 self.line_toggle_btn.blockSignals(False)
                 self.line_drawing_active = False
 
                 logger.debug(f"Line created successfully: {target_node}")
+                print(f"Line creation process completed")
 
             except Exception as e:
                 logger.error(f"Error creating line: {e}")
+                print(f"Exception during line creation: {e}")
+                import traceback
+
+                print(traceback.format_exc())
 
     def _handle_branching_line_point_add(self, x: int, y: int) -> None:
         """Handle adding a point to the current branching line being drawn."""
@@ -556,28 +589,62 @@ class MapTab(QWidget):
         Args:
             branches: List of branches, each branch is a list of points
         """
+        logger.info(
+            f"_handle_branching_line_completion called with {len(branches)} branches"
+        )
+
         if not branches or all(len(branch) < 2 for branch in branches):
             logger.warning(
                 "Attempted to complete branching line with insufficient points"
             )
             return
 
-        # For now, just log that we received the completion event
-        logger.debug(f"Branching line completed with {len(branches)} branches")
-        print(f"Branching line completed with {len(branches)} branches")
+        # Use branching line feature dialog
+        dialog = BranchingLineFeatureDialog(branches, self, self.controller)
+        if dialog.exec():
+            target_node = dialog.get_target_node()
+            line_style = dialog.get_line_style()
 
-        # TODO: Open dialog for target node selection and saving to database
+            try:
+                # Create WKT MultiLineString
+                wkt_multiline = GeometryHandler.create_multi_line(branches)
 
-        # Exit branching line drawing mode
-        self.branching_line_toggle_btn.blockSignals(True)
-        self.branching_line_toggle_btn.setChecked(False)
-        self.branching_line_toggle_btn.blockSignals(False)
-        self.branching_line_drawing_active = False
+                logger.info(f"Created WKT MultiLineString for {target_node}")
+
+                properties = {
+                    "geometry": wkt_multiline,
+                    "geometry_type": "MultiLineString",
+                    "branch_count": len(branches),
+                    "style_color": line_style["color"],
+                    "style_width": line_style["width"],
+                    "style_pattern": line_style["pattern"],
+                }
+
+                # Store geometry in database
+                if self.controller:
+                    self.controller._handle_line_created(target_node, ">", properties)
+
+                # Create visual representation using the unified feature manager
+                self.feature_manager.create_branching_line(
+                    target_node, branches, line_style
+                )
+
+                # Exit branching line drawing mode
+                self.branching_line_toggle_btn.blockSignals(True)
+                self.branching_line_toggle_btn.setChecked(False)
+                self.branching_line_toggle_btn.blockSignals(False)
+                self.branching_line_drawing_active = False
+
+            except Exception as e:
+                logger.error(f"Error creating branching line: {e}")
+                import traceback
+
+                logger.error(traceback.format_exc())
 
     def _handle_drawing_update(self) -> None:
-        """Handle updates to drawing state."""
-        self.image_label.update()  # Trigger repaint for temporary drawing of lines
-        self.update()  # Trigger repaint for temporary drawing
+        """Handle updates to drawing_decap state."""
+        self.image_label.update()  # Trigger repaint for temporary drawing_decap of lines
+        self.update()  # Trigger repaint for temporary drawing_decap
 
     def _handle_feature_click(self, target_node: str) -> None:
         """Handle clicks on features."""
@@ -598,13 +665,13 @@ class MapTab(QWidget):
                 scaled_x = original_x * self.current_scale
                 scaled_y = original_y * self.current_scale
 
-                # Call a new method on drawing manager with these coordinates
+                # Call a new method on drawing_decap manager with these coordinates
                 if self.drawing_manager.start_branch_from_position(
                     original_x, original_y, scaled_x, scaled_y
                 ):
                     return
 
-        # Try normal key handling in drawing manager
+        # Try normal key handling in drawing_decap manager
         if self.drawing_manager.handle_key_press(event.key()):
             # Drawing manager handled the key
             return
@@ -626,9 +693,13 @@ class MapTab(QWidget):
 
         # Collect feature data from relationships table
         pin_data = []
-        line_data = []
+        simple_line_data = []
+        branching_line_data = {}
 
         relationships_table = self.controller.ui.relationships_table
+        logger.info(
+            f"Loading features from {relationships_table.rowCount()} relationships"
+        )
 
         for row in range(relationships_table.rowCount()):
             try:
@@ -649,23 +720,42 @@ class MapTab(QWidget):
                 if not GeometryHandler.validate_wkt(properties["geometry"]):
                     continue
 
-                geometry_type = GeometryHandler.get_geometry_type(
-                    properties["geometry"]
+                geometry_type = properties.get(
+                    "geometry_type",
+                    GeometryHandler.get_geometry_type(properties["geometry"]),
                 )
                 target_node = self._extract_target_node(
                     target_item, relationships_table, row
                 )
 
-                if geometry_type == "LineString":
+                style_config = {
+                    "color": properties.get("style_color", "#FF0000"),
+                    "width": properties.get("style_width", 2),
+                    "pattern": properties.get("style_pattern", "solid"),
+                }
+
+                if geometry_type == "MultiLineString":
+                    # Handle as branching line
+                    branches = GeometryHandler.get_coordinates(properties["geometry"])
+                    logger.info(
+                        f"Found MultiLineString for {target_node} with {len(branches)} branches"
+                    )
+
+                    if target_node not in branching_line_data:
+                        branching_line_data[target_node] = {
+                            "branches": [],
+                            "style": style_config,
+                        }
+
+                    branching_line_data[target_node]["branches"] = branches
+
+                elif geometry_type == "LineString":
+                    # Handle as simple line
                     points = GeometryHandler.get_coordinates(properties["geometry"])
-                    style_config = {
-                        "color": properties.get("style_color", "#FF0000"),
-                        "width": properties.get("style_width", 2),
-                        "pattern": properties.get("style_pattern", "solid"),
-                    }
-                    line_data.append((target_node, points, style_config))
+                    simple_line_data.append((target_node, points, style_config))
 
                 elif geometry_type == "Point":
+                    # Handle pins
                     x, y = GeometryHandler.get_coordinates(properties["geometry"])
                     pin_data.append((target_node, x, y))
 
@@ -673,11 +763,21 @@ class MapTab(QWidget):
                 logger.error(f"Error loading spatial feature: {e}")
                 continue
 
-        # Batch create features
+        # Clear existing features
+        self.feature_manager.clear_all_features()
+
+        # Create features using the unified manager
         if pin_data:
+            logger.info(f"Creating {len(pin_data)} pins")
             self.feature_manager.batch_create_pins(pin_data)
-        if line_data:
-            self.feature_manager.batch_create_lines(line_data)
+
+        if simple_line_data:
+            logger.info(f"Creating {len(simple_line_data)} simple lines")
+            self.feature_manager.batch_create_lines(simple_line_data)
+
+        if branching_line_data:
+            logger.info(f"Creating {len(branching_line_data)} branching lines")
+            self.feature_manager.batch_create_branching_lines(branching_line_data)
 
     def _extract_target_node(self, target_item, relationships_table, row) -> str:
         """Extract target node name from table item."""

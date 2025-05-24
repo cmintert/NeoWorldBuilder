@@ -8,18 +8,18 @@ logger = get_logger(__name__)
 
 
 class DrawingManager(QObject):
-    """Manages drawing operations (line drawing, temporary visualizations).
+    """Manages drawing_decap operations (line drawing_decap, temporary visualizations).
 
-    Handles temporary drawing state and visual feedback during drawing operations.
+    Handles temporary drawing_decap state and visual feedback during drawing_decap operations.
     """
 
     # Drawing signals
     line_completed = pyqtSignal(list)  # Emits list of points when line is complete
-    drawing_updated = pyqtSignal()  # Signals that drawing state changed
+    drawing_updated = pyqtSignal()  # Signals that drawing_decap state changed
     branching_line_completed = pyqtSignal(list)  # Emits list of branches when complete
 
     def __init__(self):
-        """Initialize the drawing manager."""
+        """Initialize the drawing_decap manager."""
         super().__init__()
 
         # Drawing state
@@ -31,7 +31,7 @@ class DrawingManager(QObject):
         self.is_drawing_branching_line = False
         self.current_branches = []  # List of branches, each branch is a list of points
         self.temp_branch_coordinates = []  # List of scaled coordinate lists for display
-        self.current_branch_index = 0  # Which branch we're currently drawing
+        self.current_branch_index = 0  # Which branch we're currently drawing_decap
 
         # Track last mouse position for branch creation
         self.last_mouse_position = (0, 0)  # Original coordinates
@@ -43,15 +43,15 @@ class DrawingManager(QObject):
         self.temp_line_style = Qt.PenStyle.DashLine
 
     def start_line_drawing(self) -> None:
-        """Start line drawing mode."""
+        """Start line drawing_decap mode."""
         self.is_drawing_line = True
         self.current_line_points = []
         self.temp_line_coordinates = []
         self.drawing_updated.emit()
-        logger.debug("Started line drawing mode")
+        logger.debug("Started line drawing_decap mode")
 
     def stop_line_drawing(self, complete: bool = False) -> None:
-        """Stop line drawing mode.
+        """Stop line drawing_decap mode.
 
         Args:
             complete: Whether to complete the line (emit signal) or just cancel
@@ -62,25 +62,25 @@ class DrawingManager(QObject):
             logger.debug(f"Completing line with {len(points)} points")
             self.line_completed.emit(points)
 
-        # Reset drawing state
+        # Reset drawing_decap state
         self.is_drawing_line = False
         self.current_line_points = []
         self.temp_line_coordinates = []
         self.drawing_updated.emit()
 
         if complete:
-            logger.debug("Line drawing completed")
+            logger.debug("Line drawing_decap completed")
         else:
-            logger.debug("Line drawing cancelled")
+            logger.debug("Line drawing_decap cancelled")
 
     def start_branching_line_drawing(self) -> None:
-        """Start branching line drawing mode."""
+        """Start branching line drawing_decap mode."""
         self.is_drawing_branching_line = True
         self.current_branches = [[]]  # Start with first empty branch
         self.temp_branch_coordinates = [[]]
         self.current_branch_index = 0
         self.drawing_updated.emit()
-        logger.debug("Started branching line drawing mode")
+        logger.debug("Started branching line drawing_decap mode")
 
     def start_branch_from_nearest_point(self) -> bool:
         """Start a new branch from the point closest to the current mouse position.
@@ -171,7 +171,7 @@ class DrawingManager(QObject):
         return False
 
     def stop_branching_line_drawing(self, complete: bool = False) -> None:
-        """Stop branching line drawing mode.
+        """Stop branching line drawing_decap mode.
 
         Args:
             complete: Whether to complete the branching line (emit signal) or just cancel
@@ -196,9 +196,9 @@ class DrawingManager(QObject):
         self.drawing_updated.emit()
 
         if complete:
-            logger.debug("Branching line drawing completed")
+            logger.debug("Branching line drawing_decap completed")
         else:
-            logger.debug("Branching line drawing cancelled")
+            logger.debug("Branching line drawing_decap cancelled")
 
     def _can_complete_branching_line(self) -> bool:
         """Check if branching line can be completed."""
@@ -288,7 +288,7 @@ class DrawingManager(QObject):
             scaled_y: Y coordinate in scaled display space
 
         Returns:
-            True if point was added, False if not in drawing mode
+            True if point was added, False if not in drawing_decap mode
         """
         if not self.is_drawing_line:
             return False
@@ -316,7 +316,7 @@ class DrawingManager(QObject):
             scaled_y: Y coordinate in scaled display space
 
         Returns:
-            True if point was added, False if not in drawing mode
+            True if point was added, False if not in drawing_decap mode
         """
         if not self.is_drawing_branching_line:
             return False
@@ -353,7 +353,7 @@ class DrawingManager(QObject):
         """Get number of points in current line.
 
         Returns:
-            Number of points in current drawing
+            Number of points in current drawing_decap
         """
         return len(self.current_line_points)
 
@@ -379,7 +379,7 @@ class DrawingManager(QObject):
             painter.drawLine(int(p1[0]), int(p1[1]), int(p2[0]), int(p2[1]))
 
     def handle_key_press(self, key: int) -> bool:
-        """Handle key press events for drawing operations.
+        """Handle key press events for drawing_decap operations.
 
         Args:
             key: Qt key code
@@ -434,7 +434,7 @@ class DrawingManager(QObject):
         width: Optional[int] = None,
         style: Optional[Qt.PenStyle] = None,
     ) -> None:
-        """Set the style for temporary drawing.
+        """Set the style for temporary drawing_decap.
 
         Args:
             color: Hex color string

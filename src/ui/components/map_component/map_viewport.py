@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 class MapViewport(QLabel):
     """Handles map display, panning, zooming, and coordinate tracking.
 
-    Separated from feature management and drawing logic for cleaner architecture.
+    Separated from feature management and drawing_decap logic for cleaner architecture.
     """
 
     # Viewport signals
@@ -79,10 +79,10 @@ class MapViewport(QLabel):
                 self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
 
     def paintEvent(self, event):
-        """Handle paint events for drawing temporary elements."""
+        """Handle paint events for drawing_decap temporary elements."""
         super().paintEvent(event)
 
-        # Draw temporary line if parent is in line drawing mode
+        # Draw temporary line if parent is in line drawing_decap mode
         if self.parent_map_tab and hasattr(self.parent_map_tab, "drawing_manager"):
             if self.parent_map_tab.drawing_manager.is_drawing_line:
                 painter = QPainter(self)
