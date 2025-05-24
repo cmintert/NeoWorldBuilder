@@ -4,11 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add enhanced edit mode integration for map component&#10;&#10;Integrated an improved edit mode for the map component, enhancing edit workflows and adding better diagnostic tools. Refactored branching line handling to use the enhanced feature manager when available, improving feature flexibility and logging for better debugging. Updated workspace configuration to reflect these changes.">
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Savepoint">
+      <change afterPath="$PROJECT_DIR$/src/ui/components/map_component/feature_manager_integration.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/ui/components/map_component/unified_feature_manager.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/enhanced_edit_mode.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/enhanced_edit_mode.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/feature_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/feature_manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/enhanced_edit_mode.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/feature_manager.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -287,22 +289,6 @@
       <workItem from="1748000864500" duration="1067000" />
       <workItem from="1748018045013" duration="5283000" />
       <workItem from="1748033941596" duration="1130000" />
-    </task>
-    <task id="LOCAL-00016" summary="Refactor BaseController and WorldBuildingController for improved structure and functionality">
-      <option name="closed" value="true" />
-      <created>1739349173061</created>
-      <option name="number" value="00016" />
-      <option name="presentableId" value="LOCAL-00016" />
-      <option name="project" value="LOCAL" />
-      <updated>1739349173061</updated>
-    </task>
-    <task id="LOCAL-00017" summary="Refactor BaseController methods and add unit tests for improved functionality and error handling">
-      <option name="closed" value="true" />
-      <created>1739349410961</created>
-      <option name="number" value="00017" />
-      <option name="presentableId" value="LOCAL-00017" />
-      <option name="project" value="LOCAL" />
-      <updated>1739349410961</updated>
     </task>
     <task id="LOCAL-00018" summary="Implement save_node functionality and add unit tests for improved error handling and data validation">
       <option name="closed" value="true" />
@@ -680,7 +666,23 @@
       <option name="project" value="LOCAL" />
       <updated>1748034786433</updated>
     </task>
-    <option name="localTasksCounter" value="65" />
+    <task id="LOCAL-00065" summary="Enhance map component edit mode and update workspace config&#10;&#10;Connected enhanced features to controller's pin click handler and improved feature click event handling for branches. Updated workspace and coverage configurations to reflect changes in the enhanced edit mode and related tests.">
+      <option name="closed" value="true" />
+      <created>1748063960886</created>
+      <option name="number" value="00065" />
+      <option name="presentableId" value="LOCAL-00065" />
+      <option name="project" value="LOCAL" />
+      <updated>1748063960886</updated>
+    </task>
+    <task id="LOCAL-00066" summary="Savepoint">
+      <option name="closed" value="true" />
+      <created>1748064200197</created>
+      <option name="number" value="00066" />
+      <option name="presentableId" value="LOCAL-00066" />
+      <option name="project" value="LOCAL" />
+      <updated>1748064200197</updated>
+    </task>
+    <option name="localTasksCounter" value="67" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -710,9 +712,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Enhance LLM description handling and improve prompt template service&#10;&#10;- Refactored enhance_node_description to utilize a default template for enhancements.&#10;- Added error handling for missing templates in the prompt template service.&#10;- Updated LLMService to support template-based enhancements with improved parameter handling.&#10;- Introduced YAML-based template loading for better flexibility and maintainability." />
-    <MESSAGE value="Refactor logging statement for improved readability in node operation service" />
-    <MESSAGE value="Refactor LLMService and prompt template service for improved context handling and error management" />
     <MESSAGE value="Refactor enhancement process by removing focus type parameter and improving template preview functionality" />
     <MESSAGE value="Refactor prompt templates by removing focus type parameters and adding a new physical description template" />
     <MESSAGE value="Refactor project configuration files to update documentation format and enhance workspace settings" />
@@ -735,7 +734,10 @@
     <MESSAGE value="Add branching line configuration and dialog for map component&#10;&#10;Introduced a branching line configuration dialog to enhance user workflows for branching line creation. The dialog supports features like target node selection, line style customization, and WKT geometry preview. Enhanced signal handling, line visualization updates, and error handling across multiple components to improve reliability and user feedback." />
     <MESSAGE value="Enhance map component with improved edit mode integration&#10;&#10;Added initialization for an enhanced edit mode in the map component, improving user interaction workflows. Updated XML and log entries to reflect new configurations, ensuring better tracking of recent activities and changes." />
     <MESSAGE value="Add enhanced edit mode integration for map component&#10;&#10;Integrated an improved edit mode for the map component, enhancing edit workflows and adding better diagnostic tools. Refactored branching line handling to use the enhanced feature manager when available, improving feature flexibility and logging for better debugging. Updated workspace configuration to reflect these changes." />
-    <option name="LAST_COMMIT_MESSAGE" value="Add enhanced edit mode integration for map component&#10;&#10;Integrated an improved edit mode for the map component, enhancing edit workflows and adding better diagnostic tools. Refactored branching line handling to use the enhanced feature manager when available, improving feature flexibility and logging for better debugging. Updated workspace configuration to reflect these changes." />
+    <MESSAGE value="Add enhanced edit mode debugging tools and test script&#10;&#10;Introduce `enhanced_edit_mode_debug.py` for diagnosing and fixing issues in enhanced edit mode. Also, add `test_enhanced_mode.py` to validate functionality, including branching lines and edit mode integration." />
+    <MESSAGE value="Enhance map component edit mode and update workspace config&#10;&#10;Connected enhanced features to controller's pin click handler and improved feature click event handling for branches. Updated workspace and coverage configurations to reflect changes in the enhanced edit mode and related tests." />
+    <MESSAGE value="Savepoint" />
+    <option name="LAST_COMMIT_MESSAGE" value="Savepoint" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -753,7 +755,7 @@
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$core.coverage" NAME="core Coverage Results" MODIFIED="1738140645253" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/dateparser" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$main_window.coverage" NAME="main_window Coverage Results" MODIFIED="1737189591173" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/ui" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$calendar_model.coverage" NAME="calendar_model Coverage Results" MODIFIED="1737581064214" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/models" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748063843649" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748064841469" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController_test_delete_node_debounce.coverage" NAME="pytest for test_node_operations.TestBaseController.test_delete_node_debounce Coverage Results" MODIFIED="1739346351305" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_test_load_node_data.coverage" NAME="pytest for test_node_operations.test_load_node_data Coverage Results" MODIFIED="1739348948172" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />

@@ -17,12 +17,12 @@ from structlog import get_logger
 
 from utils.geometry_handler import GeometryHandler
 from .drawing_manager import DrawingManager
-from .feature_manager import FeatureManager
 from .line_feature_dialog import LineFeatureDialog
 from .branching_line_feature_dialog import BranchingLineFeatureDialog
 from .map_image_loader import ImageManager
 from .map_viewport import MapViewport
 from .pin_placement_dialog import PinPlacementDialog
+from .unified_feature_manager import UnifiedFeatureManager
 
 logger = get_logger(__name__)
 
@@ -108,7 +108,9 @@ class MapTab(QWidget):
         self.feature_container.setGeometry(
             0, 0, self.image_label.width(), self.image_label.height()
         )
-        self.feature_manager = FeatureManager(self.feature_container, self.config)
+        
+        # Initialize the unified feature manager
+        self.feature_manager = UnifiedFeatureManager(self.feature_container, self.config)
 
         self.scroll_area.setWidget(self.image_label)
 
@@ -200,37 +202,12 @@ class MapTab(QWidget):
 
         # Feature manager signals
         self.feature_manager.feature_clicked.connect(self._handle_feature_click)
-
+        
         # Connect to controller if available
         if self.controller:
             self.feature_manager.feature_clicked.connect(
                 self.controller._handle_pin_click
             )
-
-        # Integrate enhanced edit mode
-        from .enhanced_edit_mode import integrate_enhanced_edit_mode
-
-        # Create debug method for enhanced mode
-        def debug_enhanced_mode():
-            from .enhanced_edit_mode_debug import (
-                diagnose_edit_mode_issues,
-                fix_edit_mode_integration,
-            )
-
-            diagnosis = diagnose_edit_mode_issues(self)
-            logger.info(f"Enhanced mode diagnosis: {diagnosis}")
-            if (
-                "No branching lines loaded" in diagnosis
-                or "Enhanced feature manager not found" in diagnosis
-            ):
-                result = fix_edit_mode_integration(self)
-                logger.info(f"Fix result: {result}")
-            return diagnosis
-
-        self.debug_enhanced_mode = debug_enhanced_mode
-
-        # Integrate the enhanced edit mode
-        integrate_enhanced_edit_mode(self)
 
     def resizeEvent(self, event):
         """Handle resize events to keep feature container matched to viewport size."""
@@ -490,28 +467,16 @@ class MapTab(QWidget):
             self.image_label.set_cursor_for_mode("pointing")
             self.edit_toggle_btn.setStyleSheet("background-color: #FFA500;")
 
-            # Check if enhanced feature manager exists
-            if hasattr(self, "enhanced_feature_manager"):
-                logger.info("Setting edit mode on enhanced feature manager")
-                self.enhanced_feature_manager.set_edit_mode(True)
-            else:
-                logger.warning("Enhanced feature manager not found!")
-
-            # Set edit mode on regular feature manager
+            # Set edit mode on feature manager
             self.feature_manager.set_edit_mode(True)
-            logger.info("Edit mode activated on feature managers")
+            logger.info("Edit mode activated on feature manager")
         else:
             self.image_label.set_cursor_for_mode("default")
             self.edit_toggle_btn.setStyleSheet("")
 
-            # Check if enhanced feature manager exists
-            if hasattr(self, "enhanced_feature_manager"):
-                logger.info("Disabling edit mode on enhanced feature manager")
-                self.enhanced_feature_manager.set_edit_mode(False)
-
-            # Disable edit mode on regular feature manager
+            # Disable edit mode on feature manager
             self.feature_manager.set_edit_mode(False)
-            logger.info("Edit mode deactivated on feature managers")
+            logger.info("Edit mode deactivated on feature manager")
 
     # Event Handling Methods
     def _handle_coordinate_click(self, x: int, y: int) -> None:
@@ -617,7 +582,7 @@ class MapTab(QWidget):
     def _handle_branching_line_completion(
         self, branches: List[List[Tuple[int, int]]]
     ) -> None:
-        """Handle completion of branching line drawing_decap.
+        """Handle completion of branching line drawing.
 
         Args:
             branches: List of branches, each branch is a list of points
@@ -653,39 +618,18 @@ class MapTab(QWidget):
                     "style_pattern": line_style["pattern"],
                 }
 
-                # Instead of adding individual branches to regular feature manager,
-                # use the enhanced feature manager for branching lines
-                if hasattr(self, "enhanced_feature_manager"):
-                    logger.info(
-                        f"Using enhanced feature manager for branching line: {target_node}"
+                # Store geometry in database
+                if self.controller:
+                    self.controller._handle_line_created(
+                        target_node, ">", properties
                     )
-                    # Store geometry in database
-                    if self.controller:
-                        self.controller._handle_line_created(
-                            target_node, ">", properties
-                        )
 
-                    # Create visual representation in enhanced feature manager
-                    self.enhanced_feature_manager.create_branching_line(
-                        target_node, branches, line_style
-                    )
-                else:
-                    logger.warning(
-                        "Enhanced feature manager not available, falling back to regular line handling"
-                    )
-                    # Fall back to regular feature manager for backward compatibility
-                    if self.controller:
-                        self.controller._handle_line_created(
-                            target_node, ">", properties
-                        )
+                # Create visual representation using the unified feature manager
+                self.feature_manager.create_branching_line(
+                    target_node, branches, line_style
+                )
 
-                    # Create visual representation for each branch separately
-                    for branch in branches:
-                        self.feature_manager.create_line(
-                            target_node, branch, line_style
-                        )
-
-                # Exit branching line drawing_decap mode
+                # Exit branching line drawing mode
                 self.branching_line_toggle_btn.blockSignals(True)
                 self.branching_line_toggle_btn.setChecked(False)
                 self.branching_line_toggle_btn.blockSignals(False)
@@ -749,9 +693,11 @@ class MapTab(QWidget):
 
         # Collect feature data from relationships table
         pin_data = []
-        line_data = []
+        simple_line_data = []
+        branching_line_data = {}
 
         relationships_table = self.controller.ui.relationships_table
+        logger.info(f"Loading features from {relationships_table.rowCount()} relationships")
 
         for row in range(relationships_table.rowCount()):
             try:
@@ -772,34 +718,32 @@ class MapTab(QWidget):
                 if not GeometryHandler.validate_wkt(properties["geometry"]):
                     continue
 
-                geometry_type = GeometryHandler.get_geometry_type(
-                    properties["geometry"]
-                )
-                target_node = self._extract_target_node(
-                    target_item, relationships_table, row
-                )
+                geometry_type = properties.get("geometry_type", GeometryHandler.get_geometry_type(properties["geometry"]))
+                target_node = self._extract_target_node(target_item, relationships_table, row)
+                
+                style_config = {
+                    "color": properties.get("style_color", "#FF0000"),
+                    "width": properties.get("style_width", 2),
+                    "pattern": properties.get("style_pattern", "solid"),
+                }
 
-                if geometry_type == "LineString":
-                    points = GeometryHandler.get_coordinates(properties["geometry"])
-                    style_config = {
-                        "color": properties.get("style_color", "#FF0000"),
-                        "width": properties.get("style_width", 2),
-                        "pattern": properties.get("style_pattern", "solid"),
-                    }
-                    line_data.append((target_node, points, style_config))
-
-                elif geometry_type == "MultiLineString":
+                if geometry_type == "MultiLineString":
+                    # Handle as branching line
                     branches = GeometryHandler.get_coordinates(properties["geometry"])
-                    style_config = {
-                        "color": properties.get("style_color", "#FF0000"),
-                        "width": properties.get("style_width", 2),
-                        "pattern": properties.get("style_pattern", "solid"),
-                    }
-                    # Add each branch as a separate line for rendering
-                    for branch in branches:
-                        line_data.append((target_node, branch, style_config))
+                    logger.info(f"Found MultiLineString for {target_node} with {len(branches)} branches")
+                    
+                    if target_node not in branching_line_data:
+                        branching_line_data[target_node] = {"branches": [], "style": style_config}
+                    
+                    branching_line_data[target_node]["branches"] = branches
+                
+                elif geometry_type == "LineString":
+                    # Handle as simple line
+                    points = GeometryHandler.get_coordinates(properties["geometry"])
+                    simple_line_data.append((target_node, points, style_config))
 
                 elif geometry_type == "Point":
+                    # Handle pins
                     x, y = GeometryHandler.get_coordinates(properties["geometry"])
                     pin_data.append((target_node, x, y))
 
@@ -807,11 +751,21 @@ class MapTab(QWidget):
                 logger.error(f"Error loading spatial feature: {e}")
                 continue
 
-        # Batch create features
+        # Clear existing features
+        self.feature_manager.clear_all_features()
+        
+        # Create features using the unified manager
         if pin_data:
+            logger.info(f"Creating {len(pin_data)} pins")
             self.feature_manager.batch_create_pins(pin_data)
-        if line_data:
-            self.feature_manager.batch_create_lines(line_data)
+            
+        if simple_line_data:
+            logger.info(f"Creating {len(simple_line_data)} simple lines")
+            self.feature_manager.batch_create_lines(simple_line_data)
+            
+        if branching_line_data:
+            logger.info(f"Creating {len(branching_line_data)} branching lines")
+            self.feature_manager.batch_create_branching_lines(branching_line_data)
 
     def _extract_target_node(self, target_item, relationships_table, row) -> str:
         """Extract target node name from table item."""
