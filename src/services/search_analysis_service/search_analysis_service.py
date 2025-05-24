@@ -84,6 +84,79 @@ class SearchAnalysisService:
         self._search_cache: Dict[str, List[Dict[str, Any]]] = {}
         self._cache_timestamps: Dict[str, datetime] = {}
 
+        # Initialize property discovery
+        self.array_properties, self.scalar_properties = self.discover_property_types()
+        self._property_discovery_timestamp = datetime.now()
+
+    def discover_property_types(self) -> Tuple[List[str], List[str]]:
+        """
+        Query the database to discover all property keys and their types.
+        Returns tuple of (array_properties, scalar_properties)
+        """
+        # Cypher query to get all property keys and determine type
+        query = """
+        MATCH (n)
+        WHERE n._project = 'default'
+        UNWIND keys(n) AS prop_key
+        WITH DISTINCT prop_key, collect(n[prop_key])[0] AS sample_value
+        WHERE NOT prop_key STARTS WITH '_'
+        RETURN prop_key, 
+               CASE WHEN sample_value IS NULL THEN 'null'
+                    WHEN exists((sample_value)[0]) THEN 'array'
+                    ELSE 'scalar'
+               END AS prop_type
+        """
+
+        try:
+            # Execute the query
+            worker = self.model.execute_read_query(query, {})
+            results = worker.wait_for_result()
+
+            array_properties = []
+            scalar_properties = []
+
+            # Process results
+            for record in results:
+                prop_key = record.get("prop_key")
+                prop_type = record.get("prop_type")
+
+                # Filter out reserved keys
+                reserved_keys = getattr(self.config, "RESERVED_PROPERTY_KEYS", [])
+                if prop_key in reserved_keys:
+                    continue
+
+                if prop_type == "array":
+                    array_properties.append(prop_key)
+                elif prop_type == "scalar":
+                    scalar_properties.append(prop_key)
+
+            logger.debug(
+                "property_discovery_completed",
+                array_props=array_properties,
+                scalar_props=scalar_properties,
+            )
+
+            return array_properties, scalar_properties
+        except Exception as e:
+            logger.error("property_discovery_failed", error=str(e))
+            # Fallback to default properties
+            return ["tags", "Array_Property", "defenses"], ["name", "description"]
+
+    def refresh_property_types(self) -> None:
+        """Refresh the discovered property types."""
+        try:
+            self.array_properties, self.scalar_properties = (
+                self.discover_property_types()
+            )
+            self._property_discovery_timestamp = datetime.now()
+            logger.debug(
+                "property_types_refreshed",
+                array_count=len(self.array_properties),
+                scalar_count=len(self.scalar_properties),
+            )
+        except Exception as e:
+            logger.error("property_refresh_failed", error=str(e))
+
     def search_nodes(
         self,
         criteria: SearchCriteria,
@@ -162,7 +235,16 @@ class SearchAnalysisService:
         self, criteria: SearchCriteria
     ) -> tuple[str, Dict[str, Any]]:
         """Build enhanced search query using SearchQueryBuilder."""
-        builder = SearchQueryBuilder()
+        # Check if property discovery needs to be refreshed (once per day)
+        if (
+            datetime.now() - self._property_discovery_timestamp
+        ).total_seconds() > 86400:  # 24 hours
+            self.refresh_property_types()
+
+        builder = SearchQueryBuilder(
+            array_properties=self.array_properties,
+            scalar_properties=self.scalar_properties,
+        )
         return builder.build_search_query(criteria)
 
     def _process_search_results(
@@ -339,9 +421,16 @@ class TextSearchBuilder:
 class FieldSearchBuilder:
     """Builds search conditions for different field types"""
 
-    def __init__(self, field_searches: List[FieldSearch]):
+    def __init__(
+        self,
+        field_searches: List[FieldSearch],
+        array_properties: List[str] = None,
+        scalar_properties: List[str] = None,
+    ):
         self.field_searches = field_searches
         self._parameters: Dict[str, Any] = {}
+        self.array_properties = array_properties or ["tags", "Array_Property"]
+        self.scalar_properties = scalar_properties or ["name", "description"]
 
     def build(self) -> QueryComponent:
         quick_searches = []
@@ -398,25 +487,32 @@ class FieldSearchBuilder:
         return builder_func() if builder_func else None
 
     def _build_properties_clause(self, param_ref: str) -> str:
-        """Build search clause for properties compatible with Neo4j 5.24.2."""
+        """Build search clause for properties using dynamically discovered properties."""
 
-        # Search in property keys - this is safe and works for all properties
+        # Search in property keys
         key_clause = (
             f"ANY(prop_key IN keys(n) WHERE toLower(prop_key) CONTAINS {param_ref})"
         )
 
-        # Search in known array properties directly - avoid dynamic property access for arrays
-        tags_clause = f"n.tags IS NOT NULL AND ANY(tag IN n.tags WHERE toLower(tag) CONTAINS {param_ref})"
-        array_prop_clause = f"n.Array_Property IS NOT NULL AND ANY(item IN n.Array_Property WHERE toLower(item) CONTAINS {param_ref})"
+        # Search in scalar properties
+        scalar_clauses = []
+        for prop in self.scalar_properties:
+            scalar_clauses.append(
+                f"n.{prop} IS NOT NULL AND toLower(toString(n.{prop})) CONTAINS {param_ref}"
+            )
 
-        # Search in known scalar properties directly
-        name_clause = f"n.name IS NOT NULL AND toLower(n.name) CONTAINS {param_ref}"
-        desc_clause = (
-            f"n.description IS NOT NULL AND toLower(n.description) CONTAINS {param_ref}"
-        )
+        # Search in array properties
+        array_clauses = []
+        for prop in self.array_properties:
+            array_clauses.append(
+                f"n.{prop} IS NOT NULL AND ANY(item IN n.{prop} WHERE toLower(toString(item)) CONTAINS {param_ref})"
+            )
 
         # Combine all clauses with OR
-        return f"{key_clause} OR {tags_clause} OR {array_prop_clause} OR {name_clause} OR {desc_clause}"
+        scalar_search = " OR ".join(scalar_clauses) if scalar_clauses else "false"
+        array_search = " OR ".join(array_clauses) if array_clauses else "false"
+
+        return f"{key_clause} OR ({scalar_search}) OR ({array_search})"
 
 
 class FilterClauseBuilder(ClauseBuilder):
@@ -487,7 +583,13 @@ class ReturnClauseBuilder(ClauseBuilder):
 class SearchQueryBuilder:
     """Composes all query components into the final query"""
 
-    # In SearchQueryBuilder.build_search_query
+    def __init__(
+        self, array_properties: List[str] = None, scalar_properties: List[str] = None
+    ):
+        """Initialize with discovered property types."""
+        self.array_properties = array_properties or ["tags", "Array_Property"]
+        self.scalar_properties = scalar_properties or ["name", "description"]
+
     def build_search_query(
         self, criteria: SearchCriteria
     ) -> Tuple[str, Dict[str, Any]]:
@@ -503,7 +605,11 @@ class SearchQueryBuilder:
             where_conditions.append(match_component.parameters["label_clause"])
 
         # Collect field search conditions
-        field_builder = FieldSearchBuilder(criteria.field_searches)
+        field_builder = FieldSearchBuilder(
+            criteria.field_searches,
+            array_properties=self.array_properties,
+            scalar_properties=self.scalar_properties,
+        )
         field_component = field_builder.build()
         if field_component.text:
             where_conditions.append(field_component.text)
