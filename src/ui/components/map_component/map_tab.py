@@ -30,7 +30,7 @@ logger = get_logger(__name__)
 class MapTab(QWidget):
     """Refactored map tab with separated concerns.
 
-    Coordinates between viewport, features, drawing, and image management components
+    Coordinates between viewport, features, drawing_decap, and image management components
     to provide a complete map editing experience.
     """
 
@@ -80,7 +80,7 @@ class MapTab(QWidget):
         self.zoom_timer.setSingleShot(True)
         self.zoom_timer.timeout.connect(self._perform_zoom)
         self.pending_scale = None
-        
+
         # Enhanced edit mode will be integrated after basic initialization
 
     def _setup_ui(self) -> None:
@@ -138,7 +138,7 @@ class MapTab(QWidget):
         self.line_toggle_btn.setCheckable(True)
         self.line_toggle_btn.toggled.connect(self.toggle_line_drawing)
         self.line_toggle_btn.setToolTip(
-            "Toggle line drawing mode (ESC to cancel, Enter to complete)"
+            "Toggle line drawing_decap mode (ESC to cancel, Enter to complete)"
         )
 
         self.branching_line_toggle_btn = QPushButton("🌿 Draw Branching Line")
@@ -147,7 +147,7 @@ class MapTab(QWidget):
             self.toggle_branching_line_drawing
         )
         self.branching_line_toggle_btn.setToolTip(
-            "Toggle branching line drawing mode (ESC to cancel, Enter to complete)"
+            "Toggle branching line drawing_decap mode (ESC to cancel, Enter to complete)"
         )
 
         self.edit_toggle_btn = QPushButton("✏️ Edit Mode")
@@ -206,22 +206,29 @@ class MapTab(QWidget):
             self.feature_manager.feature_clicked.connect(
                 self.controller._handle_pin_click
             )
-            
+
         # Integrate enhanced edit mode
         from .enhanced_edit_mode import integrate_enhanced_edit_mode
-        
+
         # Create debug method for enhanced mode
         def debug_enhanced_mode():
-            from .enhanced_edit_mode_debug import diagnose_edit_mode_issues, fix_edit_mode_integration
+            from .enhanced_edit_mode_debug import (
+                diagnose_edit_mode_issues,
+                fix_edit_mode_integration,
+            )
+
             diagnosis = diagnose_edit_mode_issues(self)
             logger.info(f"Enhanced mode diagnosis: {diagnosis}")
-            if "No branching lines loaded" in diagnosis or "Enhanced feature manager not found" in diagnosis:
+            if (
+                "No branching lines loaded" in diagnosis
+                or "Enhanced feature manager not found" in diagnosis
+            ):
                 result = fix_edit_mode_integration(self)
                 logger.info(f"Fix result: {result}")
             return diagnosis
-        
+
         self.debug_enhanced_mode = debug_enhanced_mode
-        
+
         # Integrate the enhanced edit mode
         integrate_enhanced_edit_mode(self)
 
@@ -236,7 +243,7 @@ class MapTab(QWidget):
             self.feature_container.raise_()
 
     def paintEvent(self, event):
-        """Handle paint events for drawing temporary elements."""
+        """Handle paint events for drawing_decap temporary elements."""
         super().paintEvent(event)
 
     # Image Management Methods
@@ -403,7 +410,7 @@ class MapTab(QWidget):
             self.feature_manager.set_scale(self.current_scale)
             self.feature_manager.update_positions(self)
 
-            # Update drawing manager for any active drawing
+            # Update drawing_decap manager for any active drawing_decap
             self.drawing_manager.update_scale(self.current_scale)
 
     # Mode Management Methods
@@ -421,7 +428,7 @@ class MapTab(QWidget):
         self.pin_mode_toggled.emit(active)
 
     def toggle_line_drawing(self, active: bool) -> None:
-        """Toggle line drawing mode."""
+        """Toggle line drawing_decap mode."""
         self.line_drawing_active = active
 
         if active:
@@ -434,7 +441,7 @@ class MapTab(QWidget):
             self.line_toggle_btn.setStyleSheet("background-color: #83A00E;")
             self.image_label.setFocus()
         else:
-            # Complete or cancel current drawing
+            # Complete or cancel current drawing_decap
             completing = self.drawing_manager.can_complete_line()
             self.drawing_manager.stop_line_drawing(complete=completing)
 
@@ -442,7 +449,7 @@ class MapTab(QWidget):
             self.line_toggle_btn.setStyleSheet("")
 
     def toggle_branching_line_drawing(self, active: bool) -> None:
-        """Toggle branching line drawing mode."""
+        """Toggle branching line drawing_decap mode."""
         self.branching_line_drawing_active = active
 
         if active:
@@ -460,7 +467,7 @@ class MapTab(QWidget):
             self.image_label.setFocus()
             print(f"Branching line mode activated: {active}")
         else:
-            # Complete or cancel current drawing
+            # Complete or cancel current drawing_decap
             completing = self.drawing_manager._can_complete_branching_line()
             self.drawing_manager.stop_branching_line_drawing(complete=completing)
 
@@ -482,26 +489,26 @@ class MapTab(QWidget):
 
             self.image_label.set_cursor_for_mode("pointing")
             self.edit_toggle_btn.setStyleSheet("background-color: #FFA500;")
-            
+
             # Check if enhanced feature manager exists
-            if hasattr(self, 'enhanced_feature_manager'):
+            if hasattr(self, "enhanced_feature_manager"):
                 logger.info("Setting edit mode on enhanced feature manager")
                 self.enhanced_feature_manager.set_edit_mode(True)
             else:
                 logger.warning("Enhanced feature manager not found!")
-            
+
             # Set edit mode on regular feature manager
             self.feature_manager.set_edit_mode(True)
             logger.info("Edit mode activated on feature managers")
         else:
             self.image_label.set_cursor_for_mode("default")
             self.edit_toggle_btn.setStyleSheet("")
-            
+
             # Check if enhanced feature manager exists
-            if hasattr(self, 'enhanced_feature_manager'):
+            if hasattr(self, "enhanced_feature_manager"):
                 logger.info("Disabling edit mode on enhanced feature manager")
                 self.enhanced_feature_manager.set_edit_mode(False)
-            
+
             # Disable edit mode on regular feature manager
             self.feature_manager.set_edit_mode(False)
             logger.info("Edit mode deactivated on feature managers")
@@ -543,7 +550,7 @@ class MapTab(QWidget):
         self.drawing_manager.add_point(x, y, scaled_x, scaled_y)
 
     def _handle_line_completion(self, points: List[Tuple[int, int]]) -> None:
-        """Handle completion of line drawing."""
+        """Handle completion of line drawing_decap."""
 
         print(f"_handle_line_completion called with {len(points)} points")
 
@@ -582,7 +589,7 @@ class MapTab(QWidget):
                 self.feature_manager.create_line(target_node, points, line_style)
                 print(f"Visual line created")
 
-                # Exit line drawing mode
+                # Exit line drawing_decap mode
                 self.line_toggle_btn.blockSignals(True)
                 self.line_toggle_btn.setChecked(False)
                 self.line_toggle_btn.blockSignals(False)
@@ -610,12 +617,14 @@ class MapTab(QWidget):
     def _handle_branching_line_completion(
         self, branches: List[List[Tuple[int, int]]]
     ) -> None:
-        """Handle completion of branching line drawing.
+        """Handle completion of branching line drawing_decap.
 
         Args:
             branches: List of branches, each branch is a list of points
         """
-        logger.info(f"_handle_branching_line_completion called with {len(branches)} branches")
+        logger.info(
+            f"_handle_branching_line_completion called with {len(branches)} branches"
+        )
 
         if not branches or all(len(branch) < 2 for branch in branches):
             logger.warning(
@@ -646,27 +655,37 @@ class MapTab(QWidget):
 
                 # Instead of adding individual branches to regular feature manager,
                 # use the enhanced feature manager for branching lines
-                if hasattr(self, 'enhanced_feature_manager'):
-                    logger.info(f"Using enhanced feature manager for branching line: {target_node}")
+                if hasattr(self, "enhanced_feature_manager"):
+                    logger.info(
+                        f"Using enhanced feature manager for branching line: {target_node}"
+                    )
                     # Store geometry in database
                     if self.controller:
-                        self.controller._handle_line_created(target_node, ">", properties)
-                        
+                        self.controller._handle_line_created(
+                            target_node, ">", properties
+                        )
+
                     # Create visual representation in enhanced feature manager
                     self.enhanced_feature_manager.create_branching_line(
                         target_node, branches, line_style
                     )
                 else:
-                    logger.warning("Enhanced feature manager not available, falling back to regular line handling")
+                    logger.warning(
+                        "Enhanced feature manager not available, falling back to regular line handling"
+                    )
                     # Fall back to regular feature manager for backward compatibility
                     if self.controller:
-                        self.controller._handle_line_created(target_node, ">", properties)
-                    
+                        self.controller._handle_line_created(
+                            target_node, ">", properties
+                        )
+
                     # Create visual representation for each branch separately
                     for branch in branches:
-                        self.feature_manager.create_line(target_node, branch, line_style)
+                        self.feature_manager.create_line(
+                            target_node, branch, line_style
+                        )
 
-                # Exit branching line drawing mode
+                # Exit branching line drawing_decap mode
                 self.branching_line_toggle_btn.blockSignals(True)
                 self.branching_line_toggle_btn.setChecked(False)
                 self.branching_line_toggle_btn.blockSignals(False)
@@ -675,12 +694,13 @@ class MapTab(QWidget):
             except Exception as e:
                 logger.error(f"Error creating branching line: {e}")
                 import traceback
+
                 logger.error(traceback.format_exc())
 
     def _handle_drawing_update(self) -> None:
-        """Handle updates to drawing state."""
-        self.image_label.update()  # Trigger repaint for temporary drawing of lines
-        self.update()  # Trigger repaint for temporary drawing
+        """Handle updates to drawing_decap state."""
+        self.image_label.update()  # Trigger repaint for temporary drawing_decap of lines
+        self.update()  # Trigger repaint for temporary drawing_decap
 
     def _handle_feature_click(self, target_node: str) -> None:
         """Handle clicks on features."""
@@ -701,13 +721,13 @@ class MapTab(QWidget):
                 scaled_x = original_x * self.current_scale
                 scaled_y = original_y * self.current_scale
 
-                # Call a new method on drawing manager with these coordinates
+                # Call a new method on drawing_decap manager with these coordinates
                 if self.drawing_manager.start_branch_from_position(
                     original_x, original_y, scaled_x, scaled_y
                 ):
                     return
 
-        # Try normal key handling in drawing manager
+        # Try normal key handling in drawing_decap manager
         if self.drawing_manager.handle_key_press(event.key()):
             # Drawing manager handled the key
             return
@@ -767,7 +787,7 @@ class MapTab(QWidget):
                         "pattern": properties.get("style_pattern", "solid"),
                     }
                     line_data.append((target_node, points, style_config))
-                
+
                 elif geometry_type == "MultiLineString":
                     branches = GeometryHandler.get_coordinates(properties["geometry"])
                     style_config = {
