@@ -22,7 +22,7 @@ from .branching_line_feature_dialog import BranchingLineFeatureDialog
 from .map_image_loader import ImageManager
 from .map_viewport import MapViewport
 from .pin_placement_dialog import PinPlacementDialog
-from .unified_feature_manager import UnifiedFeatureManager
+from .feature_manager import UnifiedFeatureManager
 
 logger = get_logger(__name__)
 
@@ -108,9 +108,11 @@ class MapTab(QWidget):
         self.feature_container.setGeometry(
             0, 0, self.image_label.width(), self.image_label.height()
         )
-        
+
         # Initialize the unified feature manager
-        self.feature_manager = UnifiedFeatureManager(self.feature_container, self.config)
+        self.feature_manager = UnifiedFeatureManager(
+            self.feature_container, self.config
+        )
 
         self.scroll_area.setWidget(self.image_label)
 
@@ -202,7 +204,7 @@ class MapTab(QWidget):
 
         # Feature manager signals
         self.feature_manager.feature_clicked.connect(self._handle_feature_click)
-        
+
         # Connect to controller if available
         if self.controller:
             self.feature_manager.feature_clicked.connect(
@@ -620,9 +622,7 @@ class MapTab(QWidget):
 
                 # Store geometry in database
                 if self.controller:
-                    self.controller._handle_line_created(
-                        target_node, ">", properties
-                    )
+                    self.controller._handle_line_created(target_node, ">", properties)
 
                 # Create visual representation using the unified feature manager
                 self.feature_manager.create_branching_line(
@@ -697,7 +697,9 @@ class MapTab(QWidget):
         branching_line_data = {}
 
         relationships_table = self.controller.ui.relationships_table
-        logger.info(f"Loading features from {relationships_table.rowCount()} relationships")
+        logger.info(
+            f"Loading features from {relationships_table.rowCount()} relationships"
+        )
 
         for row in range(relationships_table.rowCount()):
             try:
@@ -718,9 +720,14 @@ class MapTab(QWidget):
                 if not GeometryHandler.validate_wkt(properties["geometry"]):
                     continue
 
-                geometry_type = properties.get("geometry_type", GeometryHandler.get_geometry_type(properties["geometry"]))
-                target_node = self._extract_target_node(target_item, relationships_table, row)
-                
+                geometry_type = properties.get(
+                    "geometry_type",
+                    GeometryHandler.get_geometry_type(properties["geometry"]),
+                )
+                target_node = self._extract_target_node(
+                    target_item, relationships_table, row
+                )
+
                 style_config = {
                     "color": properties.get("style_color", "#FF0000"),
                     "width": properties.get("style_width", 2),
@@ -730,13 +737,18 @@ class MapTab(QWidget):
                 if geometry_type == "MultiLineString":
                     # Handle as branching line
                     branches = GeometryHandler.get_coordinates(properties["geometry"])
-                    logger.info(f"Found MultiLineString for {target_node} with {len(branches)} branches")
-                    
+                    logger.info(
+                        f"Found MultiLineString for {target_node} with {len(branches)} branches"
+                    )
+
                     if target_node not in branching_line_data:
-                        branching_line_data[target_node] = {"branches": [], "style": style_config}
-                    
+                        branching_line_data[target_node] = {
+                            "branches": [],
+                            "style": style_config,
+                        }
+
                     branching_line_data[target_node]["branches"] = branches
-                
+
                 elif geometry_type == "LineString":
                     # Handle as simple line
                     points = GeometryHandler.get_coordinates(properties["geometry"])
@@ -753,16 +765,16 @@ class MapTab(QWidget):
 
         # Clear existing features
         self.feature_manager.clear_all_features()
-        
+
         # Create features using the unified manager
         if pin_data:
             logger.info(f"Creating {len(pin_data)} pins")
             self.feature_manager.batch_create_pins(pin_data)
-            
+
         if simple_line_data:
             logger.info(f"Creating {len(simple_line_data)} simple lines")
             self.feature_manager.batch_create_lines(simple_line_data)
-            
+
         if branching_line_data:
             logger.info(f"Creating {len(branching_line_data)} branching lines")
             self.feature_manager.batch_create_branching_lines(branching_line_data)
