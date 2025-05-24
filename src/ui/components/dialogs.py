@@ -24,9 +24,6 @@ from PyQt6.QtWidgets import (
     QLabel,
     QProgressBar,
     QDialogButtonBox,
-    QComboBox,
-    QSpinBox,
-    QCompleter,
 )
 from neo4j.exceptions import AuthError, ServiceUnavailable
 from structlog import get_logger
@@ -669,14 +666,22 @@ class FastInjectDialog(QDialog):
         self.property_value_widgets: Dict[str, PropertyValueWidget] = {}
 
         for i, (key, value) in enumerate(props.items()):
-            # Checkbox column
+            # Checkbox column with centered container
             checkbox = QCheckBox()
             checkbox.setChecked(True)
             checkbox.stateChanged.connect(
                 lambda state, k=key: self._update_property_selection(k, state)
             )
             self.property_checkboxes[key] = checkbox
-            self.props_table.setCellWidget(i, 0, checkbox)
+            
+            # Create a container widget to center the checkbox
+            container = QWidget()
+            container_layout = QHBoxLayout(container)
+            container_layout.setContentsMargins(0, 0, 0, 0)
+            container_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            container_layout.addWidget(checkbox)
+            
+            self.props_table.setCellWidget(i, 0, container)
 
             # Property name column
             name_item = QTableWidgetItem(key)
@@ -831,7 +836,7 @@ class ValueEditorDialog(QDialog):
 
 
 class PropertyValueWidget(QWidget):
-    """Widget for displaying property values either as line edit or radio buttons."""
+    """Widget for displaying property values either as line edit or checkboxes."""
 
     def __init__(self, value: Union[str, List[str]], parent=None):
         super().__init__(parent)
@@ -864,14 +869,15 @@ class PropertyValueWidget(QWidget):
     def setup_input_widget(self, input_layout: QHBoxLayout) -> None:
         """Setup the appropriate input widget based on number of values."""
         if len(self.values) > 1:
-            # Create radio buttons for multiple values
-            self.button_group = QButtonGroup()
-            for i, val in enumerate(self.values):
-                radio = QRadioButton(str(val))
-                self.button_group.addButton(radio, i)
-                self.value_layout.addWidget(radio)
-                if i == 0:  # Select first option by default
-                    radio.setChecked(True)
+            # Create checkboxes for multiple selection
+            self.checkboxes = []
+            for val in self.values:
+                checkbox = QCheckBox(str(val))
+                self.checkboxes.append(checkbox)
+                self.value_layout.addWidget(checkbox)
+                # Check first checkbox by default to provide a starting value
+                if val == self.values[0]:
+                    checkbox.setChecked(True)
 
             # Add edit button
             edit_button = QPushButton("✏️")
@@ -881,100 +887,97 @@ class PropertyValueWidget(QWidget):
             input_layout.addWidget(self.value_container)
             input_layout.addWidget(edit_button)
         else:
-            # Use line edit for single value
+            # Use line edit for single value without any container border
             self.line_edit = QLineEdit(str(self.values[0]))
-            self.value_layout.addWidget(self.line_edit)
-            input_layout.addWidget(self.value_container)
+            # Remove any border from the line edit
+            self.line_edit.setStyleSheet("border: none; background: transparent;")
+            # Add directly to input layout to avoid extra container
+            input_layout.addWidget(self.line_edit)
+            
+            # No need to use the value container for single values
+            self.value_container.hide()
 
     def edit_values(self) -> None:
-        """Open dialog to edit selectable values.
-
-        Shows a dialog allowing the user to edit the available radio button values.
-        Updates the UI with the new values while preserving the current selection
-        if possible.
-        """
+        """Open dialog to edit selectable values."""
         # Get user's new values through dialog
         new_values = self._get_new_values_from_dialog()
         if not new_values:
             return
 
         # Remember current selection before modifying UI
-        current_value = self.get_value()
+        current_values = self.get_value()
+        if not isinstance(current_values, list):
+            current_values = [current_values]
 
-        # Update the radio button interface
-        self._update_radio_buttons(new_values, current_value)
+        # Update checkboxes
+        self._update_checkboxes(new_values, current_values)
 
     def _get_new_values_from_dialog(self) -> Optional[List[str]]:
-        """Show dialog to get new values from user.
-
-        Returns:
-            List of new values if dialog was accepted, None otherwise.
-        """
-        current_values = [b.text() for b in self.button_group.buttons()]
+        """Show dialog to get new values from user."""
+        from ui.components.dialogs import ValueEditorDialog
+        
+        if hasattr(self, 'checkboxes'):
+            current_values = [cb.text() for cb in self.checkboxes]
+        else:
+            current_values = []
+            
         dialog = ValueEditorDialog(current_values, self)
 
         if dialog.exec():
             return dialog.get_values()
         return None
 
-    def _update_radio_buttons(self, new_values: List[str], previous_value: str) -> None:
-        """Update radio buttons with new values.
-
-        Replaces existing radio buttons with new ones based on provided values.
-        Attempts to maintain the previous selection if the value still exists.
+    def _update_checkboxes(self, new_values: List[str], previous_values: List[str]) -> None:
+        """Update checkboxes with new values.
 
         Args:
-            new_values: List of new values for radio buttons
-            previous_value: Previously selected value to preserve if possible
+            new_values: List of new values for checkboxes
+            previous_values: Previously selected values to preserve if possible
         """
-        self._clear_existing_buttons()
-        self._create_new_buttons(new_values)
-        self._restore_selection(previous_value)
+        self._clear_existing_checkboxes()
+        self._create_new_checkboxes(new_values)
+        self._restore_checkbox_selections(previous_values)
 
-    def _clear_existing_buttons(self) -> None:
-        """Remove all existing radio buttons from the group and layout."""
-        for button in self.button_group.buttons():
-            self.button_group.removeButton(button)
-            self.value_layout.removeWidget(button)
-            button.deleteLater()
+    def _clear_existing_checkboxes(self) -> None:
+        """Remove all existing checkboxes from the layout."""
+        for checkbox in self.checkboxes:
+            self.value_layout.removeWidget(checkbox)
+            checkbox.deleteLater()
+        self.checkboxes = []
 
-    def _create_new_buttons(self, values: List[str]) -> None:
-        """Create new radio buttons for the given values.
-
-        Args:
-            values: List of values to create radio buttons for
-        """
+    def _create_new_checkboxes(self, values: List[str]) -> None:
+        """Create new checkboxes for the given values."""
         self.values = values
-        for i, val in enumerate(values):
-            radio = QRadioButton(str(val))
-            self.button_group.addButton(radio, i)
-            self.value_layout.addWidget(radio)
+        self.checkboxes = []
+        for val in values:
+            checkbox = QCheckBox(str(val))
+            self.checkboxes.append(checkbox)
+            self.value_layout.addWidget(checkbox)
 
-    def _restore_selection(self, previous_value: str) -> None:
-        """Restore previous selection or select first button.
-
-        Attempts to select the radio button matching the previous value.
-        If not found, selects the first button as default.
+    def _restore_checkbox_selections(self, previous_values: List[str]) -> None:
+        """Restore previous selections or select first checkbox.
 
         Args:
-            previous_value: The previously selected value to restore
+            previous_values: The previously selected values to restore
         """
-        # Try to find and select the button with previous value
-        for button in self.button_group.buttons():
-            if button.text() == previous_value:
-                button.setChecked(True)
-                return
+        any_selected = False
+        
+        # Try to find and select checkboxes with previous values
+        for checkbox in self.checkboxes:
+            if checkbox.text() in previous_values:
+                checkbox.setChecked(True)
+                any_selected = True
+        
+        # Select first checkbox if no previous values were found
+        if not any_selected and self.checkboxes:
+            self.checkboxes[0].setChecked(True)
 
-        # Select first button if previous value not found
-        first_button = self.button_group.button(0)
-        if first_button:
-            first_button.setChecked(True)
-
-    def get_value(self) -> str:
-        """Get the currently selected/entered value."""
-        if hasattr(self, "button_group"):
-            selected = self.button_group.checkedButton()
-            return selected.text() if selected else ""
+    def get_value(self) -> Union[str, List[str]]:
+        """Get the currently selected/entered value(s)."""
+        if hasattr(self, "checkboxes"):
+            # Return a list of selected values
+            selected = [cb.text() for cb in self.checkboxes if cb.isChecked()]
+            return selected if selected else []  # Return empty list instead of None
         else:
             return self.line_edit.text()
 

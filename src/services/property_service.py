@@ -11,12 +11,13 @@ class PropertyService:
     def process_properties(self, properties: List[PropertyItem]) -> Dict[str, Any]:
         """
         Process a list of property items into a final properties dictionary.
+        All values are converted to arrays.
 
         Args:
             properties: List of PropertyItem objects
 
         Returns:
-            Dict[str, Any]: Processed properties
+            Dict[str, Any]: Processed properties with array values
         """
         result = {}
 
@@ -25,6 +26,7 @@ class PropertyService:
                 continue
 
             validate_property_key(prop.key, self.reserved_keys)
+            # transform_property_value now always returns arrays
             result[prop.key] = transform_property_value(prop.value)
 
         return result

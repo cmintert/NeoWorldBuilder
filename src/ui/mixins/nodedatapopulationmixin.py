@@ -35,7 +35,15 @@ class NodeDataPopulationMixin:
         row = self.ui.properties_table.rowCount()
         self.ui.properties_table.insertRow(row)
         self.ui.properties_table.setItem(row, 0, QTableWidgetItem(key))
-        self.ui.properties_table.setItem(row, 1, QTableWidgetItem(str(value)))
+        
+        # Format value for display - handle arrays
+        if isinstance(value, list):
+            display_value = ", ".join(str(v) for v in value)
+        else:
+            # Fallback for any non-array values
+            display_value = str(value)
+            
+        self.ui.properties_table.setItem(row, 1, QTableWidgetItem(display_value))
         delete_button = self.ui.create_delete_button(self.ui.properties_table, row)
         self.ui.properties_table.setCellWidget(row, 2, delete_button)
 

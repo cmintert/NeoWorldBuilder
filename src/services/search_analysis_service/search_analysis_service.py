@@ -84,6 +84,79 @@ class SearchAnalysisService:
         self._search_cache: Dict[str, List[Dict[str, Any]]] = {}
         self._cache_timestamps: Dict[str, datetime] = {}
 
+        # Initialize property discovery
+        self.array_properties, self.scalar_properties = self.discover_property_types()
+        self._property_discovery_timestamp = datetime.now()
+
+    def discover_property_types(self) -> Tuple[List[str], List[str]]:
+        """
+        Query the database to discover all property keys and their types.
+        Returns tuple of (array_properties, scalar_properties)
+        """
+        # Cypher query to get all property keys and determine type
+        query = """
+        MATCH (n)
+        WHERE n._project = 'default'
+        UNWIND keys(n) AS prop_key
+        WITH DISTINCT prop_key, collect(n[prop_key])[0] AS sample_value
+        WHERE NOT prop_key STARTS WITH '_'
+        RETURN prop_key, 
+               CASE WHEN sample_value IS NULL THEN 'null'
+                    WHEN exists((sample_value)[0]) THEN 'array'
+                    ELSE 'scalar'
+               END AS prop_type
+        """
+
+        try:
+            # Execute the query
+            worker = self.model.execute_read_query(query, {})
+            results = worker.wait_for_result()
+
+            array_properties = []
+            scalar_properties = []
+
+            # Process results
+            for record in results:
+                prop_key = record.get("prop_key")
+                prop_type = record.get("prop_type")
+
+                # Filter out reserved keys
+                reserved_keys = getattr(self.config, "RESERVED_PROPERTY_KEYS", [])
+                if prop_key in reserved_keys:
+                    continue
+
+                if prop_type == "array":
+                    array_properties.append(prop_key)
+                elif prop_type == "scalar":
+                    scalar_properties.append(prop_key)
+
+            logger.debug(
+                "property_discovery_completed",
+                array_props=array_properties,
+                scalar_props=scalar_properties,
+            )
+
+            return array_properties, scalar_properties
+        except Exception as e:
+            logger.error("property_discovery_failed", error=str(e))
+            # Fallback to default properties
+            return ["tags", "Array_Property", "defenses"], ["name", "description"]
+
+    def refresh_property_types(self) -> None:
+        """Refresh the discovered property types."""
+        try:
+            self.array_properties, self.scalar_properties = (
+                self.discover_property_types()
+            )
+            self._property_discovery_timestamp = datetime.now()
+            logger.debug(
+                "property_types_refreshed",
+                array_count=len(self.array_properties),
+                scalar_count=len(self.scalar_properties),
+            )
+        except Exception as e:
+            logger.error("property_refresh_failed", error=str(e))
+
     def search_nodes(
         self,
         criteria: SearchCriteria,
@@ -162,7 +235,16 @@ class SearchAnalysisService:
         self, criteria: SearchCriteria
     ) -> tuple[str, Dict[str, Any]]:
         """Build enhanced search query using SearchQueryBuilder."""
-        builder = SearchQueryBuilder()
+        # Check if property discovery needs to be refreshed (once per day)
+        if (
+            datetime.now() - self._property_discovery_timestamp
+        ).total_seconds() > 86400:  # 24 hours
+            self.refresh_property_types()
+
+        builder = SearchQueryBuilder(
+            array_properties=self.array_properties,
+            scalar_properties=self.scalar_properties,
+        )
         return builder.build_search_query(criteria)
 
     def _process_search_results(
@@ -215,13 +297,16 @@ class SearchAnalysisService:
 
     def _filter_system_properties(self, properties: Dict[str, Any]) -> Dict[str, Any]:
         """Filter out system properties and format values."""
+        # Safe fallback for missing config attribute
+        reserved_keys = getattr(self.config, "RESERVED_PROPERTY_KEYS", [])
+
         return {
             k: v
             for k, v in properties.items()
             if (
                 k  # Ensure key exists
                 and not k.startswith("_")  # Skip system properties
-                and k not in self.config.RESERVED_PROPERTY_KEYS  # Skip reserved
+                and k not in reserved_keys  # Skip reserved with fallback
                 and v is not None  # Skip null values
             )
         }
@@ -336,9 +421,16 @@ class TextSearchBuilder:
 class FieldSearchBuilder:
     """Builds search conditions for different field types"""
 
-    def __init__(self, field_searches: List[FieldSearch]):
+    def __init__(
+        self,
+        field_searches: List[FieldSearch],
+        array_properties: List[str] = None,
+        scalar_properties: List[str] = None,
+    ):
         self.field_searches = field_searches
         self._parameters: Dict[str, Any] = {}
+        self.array_properties = array_properties or ["tags", "Array_Property"]
+        self.scalar_properties = scalar_properties or ["name", "description"]
 
     def build(self) -> QueryComponent:
         quick_searches = []
@@ -349,6 +441,7 @@ class FieldSearchBuilder:
             self._parameters[param_name] = search.text
             param_ref = f"${param_name}"
 
+            # Pass param_ref to _build_field_clause
             clause = self._build_field_clause(search, param_ref)
             if clause:
                 if not search.exact_match and not search.case_sensitive:
@@ -365,7 +458,7 @@ class FieldSearchBuilder:
         return QueryComponent(where_clause, self._parameters)
 
     def _build_field_clause(
-        self, field_search: FieldSearch, param_ref: str
+        self, field_search: FieldSearch, param_ref: str  # param_ref is received here
     ) -> Optional[str]:
         if not field_search.text:
             return None
@@ -385,27 +478,41 @@ class FieldSearchBuilder:
             ),
             SearchField.TAGS: lambda: f"ANY(tag IN n.tags WHERE {TextSearchBuilder.build_condition('tag', param_ref, field_search.case_sensitive, field_search.exact_match)})",
             SearchField.LABELS: lambda: f"ANY(label IN labels(n) WHERE {TextSearchBuilder.build_condition('label', param_ref, field_search.case_sensitive, field_search.exact_match)})",
-            SearchField.PROPERTIES: self._build_properties_clause,
+            # Pass param_ref to _build_properties_clause
+            SearchField.PROPERTIES: lambda: self._build_properties_clause(param_ref),
         }
 
-        builder = field_builders.get(field_search.field)
-        return builder() if builder else None
+        builder_func = field_builders.get(field_search.field)
+        # Call the builder function, which now correctly handles param_ref for properties
+        return builder_func() if builder_func else None
 
-    def _build_properties_clause(self) -> str:
-        # For property keys (keep this part as is)
-        key_clause = "toLower(prop_key) CONTAINS $search_0"
+    def _build_properties_clause(self, param_ref: str) -> str:
+        """Build search clause for properties using dynamically discovered properties."""
 
-        # For property values - handle both regular values and arrays
-        value_clause = """
-        CASE 
-            WHEN prop_key = 'tags' THEN 
-                ANY(item IN n[prop_key] WHERE toLower(item) CONTAINS $search_0)
-            ELSE 
-                toLower(coalesce(toString(n[prop_key]), '')) CONTAINS $search_0
-        END
-        """
+        # Search in property keys
+        key_clause = (
+            f"ANY(prop_key IN keys(n) WHERE toLower(prop_key) CONTAINS {param_ref})"
+        )
 
-        return f"ANY(prop_key IN keys(n) WHERE {key_clause} OR {value_clause})"
+        # Search in scalar properties
+        scalar_clauses = []
+        for prop in self.scalar_properties:
+            scalar_clauses.append(
+                f"n.{prop} IS NOT NULL AND toLower(toString(n.{prop})) CONTAINS {param_ref}"
+            )
+
+        # Search in array properties
+        array_clauses = []
+        for prop in self.array_properties:
+            array_clauses.append(
+                f"n.{prop} IS NOT NULL AND ANY(item IN n.{prop} WHERE toLower(toString(item)) CONTAINS {param_ref})"
+            )
+
+        # Combine all clauses with OR
+        scalar_search = " OR ".join(scalar_clauses) if scalar_clauses else "false"
+        array_search = " OR ".join(array_clauses) if array_clauses else "false"
+
+        return f"{key_clause} OR ({scalar_search}) OR ({array_search})"
 
 
 class FilterClauseBuilder(ClauseBuilder):
@@ -415,9 +522,8 @@ class FilterClauseBuilder(ClauseBuilder):
         self.criteria = criteria
 
     def build(self) -> QueryComponent:
-        # Always filter by project, param will be added in Neo4jWorker
-        # execute_read_querry method
-        clauses = ["n._project = $project"]
+
+        clauses = []
 
         if self.criteria.exclude_labels:
             # Create individual exclusions for each label joined with OR
@@ -477,12 +583,16 @@ class ReturnClauseBuilder(ClauseBuilder):
 class SearchQueryBuilder:
     """Composes all query components into the final query"""
 
+    def __init__(
+        self, array_properties: List[str] = None, scalar_properties: List[str] = None
+    ):
+        """Initialize with discovered property types."""
+        self.array_properties = array_properties or ["tags", "Array_Property"]
+        self.scalar_properties = scalar_properties or ["name", "description"]
+
     def build_search_query(
         self, criteria: SearchCriteria
     ) -> Tuple[str, Dict[str, Any]]:
-        """
-        Build complete search query ensuring proper WHERE clause construction.
-        """
         query_parts = []
         where_conditions = []
         parameters = {}
@@ -495,11 +605,18 @@ class SearchQueryBuilder:
             where_conditions.append(match_component.parameters["label_clause"])
 
         # Collect field search conditions
-        field_builder = FieldSearchBuilder(criteria.field_searches)
+        field_builder = FieldSearchBuilder(
+            criteria.field_searches,
+            array_properties=self.array_properties,
+            scalar_properties=self.scalar_properties,
+        )
         field_component = field_builder.build()
         if field_component.text:
             where_conditions.append(field_component.text)
             parameters.update(field_component.parameters)
+
+        # Fix: Use literal string for project instead of parameter
+        where_conditions.append("n._project = 'default'")
 
         # Collect filter conditions
         filter_builder = FilterClauseBuilder(criteria)
