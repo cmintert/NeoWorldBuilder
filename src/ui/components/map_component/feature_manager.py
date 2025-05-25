@@ -11,6 +11,7 @@ This replaces the original separate FeatureManager and EnhancedFeatureManager cl
 import json
 from typing import Dict, List, Tuple, Optional, Any, Union
 from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QWidget
 from structlog import get_logger
 
@@ -641,6 +642,90 @@ class UnifiedFeatureManager(QObject):
             + len(self.simple_lines)
             + len(self.branching_lines),
         }
+
+    def add_branch_at_cursor_position(self) -> bool:
+        """Add branch at cursor position to a simple or branching line.
+
+        Returns:
+            True if branch was added successfully, False otherwise
+        """
+        # Get cursor position
+        cursor_pos = QCursor.pos()
+        widget_pos = self.parent_container.mapFromGlobal(cursor_pos)
+
+        # First check simple lines
+        from .line_hit_tester import LineHitTester
+
+        for target_node, line_container in self.simple_lines.items():
+            if hasattr(line_container, "hit_test_point"):
+                point_idx = line_container.hit_test_point(widget_pos)
+                if point_idx >= 0:
+                    # Found a point on a simple line, convert to branching
+                    self._convert_simple_to_branching(target_node, point_idx)
+                    return True
+
+        # Then check branching lines
+        for target_node, branching_container in self.branching_lines.items():
+            if hasattr(branching_container, "_container") and hasattr(
+                branching_container._container, "hit_test_point"
+            ):
+                hit_info = branching_container._container.hit_test_point(widget_pos)
+                if hit_info:
+                    branch_idx, point_idx = hit_info
+                    # Add branch to existing branching line
+                    branching_container._container._add_branch(branch_idx, point_idx)
+                    return True
+
+        return False
+
+    def _convert_simple_to_branching(self, target_node: str, point_idx: int) -> bool:
+        """Convert a simple line to a branching line.
+
+        Args:
+            target_node: Node name of the line
+            point_idx: Index of the point to start the branch from
+
+        Returns:
+            True if conversion successful, False otherwise
+        """
+        if target_node not in self.simple_lines:
+            return False
+
+        line_container = self.simple_lines[target_node]
+
+        # Get original points and style
+        if not hasattr(line_container, "get_points") or not hasattr(
+            line_container, "get_style"
+        ):
+            return False
+
+        original_points = line_container.get_points()
+        style_config = line_container.get_style()
+
+        if point_idx < 0 or point_idx >= len(original_points):
+            return False
+
+        # Create branches - first branch is original line
+        branches = [original_points.copy()]
+
+        # Second branch starts at selected point
+        new_branch = [original_points[point_idx]]
+        branches.append(new_branch)
+
+        # Remove the simple line
+        line_container.deleteLater()
+        del self.simple_lines[target_node]
+
+        # Create branching line
+        self.create_branching_line(target_node, branches, style_config)
+
+        # Emit signal for database update
+        self.geometry_changed.emit(target_node, branches)
+
+        logger.info(
+            f"Converted simple line {target_node} to branching line with branch at point {point_idx}"
+        )
+        return True
 
 
 def integrate_unified_feature_manager(map_tab_instance):

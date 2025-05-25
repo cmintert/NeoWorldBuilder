@@ -262,6 +262,55 @@ class LineContainer(QWidget):
             self.line_pattern = pattern_map.get(pattern.lower(), Qt.PenStyle.SolidLine)
 
         self.update()  # Redraw with new style
+        
+    def get_style(self) -> Dict[str, Any]:
+        """Get the current line style as a dictionary.
+        
+        Returns:
+            Dict with color, width, and pattern
+        """
+        pattern_str = "solid"  # Default
+        if self.line_pattern == Qt.PenStyle.DashLine:
+            pattern_str = "dash"
+        elif self.line_pattern == Qt.PenStyle.DotLine:
+            pattern_str = "dot"
+        elif self.line_pattern == Qt.PenStyle.DashDotLine:
+            pattern_str = "dashdot"
+            
+        return {
+            "color": self.line_color.name(),
+            "width": self.line_width,
+            "pattern": pattern_str
+        }
+        
+    def get_points(self) -> List[Tuple[int, int]]:
+        """Get the original points of this line.
+        
+        Returns:
+            List of (x, y) tuples in original coordinates
+        """
+        return self.geometry.original_points.copy()
+        
+    def hit_test_point(self, pos: QPoint) -> int:
+        """Test if position hits a control point on this line.
+        
+        Args:
+            pos: Mouse position in viewport coordinates
+            
+        Returns:
+            Index of hit point, or -1 if no hit
+        """
+        # Convert to widget-relative coordinates
+        widget_pos = self.mapFromGlobal(self.parent().mapToGlobal(pos))
+        
+        # Generate control points if needed
+        if not self.control_points:
+            self._generate_control_points()
+            
+        # Test hits
+        return self.hit_tester.test_control_point(
+            widget_pos, self.control_points, (self.x(), self.y())
+        )
 
     def set_edit_mode(self, edit_mode: bool) -> None:
         """Enable or disable edit mode for this line.
@@ -534,21 +583,43 @@ class LineContainer(QWidget):
 
     def _show_control_point_context_menu(self, point_index: int, pos: QPoint) -> None:
         """Show context menu for control point operations."""
-        # Don't allow deletion if we only have minimum required points
-        if self.geometry.point_count() <= self.MIN_LINE_POINTS:
-            print(
-                f"Cannot delete point - line must have at least {self.MIN_LINE_POINTS} points"
-            )
-            return
-
         menu = QMenu(self)
 
-        delete_action = menu.addAction(f"Delete Point {point_index}")
-        delete_action.triggered.connect(lambda: self._delete_control_point(point_index))
+        # Only allow deletion if we have enough points
+        if self.geometry.point_count() > self.MIN_LINE_POINTS:
+            delete_action = menu.addAction(f"Delete Point {point_index}")
+            delete_action.triggered.connect(lambda: self._delete_control_point(point_index))
+
+        # Add branch option
+        add_branch_action = menu.addAction("Add Branch")
+        add_branch_action.triggered.connect(lambda: self._request_add_branch(point_index))
 
         # Show menu at the clicked position
         global_pos = self.mapToGlobal(pos)
         menu.exec(global_pos)
+        
+    def _request_add_branch(self, point_index: int) -> None:
+        """Request to add a branch at the specified point.
+        
+        This will convert this simple line to a branching line.
+        """
+        print(f"Requesting to add branch at point {point_index} for line {self.target_node}")
+        
+        # Find parent controller and feature manager
+        parent = self.parent()
+        while parent and not hasattr(parent, "unified_manager") and not hasattr(parent, "feature_manager"):
+            parent = parent.parent()
+            
+        if parent:
+            feature_manager = getattr(parent, "unified_manager", None) or getattr(parent, "feature_manager", None)
+            if feature_manager and hasattr(feature_manager, "_convert_simple_to_branching"):
+                # Convert to branching line
+                feature_manager._convert_simple_to_branching(self.target_node, point_index)
+                print(f"Converted {self.target_node} to branching line with branch at point {point_index}")
+            else:
+                print("Feature manager not found or doesn't support conversion")
+        else:
+            print("Could not find parent with feature manager")
 
     def _delete_control_point(self, point_index: int) -> None:
         """Delete a control point."""

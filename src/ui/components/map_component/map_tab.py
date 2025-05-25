@@ -653,23 +653,28 @@ class MapTab(QWidget):
     def handle_viewport_key_press(self, event: QKeyEvent) -> None:
         """Handle key press events from the viewport."""
         # For B key in branching line mode, get current mouse position
-        if event.key() == Qt.Key.Key_B and self.branching_line_drawing_active:
-            # Get current mouse position relative to viewport
-            mouse_pos = self.image_label.mapFromGlobal(QCursor.pos())
+        if event.key() == Qt.Key.Key_B:
+            if self.branching_line_drawing_active:
+                # Get current mouse position relative to viewport
+                mouse_pos = self.image_label.mapFromGlobal(QCursor.pos())
 
-            # Convert to original coordinates
-            coordinates = self.image_label._get_original_coordinates(mouse_pos)
-            if coordinates:
-                original_x, original_y = coordinates
-                # Also get scaled coordinates
-                scaled_x = original_x * self.current_scale
-                scaled_y = original_y * self.current_scale
+                # Convert to original coordinates
+                coordinates = self.image_label._get_original_coordinates(mouse_pos)
+                if coordinates:
+                    original_x, original_y = coordinates
+                    # Also get scaled coordinates
+                    scaled_x = original_x * self.current_scale
+                    scaled_y = original_y * self.current_scale
 
-                # Call a new method on drawing_decap manager with these coordinates
-                if self.drawing_manager.start_branch_from_position(
-                    original_x, original_y, scaled_x, scaled_y
-                ):
-                    return
+                    # Call a new method on drawing_decap manager with these coordinates
+                    if self.drawing_manager.start_branch_from_position(
+                        original_x, original_y, scaled_x, scaled_y
+                    ):
+                        return
+            elif self.edit_mode_active:
+                # Handle adding branch in edit mode
+                self.feature_manager.add_branch_at_cursor_position()
+                return
 
         # Try normal key handling in drawing_decap manager
         if self.drawing_manager.handle_key_press(event.key()):

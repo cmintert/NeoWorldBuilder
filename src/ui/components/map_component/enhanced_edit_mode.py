@@ -587,19 +587,71 @@ class EnhancedBranchingLineContainer(QWidget):
     
     def _show_context_menu(self, branch_idx: int, point_idx: int, pos: QPoint):
         """Show context menu for point operations."""
-        # Check if point can be deleted
-        branch = self.geometry.branches[branch_idx]
-        if len(branch) <= 2:
-            return  # Can't delete, would make branch too short
-        
         menu = QMenu(self)
-        delete_action = menu.addAction("Delete Point")
-        delete_action.triggered.connect(
-            lambda: self._delete_point(branch_idx, point_idx)
+        
+        # Delete point option (existing)
+        branch = self.geometry.branches[branch_idx]
+        if len(branch) > 2:  # Only allow deletion if branch has enough points
+            delete_action = menu.addAction("Delete Point")
+            delete_action.triggered.connect(
+                lambda: self._delete_point(branch_idx, point_idx)
+            )
+        
+        # Add branch option
+        add_branch_action = menu.addAction("Add Branch")
+        add_branch_action.triggered.connect(
+            lambda: self._add_branch(branch_idx, point_idx)
         )
         
         global_pos = self.mapToGlobal(pos)
         menu.exec(global_pos)
+        
+    def _add_branch(self, branch_idx: int, point_idx: int):
+        """Add a new branch from the specified point."""
+        # Get current branches
+        branches = self.geometry.original_branches
+        
+        # Find the point to branch from
+        if branch_idx >= len(branches) or point_idx >= len(branches[branch_idx]):
+            return
+        
+        branch_from_point = branches[branch_idx][point_idx]
+        
+        # Create new branch with starting point
+        new_branch = [branch_from_point]
+        branches.append(new_branch)
+        
+        # Update the geometry
+        self.geometry = BranchingLineGeometry(branches)
+        self._update_geometry()
+        self.update()
+        
+        # Emit change signal
+        self.geometry_changed.emit(self.target_node, branches)
+        
+        logger.info(f"Added new branch to {self.target_node} starting from point {point_idx} in branch {branch_idx}")
+        
+    def hit_test_point(self, pos: QPoint) -> Optional[Tuple[int, int]]:
+        """Test if position hits a control point on this branching line.
+        
+        Args:
+            pos: Mouse position in viewport coordinates
+            
+        Returns:
+            Tuple of (branch_idx, point_idx) or None if no hit
+        """
+        # Convert to widget-relative coordinates
+        widget_pos = self.mapFromGlobal(self.parent().mapToGlobal(pos))
+        
+        # Use existing hit tester
+        branch_idx, point_idx = self.hit_tester.test_control_points(
+            widget_pos, self.geometry, (self.x(), self.y())
+        )
+        
+        if branch_idx >= 0 and point_idx >= 0:
+            return (branch_idx, point_idx)
+            
+        return None
     
     def _delete_point(self, branch_idx: int, point_idx: int):
         """Delete a point from the specified branch."""
