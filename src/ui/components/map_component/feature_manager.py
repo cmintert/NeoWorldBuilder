@@ -645,6 +645,26 @@ class UnifiedFeatureManager(QObject):
             + len(self.branching_lines),
         }
 
+    def get_line_containers(self) -> Dict[str, Any]:
+        """Get all line containers (both simple and branching).
+        
+        Returns:
+            Dictionary mapping target_node to line container
+            Note: For branching lines, it returns the actual LineContainer
+                 by accessing the _container attribute
+        """
+        all_lines = {}
+        all_lines.update(self.simple_lines)
+        
+        # For branching lines, add the inner _container which has the actual geometry
+        for target_node, container in self.branching_lines.items():
+            if hasattr(container, '_container'):
+                all_lines[target_node] = container._container
+            else:
+                all_lines[target_node] = container
+                
+        return all_lines
+
 
 def integrate_unified_feature_manager(map_tab_instance):
     """Integrate unified feature manager into existing MapTab instance.

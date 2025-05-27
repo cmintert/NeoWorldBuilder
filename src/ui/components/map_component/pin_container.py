@@ -225,6 +225,12 @@ class PinContainer(QWidget):
         Args:
             event: The mouse press event.
         """
+        # Check if parent map tab is in branch creation mode - if so, ignore this event
+        map_tab = self._find_map_tab()
+        if map_tab and getattr(map_tab, 'branch_creation_mode', False):
+            event.ignore()  # Let the event pass through to parent handlers
+            return
+            
         if event.button() == Qt.MouseButton.LeftButton:
             if self.edit_mode:
                 # Start dragging in edit mode

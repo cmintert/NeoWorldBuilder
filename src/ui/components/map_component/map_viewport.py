@@ -8,6 +8,7 @@ from PyQt6.QtGui import (
     QPainter,
     QPen,
     QColor,
+    QBrush,
 )
 from PyQt6.QtWidgets import QLabel, QWidget
 from structlog import get_logger
@@ -85,16 +86,17 @@ class MapViewport(QLabel):
 
         # Draw temporary line if parent is in line drawing_decap mode
         if self.parent_map_tab and hasattr(self.parent_map_tab, "drawing_manager"):
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
             if self.parent_map_tab.drawing_manager.is_drawing_line:
-                painter = QPainter(self)
-                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
                 self.parent_map_tab.drawing_manager.draw_temporary_line(painter)
             elif self.parent_map_tab.drawing_manager.is_drawing_branching_line:
-                painter = QPainter(self)
-                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
                 self.parent_map_tab.drawing_manager.draw_temporary_branching_line(
                     painter
                 )
+            elif getattr(self.parent_map_tab, "branch_creation_mode", False):
+                self._draw_branch_creation_feedback(painter)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Handle mouse release to stop panning."""
@@ -131,6 +133,10 @@ class MapViewport(QLabel):
             else:
                 self.coordinate_label.hide()
 
+        # Update branch creation feedback if active
+        if getattr(self.parent_map_tab, "branch_creation_mode", False):
+            self.update()  # Trigger repaint for branch creation feedback
+
     def wheelEvent(self, event: QWheelEvent) -> None:
         """Handle mouse wheel for zooming."""
         delta = event.angleDelta().y()
@@ -139,10 +145,14 @@ class MapViewport(QLabel):
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events."""
+        logger.info(f"MapViewport received key press: {event.key()}")
+        
         # Delegate key handling to parent for mode-specific behavior
         if self.parent_map_tab:
+            logger.info(f"Delegating key press to parent_map_tab")
             self.parent_map_tab.handle_viewport_key_press(event)
         else:
+            logger.warning("No parent_map_tab to delegate key press to")
             super().keyPressEvent(event)
 
     def _get_original_coordinates(
@@ -163,7 +173,7 @@ class MapViewport(QLabel):
         # Get original pixmap and current scale for transformation
         original_pixmap = None
         current_scale = 1.0
-        
+
         if self._has_image_manager_with_original():
             original_pixmap = self.parent_map_tab.image_manager.original_pixmap
         else:
@@ -171,8 +181,12 @@ class MapViewport(QLabel):
 
         # Use coordinate transformer utility
         return CoordinateTransformer.widget_to_original_coordinates(
-            widget_pos, pixmap, self.width(), self.height(),
-            original_pixmap, current_scale
+            widget_pos,
+            pixmap,
+            self.width(),
+            self.height(),
+            original_pixmap,
+            current_scale,
         )
 
     def _has_image_manager_with_original(self) -> bool:
@@ -196,7 +210,38 @@ class MapViewport(QLabel):
             or getattr(self.parent_map_tab, "line_drawing_active", False)
             or getattr(self.parent_map_tab, "branching_line_drawing_active", False)
             or getattr(self.parent_map_tab, "edit_mode_active", False)
+            or getattr(self.parent_map_tab, "branch_creation_mode", False)
         )
+
+    def _draw_branch_creation_feedback(self, painter: QPainter) -> None:
+        """Draw visual feedback for branch creation mode."""
+        if not hasattr(self.parent_map_tab, "_branch_creation_start_point"):
+            return
+
+        start_point = self.parent_map_tab._branch_creation_start_point
+
+        # Convert start point to scaled coordinates
+        scaled_start_x = start_point[0] * self.parent_map_tab.current_scale
+        scaled_start_y = start_point[1] * self.parent_map_tab.current_scale
+
+        # Get current mouse position
+        mouse_pos = self.mapFromGlobal(QCursor.pos())
+
+        # Set up pen for temporary branch line
+        pen = QPen(QColor("#FF8800"))  # Orange color for branch creation
+        pen.setWidth(3)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        painter.setPen(pen)
+
+        # Draw temporary line from start point to current mouse position
+        painter.drawLine(
+            int(scaled_start_x), int(scaled_start_y), mouse_pos.x(), mouse_pos.y()
+        )
+
+        # Draw start point indicator
+        painter.setBrush(QBrush(QColor("#FF8800")))
+        painter.setPen(QPen(QColor("#FFFFFF"), 2))
+        painter.drawEllipse(int(scaled_start_x - 6), int(scaled_start_y - 6), 12, 12)
 
     def set_cursor_for_mode(self, mode: str) -> None:
         """Set cursor based on current interaction mode.

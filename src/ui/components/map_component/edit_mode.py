@@ -184,6 +184,156 @@ class UnifiedLineGeometry:
     def original_points(self) -> List[Tuple[int, int]]:
         """Get original points for simple lines (first branch only)."""
         return self.branches[0] if self.branches else []
+    
+    def create_branch_from_point(self, branch_idx: int, point_idx: int, end_point: Tuple[int, int]) -> bool:
+        """Create a new branch starting from an existing point.
+        
+        Args:
+            branch_idx: Index of branch containing the start point
+            point_idx: Index of point within the branch
+            end_point: End point for the new branch
+            
+        Returns:
+            True if branch was created successfully, False otherwise
+        """
+        if (branch_idx >= len(self.branches) or 
+            point_idx >= len(self.branches[branch_idx])):
+            return False
+        
+        # Get the starting point
+        start_point = self.branches[branch_idx][point_idx]
+        
+        # Create new branch
+        new_branch = [start_point, end_point]
+        self.branches.append(new_branch)
+        
+        # Mark as branching line
+        self.is_branching = True
+        
+        # Update shared points and scaled branches
+        self._update_shared_points()
+        self._update_scaled_branches()
+        
+        return True
+    
+    def create_branch_from_position(self, start_point: Tuple[int, int], end_point: Tuple[int, int]) -> bool:
+        """Create a new branch starting from a position (may insert point if needed).
+        
+        Args:
+            start_point: Starting point for the new branch
+            end_point: End point for the new branch
+            
+        Returns:
+            True if branch was created successfully, False otherwise
+        """
+        # Find the nearest existing point to start_point
+        nearest_point = None
+        nearest_distance = float('inf')
+        
+        for branch in self.branches:
+            for point in branch:
+                dx = point[0] - start_point[0]
+                dy = point[1] - start_point[1]
+                distance = dx * dx + dy * dy
+                
+                if distance < nearest_distance:
+                    nearest_distance = distance
+                    nearest_point = point
+        
+        # If we have a nearby point (within 10 pixels), use it
+        if nearest_point and nearest_distance <= 100:  # 10 pixels squared
+            start_point = nearest_point
+        else:
+            # Insert the start point into the nearest line segment
+            if not self._insert_point_at_position(start_point):
+                # If insertion failed, just add it to the first branch
+                if self.branches:
+                    self.branches[0].append(start_point)
+                else:
+                    self.branches.append([start_point])
+        
+        # Create new branch
+        new_branch = [start_point, end_point]
+        self.branches.append(new_branch)
+        
+        # Mark as branching line
+        self.is_branching = True
+        
+        # Update shared points and scaled branches
+        self._update_shared_points()
+        self._update_scaled_branches()
+        
+        return True
+    
+    def _insert_point_at_position(self, point: Tuple[int, int]) -> bool:
+        """Insert a point at the nearest position on an existing line segment.
+        
+        Args:
+            point: Point to insert
+            
+        Returns:
+            True if point was inserted, False otherwise
+        """
+        min_distance = float('inf')
+        best_branch_idx = -1
+        best_segment_idx = -1
+        
+        # Find the nearest line segment
+        for branch_idx, branch in enumerate(self.branches):
+            if len(branch) < 2:
+                continue
+                
+            for segment_idx in range(len(branch) - 1):
+                p1 = branch[segment_idx]
+                p2 = branch[segment_idx + 1]
+                
+                # Calculate distance to line segment
+                distance, _ = self._point_to_line_distance(point, p1, p2)
+                
+                if distance < min_distance:
+                    min_distance = distance
+                    best_branch_idx = branch_idx
+                    best_segment_idx = segment_idx
+        
+        # If we found a nearby segment (within 20 pixels), insert the point
+        if min_distance <= 20 and best_branch_idx >= 0:
+            insert_idx = best_segment_idx + 1
+            self.branches[best_branch_idx].insert(insert_idx, point)
+            return True
+        
+        return False
+    
+    def _point_to_line_distance(self, point: Tuple[int, int], 
+                               line_start: Tuple[int, int], 
+                               line_end: Tuple[int, int]) -> Tuple[float, Tuple[float, float]]:
+        """Calculate distance from point to line segment.
+        
+        Returns:
+            Tuple of (distance, closest_point_on_line)
+        """
+        px, py = point
+        x1, y1 = line_start
+        x2, y2 = line_end
+        
+        # Vector from line_start to line_end
+        dx = x2 - x1
+        dy = y2 - y1
+        
+        # If line segment has zero length
+        if dx == 0 and dy == 0:
+            return ((px - x1) ** 2 + (py - y1) ** 2) ** 0.5, (x1, y1)
+        
+        # Parameter t represents position along line segment (0 to 1)
+        t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
+        
+        # Closest point on line segment
+        closest_x = x1 + t * dx
+        closest_y = y1 + t * dy
+        
+        # Distance from point to closest point on line
+        distance = ((px - closest_x) ** 2 + (py - closest_y) ** 2) ** 0.5
+        
+        return distance, (closest_x, closest_y)
 
 
 class UnifiedHitTester:
@@ -335,8 +485,15 @@ class UnifiedLineRenderer:
                 painter.drawLine(x1, y1, x2, y2)
     
     def draw_control_points(self, painter: QPainter, geometry: UnifiedLineGeometry, 
-                           widget_offset: Tuple[int, int]):
-        """Draw control points with visual distinction for shared points."""
+                           widget_offset: Tuple[int, int], highlight_point=None):
+        """Draw control points with visual distinction for shared points.
+        
+        Args:
+            painter: QPainter instance to draw with
+            geometry: Line geometry to render
+            widget_offset: Offset of widget (x, y)
+            highlight_point: Optional tuple of (branch_idx, point_idx) to highlight
+        """
         widget_x, widget_y = widget_offset
         
         # Track shared points for branching lines
@@ -367,8 +524,18 @@ class UnifiedLineRenderer:
                 x = point[0] - widget_x
                 y = point[1] - widget_y
                 
+                # Check if this is the point to highlight (for branch creation)
+                is_highlight = (highlight_point is not None and 
+                               highlight_point[0] == branch_idx and 
+                               highlight_point[1] == point_idx)
+                
                 # Different colors for shared vs regular points
-                if point in shared_points:
+                if is_highlight:
+                    # Highlighted point (selected for branch creation) is larger and bright red
+                    painter.setBrush(QBrush(QColor("#FF0000")))
+                    painter.setPen(QPen(QColor("#FFFFFF"), 2))
+                    radius = UnifiedHitTester.SHARED_POINT_RADIUS + 2  # Slightly larger
+                elif point in shared_points:
                     # Shared points are larger and red
                     painter.setBrush(QBrush(QColor("#FF0000")))
                     painter.setPen(QPen(QColor("#FFFFFF"), 2))

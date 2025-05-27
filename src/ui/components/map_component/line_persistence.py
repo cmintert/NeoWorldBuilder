@@ -9,18 +9,57 @@ class LineGeometryPersistence:
     def __init__(self, target_node: str):
         self.target_node = target_node
     
-    def update_geometry(self, original_points: List[Tuple[int, int]], controller) -> None:
+    def update_geometry(self, original_points_or_branches, controller) -> None:
         """Update geometry in the relationships table.
         
         Args:
-            original_points: List of original coordinate points
+            original_points_or_branches: List of points for simple line, or list of branches for branching line
             controller: The application controller
         """
         try:
             # Convert updated points back to WKT
             from utils.geometry_handler import GeometryHandler
             
-            new_wkt = GeometryHandler.create_line(original_points)
+            # Validate and process the geometry data
+            if not original_points_or_branches:
+                print("No geometry data provided")
+                return
+            
+            # Check if this is a simple line or branching line
+            if isinstance(original_points_or_branches[0], list):
+                # Branching line - list of branches
+                # Validate that branches contain coordinate tuples
+                valid_branches = []
+                for branch in original_points_or_branches:
+                    if branch and len(branch) >= 2:
+                        # Ensure each point is a valid coordinate tuple
+                        valid_branch = []
+                        for point in branch:
+                            if isinstance(point, (tuple, list)) and len(point) >= 2:
+                                valid_branch.append((float(point[0]), float(point[1])))
+                        if len(valid_branch) >= 2:
+                            valid_branches.append(valid_branch)
+                
+                if not valid_branches:
+                    print("No valid branches found")
+                    return
+                    
+                new_wkt = GeometryHandler.create_multi_line(valid_branches)
+                original_points_or_branches = valid_branches  # Use validated data
+            else:
+                # Simple line - list of points
+                # Validate that we have coordinate tuples
+                valid_points = []
+                for point in original_points_or_branches:
+                    if isinstance(point, (tuple, list)) and len(point) >= 2:
+                        valid_points.append((float(point[0]), float(point[1])))
+                
+                if len(valid_points) < 2:
+                    print("Insufficient valid points for line")
+                    return
+                    
+                new_wkt = GeometryHandler.create_line(valid_points)
+                original_points_or_branches = valid_points  # Use validated data
             
             # Find the parent map tab to access the controller
             if not controller:
@@ -56,10 +95,19 @@ class LineGeometryPersistence:
                     properties = json.loads(props_item.text())
                     properties["geometry"] = new_wkt
                     
+                    # Update geometry type based on what we're storing
+                    if original_points_or_branches and isinstance(original_points_or_branches[0], list):
+                        properties["geometry_type"] = "MultiLineString"
+                        properties["branch_count"] = len(original_points_or_branches)
+                    else:
+                        properties["geometry_type"] = "LineString"
+                        # Remove branch_count if it exists
+                        properties.pop("branch_count", None)
+                    
                     # Update the table item
                     props_item.setText(json.dumps(properties))
                     
-                    print(f"Updated geometry for {self.target_node}")
+                    print(f"Updated geometry for {self.target_node} as {properties['geometry_type']}")
                     break
                     
         except Exception as e:
