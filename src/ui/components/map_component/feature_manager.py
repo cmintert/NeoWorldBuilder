@@ -614,11 +614,16 @@ class UnifiedFeatureManager(QObject):
         self.branching_lines.clear()
 
     def set_edit_mode(self, active: bool) -> None:
-        """Set edit mode for all line features.
+        """Set edit mode for all features.
 
         Args:
             active: Whether edit mode should be active
         """
+        # Set edit mode for pins
+        for pin_container in self.pins.values():
+            pin_container.set_edit_mode(active)
+        
+        # Set edit mode for lines
         for line_container in self.simple_lines.values():
             line_container.set_edit_mode(active)
 

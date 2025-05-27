@@ -89,6 +89,9 @@ class LineContainer(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
         self.setMouseTracking(True)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        
+        # Track cursor state
+        self._current_cursor = Qt.CursorShape.PointingHandCursor
 
         # Set container to be transparent
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -268,6 +271,15 @@ class LineContainer(QWidget):
         """
         self.edit_mode = edit_mode
         print(f"Line {self.target_node}: Edit mode = {edit_mode}")
+        
+        # Update cursor based on edit mode
+        if edit_mode:
+            self.setCursor(QCursor(Qt.CursorShape.CrossCursor))
+            self._current_cursor = Qt.CursorShape.CrossCursor
+        else:
+            self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+            self._current_cursor = Qt.CursorShape.PointingHandCursor
+        
         self.update()  # Redraw to show any visual changes
 
     def _get_style_config(self) -> Dict[str, Any]:
@@ -297,6 +309,15 @@ class LineContainer(QWidget):
     def leaveEvent(self, event):
         """Hide label when mouse leaves the line area."""
         self.text_label.hide()
+        
+        # Reset cursor when leaving the line area
+        if self.edit_mode:
+            self.setCursor(QCursor(Qt.CursorShape.CrossCursor))
+            self._current_cursor = Qt.CursorShape.CrossCursor
+        else:
+            self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+            self._current_cursor = Qt.CursorShape.PointingHandCursor
+        
         self.update()
 
     def paintEvent(self, event):
@@ -367,7 +388,27 @@ class LineContainer(QWidget):
         event.accept()
 
     def mouseMoveEvent(self, event):
-        """Handle mouse move events for control point dragging."""
+        """Handle mouse move events for control point dragging and cursor changes."""
+        # Handle cursor changes for hovering over control points in edit mode
+        if self.edit_mode and not self.dragging_control_point:
+            widget_offset = (self.x(), self.y())
+            branch_idx, point_idx = self.hit_tester.test_control_points(
+                event.pos(), self.geometry, widget_offset
+            )
+            
+            if branch_idx >= 0 and point_idx >= 0:
+                # Hovering over a control point
+                if self._current_cursor != Qt.CursorShape.SizeAllCursor:
+                    self.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
+                    self._current_cursor = Qt.CursorShape.SizeAllCursor
+            else:
+                # Not hovering over a control point
+                desired_cursor = Qt.CursorShape.PointingHandCursor if not self.edit_mode else Qt.CursorShape.CrossCursor
+                if self._current_cursor != desired_cursor:
+                    self.setCursor(QCursor(desired_cursor))
+                    self._current_cursor = desired_cursor
+        
+        # Handle dragging
         if self.dragging_control_point and self.dragged_point_index >= 0:
             # Calculate the new position for the control point
             new_pos = event.pos()
