@@ -4,7 +4,7 @@ from PyQt6.QtGui import QPainter, QColor, QCursor
 from PyQt6.QtWidgets import QWidget, QLabel, QMenu
 from structlog import get_logger
 
-from .consolidated_edit_mode import UnifiedLineGeometry, UnifiedHitTester, UnifiedLineRenderer
+from .edit_mode import UnifiedLineGeometry, UnifiedHitTester, UnifiedLineRenderer
 from .line_persistence import LineGeometryPersistence
 from .utils.coordinate_transformer import CoordinateTransformer
 
@@ -41,11 +41,11 @@ class LineContainer(QWidget):
     MIN_LINE_POINTS = 2
 
     line_clicked = pyqtSignal(str)
-    geometry_changed = pyqtSignal(str, list)  # target_node, branches (for compatibility)
+    geometry_changed = pyqtSignal(
+        str, list
+    )  # target_node, branches (for compatibility)
 
-    def __init__(
-        self, target_node: str, points_or_branches, parent=None, config=None
-    ):
+    def __init__(self, target_node: str, points_or_branches, parent=None, config=None):
         """Initialize the line container.
 
         Args:
@@ -89,7 +89,7 @@ class LineContainer(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
         self.setMouseTracking(True)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        
+
         # Track cursor state
         self._current_cursor = Qt.CursorShape.PointingHandCursor
 
@@ -271,7 +271,7 @@ class LineContainer(QWidget):
         """
         self.edit_mode = edit_mode
         print(f"Line {self.target_node}: Edit mode = {edit_mode}")
-        
+
         # Update cursor based on edit mode
         if edit_mode:
             self.setCursor(QCursor(Qt.CursorShape.CrossCursor))
@@ -279,7 +279,7 @@ class LineContainer(QWidget):
         else:
             self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
             self._current_cursor = Qt.CursorShape.PointingHandCursor
-        
+
         self.update()  # Redraw to show any visual changes
 
     def _get_style_config(self) -> Dict[str, Any]:
@@ -309,7 +309,7 @@ class LineContainer(QWidget):
     def leaveEvent(self, event):
         """Hide label when mouse leaves the line area."""
         self.text_label.hide()
-        
+
         # Reset cursor when leaving the line area
         if self.edit_mode:
             self.setCursor(QCursor(Qt.CursorShape.CrossCursor))
@@ -317,7 +317,7 @@ class LineContainer(QWidget):
         else:
             self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
             self._current_cursor = Qt.CursorShape.PointingHandCursor
-        
+
         self.update()
 
     def paintEvent(self, event):
@@ -336,9 +336,7 @@ class LineContainer(QWidget):
         )
 
         if self.edit_mode:
-            self.renderer.draw_control_points(
-                painter, self.geometry, widget_offset
-            )
+            self.renderer.draw_control_points(painter, self.geometry, widget_offset)
 
     def mousePressEvent(self, event):
         """Handle mouse press events for line selection and control point operations."""
@@ -359,8 +357,10 @@ class LineContainer(QWidget):
                 return
 
             # Then check line segment hits for point insertion
-            branch_idx, segment_idx, insertion_point = self.hit_tester.test_line_segments(
-                event.pos(), self.geometry, widget_offset
+            branch_idx, segment_idx, insertion_point = (
+                self.hit_tester.test_line_segments(
+                    event.pos(), self.geometry, widget_offset
+                )
             )
             if branch_idx >= 0 and segment_idx >= 0:
                 self._insert_point_at_segment(branch_idx, segment_idx, insertion_point)
@@ -374,7 +374,9 @@ class LineContainer(QWidget):
                 event.pos(), self.geometry, widget_offset
             )
             if branch_idx >= 0 and point_idx >= 0:
-                self._show_control_point_context_menu(branch_idx, point_idx, event.pos())
+                self._show_control_point_context_menu(
+                    branch_idx, point_idx, event.pos()
+                )
                 event.accept()
                 return
 
@@ -395,7 +397,7 @@ class LineContainer(QWidget):
             branch_idx, point_idx = self.hit_tester.test_control_points(
                 event.pos(), self.geometry, widget_offset
             )
-            
+
             if branch_idx >= 0 and point_idx >= 0:
                 # Hovering over a control point
                 if self._current_cursor != Qt.CursorShape.SizeAllCursor:
@@ -403,11 +405,15 @@ class LineContainer(QWidget):
                     self._current_cursor = Qt.CursorShape.SizeAllCursor
             else:
                 # Not hovering over a control point
-                desired_cursor = Qt.CursorShape.PointingHandCursor if not self.edit_mode else Qt.CursorShape.CrossCursor
+                desired_cursor = (
+                    Qt.CursorShape.PointingHandCursor
+                    if not self.edit_mode
+                    else Qt.CursorShape.CrossCursor
+                )
                 if self._current_cursor != desired_cursor:
                     self.setCursor(QCursor(desired_cursor))
                     self._current_cursor = desired_cursor
-        
+
         # Handle dragging
         if self.dragging_control_point and self.dragged_point_index >= 0:
             # Calculate the new position for the control point
@@ -433,28 +439,36 @@ class LineContainer(QWidget):
             if map_tab and hasattr(map_tab, "image_label"):
                 current_pixmap = map_tab.image_label.pixmap()
                 if current_pixmap:
-                    original_coords = CoordinateTransformer.scaled_to_original_coordinates(
-                        map_x, map_y, current_pixmap, original_pixmap, current_scale
+                    original_coords = (
+                        CoordinateTransformer.scaled_to_original_coordinates(
+                            map_x, map_y, current_pixmap, original_pixmap, current_scale
+                        )
                     )
                     original_x, original_y = original_coords
-                    
+
                     # Update the geometry with the new point
                     self.geometry.update_point(
-                        self.dragged_branch_index, self.dragged_point_index, (original_x, original_y)
+                        self.dragged_branch_index,
+                        self.dragged_point_index,
+                        (original_x, original_y),
                     )
                 else:
                     # Fallback to simple scaling if pixmap not available
                     original_x = int(map_x / current_scale)
                     original_y = int(map_y / current_scale)
                     self.geometry.update_point(
-                        self.dragged_branch_index, self.dragged_point_index, (original_x, original_y)
+                        self.dragged_branch_index,
+                        self.dragged_point_index,
+                        (original_x, original_y),
                     )
             else:
                 # Fallback to simple scaling if map tab not available
                 original_x = int(map_x / current_scale)
                 original_y = int(map_y / current_scale)
                 self.geometry.update_point(
-                    self.dragged_branch_index, self.dragged_point_index, (original_x, original_y)
+                    self.dragged_branch_index,
+                    self.dragged_point_index,
+                    (original_x, original_y),
                 )
 
             # Update widget geometry and trigger repaint
@@ -479,9 +493,11 @@ class LineContainer(QWidget):
                 self.persistence.update_geometry(
                     self.geometry.original_points, controller
                 )
-            
+
             # Emit geometry changed signal for branching line compatibility
-            self.geometry_changed.emit(self.target_node, self.geometry.original_branches)
+            self.geometry_changed.emit(
+                self.target_node, self.geometry.original_branches
+            )
 
             # Reset drag state
             self.dragging_control_point = False
@@ -551,7 +567,9 @@ class LineContainer(QWidget):
 
         print(f"Point inserted. Line now has {self.geometry.point_count()} points")
 
-    def _show_control_point_context_menu(self, branch_index: int, point_index: int, pos: QPoint) -> None:
+    def _show_control_point_context_menu(
+        self, branch_index: int, point_index: int, pos: QPoint
+    ) -> None:
         """Show context menu for control point operations."""
         # Don't allow deletion if we only have minimum required points
         if self.geometry.point_count() <= self.MIN_LINE_POINTS:
@@ -563,7 +581,9 @@ class LineContainer(QWidget):
         menu = QMenu(self)
 
         delete_action = menu.addAction(f"Delete Point {point_index}")
-        delete_action.triggered.connect(lambda: self._delete_control_point(branch_index, point_index))
+        delete_action.triggered.connect(
+            lambda: self._delete_control_point(branch_index, point_index)
+        )
 
         # Show menu at the clicked position
         global_pos = self.mapToGlobal(pos)
