@@ -4,10 +4,9 @@ from PyQt6.QtGui import QPainter, QColor, QCursor
 from PyQt6.QtWidgets import QWidget, QLabel, QMenu
 from structlog import get_logger
 
-from .line_geometry import LineGeometry
-from .line_hit_tester import LineHitTester
-from .line_renderer import LineRenderer
+from .consolidated_edit_mode import UnifiedLineGeometry, UnifiedHitTester, UnifiedLineRenderer
 from .line_persistence import LineGeometryPersistence
+from .utils.coordinate_transformer import CoordinateTransformer
 
 logger = get_logger(__name__)
 
@@ -42,25 +41,25 @@ class LineContainer(QWidget):
     MIN_LINE_POINTS = 2
 
     line_clicked = pyqtSignal(str)
+    geometry_changed = pyqtSignal(str, list)  # target_node, branches (for compatibility)
 
     def __init__(
-        self, target_node: str, points: List[Tuple[int, int]], parent=None, config=None
+        self, target_node: str, points_or_branches, parent=None, config=None
     ):
         """Initialize the line container.
 
         Args:
             target_node (str): The node name this line represents.
-            points (List[Tuple[int, int]]): List of coordinate points making up the line.
+            points_or_branches: List of coordinate points for simple lines, or list of branches for branching lines.
             parent (QWidget, optional): Parent widget. Defaults to None.
             config (Config, optional): App configuration. Defaults to None.
         """
         super().__init__(parent)
 
-        # Initialize separated concerns
-        self.geometry = LineGeometry(points)
-        self.geometry.set_parent_container(self)
-        self.hit_tester = LineHitTester()
-        self.renderer = LineRenderer(config)
+        # Initialize unified components
+        self.geometry = UnifiedLineGeometry(points_or_branches)
+        self.hit_tester = UnifiedHitTester()
+        self.renderer = UnifiedLineRenderer(config)
         self.persistence = LineGeometryPersistence(target_node)
 
         # Core properties
@@ -74,10 +73,10 @@ class LineContainer(QWidget):
 
         # Edit mode state
         self.edit_mode = False
-        self.control_points = []
 
         # Drag state
         self.dragging_control_point = False
+        self.dragged_branch_index = 0  # For simple lines, always branch 0
         self.dragged_point_index = -1
         self.drag_start_pos = QPoint()
 
@@ -128,7 +127,7 @@ class LineContainer(QWidget):
 
         # Add margin
         margin = max(
-            int(self.WIDGET_MARGIN * self.geometry.scale), self.MIN_WIDGET_MARGIN
+            int(self.WIDGET_MARGIN * self.geometry._scale), self.MIN_WIDGET_MARGIN
         )
         self.setGeometry(
             final_min_x - margin,
@@ -146,7 +145,7 @@ class LineContainer(QWidget):
     def update_label_style(self) -> None:
         """Update label style based on current scale."""
         font_size = max(
-            int(self.LABEL_FONT_SIZE_BASE * self.geometry.scale),
+            int(self.LABEL_FONT_SIZE_BASE * self.geometry._scale),
             self.MIN_LABEL_FONT_SIZE,
         )
         self.text_label.setStyleSheet(
@@ -154,7 +153,7 @@ class LineContainer(QWidget):
             QLabel {{
                 background-color: rgba(0, 0, 0, 0);
                 color: white;
-                padding: {max(int(self.LABEL_PADDING_BASE * self.geometry.scale), self.MIN_LABEL_PADDING)}px {max(int(self.LABEL_PADDING_HORIZONTAL_BASE * self.geometry.scale), self.MIN_LABEL_PADDING_HORIZONTAL)}px;
+                padding: {max(int(self.LABEL_PADDING_BASE * self.geometry._scale), self.MIN_LABEL_PADDING)}px {max(int(self.LABEL_PADDING_HORIZONTAL_BASE * self.geometry._scale), self.MIN_LABEL_PADDING_HORIZONTAL)}px;
                 border-radius: 3px;
                 font-size: {font_size}pt;
             }}
@@ -173,9 +172,7 @@ class LineContainer(QWidget):
         # Let the geometry handle all the scaling logic
         self.geometry.set_scale(scale)
 
-        # Update control points if in edit mode
-        if self.edit_mode:
-            self._generate_control_points()
+        # No need to generate control points - unified renderer handles this
 
         # Update label style and geometry
         self.update_label_style()
@@ -271,35 +268,13 @@ class LineContainer(QWidget):
         """
         self.edit_mode = edit_mode
         print(f"Line {self.target_node}: Edit mode = {edit_mode}")
-
-        if edit_mode:
-            self._generate_control_points()
-        else:
-            self.control_points = []
-
         self.update()  # Redraw to show any visual changes
-
-    def _generate_control_points(self) -> None:
-        """Generate control points for all line vertices."""
-        self.control_points = []
-
-        # Create a control point for each vertex
-        for i, point in enumerate(self.geometry.scaled_points):
-            control_point = {
-                "pos": point,
-                "index": i,
-                "radius": max(
-                    int(self.BASE_CONTROL_POINT_RADIUS * self.geometry.scale),
-                    self.MIN_CONTROL_POINT_RADIUS,
-                ),
-            }
-            self.control_points.append(control_point)
 
     def _get_style_config(self) -> Dict[str, Any]:
         """Get current style configuration for rendering."""
         return {
             "color": self.line_color,
-            "width": max(1, int(self.line_width * self.geometry.scale)),
+            "width": max(1, int(self.line_width * self.geometry._scale)),
             "pattern": self.line_pattern,
         }
 
@@ -331,17 +306,17 @@ class LineContainer(QWidget):
 
         widget_offset = (self.x(), self.y())
 
-        # Delegate rendering to renderer
+        # Delegate rendering to unified renderer
         self.renderer.draw_line(
             painter,
-            self.geometry.scaled_points,
+            self.geometry,
             self._get_style_config(),
             widget_offset,
         )
 
-        if self.edit_mode and self.control_points:
+        if self.edit_mode:
             self.renderer.draw_control_points(
-                painter, self.control_points, widget_offset
+                painter, self.geometry, widget_offset
             )
 
     def mousePressEvent(self, event):
@@ -349,35 +324,36 @@ class LineContainer(QWidget):
         if event.button() == Qt.MouseButton.LeftButton and self.edit_mode:
             widget_offset = (self.x(), self.y())
 
-            # First check control point hits
-            hit_index = self.hit_tester.test_control_point(
-                event.pos(), self.control_points, widget_offset
+            # First check control point hits using unified hit tester
+            branch_idx, point_idx = self.hit_tester.test_control_points(
+                event.pos(), self.geometry, widget_offset
             )
-            if hit_index >= 0:
+            if branch_idx >= 0 and point_idx >= 0:
                 self.dragging_control_point = True
-                self.dragged_point_index = hit_index
+                self.dragged_branch_index = branch_idx
+                self.dragged_point_index = point_idx
                 self.drag_start_pos = event.pos()
-                print(f"Starting drag of control point {hit_index}")
+                print(f"Starting drag of control point {branch_idx}, {point_idx}")
                 event.accept()
                 return
 
             # Then check line segment hits for point insertion
-            segment_index, insertion_point = self.hit_tester.test_line_segment(
-                event.pos(), self.geometry.scaled_points, widget_offset
+            branch_idx, segment_idx, insertion_point = self.hit_tester.test_line_segments(
+                event.pos(), self.geometry, widget_offset
             )
-            if segment_index >= 0:
-                self._insert_point_at_segment(segment_index, insertion_point)
+            if branch_idx >= 0 and segment_idx >= 0:
+                self._insert_point_at_segment(branch_idx, segment_idx, insertion_point)
                 event.accept()
                 return
 
         # Handle right-clicks for context menu
         elif event.button() == Qt.MouseButton.RightButton and self.edit_mode:
             widget_offset = (self.x(), self.y())
-            hit_index = self.hit_tester.test_control_point(
-                event.pos(), self.control_points, widget_offset
+            branch_idx, point_idx = self.hit_tester.test_control_points(
+                event.pos(), self.geometry, widget_offset
             )
-            if hit_index >= 0:
-                self._show_control_point_context_menu(hit_index, event.pos())
+            if branch_idx >= 0 and point_idx >= 0:
+                self._show_control_point_context_menu(branch_idx, point_idx, event.pos())
                 event.accept()
                 return
 
@@ -400,44 +376,44 @@ class LineContainer(QWidget):
             map_x = new_pos.x() + self.x()
             map_y = new_pos.y() + self.y()
 
-            # Update the control point position
-            self.control_points[self.dragged_point_index]["pos"] = (map_x, map_y)
-
-            # Find map tab to get proper scaling ratios
+            # Convert to original coordinates using coordinate transformer
             map_tab = self._find_map_tab()
+            original_pixmap = None
+            current_scale = self.geometry._scale
 
             if (
                 map_tab
                 and hasattr(map_tab, "image_manager")
                 and map_tab.image_manager.original_pixmap
             ):
-                # Get original and current dimensions for more accurate scaling
-                original_width = map_tab.image_manager.original_pixmap.width()
-                original_height = map_tab.image_manager.original_pixmap.height()
+                original_pixmap = map_tab.image_manager.original_pixmap
 
+            # Use coordinate transformer to convert scaled coordinates to original
+            if map_tab and hasattr(map_tab, "image_label"):
                 current_pixmap = map_tab.image_label.pixmap()
                 if current_pixmap:
-                    current_width = current_pixmap.width()
-                    current_height = current_pixmap.height()
-
-                    # Calculate inverse ratios to convert from scaled to original coordinates
-                    width_ratio = original_width / current_width
-                    height_ratio = original_height / current_height
-
-                    # Convert to original coordinates using the proper ratios
-                    original_x = int(map_x * width_ratio)
-                    original_y = int(map_y * height_ratio)
-
+                    original_coords = CoordinateTransformer.scaled_to_original_coordinates(
+                        map_x, map_y, current_pixmap, original_pixmap, current_scale
+                    )
+                    original_x, original_y = original_coords
+                    
                     # Update the geometry with the new point
                     self.geometry.update_point(
-                        self.dragged_point_index, (original_x, original_y)
+                        self.dragged_branch_index, self.dragged_point_index, (original_x, original_y)
+                    )
+                else:
+                    # Fallback to simple scaling if pixmap not available
+                    original_x = int(map_x / current_scale)
+                    original_y = int(map_y / current_scale)
+                    self.geometry.update_point(
+                        self.dragged_branch_index, self.dragged_point_index, (original_x, original_y)
                     )
             else:
-                # Fallback to simple scaling if image manager not available
-                original_x = int(map_x / self.geometry.scale)
-                original_y = int(map_y / self.geometry.scale)
+                # Fallback to simple scaling if map tab not available
+                original_x = int(map_x / current_scale)
+                original_y = int(map_y / current_scale)
                 self.geometry.update_point(
-                    self.dragged_point_index, (original_x, original_y)
+                    self.dragged_branch_index, self.dragged_point_index, (original_x, original_y)
                 )
 
             # Update widget geometry and trigger repaint
@@ -462,6 +438,9 @@ class LineContainer(QWidget):
                 self.persistence.update_geometry(
                     self.geometry.original_points, controller
                 )
+            
+            # Emit geometry changed signal for branching line compatibility
+            self.geometry_changed.emit(self.target_node, self.geometry.original_branches)
 
             # Reset drag state
             self.dragging_control_point = False
@@ -473,58 +452,57 @@ class LineContainer(QWidget):
             super().mouseReleaseEvent(event)
 
     def _insert_point_at_segment(
-        self, segment_index: int, insertion_point: QPoint
+        self, branch_index: int, segment_index: int, insertion_point: QPoint
     ) -> None:
         """Insert a new control point at the specified segment."""
         # Convert insertion point from map coordinates to original coordinates
         map_x = insertion_point.x()
         map_y = insertion_point.y()
 
-        # Find map tab to get proper scaling ratios
+        # Convert to original coordinates using coordinate transformer
         map_tab = self._find_map_tab()
+        original_pixmap = None
+        current_scale = self.geometry._scale
 
         if (
             map_tab
             and hasattr(map_tab, "image_manager")
             and map_tab.image_manager.original_pixmap
         ):
-            # Get original and current dimensions for more accurate scaling
-            original_width = map_tab.image_manager.original_pixmap.width()
-            original_height = map_tab.image_manager.original_pixmap.height()
+            original_pixmap = map_tab.image_manager.original_pixmap
 
+        # Use coordinate transformer to convert scaled coordinates to original
+        if map_tab and hasattr(map_tab, "image_label"):
             current_pixmap = map_tab.image_label.pixmap()
             if current_pixmap:
-                current_width = current_pixmap.width()
-                current_height = current_pixmap.height()
-
-                # Calculate inverse ratios to convert from scaled to original coordinates
-                width_ratio = original_width / current_width
-                height_ratio = original_height / current_height
-
-                # Convert to original coordinates using the proper ratios
-                original_x = int(map_x * width_ratio)
-                original_y = int(map_y * height_ratio)
+                original_coords = CoordinateTransformer.scaled_to_original_coordinates(
+                    map_x, map_y, current_pixmap, original_pixmap, current_scale
+                )
+                original_x, original_y = original_coords
+            else:
+                # Fallback to simple scaling if pixmap not available
+                original_x = int(map_x / current_scale)
+                original_y = int(map_y / current_scale)
         else:
-            # Fallback to simple scaling if image manager not available
-            original_x = int(map_x / self.geometry.scale)
-            original_y = int(map_y / self.geometry.scale)
+            # Fallback to simple scaling if map tab not available
+            original_x = int(map_x / current_scale)
+            original_y = int(map_y / current_scale)
 
         print(
-            f"Inserting point at segment {segment_index}: ({original_x}, {original_y})"
+            f"Inserting point at branch {branch_index}, segment {segment_index}: ({original_x}, {original_y})"
         )
 
         # Insert into geometry
         insert_index = segment_index + 1
-        self.geometry.insert_point(insert_index, (original_x, original_y))
-
-        # Regenerate control points if in edit mode
-        if self.edit_mode:
-            self._generate_control_points()
+        self.geometry.insert_point(branch_index, insert_index, (original_x, original_y))
 
         # Update geometry in database
         controller = self._find_controller()
         if controller:
             self.persistence.update_geometry(self.geometry.original_points, controller)
+
+        # Emit geometry changed signal for branching line compatibility
+        self.geometry_changed.emit(self.target_node, self.geometry.original_branches)
 
         # Update the widget geometry and trigger repaint
         self._update_geometry()
@@ -532,7 +510,7 @@ class LineContainer(QWidget):
 
         print(f"Point inserted. Line now has {self.geometry.point_count()} points")
 
-    def _show_control_point_context_menu(self, point_index: int, pos: QPoint) -> None:
+    def _show_control_point_context_menu(self, branch_index: int, point_index: int, pos: QPoint) -> None:
         """Show context menu for control point operations."""
         # Don't allow deletion if we only have minimum required points
         if self.geometry.point_count() <= self.MIN_LINE_POINTS:
@@ -544,30 +522,29 @@ class LineContainer(QWidget):
         menu = QMenu(self)
 
         delete_action = menu.addAction(f"Delete Point {point_index}")
-        delete_action.triggered.connect(lambda: self._delete_control_point(point_index))
+        delete_action.triggered.connect(lambda: self._delete_control_point(branch_index, point_index))
 
         # Show menu at the clicked position
         global_pos = self.mapToGlobal(pos)
         menu.exec(global_pos)
 
-    def _delete_control_point(self, point_index: int) -> None:
+    def _delete_control_point(self, branch_index: int, point_index: int) -> None:
         """Delete a control point."""
-        if not self.geometry.delete_point(point_index):
+        if not self.geometry.delete_point(branch_index, point_index):
             print(
                 f"Cannot delete point - line must have at least {self.MIN_LINE_POINTS} points"
             )
             return
 
-        print(f"Deleting control point {point_index}")
-
-        # Regenerate control points
-        if self.edit_mode:
-            self._generate_control_points()
+        print(f"Deleting control point {branch_index}, {point_index}")
 
         # Update geometry in database
         controller = self._find_controller()
         if controller:
             self.persistence.update_geometry(self.geometry.original_points, controller)
+
+        # Emit geometry changed signal for branching line compatibility
+        self.geometry_changed.emit(self.target_node, self.geometry.original_branches)
 
         # Update widget and repaint
         self._update_geometry()

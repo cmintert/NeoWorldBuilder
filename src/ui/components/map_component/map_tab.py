@@ -23,6 +23,7 @@ from .map_image_loader import ImageManager
 from .map_viewport import MapViewport
 from .pin_placement_dialog import PinPlacementDialog
 from .feature_manager import UnifiedFeatureManager
+from .utils.coordinate_transformer import CoordinateTransformer
 
 logger = get_logger(__name__)
 
@@ -364,14 +365,10 @@ class MapTab(QWidget):
 
             # Update feature container size AND position to match new image size
             if hasattr(self, "feature_container"):
-                # Calculate offset for centering when image is smaller than viewport
-                container_x = 0
-                container_y = 0
-
-                if new_width < viewport_width:
-                    container_x = (viewport_width - new_width) // 2
-                if new_height < viewport_height:
-                    container_y = (viewport_height - new_height) // 2
+                # Use coordinate transformer to calculate centering offsets
+                container_x, container_y = CoordinateTransformer.calculate_centering_offsets(
+                    viewport_width, viewport_height, new_width, new_height
+                )
 
                 print(
                     f"Setting feature container: pos=({container_x}, {container_y}), size=({new_width}, {new_height})"
@@ -657,19 +654,33 @@ class MapTab(QWidget):
             # Get current mouse position relative to viewport
             mouse_pos = self.image_label.mapFromGlobal(QCursor.pos())
 
-            # Convert to original coordinates
-            coordinates = self.image_label._get_original_coordinates(mouse_pos)
-            if coordinates:
-                original_x, original_y = coordinates
-                # Also get scaled coordinates
-                scaled_x = original_x * self.current_scale
-                scaled_y = original_y * self.current_scale
+            # Convert to original coordinates using coordinate transformer
+            pixmap = self.image_label.pixmap()
+            if pixmap:
+                original_pixmap = None
+                current_scale = self.current_scale
+                
+                if (hasattr(self, "image_manager") and 
+                    self.image_manager.original_pixmap):
+                    original_pixmap = self.image_manager.original_pixmap
+                
+                coordinates = CoordinateTransformer.widget_to_original_coordinates(
+                    mouse_pos, pixmap, 
+                    self.image_label.width(), self.image_label.height(),
+                    original_pixmap, current_scale
+                )
+                
+                if coordinates:
+                    original_x, original_y = coordinates
+                    # Also get scaled coordinates
+                    scaled_x = original_x * self.current_scale
+                    scaled_y = original_y * self.current_scale
 
-                # Call a new method on drawing_decap manager with these coordinates
-                if self.drawing_manager.start_branch_from_position(
-                    original_x, original_y, scaled_x, scaled_y
-                ):
-                    return
+                    # Call a new method on drawing_decap manager with these coordinates
+                    if self.drawing_manager.start_branch_from_position(
+                        original_x, original_y, scaled_x, scaled_y
+                    ):
+                        return
 
         # Try normal key handling in drawing_decap manager
         if self.drawing_manager.handle_key_press(event.key()):

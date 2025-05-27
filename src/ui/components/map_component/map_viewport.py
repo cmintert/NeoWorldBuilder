@@ -11,6 +11,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtWidgets import QLabel, QWidget
 from structlog import get_logger
+from .utils.coordinate_transformer import CoordinateTransformer
 
 logger = get_logger(__name__)
 
@@ -159,48 +160,31 @@ class MapViewport(QLabel):
         if not pixmap or not self.parent_map_tab:
             return None
 
-        # Get image display parameters
-        pixmap_size = pixmap.size()
-        widget_width, widget_height = self.width(), self.height()
-        offset_x = max(0, (widget_width - pixmap_size.width()) // 2)
-        offset_y = max(0, (widget_height - pixmap_size.height()) // 2)
+        # Get original pixmap and current scale for transformation
+        original_pixmap = None
+        current_scale = 1.0
+        
+        if self._has_image_manager_with_original():
+            original_pixmap = self.parent_map_tab.image_manager.original_pixmap
+        else:
+            current_scale = getattr(self.parent_map_tab, "current_scale", 1.0)
 
-        # Calculate image-relative position
-        scaled_x = widget_pos.x() - offset_x
-        scaled_y = widget_pos.y() - offset_y
+        # Use coordinate transformer utility
+        return CoordinateTransformer.widget_to_original_coordinates(
+            widget_pos, pixmap, self.width(), self.height(),
+            original_pixmap, current_scale
+        )
 
-        # Check if within image bounds (use < instead of <= for end boundaries)
-        if not (
-            0 <= scaled_x < pixmap_size.width() and 0 <= scaled_y < pixmap_size.height()
-        ):
-            return None
+    def _has_image_manager_with_original(self) -> bool:
+        """Check if image manager with original pixmap is available.
 
-        # Get the current image scale
-        current_scale = getattr(self.parent_map_tab, "current_scale", 1.0)
-
-        # Use the original image dimensions rather than the scaled dimensions
-        # for coordinate conversion when the image is smaller than the viewport
-        if (
+        Returns:
+            True if image manager with original pixmap exists, False otherwise
+        """
+        return (
             hasattr(self.parent_map_tab, "image_manager")
             and self.parent_map_tab.image_manager.original_pixmap
-        ):
-            # Get original image dimensions
-            original_width = self.parent_map_tab.image_manager.original_pixmap.width()
-            original_height = self.parent_map_tab.image_manager.original_pixmap.height()
-
-            # Calculate the ratio between scaled and original dimensions
-            x_ratio = original_width / pixmap_size.width()
-            y_ratio = original_height / pixmap_size.height()
-
-            # Convert to original coordinates using the ratio
-            original_x = int(scaled_x * x_ratio)
-            original_y = int(scaled_y * y_ratio)
-        else:
-            # Fallback to old method if image manager not accessible
-            original_x = int(scaled_x / current_scale)
-            original_y = int(scaled_y / current_scale)
-
-        return original_x, original_y
+        )
 
     def _is_in_special_mode(self) -> bool:
         """Check if viewport is in a special interaction mode."""

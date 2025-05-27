@@ -4,6 +4,7 @@ from PyQt6.QtGui import QMouseEvent, QCursor
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
 from utils.path_helper import get_resource_path
+from .utils.coordinate_transformer import CoordinateTransformer
 
 
 class PinContainer(QWidget):

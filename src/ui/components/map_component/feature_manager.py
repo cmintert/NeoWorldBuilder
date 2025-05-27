@@ -205,12 +205,10 @@ class BranchingLineContainer(QWidget):
         super().__init__(parent)
 
         # Import required classes here to avoid circular imports
-        from ui.components.map_component.enhanced_edit_mode import (
-            EnhancedBranchingLineContainer,
-        )
+        from ui.components.map_component.line_container import LineContainer
 
-        # Create the actual container implementation
-        self._container = EnhancedBranchingLineContainer(
+        # Create the actual container implementation using unified system
+        self._container = LineContainer(
             target_node, branches, parent, config
         )
 
