@@ -43,6 +43,12 @@ class MapViewport(QLabel):
         self.is_panning = False
         self.last_mouse_pos = QPoint()
 
+        # Store current mouse position for branch creation feedback
+        self.current_mouse_pos = QPoint(0, 0)
+
+        # Flag to track if we're in branch creation mode
+        self.is_branch_creation_active = False
+
         # Coordinate tracking
         self.coordinate_label = QLabel(self)
         self.coordinate_label.setStyleSheet(
@@ -96,6 +102,9 @@ class MapViewport(QLabel):
                     painter
                 )
             elif getattr(self.parent_map_tab, "branch_creation_mode", False):
+                logger.debug(
+                    f"Drawing branch creation feedback, mouse pos: {self.current_mouse_pos.x()}, {self.current_mouse_pos.y()}"
+                )
                 self._draw_branch_creation_feedback(painter)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
@@ -109,6 +118,20 @@ class MapViewport(QLabel):
         """Handle mouse movement for panning and coordinate updates."""
         if not self.pixmap():
             return
+
+        # Always store current mouse position for branch creation feedback
+        self.current_mouse_pos = event.pos()
+
+        # Check if branch creation mode is active
+        branch_creation_active = getattr(
+            self.parent_map_tab, "branch_creation_mode", False
+        )
+        if branch_creation_active != self.is_branch_creation_active:
+            # Mode has changed - log it and update our flag
+            logger.debug(
+                f"Branch creation mode changed: {self.is_branch_creation_active} -> {branch_creation_active}"
+            )
+            self.is_branch_creation_active = branch_creation_active
 
         # Handle panning
         if self.is_panning:
@@ -132,10 +155,8 @@ class MapViewport(QLabel):
                 self.coordinate_label.show()
             else:
                 self.coordinate_label.hide()
-
-        # Update branch creation feedback if active
-        if getattr(self.parent_map_tab, "branch_creation_mode", False):
-            self.update()  # Trigger repaint for branch creation feedback
+        print(f"Mouse moved to: {event.pos().x()}, {event.pos().y()}")
+        self.update()  # Trigger repaint for branch creation feedback
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         """Handle mouse wheel for zooming."""
@@ -146,7 +167,7 @@ class MapViewport(QLabel):
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events."""
         logger.info(f"MapViewport received key press: {event.key()}")
-        
+
         # Delegate key handling to parent for mode-specific behavior
         if self.parent_map_tab:
             logger.info(f"Delegating key press to parent_map_tab")
@@ -216,16 +237,59 @@ class MapViewport(QLabel):
     def _draw_branch_creation_feedback(self, painter: QPainter) -> None:
         """Draw visual feedback for branch creation mode."""
         if not hasattr(self.parent_map_tab, "_branch_creation_start_point"):
+            logger.warning("No _branch_creation_start_point found")
             return
 
         start_point = self.parent_map_tab._branch_creation_start_point
+        logger.debug(f"Branch creation start point: {start_point}")
 
-        # Convert start point to scaled coordinates
-        scaled_start_x = start_point[0] * self.parent_map_tab.current_scale
-        scaled_start_y = start_point[1] * self.parent_map_tab.current_scale
+        # Convert start point from original coordinates to widget coordinates
+        pixmap = self.pixmap()
+        if not pixmap:
+            logger.warning("No pixmap available for branch creation drawing")
+            return
 
-        # Get current mouse position
-        mouse_pos = self.mapFromGlobal(QCursor.pos())
+        # Get original pixmap and current scale for transformation
+        original_pixmap = None
+        current_scale = self.parent_map_tab.current_scale
+        logger.debug(f"Current scale: {current_scale}")
+
+        if self._has_image_manager_with_original():
+            original_pixmap = self.parent_map_tab.image_manager.original_pixmap
+            logger.debug(
+                f"Original pixmap size: {original_pixmap.width()}x{original_pixmap.height()}"
+            )
+        else:
+            logger.debug("No original pixmap available")
+
+        # Convert start point to widget coordinates using coordinate transformer
+        start_widget_pos = CoordinateTransformer.original_to_widget_coordinates(
+            start_point[0],
+            start_point[1],
+            pixmap,
+            self.width(),
+            self.height(),
+            original_pixmap,
+            current_scale,
+        )
+
+        if start_widget_pos is None:
+            logger.warning("Failed to convert start point to widget coordinates")
+            return
+
+        start_widget_x, start_widget_y = start_widget_pos
+        logger.debug(
+            f"Start point widget coordinates: ({start_widget_x}, {start_widget_y})"
+        )
+
+        # Use stored mouse position (already in widget coordinates)
+        mouse_pos = self.current_mouse_pos
+        logger.debug(f"Current mouse position: ({mouse_pos.x()}, {mouse_pos.y()})")
+
+        # Safety check: if mouse position is not valid, use center of widget
+        if mouse_pos.isNull():
+            logger.warning("Mouse position is null, using widget center")
+            mouse_pos = QPoint(self.width() // 2, self.height() // 2)
 
         # Set up pen for temporary branch line
         pen = QPen(QColor("#FF8800"))  # Orange color for branch creation
@@ -233,15 +297,19 @@ class MapViewport(QLabel):
         pen.setStyle(Qt.PenStyle.DashLine)
         painter.setPen(pen)
 
-        # Draw temporary line from start point to current mouse position
+        # Draw temporary line from start point to current mouse position (both in widget coordinates)
         painter.drawLine(
-            int(scaled_start_x), int(scaled_start_y), mouse_pos.x(), mouse_pos.y()
+            int(start_widget_x), int(start_widget_y), mouse_pos.x(), mouse_pos.y()
+        )
+        logger.debug(
+            f"Drew line from ({int(start_widget_x)}, {int(start_widget_y)}) to ({mouse_pos.x()}, {mouse_pos.y()})"
         )
 
         # Draw start point indicator
         painter.setBrush(QBrush(QColor("#FF8800")))
         painter.setPen(QPen(QColor("#FFFFFF"), 2))
-        painter.drawEllipse(int(scaled_start_x - 6), int(scaled_start_y - 6), 12, 12)
+        painter.drawEllipse(int(start_widget_x - 6), int(start_widget_y - 6), 12, 12)
+        logger.debug("Drew start point indicator")
 
     def set_cursor_for_mode(self, mode: str) -> None:
         """Set cursor based on current interaction mode.

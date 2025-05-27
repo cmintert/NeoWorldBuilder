@@ -69,6 +69,9 @@ class MapTab(QWidget):
         self._setup_ui()
         self._connect_signals()
         
+        # Enable mouse tracking on the MapTab itself
+        self.setMouseTracking(True)
+        
         # Install event filter to catch key presses
         self.installEventFilter(self)
 
@@ -104,6 +107,7 @@ class MapTab(QWidget):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.scroll_area.setMouseTracking(True)
 
         # Create viewport for map display
         self.image_label = MapViewport(self, config=self.config)
@@ -113,6 +117,7 @@ class MapTab(QWidget):
         self.feature_container.setGeometry(
             0, 0, self.image_label.width(), self.image_label.height()
         )
+        self.feature_container.setMouseTracking(True)
 
         # Initialize the unified feature manager
         self.feature_manager = UnifiedFeatureManager(
@@ -1356,6 +1361,7 @@ class MapTab(QWidget):
 
     def _reset_branch_creation_mode(self) -> None:
         """Reset branch creation mode state."""
+        logger.info("Resetting branch creation mode")
         self.branch_creation_mode = False
         if hasattr(self, '_branch_creation_target'):
             delattr(self, '_branch_creation_target')
@@ -1372,6 +1378,9 @@ class MapTab(QWidget):
             
         # Force redraw to remove any highlighted points
         self.feature_manager.update_positions(self)
+        
+        # Force viewport update to clear branch creation feedback
+        self.image_label.update()
         
     # Utility Methods
     def get_map_image_path(self) -> Optional[str]:
@@ -1390,47 +1399,62 @@ class MapTab(QWidget):
             end_y: Y coordinate of branch end point
         """
         print(f"Completing branch creation: End point ({end_x}, {end_y})")
+        logger.info(f"Completing branch creation: End point ({end_x}, {end_y})")
         
         if not self.branch_creation_mode:
             print("Not in branch creation mode")
+            logger.warning("Not in branch creation mode")
             return
             
         if not hasattr(self, '_branch_creation_target'):
             print("No branch creation target set")
+            logger.warning("No branch creation target set")
             return
             
         target_node = self._branch_creation_target
         
         if not hasattr(self, '_branch_creation_start_point'):
             print("No branch creation start point set")
+            logger.warning("No branch creation start point set")
             return
             
         start_x, start_y = self._branch_creation_start_point
         print(f"Branch from ({start_x}, {start_y}) to ({end_x}, {end_y})")
+        logger.info(f"Branch from ({start_x}, {start_y}) to ({end_x}, {end_y})")
         
         # Get the line container for the target
         line_containers = self.feature_manager.get_line_containers()
         if target_node in line_containers:
             line_container = line_containers[target_node]
             print(f"Found line container for {target_node}: {type(line_container)}")
+            logger.info(f"Found line container for {target_node}: {type(line_container)}")
             
             # For branching lines, access the actual LineContainer
             if hasattr(line_container, '_container'):
                 print("Using _container from BranchingLineContainer")
+                logger.info("Using _container from BranchingLineContainer")
                 line_container = line_container._container
             
             # Request branch creation from the line container
             if hasattr(line_container, 'create_branch_from_point'):
                 print(f"Calling create_branch_from_point")
+                logger.info(f"Calling create_branch_from_point")
                 line_container.create_branch_from_point(
                     start_x, start_y, end_x, end_y
                 )
                 print("Branch created successfully")
+                logger.info("Branch created successfully")
             else:
                 print(f"Error: line_container has no create_branch_from_point method: {dir(line_container)}")
+                logger.error(f"line_container has no create_branch_from_point method: {dir(line_container)}")
         else:
             print(f"Error: target_node {target_node} not found in line_containers")
+            logger.error(f"target_node {target_node} not found in line_containers")
         
         # Reset branch creation mode
         print("Resetting branch creation mode")
+        logger.info("Resetting branch creation mode")
         self._reset_branch_creation_mode()
+        
+        # Force an update of the viewport to clear the orange line
+        self.image_label.update()

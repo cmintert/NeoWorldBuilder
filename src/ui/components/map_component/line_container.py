@@ -339,13 +339,18 @@ class LineContainer(QWidget):
             # Check if we're in branch creation mode with this line as the target
             highlight_point = None
             map_tab = self._find_map_tab()
-            if (map_tab and map_tab.branch_creation_mode and 
-                hasattr(map_tab, '_branch_creation_target') and
-                map_tab._branch_creation_target == self.target_node and
-                hasattr(map_tab, '_branch_creation_point_indices')):
+            if (
+                map_tab
+                and map_tab.branch_creation_mode
+                and hasattr(map_tab, "_branch_creation_target")
+                and map_tab._branch_creation_target == self.target_node
+                and hasattr(map_tab, "_branch_creation_point_indices")
+            ):
                 highlight_point = map_tab._branch_creation_point_indices
-                print(f"Highlighting point {highlight_point} for branch creation in {self.target_node}")
-            
+                print(
+                    f"Highlighting point {highlight_point} for branch creation in {self.target_node}"
+                )
+
             # Draw control points with optional highlighting
             self.renderer.draw_control_points(
                 painter, self.geometry, widget_offset, highlight_point
@@ -355,10 +360,10 @@ class LineContainer(QWidget):
         """Handle mouse press events for line selection and control point operations."""
         # Check if parent map tab is in branch creation mode - if so, ignore this event
         map_tab = self._find_map_tab()
-        if map_tab and getattr(map_tab, 'branch_creation_mode', False):
+        if map_tab and getattr(map_tab, "branch_creation_mode", False):
             event.ignore()  # Let the event pass through to parent handlers
             return
-            
+
         if event.button() == Qt.MouseButton.LeftButton and self.edit_mode:
             widget_offset = (self.x(), self.y())
 
@@ -626,7 +631,9 @@ class LineContainer(QWidget):
         # Add branch creation option if this is a branching line or could become one
         create_branch_action = menu.addAction(f"Create Branch from Point {point_index}")
         create_branch_action.triggered.connect(
-            lambda: self._start_branch_creation_from_point(branch_index, point_index, pos)
+            lambda: self._start_branch_creation_from_point(
+                branch_index, point_index, pos
+            )
         )
 
         # Show menu at the clicked position
@@ -679,16 +686,22 @@ class LineContainer(QWidget):
         global_pos = self.mapToGlobal(pos)
         menu.exec(global_pos)
 
-    def _start_branch_creation_from_point(self, branch_index: int, point_index: int, pos: QPoint) -> None:
+    def _start_branch_creation_from_point(
+        self, branch_index: int, point_index: int, pos: QPoint
+    ) -> None:
         """Start branch creation from a specific control point."""
-        if branch_index >= len(self.geometry.branches) or point_index >= len(self.geometry.branches[branch_index]):
+        if branch_index >= len(self.geometry.branches) or point_index >= len(
+            self.geometry.branches[branch_index]
+        ):
             return
-        
+
         # Get the point coordinates
         point = self.geometry.branches[branch_index][point_index]
-        
-        print(f"Starting branch creation from point {point_index} in branch {branch_index}: {point}")
-        
+
+        print(
+            f"Starting branch creation from point {point_index} in branch {branch_index}: {point}"
+        )
+
         # Trigger branch creation mode in MapTab
         map_tab = self._find_map_tab()
         if map_tab:
@@ -696,41 +709,41 @@ class LineContainer(QWidget):
             map_tab._branch_creation_target = self.target_node
             map_tab._branch_creation_start_point = point
             map_tab.image_label.set_cursor_for_mode("crosshair")
-            
+
             print(f"Branch creation mode activated for {self.target_node}")
 
     def _start_branch_creation_from_position(self, pos: QPoint) -> None:
         """Start branch creation from a position on the line."""
         widget_offset = (self.x(), self.y())
-        
+
         # Find the nearest point on the line to the clicked position
         branch_idx, segment_idx, insertion_point = self.hit_tester.test_line_segments(
             pos, self.geometry, widget_offset
         )
-        
+
         if branch_idx >= 0 and segment_idx >= 0:
             # Convert insertion point to original coordinates
             map_x = insertion_point.x()
             map_y = insertion_point.y()
-            
+
             # Convert to original coordinates using coordinate transformer
             map_tab = self._find_map_tab()
             original_pixmap = None
             current_scale = self.geometry._scale
-            
+
             if (
                 map_tab
                 and hasattr(map_tab, "image_manager")
                 and map_tab.image_manager.original_pixmap
             ):
                 original_pixmap = map_tab.image_manager.original_pixmap
-            
+
             # Use coordinate transformer to convert scaled coordinates to original
             if map_tab and hasattr(map_tab, "image_label"):
                 current_pixmap = map_tab.image_label.pixmap()
                 if current_pixmap:
                     from .utils.coordinate_transformer import CoordinateTransformer
-                    
+
                     original_coords = (
                         CoordinateTransformer.scaled_to_original_coordinates(
                             map_x, map_y, current_pixmap, original_pixmap, current_scale
@@ -745,21 +758,25 @@ class LineContainer(QWidget):
                 # Fallback to simple scaling if map tab not available
                 original_x = int(map_x / current_scale)
                 original_y = int(map_y / current_scale)
-            
-            print(f"Starting branch creation from line position: ({original_x}, {original_y})")
-            
+
+            print(
+                f"Starting branch creation from line position: ({original_x}, {original_y})"
+            )
+
             # Trigger branch creation mode in MapTab
             if map_tab:
                 map_tab.branch_creation_mode = True
                 map_tab._branch_creation_target = self.target_node
                 map_tab._branch_creation_start_point = (original_x, original_y)
                 map_tab.image_label.set_cursor_for_mode("crosshair")
-                
+
                 print(f"Branch creation mode activated for {self.target_node}")
 
-    def create_branch_from_point(self, start_x: int, start_y: int, end_x: int, end_y: int) -> None:
+    def create_branch_from_point(
+        self, start_x: int, start_y: int, end_x: int, end_y: int
+    ) -> None:
         """Create a new branch from an existing point.
-        
+
         Args:
             start_x: X coordinate of branch start point
             start_y: Y coordinate of branch start point
@@ -767,25 +784,31 @@ class LineContainer(QWidget):
             end_y: Y coordinate of branch end point
         """
         print(f"Creating branch from ({start_x}, {start_y}) to ({end_x}, {end_y})")
-        
+
         # Use the geometry's branch creation method
-        if self.geometry.create_branch_from_position((start_x, start_y), (end_x, end_y)):
+        if self.geometry.create_branch_from_position(
+            (start_x, start_y), (end_x, end_y)
+        ):
             # Update geometry in database
             controller = self._find_controller()
             if controller:
                 self.persistence.update_geometry(
                     self.geometry.original_branches, controller
                 )
-            
+
             # Emit geometry changed signal
             self.geometry_changed.emit(
                 self.target_node, self.geometry.original_branches
             )
-            
+
             # Update the widget geometry and trigger repaint
             self._update_geometry()
             self.update()
-            
-            print(f"Branch created. Line now has {len(self.geometry.branches)} branches")
+
+            print(
+                f"Branch created. Line now has {len(self.geometry.branches)} branches"
+            )
         else:
-            print(f"Failed to create branch from ({start_x}, {start_y}) to ({end_x}, {end_y})")
+            print(
+                f"Failed to create branch from ({start_x}, {start_y}) to ({end_x}, {end_y})"
+            )
