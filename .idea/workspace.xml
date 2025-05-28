@@ -5,12 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add branching line creation and validation in edit mode&#10;&#10;Introduced methods to create and manage branching lines, including validation for geometry types. Enhanced user interaction with branching tools, added control point highlighting, and ensured support for handling branch creation requests on both control points and line segments.">
+      <change afterPath="$PROJECT_DIR$/Claude.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/line_container.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/line_container.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_viewport.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_viewport.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/pin_container.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/pin_container.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -782,7 +779,7 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_parser_py.coverage" NAME="pytest in test_parser.py Coverage Results" MODIFIED="1738141005495" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/tests" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748379870149" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748446272888" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_test_load_node_data.coverage" NAME="pytest for test_node_operations.test_load_node_data Coverage Results" MODIFIED="1739348948172" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController.coverage" NAME="pytest for test_node_operations.TestBaseController Coverage Results" MODIFIED="1739642873372" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
