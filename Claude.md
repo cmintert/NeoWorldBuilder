@@ -177,7 +177,9 @@ The map component is a complex subsystem that allows users to create interactive
 ### Key Components
 - **MapTab**: Main container for map functionality
 - **MapViewport**: Handles map display, panning, zooming, and coordinate tracking
-- **LineContainer**: Container widget for line visualization and interaction
+- **BaseMapFeatureContainer**: Abstract base class for map feature containers
+  - **PinContainer**: Container for pin features (inherits from BaseMapFeatureContainer)
+  - **LineContainer**: Container for line features, supports both simple and branching lines (inherits from BaseMapFeatureContainer)
 - **DrawingManager**: Manages drawing operations and temporary visualizations
 - **FeatureManager**: Coordinates between different features (pins, lines, etc.)
 

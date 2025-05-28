@@ -2,21 +2,22 @@ import os
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, QPoint
 from PyQt6.QtGui import QMouseEvent, QCursor
 from PyQt6.QtSvgWidgets import QSvgWidget
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PyQt6.QtWidgets import QVBoxLayout, QLabel
 from utils.path_helper import get_resource_path
-from .utils.coordinate_transformer import CoordinateTransformer
+from ui.components.map_component.utils.coordinate_transformer import CoordinateTransformer
+from .base_map_feature_container import BaseMapFeatureContainer
 
 
-class PinContainer(QWidget):
+class PinContainer(BaseMapFeatureContainer):
     """Container widget that holds both a pin and its label.
 
     Attributes:
         pin_clicked (pyqtSignal): Signal emitted when the pin is clicked.
-        _scale (float): Current scale factor for the pin.
-        text_label (QLabel): Label showing the node name.
+        position_changed (pyqtSignal): Signal emitted when pin position changes.
         pin_svg (QSvgWidget): The pin icon.
     """
 
+    # Rename base class's feature_clicked signal for backward compatibility
     pin_clicked = pyqtSignal(str)
     position_changed = pyqtSignal(str, int, int)  # node_name, new_x, new_y
 
@@ -28,22 +29,11 @@ class PinContainer(QWidget):
             parent: Parent widget.
             config: Configuration object with settings.
         """
-        super().__init__(parent)
-        self._scale = 1.0  # Initialize scale attribute
-        self.config = config
-        self.target_node = target_node
-
-        # Edit mode state
-        self.edit_mode = False
-
+        super().__init__(target_node, parent, config)
+        
         # Drag state
         self.dragging = False
         self.drag_start_pos = QPoint()
-
-        # Make mouse interactive
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
-        self.setMouseTracking(True)
-        self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
 
         # Create layout
         layout = QVBoxLayout(self)
@@ -76,16 +66,9 @@ class PinContainer(QWidget):
                 QSize(self.config.map.BASE_PIN_WIDTH, self.config.map.BASE_PIN_HEIGHT)
             )  # Set initial size for emoji
 
-        # Create text label
-        self.text_label = QLabel(target_node)
-        self.update_label_style()
-
         # Add widgets to layout
         layout.addWidget(self.pin_svg)
         layout.addWidget(self.text_label)
-
-        # Set container to be transparent
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         # Adjust size
         self.adjustSize()
@@ -134,9 +117,11 @@ class PinContainer(QWidget):
         Args:
             scale: The new scale factor.
         """
-        self._scale = scale
+        # Update base class scale first
+        super().set_scale(scale)
+        
+        # Then handle pin-specific scale updates
         self.update_pin_size()
-        self.update_label_style()
         self.adjustSize()
 
     def set_edit_mode(self, edit_mode: bool) -> None:
@@ -145,57 +130,8 @@ class PinContainer(QWidget):
         Args:
             edit_mode: Whether edit mode should be active.
         """
-        self.edit_mode = edit_mode
-        # Initial cursor will be set by enter/leave events when hovering
-
-    def _find_map_tab(self):
-        """Find the parent MapTab instance.
-
-        Returns:
-            MapTab instance or None if not found
-        """
-        parent_widget = self.parent()
-
-        # Traverse up the widget hierarchy looking for MapTab
-        level = 0
-        while parent_widget:
-            class_name = parent_widget.__class__.__name__
-
-            # Direct check for MapTab
-            if class_name == "MapTab":
-                return parent_widget
-
-            # Check for feature container's parent (which should be image_label)
-            if class_name == "MapViewport" and hasattr(parent_widget, "parent_map_tab"):
-                return parent_widget.parent_map_tab
-
-            # Move up the hierarchy
-            parent_widget = parent_widget.parent()
-            level += 1
-
-            if level > 10:  # Safety break
-                break
-
-        # Final fallback - try to find through controller chain
-        controller = self._find_controller()
-        if (
-            controller
-            and hasattr(controller, "ui")
-            and hasattr(controller.ui, "map_tab")
-        ):
-            return controller.ui.map_tab
-
-        return None
-
-    def _find_controller(self):
-        """Find the parent controller for database operations."""
-        parent_widget = self.parent()
-        while parent_widget and not hasattr(parent_widget, "controller"):
-            parent_widget = parent_widget.parent()
-
-        if parent_widget and hasattr(parent_widget, "controller"):
-            return parent_widget.controller
-        return None
+        super().set_edit_mode(edit_mode)
+        # No additional behavior needed - cursor will be handled by enter/leave events
 
     @property
     def pin_height(self) -> int:
@@ -208,16 +144,16 @@ class PinContainer(QWidget):
 
     def enterEvent(self, event) -> None:
         """Handle mouse enter events - change cursor based on edit mode."""
+        super().enterEvent(event)
         if self.edit_mode:
             self.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
         else:
             self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        super().enterEvent(event)
 
     def leaveEvent(self, event) -> None:
         """Handle mouse leave events - reset cursor."""
-        self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
         super().leaveEvent(event)
+        self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Handle mouse press events.

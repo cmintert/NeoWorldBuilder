@@ -2,7 +2,7 @@ import json
 from typing import Optional, List, Tuple, Dict
 
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-from PyQt6.QtGui import QPainter, QKeyEvent, QCursor
+from PyQt6.QtGui import QKeyEvent, QCursor
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -17,11 +17,11 @@ from structlog import get_logger
 
 from utils.geometry_handler import GeometryHandler
 from .drawing_manager import DrawingManager
-from .line_feature_dialog import LineFeatureDialog
-from .branching_line_feature_dialog import BranchingLineFeatureDialog
+from ui.components.map_component.dialogs.line_feature_dialog import LineFeatureDialog
+from ui.components.map_component.dialogs.branching_line_feature_dialog import BranchingLineFeatureDialog
 from .map_image_loader import ImageManager
 from .map_viewport import MapViewport
-from .pin_placement_dialog import PinPlacementDialog
+from ui.components.map_component.dialogs.pin_placement_dialog import PinPlacementDialog
 from .feature_manager import UnifiedFeatureManager
 from .utils.coordinate_transformer import CoordinateTransformer
 

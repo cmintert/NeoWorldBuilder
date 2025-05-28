@@ -1,17 +1,18 @@
 from typing import List, Tuple, Dict, Any
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint
 from PyQt6.QtGui import QPainter, QColor, QCursor
-from PyQt6.QtWidgets import QWidget, QLabel, QMenu
+from PyQt6.QtWidgets import QLabel, QMenu
 from structlog import get_logger
 
-from .edit_mode import UnifiedLineGeometry, UnifiedHitTester, UnifiedLineRenderer
-from .line_persistence import LineGeometryPersistence
-from .utils.coordinate_transformer import CoordinateTransformer
+from .base_map_feature_container import BaseMapFeatureContainer
+from ui.components.map_component.edit_mode import UnifiedLineGeometry, UnifiedHitTester, UnifiedLineRenderer
+from ui.components.map_component.line_persistence import LineGeometryPersistence
+from ui.components.map_component.utils.coordinate_transformer import CoordinateTransformer
 
 logger = get_logger(__name__)
 
 
-class LineContainer(QWidget):
+class LineContainer(BaseMapFeatureContainer):
     """Container widget that handles line visualization and interaction.
 
     This widget coordinates between geometry, rendering, hit testing, and persistence
@@ -40,6 +41,7 @@ class LineContainer(QWidget):
     # Minimum line requirements
     MIN_LINE_POINTS = 2
 
+    # Rename feature_clicked to line_clicked for backward compatibility
     line_clicked = pyqtSignal(str)
     geometry_changed = pyqtSignal(
         str, list
@@ -54,7 +56,7 @@ class LineContainer(QWidget):
             parent (QWidget, optional): Parent widget. Defaults to None.
             config (Config, optional): App configuration. Defaults to None.
         """
-        super().__init__(parent)
+        super().__init__(target_node, parent, config)
 
         # Initialize unified components
         self.geometry = UnifiedLineGeometry(points_or_branches)
@@ -62,17 +64,10 @@ class LineContainer(QWidget):
         self.renderer = UnifiedLineRenderer(config)
         self.persistence = LineGeometryPersistence(target_node)
 
-        # Core properties
-        self.target_node = target_node
-        self.config = config
-
         # Visual style properties
         self.line_color = QColor(self.DEFAULT_LINE_COLOR)
         self.line_width = self.DEFAULT_LINE_WIDTH
         self.line_pattern = self.DEFAULT_LINE_PATTERN
-
-        # Edit mode state
-        self.edit_mode = False
 
         # Drag state
         self.dragging_control_point = False
@@ -85,22 +80,11 @@ class LineContainer(QWidget):
 
     def _setup_ui(self) -> None:
         """Setup UI components and styling."""
-        # Make mouse interactive
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
-        self.setMouseTracking(True)
-        self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-
         # Track cursor state
         self._current_cursor = Qt.CursorShape.PointingHandCursor
-
-        # Set container to be transparent
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-
-        # Create a label for the line (similar to pin label)
-        self.text_label = QLabel(self.target_node)
-        self.text_label.setParent(self)
-        self.update_label_style()
-        self.text_label.hide()  # Hide initially, show on hover
+        
+        # Hide label initially, show on hover
+        self.text_label.hide()
 
     def _update_geometry(self) -> None:
         """Update widget geometry based on line points and label size."""
@@ -128,9 +112,9 @@ class LineContainer(QWidget):
         final_min_y = min(min_y, label_top)
         final_max_y = max(max_y, label_bottom)
 
-        # Add margin
+        # Add margin - use the base class scale
         margin = max(
-            int(self.WIDGET_MARGIN * self.geometry._scale), self.MIN_WIDGET_MARGIN
+            int(self.WIDGET_MARGIN * self._scale), self.MIN_WIDGET_MARGIN
         )
         self.setGeometry(
             final_min_x - margin,
@@ -147,8 +131,9 @@ class LineContainer(QWidget):
 
     def update_label_style(self) -> None:
         """Update label style based on current scale."""
+        # Make sure we're using the base class's _scale property, not the geometry's
         font_size = max(
-            int(self.LABEL_FONT_SIZE_BASE * self.geometry._scale),
+            int(self.LABEL_FONT_SIZE_BASE * self._scale),
             self.MIN_LABEL_FONT_SIZE,
         )
         self.text_label.setStyleSheet(
@@ -156,7 +141,7 @@ class LineContainer(QWidget):
             QLabel {{
                 background-color: rgba(0, 0, 0, 0);
                 color: white;
-                padding: {max(int(self.LABEL_PADDING_BASE * self.geometry._scale), self.MIN_LABEL_PADDING)}px {max(int(self.LABEL_PADDING_HORIZONTAL_BASE * self.geometry._scale), self.MIN_LABEL_PADDING_HORIZONTAL)}px;
+                padding: {max(int(self.LABEL_PADDING_BASE * self._scale), self.MIN_LABEL_PADDING)}px {max(int(self.LABEL_PADDING_HORIZONTAL_BASE * self._scale), self.MIN_LABEL_PADDING_HORIZONTAL)}px;
                 border-radius: 3px;
                 font-size: {font_size}pt;
             }}
@@ -170,67 +155,22 @@ class LineContainer(QWidget):
         Args:
             scale (float): The new scale factor.
         """
+        # First update the base class scale
+        super().set_scale(scale)
+        
         print(f"LineContainer.set_scale called with scale: {scale}")
-
-        # Let the geometry handle all the scaling logic
+        
+        # Then update the geometry's scale
         self.geometry.set_scale(scale)
 
-        # No need to generate control points - unified renderer handles this
-
-        # Update label style and geometry
-        self.update_label_style()
+        # Update geometry
         self._update_geometry()
 
         print(f"LineContainer.set_scale completed")
 
     def _find_map_tab(self):
-        """Find the parent MapTab instance.
-
-        Returns:
-            MapTab instance or None if not found
-        """
-        print(f"LineContainer._find_map_tab called")
-        parent_widget = self.parent()
-        print(f"Initial parent: {parent_widget}")
-
-        # Traverse up the widget hierarchy looking for MapTab
-        level = 0
-        while parent_widget:
-            class_name = parent_widget.__class__.__name__
-            print(f"Level {level}: {class_name} - {parent_widget}")
-
-            # Direct check for MapTab
-            if class_name == "MapTab":
-                print(f"Found MapTab at level {level}")
-                return parent_widget
-
-            # Check for feature container's parent (which should be image_label)
-            if class_name == "MapViewport" and hasattr(parent_widget, "parent_map_tab"):
-                print(f"Found MapViewport with parent_map_tab at level {level}")
-                return parent_widget.parent_map_tab
-
-            # Move up the hierarchy
-            parent_widget = parent_widget.parent()
-            level += 1
-
-            if level > 10:  # Safety break
-                print("Too many levels, breaking")
-                break
-
-        print("No MapTab found through widget hierarchy")
-
-        # Final fallback - try to find through controller chain
-        controller = self._find_controller()
-        if (
-            controller
-            and hasattr(controller, "ui")
-            and hasattr(controller.ui, "map_tab")
-        ):
-            print("Found MapTab through controller")
-            return controller.ui.map_tab
-
-        print("No MapTab found anywhere")
-        return None
+        """Find the parent MapTab instance."""
+        return super()._find_map_tab()
 
     def set_style(
         self, color: str = None, width: int = None, pattern: str = None
@@ -269,7 +209,7 @@ class LineContainer(QWidget):
         Args:
             edit_mode: Whether edit mode should be active.
         """
-        self.edit_mode = edit_mode
+        super().set_edit_mode(edit_mode)
         print(f"Line {self.target_node}: Edit mode = {edit_mode}")
 
         # Update cursor based on edit mode
@@ -286,29 +226,23 @@ class LineContainer(QWidget):
         """Get current style configuration for rendering."""
         return {
             "color": self.line_color,
-            "width": max(1, int(self.line_width * self.geometry._scale)),
+            "width": max(1, int(self.line_width * self._scale)),
             "pattern": self.line_pattern,
         }
 
     def _find_controller(self):
         """Find the parent controller for database operations."""
-        parent_widget = self.parent()
-        while parent_widget and not hasattr(parent_widget, "controller"):
-            parent_widget = parent_widget.parent()
-
-        if parent_widget and hasattr(parent_widget, "controller"):
-            return parent_widget.controller
-        return None
+        return super()._find_controller()
 
     # Event Handlers
     def enterEvent(self, event):
         """Show label when mouse enters the line area."""
-        self.text_label.show()
+        super().enterEvent(event)
         self.update()
 
     def leaveEvent(self, event):
         """Hide label when mouse leaves the line area."""
-        self.text_label.hide()
+        super().leaveEvent(event)
 
         # Reset cursor when leaving the line area
         if self.edit_mode:

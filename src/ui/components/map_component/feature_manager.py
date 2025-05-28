@@ -9,15 +9,14 @@ This replaces the original separate FeatureManager and EnhancedFeatureManager cl
 """
 
 import json
-from typing import Dict, List, Tuple, Optional, Any, Union
+from typing import Dict, List, Tuple, Optional, Any
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget
 from structlog import get_logger
 
 # Import existing container classes
-from ui.components.map_component.pin_container import PinContainer
-from ui.components.map_component.line_container import LineContainer
-from utils.geometry_handler import GeometryHandler
+from ui.components.map_component.containers.pin_container import PinContainer
+from ui.components.map_component.containers.line_container import LineContainer
 
 logger = get_logger(__name__)
 
@@ -205,7 +204,7 @@ class BranchingLineContainer(QWidget):
         super().__init__(parent)
 
         # Import required classes here to avoid circular imports
-        from ui.components.map_component.line_container import LineContainer
+        from ui.components.map_component.containers.line_container import LineContainer
 
         # Create the actual container implementation using unified system
         self._container = LineContainer(

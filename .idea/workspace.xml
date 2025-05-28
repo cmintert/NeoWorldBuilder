@@ -4,10 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add branching line creation and validation in edit mode&#10;&#10;Introduced methods to create and manage branching lines, including validation for geometry types. Enhanced user interaction with branching tools, added control point highlighting, and ensured support for handling branch creation requests on both control points and line segments.">
-      <change afterPath="$PROJECT_DIR$/Claude.md" afterDir="false" />
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add comprehensive documentation for NeoWorldBuilder architecture and features">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Claude.md" beforeDir="false" afterPath="$PROJECT_DIR$/Claude.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/line_container.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/line_container.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/pin_container.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/pin_container.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -316,14 +318,6 @@
       <workItem from="1748335081049" duration="2071000" />
       <workItem from="1748338570454" duration="777000" />
       <workItem from="1748377084189" duration="2712000" />
-    </task>
-    <task id="LOCAL-00026" summary="Enhance timeline functionality with improved event handling and visualization in controllers. further debugging.">
-      <option name="closed" value="true" />
-      <created>1739911424193</created>
-      <option name="number" value="00026" />
-      <option name="presentableId" value="LOCAL-00026" />
-      <option name="project" value="LOCAL" />
-      <updated>1739911424194</updated>
     </task>
     <task id="LOCAL-00027" summary="Enhance timeline functionality with improved event handling and visualization in controllers. further debugging.">
       <option name="closed" value="true" />
@@ -709,7 +703,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748373253502</updated>
     </task>
-    <option name="localTasksCounter" value="75" />
+    <task id="LOCAL-00075" summary="Add comprehensive documentation for NeoWorldBuilder architecture and features">
+      <option name="closed" value="true" />
+      <created>1748457497563</created>
+      <option name="number" value="00075" />
+      <option name="presentableId" value="LOCAL-00075" />
+      <option name="project" value="LOCAL" />
+      <updated>1748457497564</updated>
+    </task>
+    <option name="localTasksCounter" value="76" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -739,8 +741,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Add line editing functionality with interactive controls&#10;&#10;Implemented an edit mode for map lines, enabling users to modify lines directly with control points for vertex manipulation. Added new constants to streamline visual styles, hit detection, and geometry handling. Updated the map widget for better scaling, customization, and integration of editing features." />
-    <MESSAGE value="Implement line editing functionality with control points and geometry management" />
     <MESSAGE value="Refactor line handling into modular components.&#10;&#10;Extracted line rendering and persistence logic into separate modules for improved modularity and maintainability. Enhanced line editing functionality with control point interactions, better rendering, and streamlined geometry updates. Updated related constants and UI components for consistency and scalability." />
     <MESSAGE value="Refactor map component for modularity and simplification&#10;&#10;Reorganized map-related classes into separate modules to improve code modularity and maintainability. Simplified `map_tab.py` by extracting line rendering, image loading, and drawing logic into dedicated components. This enhances readability, scalability, and future development efficiency." />
     <MESSAGE value="Modularize dialogs for map components&#10;&#10;Extracted `PinPlacementDialog` and `LineFeatureDialog` into standalone modules for improved structure and reusability. Refactored `map_tab.py` to reflect these changes, enhancing maintainability and code organization." />
@@ -764,7 +764,9 @@
     <MESSAGE value=" Consolidate map edit modes and integrate coordinate transformers&#10;&#10;  • Extract coordinate transformations into reusable CoordinateTransformer utility&#10;  • Consolidate basic and enhanced edit modes into unified system&#10;  • Create consolidated_edit_mode.py with UnifiedLineGeometry, UnifiedHitTester, and UnifiedLineRenderer&#10;  • Update line_container.py to handle both simple and branching lines using unified components&#10;  • Integrate CoordinateTransformer throughout map_viewport.py, map_tab.py, and containers&#10;  • Remove duplicate enhanced_edit_mode.py (900+ lines) and test_enhanced_mode.py&#10;  • Add geometry_changed signals for branching line compatibility&#10;  • Standardize coordinate transformation across all map editing operations" />
     <MESSAGE value="● Add pin movement functionality in edit mode&#10;&#10;  - Add drag support to PinContainer with proper coordinate transformation&#10;  - Update cursor to resize/move handle when hovering over pins in edit mode&#10;  - Add cursor change to resize/move handle when hovering over line control points&#10;  - Update relationship table properties when pin position changes&#10;  - Integrate pin edit mode into UnifiedFeatureManager&#10;  - Maintain consistent behavior with line point movement system" />
     <MESSAGE value="Add branching line creation and validation in edit mode&#10;&#10;Introduced methods to create and manage branching lines, including validation for geometry types. Enhanced user interaction with branching tools, added control point highlighting, and ensured support for handling branch creation requests on both control points and line segments." />
-    <option name="LAST_COMMIT_MESSAGE" value="Add branching line creation and validation in edit mode&#10;&#10;Introduced methods to create and manage branching lines, including validation for geometry types. Enhanced user interaction with branching tools, added control point highlighting, and ensured support for handling branch creation requests on both control points and line segments." />
+    <MESSAGE value="Add branching line creation and visualization in map tools&#10;&#10;Introduced functionality for creating, managing, and visualizing branching lines on the map. Enhanced user interaction with tools like control point highlighting, feedback visualization, and branch validation. Integrated logging and coordinate transformations for precise operations and improved debugging." />
+    <MESSAGE value="Add comprehensive documentation for NeoWorldBuilder architecture and features" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add comprehensive documentation for NeoWorldBuilder architecture and features" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -779,7 +781,7 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_parser_py.coverage" NAME="pytest in test_parser.py Coverage Results" MODIFIED="1738141005495" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/tests" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748446272888" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748457907618" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_test_load_node_data.coverage" NAME="pytest for test_node_operations.test_load_node_data Coverage Results" MODIFIED="1739348948172" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController.coverage" NAME="pytest for test_node_operations.TestBaseController Coverage Results" MODIFIED="1739642873372" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
