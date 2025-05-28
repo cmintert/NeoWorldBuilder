@@ -18,7 +18,9 @@ from structlog import get_logger
 from utils.geometry_handler import GeometryHandler
 from .drawing_manager import DrawingManager
 from ui.components.map_component.dialogs.line_feature_dialog import LineFeatureDialog
-from ui.components.map_component.dialogs.branching_line_feature_dialog import BranchingLineFeatureDialog
+from ui.components.map_component.dialogs.branching_line_feature_dialog import (
+    BranchingLineFeatureDialog,
+)
 from .map_image_loader import ImageManager
 from .map_viewport import MapViewport
 from ui.components.map_component.dialogs.pin_placement_dialog import PinPlacementDialog
@@ -68,10 +70,10 @@ class MapTab(QWidget):
         self._setup_components()
         self._setup_ui()
         self._connect_signals()
-        
+
         # Enable mouse tracking on the MapTab itself
         self.setMouseTracking(True)
-        
+
         # Install event filter to catch key presses
         self.installEventFilter(self)
 
@@ -375,8 +377,10 @@ class MapTab(QWidget):
             # Update feature container size AND position to match new image size
             if hasattr(self, "feature_container"):
                 # Use coordinate transformer to calculate centering offsets
-                container_x, container_y = CoordinateTransformer.calculate_centering_offsets(
-                    viewport_width, viewport_height, new_width, new_height
+                container_x, container_y = (
+                    CoordinateTransformer.calculate_centering_offsets(
+                        viewport_width, viewport_height, new_width, new_height
+                    )
                 )
 
                 print(
@@ -478,7 +482,7 @@ class MapTab(QWidget):
             # Set edit mode on feature manager
             self.feature_manager.set_edit_mode(True)
             logger.info("Edit mode activated on feature manager")
-            
+
             # Set focus to the viewport so it can receive key events
             self.image_label.setFocus()
             logger.info("Set focus to viewport for key events")
@@ -666,10 +670,10 @@ class MapTab(QWidget):
         """Handle key press events from the viewport."""
         key_value = event.key()
         logger.info(f"Key press event received: {key_value}")
-        
+
         # Debug log of key values for reference
         logger.info(f"Key_B value: {int(Qt.Key.Key_B)}")
-        
+
         # Check for the 'b' key (ASCII 66 for 'B', 98 for 'b')
         if key_value == 66 or key_value == 98:  # Use literal values for reliability
             logger.info("B key pressed - starting branch creation process")
@@ -682,23 +686,32 @@ class MapTab(QWidget):
                 logger.info(f"Pixmap found: {pixmap.width()}x{pixmap.height()}")
                 original_pixmap = None
                 current_scale = self.current_scale
-                
-                if (hasattr(self, "image_manager") and 
-                    self.image_manager.original_pixmap):
+
+                if (
+                    hasattr(self, "image_manager")
+                    and self.image_manager.original_pixmap
+                ):
                     original_pixmap = self.image_manager.original_pixmap
-                    logger.info(f"Original pixmap found: {original_pixmap.width()}x{original_pixmap.height()}")
+                    logger.info(
+                        f"Original pixmap found: {original_pixmap.width()}x{original_pixmap.height()}"
+                    )
                 else:
                     logger.warning("No original pixmap found")
-                
+
                 coordinates = CoordinateTransformer.widget_to_original_coordinates(
-                    mouse_pos, pixmap, 
-                    self.image_label.width(), self.image_label.height(),
-                    original_pixmap, current_scale
+                    mouse_pos,
+                    pixmap,
+                    self.image_label.width(),
+                    self.image_label.height(),
+                    original_pixmap,
+                    current_scale,
                 )
-                
+
                 if coordinates:
                     original_x, original_y = coordinates
-                    logger.info(f"Converted to original coordinates: ({original_x}, {original_y})")
+                    logger.info(
+                        f"Converted to original coordinates: ({original_x}, {original_y})"
+                    )
                     # Also get scaled coordinates
                     scaled_x = original_x * self.current_scale
                     scaled_y = original_y * self.current_scale
@@ -706,7 +719,9 @@ class MapTab(QWidget):
 
                     # Handle different modes
                     if self.branching_line_drawing_active:
-                        logger.info("In branching line drawing mode - using drawing manager")
+                        logger.info(
+                            "In branching line drawing mode - using drawing manager"
+                        )
                         # For branching line mode, use existing drawing manager logic
                         if self.drawing_manager.start_branch_from_position(
                             original_x, original_y, scaled_x, scaled_y
@@ -714,38 +729,57 @@ class MapTab(QWidget):
                             logger.info("Branch creation started in drawing manager")
                             return
                         else:
-                            logger.warning("Drawing manager failed to start branch creation")
+                            logger.warning(
+                                "Drawing manager failed to start branch creation"
+                            )
                     elif self.edit_mode_active:
                         logger.info("In edit mode - looking for nearest control point")
                         # For edit mode, find the nearest control point and trigger branch creation
-                        nearest_info = self._find_nearest_control_point(scaled_x, scaled_y)
+                        nearest_info = self._find_nearest_control_point(
+                            scaled_x, scaled_y
+                        )
                         if nearest_info:
                             target_node, branch_idx, point_idx, point = nearest_info
-                            logger.info(f"Found nearest control point: {target_node}, branch {branch_idx}, point {point_idx}")
-                            
+                            logger.info(
+                                f"Found nearest control point: {target_node}, branch {branch_idx}, point {point_idx}"
+                            )
+
                             # Store information about selected point for highlighting
                             self.branch_creation_mode = True
                             self._branch_creation_target = target_node
                             self._branch_creation_start_point = point
-                            self._branch_creation_point_indices = (branch_idx, point_idx)
-                            
+                            self._branch_creation_point_indices = (
+                                branch_idx,
+                                point_idx,
+                            )
+
                             # Set cursor to indicate branch creation mode
                             self.image_label.set_cursor_for_mode("crosshair")
-                            logger.info("Branch creation mode activated with highlighted point")
-                            
+                            logger.info(
+                                "Branch creation mode activated with highlighted point"
+                            )
+
                             # Force redraw to highlight the selected point
                             self.feature_manager.update_positions(self)
                             return
                         else:
-                            logger.warning("No suitable control point found, trying line-based selection")
+                            logger.warning(
+                                "No suitable control point found, trying line-based selection"
+                            )
                             # Fallback to line-based selection if no control point found
-                            if self._handle_branch_creation_request(original_x, original_y):
+                            if self._handle_branch_creation_request(
+                                original_x, original_y
+                            ):
                                 logger.info("Branch creation started from line segment")
                                 return
                             else:
-                                logger.warning("Failed to find any suitable branch creation point")
+                                logger.warning(
+                                    "Failed to find any suitable branch creation point"
+                                )
                     else:
-                        logger.info(f"Not in a suitable mode for branch creation: edit_mode={self.edit_mode_active}, branching_line_drawing={self.branching_line_drawing_active}")
+                        logger.info(
+                            f"Not in a suitable mode for branch creation: edit_mode={self.edit_mode_active}, branching_line_drawing={self.branching_line_drawing_active}"
+                        )
                 else:
                     logger.warning("Failed to convert to original coordinates")
             else:
@@ -779,23 +813,32 @@ class MapTab(QWidget):
                 logger.info(f"Pixmap found: {pixmap.width()}x{pixmap.height()}")
                 original_pixmap = None
                 current_scale = self.current_scale
-                
-                if (hasattr(self, "image_manager") and 
-                    self.image_manager.original_pixmap):
+
+                if (
+                    hasattr(self, "image_manager")
+                    and self.image_manager.original_pixmap
+                ):
                     original_pixmap = self.image_manager.original_pixmap
-                    logger.info(f"Original pixmap found: {original_pixmap.width()}x{original_pixmap.height()}")
+                    logger.info(
+                        f"Original pixmap found: {original_pixmap.width()}x{original_pixmap.height()}"
+                    )
                 else:
                     logger.warning("No original pixmap found")
-                
+
                 coordinates = CoordinateTransformer.widget_to_original_coordinates(
-                    mouse_pos, pixmap, 
-                    self.image_label.width(), self.image_label.height(),
-                    original_pixmap, current_scale
+                    mouse_pos,
+                    pixmap,
+                    self.image_label.width(),
+                    self.image_label.height(),
+                    original_pixmap,
+                    current_scale,
                 )
-                
+
                 if coordinates:
                     original_x, original_y = coordinates
-                    logger.info(f"Converted to original coordinates: ({original_x}, {original_y})")
+                    logger.info(
+                        f"Converted to original coordinates: ({original_x}, {original_y})"
+                    )
                     # Also get scaled coordinates
                     scaled_x = original_x * self.current_scale
                     scaled_y = original_y * self.current_scale
@@ -803,7 +846,9 @@ class MapTab(QWidget):
 
                     # Handle different modes
                     if self.branching_line_drawing_active:
-                        logger.info("In branching line drawing mode - using drawing manager")
+                        logger.info(
+                            "In branching line drawing mode - using drawing manager"
+                        )
                         # For branching line mode, use existing drawing manager logic
                         if self.drawing_manager.start_branch_from_position(
                             original_x, original_y, scaled_x, scaled_y
@@ -811,38 +856,57 @@ class MapTab(QWidget):
                             logger.info("Branch creation started in drawing manager")
                             return
                         else:
-                            logger.warning("Drawing manager failed to start branch creation")
+                            logger.warning(
+                                "Drawing manager failed to start branch creation"
+                            )
                     elif self.edit_mode_active:
                         logger.info("In edit mode - looking for nearest control point")
                         # For edit mode, find the nearest control point and trigger branch creation
-                        nearest_info = self._find_nearest_control_point(scaled_x, scaled_y)
+                        nearest_info = self._find_nearest_control_point(
+                            scaled_x, scaled_y
+                        )
                         if nearest_info:
                             target_node, branch_idx, point_idx, point = nearest_info
-                            logger.info(f"Found nearest control point: {target_node}, branch {branch_idx}, point {point_idx}")
-                            
+                            logger.info(
+                                f"Found nearest control point: {target_node}, branch {branch_idx}, point {point_idx}"
+                            )
+
                             # Store information about selected point for highlighting
                             self.branch_creation_mode = True
                             self._branch_creation_target = target_node
                             self._branch_creation_start_point = point
-                            self._branch_creation_point_indices = (branch_idx, point_idx)
-                            
+                            self._branch_creation_point_indices = (
+                                branch_idx,
+                                point_idx,
+                            )
+
                             # Set cursor to indicate branch creation mode
                             self.image_label.set_cursor_for_mode("crosshair")
-                            logger.info("Branch creation mode activated with highlighted point")
-                            
+                            logger.info(
+                                "Branch creation mode activated with highlighted point"
+                            )
+
                             # Force redraw to highlight the selected point
                             self.feature_manager.update_positions(self)
                             return
                         else:
-                            logger.warning("No suitable control point found, trying line-based selection")
+                            logger.warning(
+                                "No suitable control point found, trying line-based selection"
+                            )
                             # Fallback to line-based selection if no control point found
-                            if self._handle_branch_creation_request(original_x, original_y):
+                            if self._handle_branch_creation_request(
+                                original_x, original_y
+                            ):
                                 logger.info("Branch creation started from line segment")
                                 return
                             else:
-                                logger.warning("Failed to find any suitable branch creation point")
+                                logger.warning(
+                                    "Failed to find any suitable branch creation point"
+                                )
                     else:
-                        logger.info(f"Not in a suitable mode for branch creation: edit_mode={self.edit_mode_active}, branching_line_drawing={self.branching_line_drawing_active}")
+                        logger.info(
+                            f"Not in a suitable mode for branch creation: edit_mode={self.edit_mode_active}, branching_line_drawing={self.branching_line_drawing_active}"
+                        )
                 else:
                     logger.warning("Failed to convert to original coordinates")
             else:
@@ -993,149 +1057,155 @@ class MapTab(QWidget):
 
     def _handle_branch_creation_request(self, x: int, y: int) -> bool:
         """Handle branch creation request at specified coordinates.
-        
+
         Args:
             x: X coordinate in original image space
             y: Y coordinate in original image space
-            
+
         Returns:
             True if branch creation was initiated, False otherwise
         """
         logger.info(f"Handling branch creation request at ({x}, {y})")
-        
+
         # Find the nearest line to the cursor position
         nearest_line = self._find_nearest_line_at_position(x, y)
         if nearest_line:
             logger.info(f"Found nearest line: {nearest_line}")
-            
+
             # Start branch creation mode for this line
             self.branch_creation_mode = True
             self._branch_creation_target = nearest_line
             self._branch_creation_start_point = (x, y)
-            
+
             # Set cursor to indicate branch creation mode
             self.image_label.set_cursor_for_mode("crosshair")
-            
+
             logger.info(f"Started branch creation mode for line: {nearest_line}")
             return True
         else:
             logger.warning("No suitable line found for branch creation")
-        
+
         return False
-    
+
     def _find_nearest_line_at_position(self, x: int, y: int) -> Optional[str]:
         """Find the nearest line container to the specified position.
-        
+
         Args:
             x: X coordinate in original image space
             y: Y coordinate in original image space
-            
+
         Returns:
             Target node of nearest line, or None if no line found
         """
         print(f"Finding nearest line at position ({x}, {y})")
-        
+
         # Get all line containers from feature manager
         line_containers = self.feature_manager.get_line_containers()
-        
+
         if not line_containers:
             print("No line containers found")
             return None
-        
+
         print(f"Found {len(line_containers)} line containers")
-        
+
         nearest_line = None
-        min_distance = float('inf')
-        
+        min_distance = float("inf")
+
         # Convert original coordinates to scaled for hit testing
         scaled_x = x * self.current_scale
         scaled_y = y * self.current_scale
-        
+
         for target_node, line_container in line_containers.items():
             print(f"Checking line: {target_node}, type: {type(line_container)}")
-            
+
             # Get line geometry and test for proximity
-            if hasattr(line_container, 'geometry'):
+            if hasattr(line_container, "geometry"):
                 geometry = line_container.geometry
                 print(f"Geometry found, type: {type(geometry)}")
-                
+
                 # Check if geometry has scaled_branches attribute
-                if not hasattr(geometry, 'scaled_branches'):
-                    print(f"ERROR: geometry has no scaled_branches attribute: {dir(geometry)}")
+                if not hasattr(geometry, "scaled_branches"):
+                    print(
+                        f"ERROR: geometry has no scaled_branches attribute: {dir(geometry)}"
+                    )
                     continue
-                
+
                 # Debug what scaled_branches is
                 scaled_branches = geometry.scaled_branches
                 print(f"scaled_branches type: {type(scaled_branches)}")
-                
+
                 # Test if point is near any branch of this line
                 for branch in scaled_branches:
                     if len(branch) < 2:
                         continue
-                    
+
                     for i in range(len(branch) - 1):
                         p1 = branch[i]
                         p2 = branch[i + 1]
-                        
+
                         # Calculate distance to line segment
                         distance = self._point_to_line_distance(
                             (scaled_x, scaled_y), p1, p2
                         )
-                        
+
                         if distance < min_distance:
                             min_distance = distance
                             nearest_line = target_node
-        
+
         # Only return if within reasonable distance (e.g., 20 pixels)
         if min_distance <= 20:
             print(f"Found nearest line: {nearest_line} at distance {min_distance}")
             return nearest_line
         else:
             print(f"Nearest line too far away (distance: {min_distance})")
-        
+
         return None
-    
-    def _find_nearest_control_point(self, scaled_x: float, scaled_y: float) -> Optional[Tuple[str, int, int, Tuple[int, int]]]:
+
+    def _find_nearest_control_point(
+        self, scaled_x: float, scaled_y: float
+    ) -> Optional[Tuple[str, int, int, Tuple[int, int]]]:
         """Find the nearest control point to the specified position.
-        
+
         Args:
             scaled_x: X coordinate in scaled image space
             scaled_y: Y coordinate in scaled image space
-            
+
         Returns:
             Tuple of (target_node, branch_idx, point_idx, point) or None if no point found
         """
         print(f"Finding nearest control point to ({scaled_x}, {scaled_y})")
-        
+
         # Get all line containers from feature manager
         line_containers = self.feature_manager.get_line_containers()
-        
+
         if not line_containers:
             print("No line containers found")
             return None
-        
+
         print(f"Found {len(line_containers)} line containers")
-        
+
         nearest_info = None
-        min_distance = float('inf')
-        
+        min_distance = float("inf")
+
         for target_node, line_container in line_containers.items():
             print(f"Checking line: {target_node}, type: {type(line_container)}")
-            
+
             # Get line geometry
-            if hasattr(line_container, 'geometry'):
+            if hasattr(line_container, "geometry"):
                 geometry = line_container.geometry
                 print(f"Geometry found, type: {type(geometry)}")
-                
+
                 # Check if geometry has scaled_branches attribute
-                if not hasattr(geometry, 'scaled_branches'):
-                    print(f"ERROR: geometry has no scaled_branches attribute: {dir(geometry)}")
+                if not hasattr(geometry, "scaled_branches"):
+                    print(
+                        f"ERROR: geometry has no scaled_branches attribute: {dir(geometry)}"
+                    )
                     continue
-                
+
                 # Debug what scaled_branches is
                 scaled_branches = geometry.scaled_branches
                 print(f"scaled_branches type: {type(scaled_branches)}")
-                
+
                 # Test all control points in all branches
                 for branch_idx, branch in enumerate(scaled_branches):
                     for point_idx, point in enumerate(branch):
@@ -1143,130 +1213,149 @@ class MapTab(QWidget):
                         dx = scaled_x - point[0]
                         dy = scaled_y - point[1]
                         distance_sq = dx * dx + dy * dy
-                        
+
                         if distance_sq < min_distance:
                             min_distance = distance_sq
                             # Store original point (not scaled)
                             original_point = geometry.branches[branch_idx][point_idx]
-                            nearest_info = (target_node, branch_idx, point_idx, original_point)
-        
+                            nearest_info = (
+                                target_node,
+                                branch_idx,
+                                point_idx,
+                                original_point,
+                            )
+
         # Only return if within reasonable distance (e.g., 20 pixels squared)
         if min_distance <= 400:  # 20 pixels squared
             target_node, branch_idx, point_idx, point = nearest_info
-            print(f"Found nearest point: {target_node}, branch {branch_idx}, point {point_idx} at distance {min_distance}")
+            print(
+                f"Found nearest point: {target_node}, branch {branch_idx}, point {point_idx} at distance {min_distance}"
+            )
             return nearest_info
         else:
             print(f"Nearest point too far away (distance: {min_distance})")
-        
+
         return None
-    
-    def _point_to_line_distance(self, point: Tuple[float, float], 
-                               line_start: Tuple[int, int], 
-                               line_end: Tuple[int, int]) -> float:
+
+    def _point_to_line_distance(
+        self,
+        point: Tuple[float, float],
+        line_start: Tuple[int, int],
+        line_end: Tuple[int, int],
+    ) -> float:
         """Calculate distance from point to line segment."""
         px, py = point
         x1, y1 = line_start
         x2, y2 = line_end
-        
+
         # Vector from line_start to line_end
         dx = x2 - x1
         dy = y2 - y1
-        
+
         # If line segment has zero length
         if dx == 0 and dy == 0:
             return ((px - x1) ** 2 + (py - y1) ** 2) ** 0.5
-        
+
         # Parameter t represents position along line segment (0 to 1)
         t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
-        
+
         # Closest point on line segment
         closest_x = x1 + t * dx
         closest_y = y1 + t * dy
-        
+
         # Distance from point to closest point on line
         return ((px - closest_x) ** 2 + (py - closest_y) ** 2) ** 0.5
-    
+
     def eventFilter(self, obj, event):
         """Event filter to catch key presses globally."""
         if event.type() == 6:  # KeyPress event type
             print(f"*** GLOBAL EVENT FILTER - KeyPress caught: {event.key()} ***")
-            
+
             # Check for the 'b' key (ASCII 66 for 'B', 98 for 'b')
-            if event.key() == 66 or event.key() == 98:  # Use literal values for reliability
+            if (
+                event.key() == 66 or event.key() == 98
+            ):  # Use literal values for reliability
                 print("B KEY DETECTED IN EVENT FILTER")
                 if self.edit_mode_active:
                     print("EDIT MODE IS ACTIVE - HANDLING B KEY PRESS")
                     self._handle_b_key_press()
                     return True  # Event handled
-            
+
         # Pass event to default handler
         return super().eventFilter(obj, event)
-        
+
     def _handle_b_key_press(self):
         """Handle 'b' key press for branch creation."""
         print("*** HANDLING B KEY PRESS ***")
-        
+
         # Get current mouse position
         mouse_pos = self.image_label.mapFromGlobal(QCursor.pos())
         print(f"Mouse position: {mouse_pos.x()}, {mouse_pos.y()}")
-        
+
         # Convert to original coordinates
         pixmap = self.image_label.pixmap()
         if not pixmap:
             print("No pixmap available")
             return
-            
+
         original_pixmap = None
         if hasattr(self, "image_manager") and self.image_manager.original_pixmap:
             original_pixmap = self.image_manager.original_pixmap
-            
+
         coordinates = CoordinateTransformer.widget_to_original_coordinates(
-            mouse_pos, pixmap, 
-            self.image_label.width(), self.image_label.height(),
-            original_pixmap, self.current_scale
+            mouse_pos,
+            pixmap,
+            self.image_label.width(),
+            self.image_label.height(),
+            original_pixmap,
+            self.current_scale,
         )
-        
+
         if not coordinates:
             print("Failed to convert coordinates")
             return
-            
+
         original_x, original_y = coordinates
         print(f"Original coordinates: {original_x}, {original_y}")
-        
+
         # Calculate scaled coordinates
         scaled_x = original_x * self.current_scale
         scaled_y = original_y * self.current_scale
-        
+
         # Get all line containers
         line_containers = self.feature_manager.get_line_containers()
         print(f"Found {len(line_containers)} line containers")
-        
+
         # Find nearest control point or line segment
         if line_containers:
             # First try a quick approach - check for nearest point
-            min_distance = float('inf')
+            min_distance = float("inf")
             nearest_info = None
-            
+
             for target_node, line_container in line_containers.items():
-                print(f"Checking container: {target_node}, type: {type(line_container)}")
-                
+                print(
+                    f"Checking container: {target_node}, type: {type(line_container)}"
+                )
+
                 # For branching lines, we need to access the _container attribute which has the actual LineContainer
-                if hasattr(line_container, '_container'):
+                if hasattr(line_container, "_container"):
                     print(f"BranchingLineContainer found, accessing _container")
                     line_container = line_container._container
-                
+
                 # Make sure the container has a geometry attribute
-                if not hasattr(line_container, 'geometry'):
+                if not hasattr(line_container, "geometry"):
                     print(f"Container {target_node} has no geometry attribute")
                     continue
-                    
+
                 geometry = line_container.geometry
-                
+
                 # Check if geometry has scaled_branches attribute
-                if not hasattr(geometry, 'scaled_branches'):
-                    print(f"ERROR: geometry has no scaled_branches attribute: {dir(geometry)}")
+                if not hasattr(geometry, "scaled_branches"):
+                    print(
+                        f"ERROR: geometry has no scaled_branches attribute: {dir(geometry)}"
+                    )
                     continue
-                
+
                 # Process each branch for points
                 for branch_idx, branch in enumerate(geometry.scaled_branches):
                     for point_idx, point in enumerate(branch):
@@ -1274,114 +1363,122 @@ class MapTab(QWidget):
                         dx = scaled_x - point[0]
                         dy = scaled_y - point[1]
                         distance_sq = dx * dx + dy * dy
-                        
+
                         if distance_sq < min_distance:
                             min_distance = distance_sq
                             # Get original point
                             original_point = geometry.branches[branch_idx][point_idx]
-                            nearest_info = (target_node, branch_idx, point_idx, original_point, line_container)
-            
+                            nearest_info = (
+                                target_node,
+                                branch_idx,
+                                point_idx,
+                                original_point,
+                                line_container,
+                            )
+
             # If we found a point within reasonable distance (20 pixels squared = 400)
             if min_distance <= 400 and nearest_info:
                 target_node, branch_idx, point_idx, point, line_container = nearest_info
-                print(f"Found nearest point in {target_node}, branch {branch_idx}, point {point_idx}")
-                
+                print(
+                    f"Found nearest point in {target_node}, branch {branch_idx}, point {point_idx}"
+                )
+
                 # Set branch creation state
                 self.branch_creation_mode = True
                 self._branch_creation_target = target_node
                 self._branch_creation_start_point = point
                 self._branch_creation_point_indices = (branch_idx, point_idx)
-                
+
                 # Update cursor
                 self.image_label.set_cursor_for_mode("crosshair")
-                
+
                 # Force redraw to highlight the selected point
                 self.feature_manager.update_positions(self)
                 print("Branch creation mode activated with highlighted point")
                 return
-            
+
             # If no point found, try line segments
-            min_distance = float('inf')
+            min_distance = float("inf")
             nearest_line = None
             nearest_position = None
-            
+
             for target_node, line_container in line_containers.items():
                 # For branching lines, access the actual LineContainer
-                if hasattr(line_container, '_container'):
+                if hasattr(line_container, "_container"):
                     line_container = line_container._container
-                
-                if not hasattr(line_container, 'geometry'):
+
+                if not hasattr(line_container, "geometry"):
                     continue
-                    
+
                 geometry = line_container.geometry
-                
+
                 # Check if geometry has scaled_branches attribute
-                if not hasattr(geometry, 'scaled_branches'):
+                if not hasattr(geometry, "scaled_branches"):
                     continue
-                
+
                 # Process each branch for line segments
                 for branch in geometry.scaled_branches:
                     if len(branch) < 2:
                         continue
-                    
+
                     for i in range(len(branch) - 1):
                         p1 = branch[i]
                         p2 = branch[i + 1]
-                        
+
                         # Calculate distance to line segment
                         distance = self._point_to_line_distance(
                             (scaled_x, scaled_y), p1, p2
                         )
-                        
+
                         if distance < min_distance:
                             min_distance = distance
                             nearest_line = target_node
                             # Get original coordinates for the point
                             nearest_position = (
                                 int(scaled_x / self.current_scale),
-                                int(scaled_y / self.current_scale)
+                                int(scaled_y / self.current_scale),
                             )
-            
+
             # If we found a line within reasonable distance (20 pixels)
             if min_distance <= 20 and nearest_line and nearest_position:
                 print(f"Found nearest line: {nearest_line}")
-                
+
                 # Set branch creation state
                 self.branch_creation_mode = True
                 self._branch_creation_target = nearest_line
                 self._branch_creation_start_point = nearest_position
-                
+
                 # Update cursor
                 self.image_label.set_cursor_for_mode("crosshair")
-                
+
                 print(f"Branch creation mode activated from line segment")
                 return
-        
+
         print("No suitable point or line found for branch creation")
 
     def _reset_branch_creation_mode(self) -> None:
         """Reset branch creation mode state."""
         logger.info("Resetting branch creation mode")
         self.branch_creation_mode = False
-        if hasattr(self, '_branch_creation_target'):
-            delattr(self, '_branch_creation_target')
-        if hasattr(self, '_branch_creation_start_point'):
-            delattr(self, '_branch_creation_start_point')
-        if hasattr(self, '_branch_creation_point_indices'):
-            delattr(self, '_branch_creation_point_indices')
-        
+        if hasattr(self, "_branch_creation_target"):
+            delattr(self, "_branch_creation_target")
+        if hasattr(self, "_branch_creation_start_point"):
+            delattr(self, "_branch_creation_start_point")
+        if hasattr(self, "_branch_creation_point_indices"):
+            delattr(self, "_branch_creation_point_indices")
+
         # Reset cursor
         if self.edit_mode_active:
             self.image_label.set_cursor_for_mode("pointing")
         else:
             self.image_label.set_cursor_for_mode("default")
-            
+
         # Force redraw to remove any highlighted points
         self.feature_manager.update_positions(self)
-        
+
         # Force viewport update to clear branch creation feedback
         self.image_label.update()
-        
+
     # Utility Methods
     def get_map_image_path(self) -> Optional[str]:
         """Get the current map image path."""
@@ -1390,71 +1487,75 @@ class MapTab(QWidget):
     def get_feature_count(self) -> Dict[str, int]:
         """Get count of features by type."""
         return self.feature_manager.get_feature_count()
-        
+
     def _complete_branch_creation(self, end_x: int, end_y: int) -> None:
         """Complete branch creation with the specified end point.
-        
+
         Args:
             end_x: X coordinate of branch end point
             end_y: Y coordinate of branch end point
         """
         print(f"Completing branch creation: End point ({end_x}, {end_y})")
         logger.info(f"Completing branch creation: End point ({end_x}, {end_y})")
-        
+
         if not self.branch_creation_mode:
             print("Not in branch creation mode")
             logger.warning("Not in branch creation mode")
             return
-            
-        if not hasattr(self, '_branch_creation_target'):
+
+        if not hasattr(self, "_branch_creation_target"):
             print("No branch creation target set")
             logger.warning("No branch creation target set")
             return
-            
+
         target_node = self._branch_creation_target
-        
-        if not hasattr(self, '_branch_creation_start_point'):
+
+        if not hasattr(self, "_branch_creation_start_point"):
             print("No branch creation start point set")
             logger.warning("No branch creation start point set")
             return
-            
+
         start_x, start_y = self._branch_creation_start_point
         print(f"Branch from ({start_x}, {start_y}) to ({end_x}, {end_y})")
         logger.info(f"Branch from ({start_x}, {start_y}) to ({end_x}, {end_y})")
-        
+
         # Get the line container for the target
         line_containers = self.feature_manager.get_line_containers()
         if target_node in line_containers:
             line_container = line_containers[target_node]
             print(f"Found line container for {target_node}: {type(line_container)}")
-            logger.info(f"Found line container for {target_node}: {type(line_container)}")
-            
+            logger.info(
+                f"Found line container for {target_node}: {type(line_container)}"
+            )
+
             # For branching lines, access the actual LineContainer
-            if hasattr(line_container, '_container'):
+            if hasattr(line_container, "_container"):
                 print("Using _container from BranchingLineContainer")
                 logger.info("Using _container from BranchingLineContainer")
                 line_container = line_container._container
-            
+
             # Request branch creation from the line container
-            if hasattr(line_container, 'create_branch_from_point'):
+            if hasattr(line_container, "create_branch_from_point"):
                 print(f"Calling create_branch_from_point")
                 logger.info(f"Calling create_branch_from_point")
-                line_container.create_branch_from_point(
-                    start_x, start_y, end_x, end_y
-                )
+                line_container.create_branch_from_point(start_x, start_y, end_x, end_y)
                 print("Branch created successfully")
                 logger.info("Branch created successfully")
             else:
-                print(f"Error: line_container has no create_branch_from_point method: {dir(line_container)}")
-                logger.error(f"line_container has no create_branch_from_point method: {dir(line_container)}")
+                print(
+                    f"Error: line_container has no create_branch_from_point method: {dir(line_container)}"
+                )
+                logger.error(
+                    f"line_container has no create_branch_from_point method: {dir(line_container)}"
+                )
         else:
             print(f"Error: target_node {target_node} not found in line_containers")
             logger.error(f"target_node {target_node} not found in line_containers")
-        
+
         # Reset branch creation mode
         print("Resetting branch creation mode")
         logger.info("Resetting branch creation mode")
         self._reset_branch_creation_mode()
-        
+
         # Force an update of the viewport to clear the orange line
         self.image_label.update()

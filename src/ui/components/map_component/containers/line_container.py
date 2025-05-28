@@ -5,9 +5,15 @@ from PyQt6.QtWidgets import QLabel, QMenu
 from structlog import get_logger
 
 from .base_map_feature_container import BaseMapFeatureContainer
-from ui.components.map_component.edit_mode import UnifiedLineGeometry, UnifiedHitTester, UnifiedLineRenderer
+from ui.components.map_component.edit_mode import (
+    UnifiedLineGeometry,
+    UnifiedHitTester,
+    UnifiedLineRenderer,
+)
 from ui.components.map_component.line_persistence import LineGeometryPersistence
-from ui.components.map_component.utils.coordinate_transformer import CoordinateTransformer
+from ui.components.map_component.utils.coordinate_transformer import (
+    CoordinateTransformer,
+)
 
 logger = get_logger(__name__)
 
@@ -82,7 +88,7 @@ class LineContainer(BaseMapFeatureContainer):
         """Setup UI components and styling."""
         # Track cursor state
         self._current_cursor = Qt.CursorShape.PointingHandCursor
-        
+
         # Hide label initially, show on hover
         self.text_label.hide()
 
@@ -113,9 +119,7 @@ class LineContainer(BaseMapFeatureContainer):
         final_max_y = max(max_y, label_bottom)
 
         # Add margin - use the base class scale
-        margin = max(
-            int(self.WIDGET_MARGIN * self._scale), self.MIN_WIDGET_MARGIN
-        )
+        margin = max(int(self.WIDGET_MARGIN * self._scale), self.MIN_WIDGET_MARGIN)
         self.setGeometry(
             final_min_x - margin,
             final_min_y - margin,
@@ -157,9 +161,9 @@ class LineContainer(BaseMapFeatureContainer):
         """
         # First update the base class scale
         super().set_scale(scale)
-        
+
         print(f"LineContainer.set_scale called with scale: {scale}")
-        
+
         # Then update the geometry's scale
         self.geometry.set_scale(scale)
 

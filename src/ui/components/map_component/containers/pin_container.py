@@ -4,7 +4,9 @@ from PyQt6.QtGui import QMouseEvent, QCursor
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import QVBoxLayout, QLabel
 from utils.path_helper import get_resource_path
-from ui.components.map_component.utils.coordinate_transformer import CoordinateTransformer
+from ui.components.map_component.utils.coordinate_transformer import (
+    CoordinateTransformer,
+)
 from .base_map_feature_container import BaseMapFeatureContainer
 
 
@@ -30,7 +32,7 @@ class PinContainer(BaseMapFeatureContainer):
             config: Configuration object with settings.
         """
         super().__init__(target_node, parent, config)
-        
+
         # Drag state
         self.dragging = False
         self.drag_start_pos = QPoint()
@@ -119,7 +121,7 @@ class PinContainer(BaseMapFeatureContainer):
         """
         # Update base class scale first
         super().set_scale(scale)
-        
+
         # Then handle pin-specific scale updates
         self.update_pin_size()
         self.adjustSize()

@@ -207,9 +207,7 @@ class BranchingLineContainer(QWidget):
         from ui.components.map_component.containers.line_container import LineContainer
 
         # Create the actual container implementation using unified system
-        self._container = LineContainer(
-            target_node, branches, parent, config
-        )
+        self._container = LineContainer(target_node, branches, parent, config)
 
         # Connect signals
         self._container.line_clicked.connect(self.line_clicked)
@@ -621,7 +619,7 @@ class UnifiedFeatureManager(QObject):
         # Set edit mode for pins
         for pin_container in self.pins.values():
             pin_container.set_edit_mode(active)
-        
+
         # Set edit mode for lines
         for line_container in self.simple_lines.values():
             line_container.set_edit_mode(active)
@@ -646,7 +644,7 @@ class UnifiedFeatureManager(QObject):
 
     def get_line_containers(self) -> Dict[str, Any]:
         """Get all line containers (both simple and branching).
-        
+
         Returns:
             Dictionary mapping target_node to line container
             Note: For branching lines, it returns the actual LineContainer
@@ -654,14 +652,14 @@ class UnifiedFeatureManager(QObject):
         """
         all_lines = {}
         all_lines.update(self.simple_lines)
-        
+
         # For branching lines, add the inner _container which has the actual geometry
         for target_node, container in self.branching_lines.items():
-            if hasattr(container, '_container'):
+            if hasattr(container, "_container"):
                 all_lines[target_node] = container._container
             else:
                 all_lines[target_node] = container
-                
+
         return all_lines
 
 
