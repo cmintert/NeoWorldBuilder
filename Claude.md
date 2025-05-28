@@ -183,6 +183,11 @@ The map component is a complex subsystem that allows users to create interactive
 - **DrawingManager**: Manages drawing operations and temporary visualizations
 - **FeatureManager**: Coordinates between different features (pins, lines, etc.)
 
+### Hit Testing System
+- **FeatureHitTester**: Central hit testing class that provides a unified interface for hit testing all map features (pins, lines, polygons, multipoints)
+- **Hit Test Algorithm**: Uses point-to-line distance calculations with tolerance parameters and performance optimizations
+- **Shared Point Detection**: Special handling for shared points between branches in complex line structures
+
 ### Interactive Features
 - **Pin Placement**: Place pins on maps to mark locations of interest
 - **Line Drawing**: Create connections between points with line features

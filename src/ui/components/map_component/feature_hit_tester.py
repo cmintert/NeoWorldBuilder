@@ -4,7 +4,6 @@ from PyQt6.QtCore import QPoint, QRect, QPointF
 from PyQt6.QtGui import QPainterPath, QPolygon
 
 from .containers.base_map_feature_container import BaseMapFeatureContainer
-from .edit_mode import UnifiedHitTester
 
 
 class FeatureHitTester:
@@ -13,16 +12,15 @@ class FeatureHitTester:
     This class provides a unified interface for hit testing different types of
     map features (pins, lines, polygons, multipoints, etc.) and can be extended
     for new feature types. It uses specific hit testing strategies based on feature type.
-
-    Attributes:
-        line_hit_tester: Hit tester for line features
     """
+
+    # Constants for line hit testing
+    CONTROL_POINT_RADIUS = 6
+    LINE_HIT_TOLERANCE = 8
+    SHARED_POINT_RADIUS = 8
 
     def __init__(self):
         """Initialize the feature hit tester."""
-        # Line-specific hit tester
-        self.line_hit_tester = UnifiedHitTester()
-
         # Hit test configuration
         self.config = {
             'pin': {
@@ -44,50 +42,100 @@ class FeatureHitTester:
             }
         }
 
-    def test_feature(self,
-                     pos: QPoint,
-                     feature: BaseMapFeatureContainer,
-                     map_offset: Tuple[int, int] = (0, 0)) -> Dict[str, Any]:
-        """Test if a point hits a map feature.
-
+    def test_control_points(self, pos: QPoint, geometry, 
+                          widget_offset: Tuple[int, int]) -> Tuple[int, int]:
+        """Test control point hits.
+        
         Args:
-            pos: The point to test (in widget coordinates)
-            feature: The feature to test against
-            map_offset: Optional offset to apply (typically widget position)
-
+            pos: Mouse position in widget coordinates
+            geometry: Line geometry object with scaled_branches attribute
+            widget_offset: Widget position offset (x, y)
+            
         Returns:
-            Dict with hit test results, including:
-            - hit: Whether the feature was hit
-            - feature_type: Type of feature that was hit
-            - feature: The feature object that was hit
-            - details: Additional type-specific hit details
+            Tuple of (branch_idx, point_idx) or (-1, -1) if no hit
         """
-        # Get feature type
-        feature_type = self._get_feature_type(feature)
-
-        # Convert widget position to map coordinates
-        map_x, map_y = map_offset
-        map_pos = QPoint(pos.x() + map_x, pos.y() + map_y)
-
-        # Basic result structure
-        result = {
-            'hit': False,
-            'feature_type': feature_type,
-            'feature': feature,
-            'details': {}
-        }
-
-        # Dispatch to appropriate hit test method
-        if feature_type == 'pin':
-            result.update(self._test_pin(map_pos, feature))
-        elif feature_type == 'line':
-            result.update(self._test_line(map_pos, feature))
-        elif feature_type == 'polygon':
-            result.update(self._test_polygon(map_pos, feature))
-        elif feature_type == 'multipoint':
-            result.update(self._test_multipoint(map_pos, feature))
-
-        return result
+        widget_x, widget_y = widget_offset
+        pos_x, pos_y = pos.x(), pos.y()
+        
+        # Convert to map coordinates
+        map_x = pos_x + widget_x
+        map_y = pos_y + widget_y
+        
+        # Test all control points in all branches
+        for branch_idx, branch in enumerate(geometry.scaled_branches):
+            for point_idx, point in enumerate(branch):
+                # Calculate distance to control point
+                dx = map_x - point[0]
+                dy = map_y - point[1]
+                distance_sq = dx * dx + dy * dy
+                
+                # Use appropriate radius for shared vs regular points
+                radius = (self.SHARED_POINT_RADIUS if 
+                         hasattr(geometry, 'is_branching') and geometry.is_branching and self._is_shared_point(geometry, point)
+                         else self.CONTROL_POINT_RADIUS)
+                
+                if distance_sq <= radius ** 2:
+                    return branch_idx, point_idx
+        
+        return -1, -1
+    
+    def test_line_segments(self, pos: QPoint, geometry, 
+                          widget_offset: Tuple[int, int]) -> Tuple[int, int, QPoint]:
+        """Test line segment hits.
+        
+        Args:
+            pos: Mouse position in widget coordinates
+            geometry: Line geometry object with scaled_branches attribute
+            widget_offset: Widget position offset (x, y)
+            
+        Returns:
+            Tuple of (branch_idx, segment_idx, insertion_point) or (-1, -1, QPoint()) if no hit
+        """
+        widget_x, widget_y = widget_offset
+        pos_x, pos_y = pos.x(), pos.y()
+        
+        # Convert to map coordinates
+        map_x = pos_x + widget_x
+        map_y = pos_y + widget_y
+        
+        # Test all line segments in all branches
+        for branch_idx, branch in enumerate(geometry.scaled_branches):
+            if len(branch) < 2:
+                continue
+                
+            for segment_idx in range(len(branch) - 1):
+                p1 = branch[segment_idx]
+                p2 = branch[segment_idx + 1]
+                
+                # Calculate distance to line segment
+                distance, closest_point = self._point_to_line_distance(
+                    (map_x, map_y), p1, p2
+                )
+                
+                if distance <= self.LINE_HIT_TOLERANCE:
+                    return branch_idx, segment_idx, QPoint(int(closest_point[0]), int(closest_point[1]))
+        
+        return -1, -1, QPoint()
+    
+    def _is_shared_point(self, geometry, point: Tuple[int, int]) -> bool:
+        """Check if a point is shared between branches.
+        
+        Args:
+            geometry: Line geometry object
+            point: Point coordinates to check
+            
+        Returns:
+            True if point is shared between branches, False otherwise
+        """
+        if not hasattr(geometry, 'is_branching') or not geometry.is_branching:
+            return False
+        
+        # Convert scaled point back to original coordinates to check sharing
+        if hasattr(geometry, '_scale'):
+            original_point = (int(point[0] / geometry._scale), int(point[1] / geometry._scale))
+            return hasattr(geometry, '_shared_points') and original_point in geometry._shared_points and len(geometry._shared_points[original_point]) > 1
+        
+        return False
 
     def test_features(self,
                       pos: QPoint,
@@ -215,7 +263,7 @@ class FeatureHitTester:
         widget_pos = QPoint(map_pos.x() - feature.x(), map_pos.y() - feature.y())
 
         # First check control point hits
-        branch_idx, point_idx = self.line_hit_tester.test_control_points(
+        branch_idx, point_idx = self.test_control_points(
             widget_pos, feature.geometry, widget_offset
         )
 
@@ -229,7 +277,7 @@ class FeatureHitTester:
             return result
 
         # Then check line segment hits
-        branch_idx, segment_idx, insertion_point = self.line_hit_tester.test_line_segments(
+        branch_idx, segment_idx, insertion_point = self.test_line_segments(
             widget_pos, feature.geometry, widget_offset
         )
 
@@ -603,8 +651,8 @@ class FeatureHitTester:
         return points_in_rect
 
     def _point_to_line_distance(self, point: Tuple[float, float],
-                                line_start: Tuple[int, int],
-                                line_end: Tuple[int, int]) -> Tuple[float, Tuple[float, float]]:
+                               line_start: Tuple[int, int], 
+                               line_end: Tuple[int, int]) -> Tuple[float, Tuple[float, float]]:
         """Calculate distance from point to line segment.
 
         Args:

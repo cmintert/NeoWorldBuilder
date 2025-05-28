@@ -7,9 +7,9 @@ from structlog import get_logger
 from .base_map_feature_container import BaseMapFeatureContainer
 from ui.components.map_component.edit_mode import (
     UnifiedLineGeometry,
-    UnifiedHitTester,
     UnifiedLineRenderer,
 )
+from ui.components.map_component.feature_hit_tester import FeatureHitTester
 from ui.components.map_component.line_persistence import LineGeometryPersistence
 from ui.components.map_component.utils.coordinate_transformer import (
     CoordinateTransformer,
@@ -66,7 +66,7 @@ class LineContainer(BaseMapFeatureContainer):
 
         # Initialize unified components
         self.geometry = UnifiedLineGeometry(points_or_branches)
-        self.hit_tester = UnifiedHitTester()
+        self.hit_tester = FeatureHitTester()
         self.renderer = UnifiedLineRenderer(config)
         self.persistence = LineGeometryPersistence(target_node)
 

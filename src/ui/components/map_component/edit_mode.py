@@ -336,121 +336,12 @@ class UnifiedLineGeometry:
         return distance, (closest_x, closest_y)
 
 
-class UnifiedHitTester:
-    """Unified hit tester for both simple and branching lines."""
-    
-    CONTROL_POINT_RADIUS = 6
-    LINE_HIT_TOLERANCE = 8
-    SHARED_POINT_RADIUS = 8
-    
-    @staticmethod
-    def test_control_points(pos: QPoint, geometry: UnifiedLineGeometry, 
-                          widget_offset: Tuple[int, int]) -> Tuple[int, int]:
-        """Test control point hits.
-        
-        Returns:
-            Tuple of (branch_idx, point_idx) or (-1, -1) if no hit
-        """
-        widget_x, widget_y = widget_offset
-        pos_x, pos_y = pos.x(), pos.y()
-        
-        # Convert to map coordinates
-        map_x = pos_x + widget_x
-        map_y = pos_y + widget_y
-        
-        # Test all control points in all branches
-        for branch_idx, branch in enumerate(geometry.scaled_branches):
-            for point_idx, point in enumerate(branch):
-                # Calculate distance to control point
-                dx = map_x - point[0]
-                dy = map_y - point[1]
-                distance_sq = dx * dx + dy * dy
-                
-                # Use appropriate radius for shared vs regular points
-                radius = (UnifiedHitTester.SHARED_POINT_RADIUS if 
-                         geometry.is_branching and UnifiedHitTester._is_shared_point(geometry, point)
-                         else UnifiedHitTester.CONTROL_POINT_RADIUS)
-                
-                if distance_sq <= radius ** 2:
-                    return branch_idx, point_idx
-        
-        return -1, -1
-    
-    @staticmethod
-    def test_line_segments(pos: QPoint, geometry: UnifiedLineGeometry, 
-                          widget_offset: Tuple[int, int]) -> Tuple[int, int, QPoint]:
-        """Test line segment hits.
-        
-        Returns:
-            Tuple of (branch_idx, segment_idx, insertion_point) or (-1, -1, QPoint()) if no hit
-        """
-        widget_x, widget_y = widget_offset
-        pos_x, pos_y = pos.x(), pos.y()
-        
-        # Convert to map coordinates
-        map_x = pos_x + widget_x
-        map_y = pos_y + widget_y
-        
-        # Test all line segments in all branches
-        for branch_idx, branch in enumerate(geometry.scaled_branches):
-            if len(branch) < 2:
-                continue
-                
-            for segment_idx in range(len(branch) - 1):
-                p1 = branch[segment_idx]
-                p2 = branch[segment_idx + 1]
-                
-                # Calculate distance to line segment
-                distance, closest_point = UnifiedHitTester._point_to_line_distance(
-                    (map_x, map_y), p1, p2
-                )
-                
-                if distance <= UnifiedHitTester.LINE_HIT_TOLERANCE:
-                    return branch_idx, segment_idx, QPoint(int(closest_point[0]), int(closest_point[1]))
-        
-        return -1, -1, QPoint()
-    
-    @staticmethod
-    def _is_shared_point(geometry: UnifiedLineGeometry, point: Tuple[int, int]) -> bool:
-        """Check if a point is shared between branches."""
-        if not geometry.is_branching:
-            return False
-        
-        # Convert scaled point back to original coordinates to check sharing
-        original_point = (int(point[0] / geometry._scale), int(point[1] / geometry._scale))
-        return original_point in geometry._shared_points and len(geometry._shared_points[original_point]) > 1
-    
-    @staticmethod
-    def _point_to_line_distance(point: Tuple[float, float], line_start: Tuple[int, int], 
-                               line_end: Tuple[int, int]) -> Tuple[float, Tuple[float, float]]:
-        """Calculate distance from point to line segment."""
-        px, py = point
-        x1, y1 = line_start
-        x2, y2 = line_end
-        
-        # Vector from line_start to line_end
-        dx = x2 - x1
-        dy = y2 - y1
-        
-        # If line segment has zero length
-        if dx == 0 and dy == 0:
-            return ((px - x1) ** 2 + (py - y1) ** 2) ** 0.5, (x1, y1)
-        
-        # Parameter t represents position along line segment (0 to 1)
-        t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
-        
-        # Closest point on line segment
-        closest_x = x1 + t * dx
-        closest_y = y1 + t * dy
-        
-        # Distance from point to closest point on line
-        distance = ((px - closest_x) ** 2 + (py - closest_y) ** 2) ** 0.5
-        
-        return distance, (closest_x, closest_y)
-
-
 class UnifiedLineRenderer:
     """Unified renderer for both simple and branching lines."""
+    
+    # Constants for rendering control points
+    CONTROL_POINT_RADIUS = 6
+    SHARED_POINT_RADIUS = 8
     
     def __init__(self, config=None):
         self.config = config
@@ -534,16 +425,16 @@ class UnifiedLineRenderer:
                     # Highlighted point (selected for branch creation) is larger and bright red
                     painter.setBrush(QBrush(QColor("#FF0000")))
                     painter.setPen(QPen(QColor("#FFFFFF"), 2))
-                    radius = UnifiedHitTester.SHARED_POINT_RADIUS + 2  # Slightly larger
+                    radius = self.SHARED_POINT_RADIUS + 2  # Slightly larger
                 elif point in shared_points:
                     # Shared points are larger and red
                     painter.setBrush(QBrush(QColor("#FF0000")))
                     painter.setPen(QPen(QColor("#FFFFFF"), 2))
-                    radius = UnifiedHitTester.SHARED_POINT_RADIUS
+                    radius = self.SHARED_POINT_RADIUS
                 else:
                     # Regular points are blue
                     painter.setBrush(QBrush(QColor("#0000FF")))
                     painter.setPen(QPen(QColor("#FFFFFF"), 1))
-                    radius = UnifiedHitTester.CONTROL_POINT_RADIUS
+                    radius = self.CONTROL_POINT_RADIUS
                 
                 painter.drawEllipse(x - radius, y - radius, 2 * radius, 2 * radius)
