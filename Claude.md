@@ -180,8 +180,17 @@ The map component is a complex subsystem that allows users to create interactive
 - **BaseMapFeatureContainer**: Abstract base class for map feature containers
   - **PinContainer**: Container for pin features (inherits from BaseMapFeatureContainer)
   - **LineContainer**: Container for line features, supports both simple and branching lines (inherits from BaseMapFeatureContainer)
+  - **BranchingLineContainer**: Specialized container for branching line features (delegates to LineContainer)
 - **DrawingManager**: Manages drawing operations and temporary visualizations
 - **FeatureManager**: Coordinates between different features (pins, lines, etc.)
+
+### Container Architecture
+The containers follow a well-organized structure:
+- All containers inherit from `BaseMapFeatureContainer` for consistent behavior
+- `LineContainer` provides unified handling of both simple and branching lines
+- `BranchingLineContainer` acts as a specialized wrapper around `LineContainer`
+- Containers are properly organized in the `containers/` package for better code organization
+- Clean separation of concerns with feature management logic separate from container definitions
 
 ### Hit Testing System
 - **FeatureHitTester**: Central hit testing class that provides a unified interface for hit testing all map features (pins, lines, polygons, multipoints)
