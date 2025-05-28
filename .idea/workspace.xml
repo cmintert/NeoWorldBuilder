@@ -4,14 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add FeatureHitTester for unified hit testing of map features; refactor hit testing logic in edit mode and line container">
-      <change afterPath="$PROJECT_DIR$/src/ui/components/map_component/containers/branching_line_container.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Claude.md" beforeDir="false" afterPath="$PROJECT_DIR$/Claude.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/containers/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/containers/__init__.py" afterDir="false" />
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Add BranchingLineContainer and refactor map feature containers for improved modularity; enhance documentation for container architecture">
       <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/feature_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/feature_manager.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/line_hit_tester.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -320,14 +314,6 @@
       <workItem from="1748335081049" duration="2071000" />
       <workItem from="1748338570454" duration="777000" />
       <workItem from="1748377084189" duration="2712000" />
-    </task>
-    <task id="LOCAL-00028" summary="Add calendar lookup functionality and improve event data handling in timeline tab">
-      <option name="closed" value="true" />
-      <created>1739997041415</created>
-      <option name="number" value="00028" />
-      <option name="presentableId" value="LOCAL-00028" />
-      <option name="project" value="LOCAL" />
-      <updated>1739997041415</updated>
     </task>
     <task id="LOCAL-00029" summary="Enhance timeline tab setup and data loading with improved error handling and event processing">
       <option name="closed" value="true" />
@@ -713,7 +699,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748466275193</updated>
     </task>
-    <option name="localTasksCounter" value="77" />
+    <task id="LOCAL-00077" summary="Add BranchingLineContainer and refactor map feature containers for improved modularity; enhance documentation for container architecture">
+      <option name="closed" value="true" />
+      <created>1748468004418</created>
+      <option name="number" value="00077" />
+      <option name="presentableId" value="LOCAL-00077" />
+      <option name="project" value="LOCAL" />
+      <updated>1748468004418</updated>
+    </task>
+    <option name="localTasksCounter" value="78" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -743,7 +737,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Modularize dialogs for map components&#10;&#10;Extracted `PinPlacementDialog` and `LineFeatureDialog` into standalone modules for improved structure and reusability. Refactored `map_tab.py` to reflect these changes, enhancing maintainability and code organization." />
     <MESSAGE value="Add branching line drawing functionality to map feature&#10;&#10;Introduced branching line drawing mode with UI toggle support in `map_tab.py`. Added necessary handling for branching lines, including toggle status, point addition, and rendering preparation. Enhanced `line_container.py` to support modular line features required by the new functionality while improving code readability and error handling." />
     <MESSAGE value="Add branching line drawing functionality to map feature&#10;&#10;Introduced branching line drawing mode with UI toggle support in `map_tab.py`. Added mechanisms to handle branching lines, including point addition, completion, and rendering updates in `drawing_manager.py`. Enhanced related classes like `line_container.py` and `line_geometry.py` to support accurate scaling, maintainability, and modularity for branching lines." />
     <MESSAGE value="Refactor prompt templates and enhance line management logic&#10;&#10;Updated `prompt_templates.yaml` to include a new &quot;Create Plant Description&quot; template with detailed formatting and processing instructions. Refactored line scaling and geometry management in `line_geometry.py` and related components to improve modularity, ensure accurate scaling with dynamic image dimensions, and enhance debugging capabilities. Added comprehensive logging to aid in debugging and maintaining feature consistency throughout the map component hierarchy." />
@@ -768,7 +761,8 @@
     <MESSAGE value="Add comprehensive documentation for NeoWorldBuilder architecture and features" />
     <MESSAGE value="Refactor pin and line containers for improved readability and consistency; add FeatureHitTester for unified hit testing of map features" />
     <MESSAGE value="Add FeatureHitTester for unified hit testing of map features; refactor hit testing logic in edit mode and line container" />
-    <option name="LAST_COMMIT_MESSAGE" value="Add FeatureHitTester for unified hit testing of map features; refactor hit testing logic in edit mode and line container" />
+    <MESSAGE value="Add BranchingLineContainer and refactor map feature containers for improved modularity; enhance documentation for container architecture" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add BranchingLineContainer and refactor map feature containers for improved modularity; enhance documentation for container architecture" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -783,7 +777,7 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_parser_py.coverage" NAME="pytest in test_parser.py Coverage Results" MODIFIED="1738141005495" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/tests" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748467199213" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748468373489" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_test_load_node_data.coverage" NAME="pytest for test_node_operations.test_load_node_data Coverage Results" MODIFIED="1739348948172" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController.coverage" NAME="pytest for test_node_operations.TestBaseController Coverage Results" MODIFIED="1739642873372" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
