@@ -1,4 +1,5 @@
-from typing import Dict, List, Tuple, Optional
+from typing import Tuple, Optional
+
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint
 from PyQt6.QtGui import (
     QMouseEvent,
@@ -10,8 +11,9 @@ from PyQt6.QtGui import (
     QColor,
     QBrush,
 )
-from PyQt6.QtWidgets import QLabel, QWidget
+from PyQt6.QtWidgets import QLabel
 from structlog import get_logger
+
 from .utils.coordinate_transformer import CoordinateTransformer
 
 logger = get_logger(__name__)

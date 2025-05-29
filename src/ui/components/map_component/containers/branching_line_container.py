@@ -5,28 +5,25 @@ in the map component. It serves as a specialized container that leverages the un
 LineContainer implementation for branching line functionality.
 """
 
-from typing import List, Tuple, Dict, Any, Optional
-from PyQt6.QtCore import pyqtSignal
+from typing import List, Tuple, Any, Optional
+
 from PyQt6.QtWidgets import QWidget
 
 from .line_container import LineContainer
 
 
-class BranchingLineContainer(QWidget):
+class BranchingLineContainer(LineContainer):
     """Container widget for branching lines.
 
-    This container acts as a specialized wrapper around LineContainer,
-    providing a dedicated interface for branching line functionality while
-    leveraging the unified line implementation.
-    
-    The BranchingLineContainer delegates all actual functionality to an internal
-    LineContainer instance, which handles both simple and branching line geometries
-    through its unified architecture.
-    """
+    This container inherits from LineContainer (which already inherits from
+    BaseMapFeatureContainer), providing a clean inheritance hierarchy while
+    maintaining architectural consistency.
 
-    # Signals
-    line_clicked = pyqtSignal(str)  # target_node
-    geometry_changed = pyqtSignal(str, list)  # target_node, branches
+    By inheriting directly from LineContainer, we eliminate the complexity
+    of maintaining two separate widget hierarchies and delegate patterns,
+    while still satisfying the requirement to inherit from BaseMapFeatureContainer
+    (indirectly through LineContainer).
+    """
 
     def __init__(
         self,
@@ -43,49 +40,24 @@ class BranchingLineContainer(QWidget):
             parent: Parent widget
             config: Configuration object
         """
-        super().__init__(parent)
+        # Initialize with branching line data through LineContainer's constructor
+        # LineContainer already inherits from BaseMapFeatureContainer, so this
+        # satisfies the architectural requirement
+        super().__init__(target_node, branches, parent, config)
 
-        # Create the actual container implementation using unified system
-        self._container = LineContainer(target_node, branches, parent, config)
+        # No need to create a separate internal container or handle complex delegation
+        # since we're directly inheriting all functionality from LineContainer
 
-        # Connect signals from the internal container to our interface
-        self._container.line_clicked.connect(self.line_clicked)
-        self._container.geometry_changed.connect(self.geometry_changed)
-
-        # Forward essential methods to provide a clean interface
-        # These methods delegate to the internal LineContainer
-        self.set_scale = self._container.set_scale
-        self.set_style = self._container.set_style
-        self.set_edit_mode = self._container.set_edit_mode
-        self.show = self._container.show
-        self.raise_ = self._container.raise_
-        
-        # Override deleteLater to ensure proper cleanup
-        self._original_deleteLater = super().deleteLater
-
-    def deleteLater(self) -> None:
-        """Override deleteLater to clean up internal container."""
-        if hasattr(self, '_container') and self._container:
-            self._container.deleteLater()
-        self._original_deleteLater()
-
-    @property
-    def target_node(self) -> str:
-        """Get the target node name."""
-        return self._container.target_node
-
-    @property
-    def geometry(self):
-        """Get the internal geometry object."""
-        return self._container.geometry
+        print(
+            f"Initialized BranchingLineContainer for {target_node} with {len(branches)} branches"
+        )
 
     def create_branch_from_point(
         self, start_x: int, start_y: int, end_x: int, end_y: int
     ) -> None:
         """Create a new branch from an existing point.
 
-        This method delegates to the internal LineContainer's branch creation
-        functionality.
+        Implements the branch creation functionality directly through the parent class.
 
         Args:
             start_x: X coordinate of branch start point
@@ -93,15 +65,18 @@ class BranchingLineContainer(QWidget):
             end_x: X coordinate of branch end point
             end_y: Y coordinate of branch end point
         """
-        self._container.create_branch_from_point(start_x, start_y, end_x, end_y)
+        # Call the parent class implementation directly
+        super().create_branch_from_point(start_x, start_y, end_x, end_y)
+        print(f"Branch created from ({start_x}, {start_y}) to ({end_x}, {end_y})")
 
     def get_line_container(self) -> LineContainer:
-        """Get the internal LineContainer instance.
-        
-        This method provides access to the underlying LineContainer for
-        cases where direct access to the unified implementation is needed.
-        
+        """Get the line container instance.
+
+        For backward compatibility with code that expects a separate container.
+        Since BranchingLineContainer now directly inherits from LineContainer,
+        this method simply returns self.
+
         Returns:
-            The internal LineContainer instance
+            The container instance (self)
         """
-        return self._container
+        return self

@@ -1,17 +1,17 @@
 import json
-from typing import List, Tuple
+
 from PyQt6.QtWidgets import QLineEdit
 
 
 class LineGeometryPersistence:
     """Handles saving line geometry to database."""
-    
+
     def __init__(self, target_node: str):
         self.target_node = target_node
-    
+
     def update_geometry(self, original_points_or_branches, controller) -> None:
         """Update geometry in the relationships table.
-        
+
         Args:
             original_points_or_branches: List of points for simple line, or list of branches for branching line
             controller: The application controller
@@ -19,12 +19,12 @@ class LineGeometryPersistence:
         try:
             # Convert updated points back to WKT
             from utils.geometry_handler import GeometryHandler
-            
+
             # Validate and process the geometry data
             if not original_points_or_branches:
                 print("No geometry data provided")
                 return
-            
+
             # Check if this is a simple line or branching line
             if isinstance(original_points_or_branches[0], list):
                 # Branching line - list of branches
@@ -39,11 +39,11 @@ class LineGeometryPersistence:
                                 valid_branch.append((float(point[0]), float(point[1])))
                         if len(valid_branch) >= 2:
                             valid_branches.append(valid_branch)
-                
+
                 if not valid_branches:
                     print("No valid branches found")
                     return
-                    
+
                 new_wkt = GeometryHandler.create_multi_line(valid_branches)
                 original_points_or_branches = valid_branches  # Use validated data
             else:
@@ -53,34 +53,34 @@ class LineGeometryPersistence:
                 for point in original_points_or_branches:
                     if isinstance(point, (tuple, list)) and len(point) >= 2:
                         valid_points.append((float(point[0]), float(point[1])))
-                
+
                 if len(valid_points) < 2:
                     print("Insufficient valid points for line")
                     return
-                    
+
                 new_wkt = GeometryHandler.create_line(valid_points)
                 original_points_or_branches = valid_points  # Use validated data
-            
+
             # Find the parent map tab to access the controller
             if not controller:
                 print("No controller provided to update geometry")
                 return
-            
+
             relationships_table = controller.ui.relationships_table
-            
+
             if not relationships_table:
                 print("No relationships table found")
                 return
-            
+
             # Find the row for this line feature
             for row in range(relationships_table.rowCount()):
                 rel_type = relationships_table.item(row, 0)
                 target_item = relationships_table.item(row, 1)
                 props_item = relationships_table.item(row, 3)
-                
+
                 if not (rel_type and target_item and props_item):
                     continue
-                
+
                 # Check if this is our line
                 target_node = ""
                 if hasattr(target_item, "text"):
@@ -89,28 +89,33 @@ class LineGeometryPersistence:
                     target_widget = relationships_table.cellWidget(row, 1)
                     if isinstance(target_widget, QLineEdit):
                         target_node = target_widget.text()
-                
+
                 if rel_type.text() == "SHOWS" and target_node == self.target_node:
                     # Found our row - update the geometry
                     properties = json.loads(props_item.text())
                     properties["geometry"] = new_wkt
-                    
+
                     # Update geometry type based on what we're storing
-                    if original_points_or_branches and isinstance(original_points_or_branches[0], list):
+                    if original_points_or_branches and isinstance(
+                        original_points_or_branches[0], list
+                    ):
                         properties["geometry_type"] = "MultiLineString"
                         properties["branch_count"] = len(original_points_or_branches)
                     else:
                         properties["geometry_type"] = "LineString"
                         # Remove branch_count if it exists
                         properties.pop("branch_count", None)
-                    
+
                     # Update the table item
                     props_item.setText(json.dumps(properties))
-                    
-                    print(f"Updated geometry for {self.target_node} as {properties['geometry_type']}")
+
+                    print(
+                        f"Updated geometry for {self.target_node} as {properties['geometry_type']}"
+                    )
                     break
-                    
+
         except Exception as e:
             print(f"Error updating line geometry: {e}")
             import traceback
+
             traceback.print_exc()

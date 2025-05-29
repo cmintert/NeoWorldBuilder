@@ -805,7 +805,7 @@ class MapTab(QWidget):
             elif self.edit_mode_active:
                 logger.info("Escape pressed - exiting edit mode")
                 self.edit_toggle_btn.setChecked(False)
-            logger.info(f"Mouse position: {mouse_pos.x()}, {mouse_pos.y()}")
+            # No logging of mouse position here, as mouse_pos may not be defined
 
             # Convert to original coordinates using coordinate transformer
             pixmap = self.image_label.pixmap()

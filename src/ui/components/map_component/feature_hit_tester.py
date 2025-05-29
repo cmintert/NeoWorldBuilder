@@ -137,6 +137,53 @@ class FeatureHitTester:
         
         return False
 
+    def test_feature(self,
+                      pos: QPoint,
+                      feature: BaseMapFeatureContainer,
+                      map_offset: Tuple[int, int] = (0, 0)) -> Dict[str, Any]:
+        """Test if a point hits a specific feature.
+
+        Args:
+            pos: The point to test (in widget coordinates)
+            feature: The feature to test against
+            map_offset: Optional offset to apply (typically widget position)
+
+        Returns:
+            Dict with hit test results
+        """
+        # Apply map offset to get map coordinates
+        map_pos = QPoint(pos.x() + map_offset[0], pos.y() + map_offset[1])
+        
+        # Get feature type
+        feature_type = self._get_feature_type(feature)
+        
+        # Create basic result structure
+        result = {
+            'hit': False,
+            'feature_type': feature_type,
+            'feature': feature,
+            'details': {}
+        }
+        
+        # Dispatch to appropriate test method based on feature type
+        if feature_type == 'pin':
+            type_result = self._test_pin(map_pos, feature)
+        elif feature_type == 'line':
+            type_result = self._test_line(map_pos, feature)
+        elif feature_type == 'polygon':
+            type_result = self._test_polygon(map_pos, feature)
+        elif feature_type == 'multipoint':
+            type_result = self._test_multipoint(map_pos, feature)
+        else:
+            # Generic fallback - test if point is within feature's geometry
+            type_result = {'hit': feature.geometry().contains(map_pos), 'details': {}}
+        
+        # Merge type-specific result with basic result
+        result['hit'] = type_result['hit']
+        result['details'].update(type_result['details'])
+        
+        return result
+
     def test_features(self,
                       pos: QPoint,
                       features: List[BaseMapFeatureContainer],
@@ -651,8 +698,8 @@ class FeatureHitTester:
         return points_in_rect
 
     def _point_to_line_distance(self, point: Tuple[float, float],
-                               line_start: Tuple[int, int], 
-                               line_end: Tuple[int, int]) -> Tuple[float, Tuple[float, float]]:
+                               line_start: Tuple[float, float], 
+                               line_end: Tuple[float, float]) -> Tuple[float, Tuple[float, float]]:
         """Calculate distance from point to line segment.
 
         Args:
