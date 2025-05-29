@@ -157,13 +157,27 @@ class MapViewport(QLabel):
                 self.coordinate_label.show()
             else:
                 self.coordinate_label.hide()
-        print(f"Mouse moved to: {event.pos().x()}, {event.pos().y()}")
+
         self.update()  # Trigger repaint for branch creation feedback
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         """Handle mouse wheel for zooming."""
+        print(f"MapViewport wheelEvent called with delta: {event.angleDelta().y()}")
+
+        # Accept the event to prevent it from being propagated
+        event.accept()
+
         delta = event.angleDelta().y()
-        zoom_factor = 1.0 + (delta / 1200.0)
+
+        # Check if Ctrl is held for fine zoom control
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            # Fine zoom: approximately 5% per wheel notch
+            zoom_factor = 1.0 + (delta / 2400.0)
+        else:
+            # Regular zoom: approximately 20% per wheel notch
+            zoom_factor = 1.0 + (delta / 600.0)
+
+        print(f"Emitting zoom_requested with factor: {zoom_factor}")
         self.zoom_requested.emit(zoom_factor)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
