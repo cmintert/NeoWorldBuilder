@@ -535,6 +535,14 @@ class MapTab(QWidget):
         # Pass event to default handler
         return super().eventFilter(obj, event)
 
+    def _handle_b_key_press(self) -> None:
+        """Handle B key press for branch creation - delegates to event handler."""
+        print("MapTab._handle_b_key_press called")
+        if hasattr(self, 'event_handler'):
+            self.event_handler._handle_b_key_press()
+        else:
+            print("Warning: No event_handler available")
+    
     def _reset_branch_creation_mode(self) -> None:
         """Reset branch creation mode state."""
         self.mode_manager.reset_branch_creation_mode()

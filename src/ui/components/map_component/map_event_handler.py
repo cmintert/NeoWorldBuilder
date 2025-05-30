@@ -69,6 +69,35 @@ class MapEventHandler(QObject):
             if self.parent_widget.mode_manager.handle_escape_key():
                 return
 
+    def _handle_b_key_press(self) -> None:
+        """Handle B key press to start branch creation in edit mode."""
+        logger.info("Handling B key press for branch creation")
+        
+        # Check if we're in edit mode
+        if not self.parent_widget.edit_mode_active:
+            logger.info("Not in edit mode, ignoring B key press")
+            return
+        
+        # Get current mouse position from the viewport
+        if hasattr(self.parent_widget, 'image_label') and hasattr(self.parent_widget.image_label, 'current_mouse_pos'):
+            mouse_pos = self.parent_widget.image_label.current_mouse_pos
+            
+            # Convert widget coordinates to original coordinates
+            coordinates = self.parent_widget.image_label._get_original_coordinates(mouse_pos)
+            if coordinates:
+                x, y = coordinates
+                logger.info(f"Starting branch creation at coordinates: ({x}, {y})")
+                
+                # Use the existing branch creation request handler
+                if self.handle_branch_creation_request(x, y):
+                    logger.info("Branch creation mode activated successfully")
+                else:
+                    logger.warning("Failed to start branch creation - no line found at cursor position")
+            else:
+                logger.warning("Could not get coordinates from mouse position")
+        else:
+            logger.warning("Could not get current mouse position from viewport")
+
     def handle_feature_click(self, target_node: str) -> None:
         """Handle clicks on features."""
         self.pin_clicked.emit(target_node)
