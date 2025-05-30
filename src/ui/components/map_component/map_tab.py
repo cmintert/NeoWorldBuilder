@@ -427,6 +427,11 @@ class MapTab(QWidget):
     @property
     def branch_creation_mode(self) -> bool:
         return self.mode_manager.branch_creation_mode
+    
+    @property
+    def _branch_creation_start_point(self) -> Optional[tuple]:
+        """Get the branch creation start point from mode manager."""
+        return self.mode_manager.get_branch_creation_start_point()
 
     # Event Handling Methods (delegated to event_handler)
     def _handle_coordinate_click(self, x: int, y: int) -> None:
