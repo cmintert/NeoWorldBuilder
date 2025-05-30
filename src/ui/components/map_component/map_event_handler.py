@@ -258,45 +258,6 @@ class MapEventHandler(QObject):
                 import traceback
 
                 logger.error(traceback.format_exc())
-
-    def _handle_b_key_press(self):
-        """Handle 'b' key press for branch creation."""
-        print("*** HANDLING B KEY PRESS ***")
-
-        # Get current mouse position
-        mouse_pos = self.parent_widget.image_label.mapFromGlobal(QCursor.pos())
-        print(f"Mouse position: {mouse_pos.x()}, {mouse_pos.y()}")
-
-        # Convert to original coordinates
-        pixmap = self.parent_widget.image_label.pixmap()
-        if not pixmap:
-            print("No pixmap available")
-            return
-
-        from .map_coordinate_utilities import MapCoordinateUtilities
-
-        coord_utils = MapCoordinateUtilities(self.parent_widget)
-
-        nearest = coord_utils.find_nearest_to_mouse(
-            mouse_pos,
-            pixmap,
-            self.parent_widget.image_label.width(),
-            self.parent_widget.image_label.height(),
-        )
-
-        if not nearest:
-            print("No suitable point or line found for branch creation")
-            return
-
-        if self.parent_widget.branching_line_drawing_active:
-            # For branching line mode, use existing drawing manager logic
-            original_x, original_y = nearest["original_coords"]
-            scaled_x, scaled_y = nearest["scaled_coords"]
-
-            if self.parent_widget.drawing_manager.start_branch_from_position(
-                original_x, original_y, scaled_x, scaled_y
-            ):
-                logger.info("Branch creation started in drawing manager")
                 return
 
         elif self.parent_widget.edit_mode_active:
@@ -437,6 +398,12 @@ class MapEventHandler(QObject):
 
             # Set cursor to indicate branch creation mode
             self.parent_widget.image_label.set_cursor_for_mode("crosshair")
+            
+            # Update the target line container to show the preview
+            line_containers = self.parent_widget.feature_manager.get_line_containers()
+            if nearest_line in line_containers:
+                line_containers[nearest_line].update()
+                logger.info(f"Updated line container for {nearest_line}")
 
             logger.info(f"Started branch creation mode for line: {nearest_line}")
             return True

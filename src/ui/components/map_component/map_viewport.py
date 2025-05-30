@@ -89,10 +89,10 @@ class MapViewport(QLabel):
                 self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
 
     def paintEvent(self, event):
-        """Handle paint events for drawing_decap temporary elements."""
+        """Handle paint events for drawing temporary elements."""
         super().paintEvent(event)
 
-        # Draw temporary line if parent is in line drawing_decap mode
+        # Draw temporary line if parent is in line drawing mode
         if self.parent_map_tab and hasattr(self.parent_map_tab, "drawing_manager"):
             painter = QPainter(self)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -103,11 +103,7 @@ class MapViewport(QLabel):
                 self.parent_map_tab.drawing_manager.draw_temporary_branching_line(
                     painter
                 )
-            elif getattr(self.parent_map_tab, "branch_creation_mode", False):
-                logger.debug(
-                    f"Drawing branch creation feedback, mouse pos: {self.current_mouse_pos.x()}, {self.current_mouse_pos.y()}"
-                )
-                self._draw_branch_creation_feedback(painter)
+            # Branch creation is now drawn by the line container to ensure proper z-order
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Handle mouse release to stop panning."""
@@ -158,7 +154,15 @@ class MapViewport(QLabel):
             else:
                 self.coordinate_label.hide()
 
-        self.update()  # Trigger repaint for branch creation feedback
+        self.update()  # Trigger repaint for temporary drawing
+        
+        # Update the target line container if in branch creation mode
+        if branch_creation_active and self.parent_map_tab:
+            target = getattr(self.parent_map_tab.mode_manager, "_branch_creation_target", None)
+            if target and hasattr(self.parent_map_tab, "feature_manager"):
+                line_containers = self.parent_map_tab.feature_manager.get_line_containers()
+                if target in line_containers:
+                    line_containers[target].update()
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         """Handle mouse wheel for zooming."""

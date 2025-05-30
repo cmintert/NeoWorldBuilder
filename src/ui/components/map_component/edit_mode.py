@@ -166,6 +166,46 @@ class UnifiedLineGeometry:
         self._update_scaled_branches()
         return True
 
+    def delete_branch(self, branch_idx: int) -> bool:
+        """Delete a branch, with safety checks.
+        
+        Args:
+            branch_idx: Index of the branch to delete
+            
+        Returns:
+            True if branch was deleted, False otherwise
+        """
+        # Can't delete if not a branching line
+        if not self.is_branching:
+            logger.warning("Cannot delete branch from non-branching line")
+            return False
+            
+        # Can't delete the main branch (index 0)
+        if branch_idx <= 0:
+            logger.warning("Cannot delete the main branch (index 0)")
+            return False
+            
+        # Check valid index
+        if branch_idx >= len(self.branches):
+            logger.warning(f"Invalid branch index {branch_idx}")
+            return False
+            
+        # Must have at least 2 branches to delete one
+        if len(self.branches) <= 2:
+            logger.warning("Cannot delete branch - would convert to simple line")
+            return False
+            
+        # Delete the branch
+        del self.branches[branch_idx]
+        
+        # Update internal state
+        self._update_shared_points()
+        self._update_scaled_branches()
+        self._invalidate_bounds()
+        
+        logger.info(f"Deleted branch {branch_idx}, now have {len(self.branches)} branches")
+        return True
+    
     def point_count(self) -> int:
         """Get total point count across all branches."""
         return sum(len(branch) for branch in self.branches)

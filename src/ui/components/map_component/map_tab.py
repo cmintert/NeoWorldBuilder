@@ -1,7 +1,7 @@
 from typing import Optional, List, Tuple, Dict
 
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QEvent
-from PyQt6.QtGui import QKeyEvent
+from PyQt6.QtGui import QKeyEvent, QPainter
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -127,6 +127,7 @@ class MapTab(QWidget):
         # Make sure the feature container doesn't block wheel events
         self.feature_container.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
         self.feature_container.installEventFilter(self)
+        
 
         # Initialize the unified feature manager
         self.feature_manager = UnifiedFeatureManager(
@@ -212,10 +213,6 @@ class MapTab(QWidget):
                 0, 0, self.image_label.width(), self.image_label.height()
             )
             self.feature_container.raise_()
-
-    def paintEvent(self, event):
-        """Handle paint events for drawing_decap temporary elements."""
-        super().paintEvent(event)
 
     # Image Management Methods
     def set_map_image(self, image_path: Optional[str]) -> None:
@@ -432,6 +429,16 @@ class MapTab(QWidget):
     def _branch_creation_start_point(self) -> Optional[tuple]:
         """Get the branch creation start point from mode manager."""
         return self.mode_manager.get_branch_creation_start_point()
+    
+    @property
+    def _branch_creation_target(self) -> Optional[str]:
+        """Get the branch creation target from mode manager."""
+        return self.mode_manager.get_branch_creation_target()
+    
+    @property
+    def _branch_creation_point_indices(self) -> Optional[tuple]:
+        """Get the branch creation point indices from mode manager."""
+        return self.mode_manager.get_branch_creation_point_indices()
 
     # Event Handling Methods (delegated to event_handler)
     def _handle_coordinate_click(self, x: int, y: int) -> None:

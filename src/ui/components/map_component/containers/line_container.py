@@ -1,6 +1,6 @@
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Optional
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint
-from PyQt6.QtGui import QPainter, QColor, QCursor
+from PyQt6.QtGui import QPainter, QColor, QCursor, QPen, QBrush
 from PyQt6.QtWidgets import QLabel, QMenu
 from structlog import get_logger
 
@@ -172,6 +172,45 @@ class LineContainer(BaseMapFeatureContainer):
 
         print(f"LineContainer.set_scale completed")
 
+    def _draw_branch_creation_preview(self, painter, map_tab, widget_offset):
+        """Draw branch creation preview with orange line and start point indicator."""
+        logger.debug(f"_draw_branch_creation_preview called for {self.target_node}")
+        start_point = map_tab._branch_creation_start_point
+        if not start_point:
+            logger.debug("No start point found")
+            return
+            
+        # Get current mouse position from viewport
+        if not hasattr(map_tab, 'image_label'):
+            return
+            
+        viewport = map_tab.image_label
+        mouse_pos = viewport.current_mouse_pos
+        
+        # Convert start point (in original coordinates) to widget coordinates
+        # We need to account for scaling and the line container's position
+        scale = map_tab.current_scale
+        start_x = start_point[0] * scale - widget_offset[0]
+        start_y = start_point[1] * scale - widget_offset[1]
+        
+        # Mouse position needs to be converted relative to this widget
+        mouse_widget_pos = self.mapFromGlobal(viewport.mapToGlobal(mouse_pos))
+        
+        # Draw dashed orange line from start point to mouse position
+        pen = QPen(QColor("#FF8800"))  # Orange color
+        pen.setWidth(3)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        painter.setPen(pen)
+        painter.drawLine(
+            int(start_x), int(start_y),
+            mouse_widget_pos.x(), mouse_widget_pos.y()
+        )
+        
+        # Draw orange circle with white border at start point
+        painter.setBrush(QBrush(QColor("#FF8800")))
+        painter.setPen(QPen(QColor("#FFFFFF"), 2))
+        painter.drawEllipse(int(start_x - 6), int(start_y - 6), 12, 12)
+    
     def _find_map_tab(self):
         """Find the parent MapTab instance."""
         return super()._find_map_tab()
@@ -273,10 +312,11 @@ class LineContainer(BaseMapFeatureContainer):
             widget_offset,
         )
 
+        map_tab = self._find_map_tab()
+        
         if self.edit_mode:
             # Check if we're in branch creation mode with this line as the target
             highlight_point = None
-            map_tab = self._find_map_tab()
             if (
                 map_tab
                 and map_tab.branch_creation_mode
@@ -293,6 +333,16 @@ class LineContainer(BaseMapFeatureContainer):
             self.renderer.draw_control_points(
                 painter, self.geometry, widget_offset, highlight_point
             )
+        
+        # Draw branch creation preview LAST so it appears on top of everything
+        if (
+            map_tab
+            and map_tab.branch_creation_mode
+            and hasattr(map_tab, "_branch_creation_target")
+            and map_tab._branch_creation_target == self.target_node
+            and hasattr(map_tab, "_branch_creation_start_point")
+        ):
+            self._draw_branch_creation_preview(painter, map_tab, widget_offset)
 
     def mousePressEvent(self, event):
         """Handle mouse press events for line selection and control point operations."""
@@ -342,8 +392,13 @@ class LineContainer(BaseMapFeatureContainer):
                 event.accept()
                 return
             else:
-                # Show general line context menu if not on a control point
-                self._show_line_context_menu(event.pos())
+                # Test if we're on a line segment to get branch info
+                widget_offset = (self.x(), self.y())
+                branch_idx, segment_idx, _ = self.hit_tester.test_line_segments(
+                    event.pos(), self.geometry, widget_offset
+                )
+                # Show general line context menu with branch info if available
+                self._show_line_context_menu(event.pos(), branch_idx if branch_idx >= 0 else None)
                 event.accept()
                 return
 
@@ -610,8 +665,13 @@ class LineContainer(BaseMapFeatureContainer):
 
         print(f"Point deleted. Line now has {self.geometry.point_count()} points")
 
-    def _show_line_context_menu(self, pos: QPoint) -> None:
-        """Show context menu for general line operations."""
+    def _show_line_context_menu(self, pos: QPoint, branch_idx: Optional[int] = None) -> None:
+        """Show context menu for general line operations.
+        
+        Args:
+            pos: Click position in widget coordinates
+            branch_idx: Index of the branch that was clicked (None if not on a specific branch)
+        """
         menu = QMenu(self)
 
         # Add branch creation option
@@ -619,11 +679,64 @@ class LineContainer(BaseMapFeatureContainer):
         create_branch_action.triggered.connect(
             lambda: self._start_branch_creation_from_position(pos)
         )
+        
+        # Add delete branch option if this is a branching line and not the first branch
+        if (self.geometry.is_branching and 
+            branch_idx is not None and 
+            branch_idx > 0 and 
+            branch_idx < len(self.geometry.branches)):
+            menu.addSeparator()
+            delete_branch_action = menu.addAction(f"Delete Branch {branch_idx}")
+            delete_branch_action.triggered.connect(
+                lambda: self._delete_branch(branch_idx)
+            )
 
         # Show menu at the clicked position
         global_pos = self.mapToGlobal(pos)
         menu.exec(global_pos)
 
+    def _delete_branch(self, branch_idx: int) -> None:
+        """Delete a branch from the line.
+        
+        Args:
+            branch_idx: Index of the branch to delete (must be > 0)
+        """
+        # Safety checks
+        if not self.geometry.is_branching:
+            logger.warning("Cannot delete branch from non-branching line")
+            return
+            
+        if branch_idx <= 0:
+            logger.warning("Cannot delete the main branch (index 0)")
+            return
+            
+        if branch_idx >= len(self.geometry.branches):
+            logger.warning(f"Invalid branch index {branch_idx}")
+            return
+            
+        logger.info(f"Deleting branch {branch_idx} from line {self.target_node}")
+        
+        # Delete the branch from geometry
+        if not self.geometry.delete_branch(branch_idx):
+            logger.error(f"Failed to delete branch {branch_idx}")
+            return
+        
+        # Update geometry in database
+        controller = self._find_controller()
+        if controller:
+            self.persistence.update_geometry(
+                self.geometry.original_branches, controller
+            )
+        
+        # Emit geometry changed signal
+        self.geometry_changed.emit(self.target_node, self.geometry.original_branches)
+        
+        # Update widget and repaint
+        self._update_geometry()
+        self.update()
+        
+        logger.info(f"Branch deleted. Line now has {len(self.geometry.branches)} branches")
+    
     def _start_branch_creation_from_point(
         self, branch_index: int, point_index: int, pos: QPoint
     ) -> None:
