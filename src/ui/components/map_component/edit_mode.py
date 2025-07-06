@@ -455,31 +455,15 @@ class UnifiedLineRenderer:
         """
         widget_x, widget_y = widget_offset
 
-        # Track shared points for branching lines
+        # Use pre-computed shared points from geometry for branching lines
         shared_points = set()
-        if geometry.is_branching:
-            point_counts = {}
-
-            # Count point occurrences
-            for branch in geometry.scaled_branches:
-                for point in branch:
-                    # Convert to original coordinates for comparison
-                    original_point = (
-                        int(point[0] / geometry._scale),
-                        int(point[1] / geometry._scale),
-                    )
-                    point_key = original_point  # Already integer tuple
-                    if point_key not in point_counts:
-                        point_counts[point_key] = 0
-                    point_counts[point_key] += 1
-
-            # Identify shared points
-            for point, count in point_counts.items():
-                if count > 1:
-                    # Convert back to scaled coordinates
+        if geometry.is_branching and hasattr(geometry, '_shared_points'):
+            # Convert shared points (in original coordinates) to scaled coordinates
+            for original_point, locations in geometry._shared_points.items():
+                if len(locations) > 1:  # Only include points shared between multiple branches
                     scaled_point = (
-                        int(point[0] * geometry._scale),
-                        int(point[1] * geometry._scale),
+                        int(original_point[0] * geometry._scale),
+                        int(original_point[1] * geometry._scale),
                     )
                     shared_points.add(scaled_point)
 
