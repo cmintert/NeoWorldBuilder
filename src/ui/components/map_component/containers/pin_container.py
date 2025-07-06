@@ -1,12 +1,15 @@
 import os
+
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, QPoint
 from PyQt6.QtGui import QMouseEvent, QCursor
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import QVBoxLayout, QLabel
+
 from utils.path_helper import get_resource_path
 from ui.components.map_component.utils.coordinate_transformer import (
     CoordinateTransformer,
 )
+
 from .base_map_feature_container import BaseMapFeatureContainer
 
 
@@ -47,7 +50,6 @@ class PinContainer(BaseMapFeatureContainer):
 
         try:
             if not os.path.exists(svg_path):
-                print(f"SVG file not found: {svg_path}")
                 raise FileNotFoundError(f"SVG file not found: {svg_path}")
 
             self.pin_svg = QSvgWidget(self)
@@ -55,13 +57,11 @@ class PinContainer(BaseMapFeatureContainer):
 
             # Verify the widget has valid dimensions after loading
             if self.pin_svg.width() == 0 or self.pin_svg.height() == 0:
-                print(f"Failed to load SVG properly: {svg_path}")
                 raise RuntimeError(f"Failed to load SVG properly: {svg_path}")
 
             self.update_pin_size()
 
         except Exception as e:
-            print(f"Error loading SVG, falling back to emoji: {e}")
             # Fallback to emoji if SVG fails
             self.pin_svg = QLabel("📍", self)
             self.pin_svg.setFixedSize(
@@ -174,7 +174,6 @@ class PinContainer(BaseMapFeatureContainer):
                 # Start dragging in edit mode
                 self.dragging = True
                 self.drag_start_pos = event.pos()
-                print(f"Starting drag of pin {self.target_node}")
                 event.accept()
                 return
             else:
@@ -244,9 +243,6 @@ class PinContainer(BaseMapFeatureContainer):
 
             self.move(int(pin_x), int(pin_y))
 
-            print(
-                f"Moving pin {self.target_node} to map({new_map_x}, {new_map_y}) -> original({original_x}, {original_y})"
-            )
 
             # Reset drag start position for next movement
             self.drag_start_pos = new_pos
@@ -258,7 +254,6 @@ class PinContainer(BaseMapFeatureContainer):
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Handle mouse release events to end pin dragging."""
         if event.button() == Qt.MouseButton.LeftButton and self.dragging:
-            print(f"Finished dragging pin {self.target_node}")
 
             # Get final position and emit signal for database update
             final_x = self.x() + self.width() // 2
@@ -347,15 +342,12 @@ class PinContainer(BaseMapFeatureContainer):
 
                                 # Update the table item
                                 props_item.setText(json.dumps(properties))
-                                print(
-                                    f"Updated pin {self.target_node} position in relationship table: ({original_x}, {original_y})"
-                                )
 
                                 # Note: User needs to manually save to persist changes
                                 break
 
                 except Exception as e:
-                    print(f"Error updating pin position in relationship table: {e}")
+                    pass
 
             # Reset drag state
             self.dragging = False

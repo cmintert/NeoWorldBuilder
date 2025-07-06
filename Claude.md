@@ -183,6 +183,10 @@ This refactoring demonstrates the preferred pattern for large components: compos
 
 11. **Development Tools**: Just note that you got flake8 and black at your disposal.
 
+12. **Import Organization Standards**: All Python files must follow PEP 8 import organization with proper grouping and blank line separation (see Code Quality Standards section below).
+
+13. **Configurable Logging**: Use the map component logging system for debug output instead of print statements (see Logging Standards section below).
+
 ## Signal/Slot Communication Patterns
 
 ### Map Component Signal Flow
@@ -230,8 +234,106 @@ The map component uses a complex signal chain for user interactions. Understandi
 
 #### Debugging Signal Issues
 When UI interactions don't work:
-1. Add debug prints to trace signal emission through the chain
+1. **Use logging instead of prints**: `logger.debug("Signal emitted: signal_name")` to trace signal emission through the chain
 2. Check both map tab creation methods have matching signal connections  
 3. Verify container-specific signals (pin_clicked vs line_clicked) are properly routed
 4. Ensure feature manager unifies signals correctly
 5. Confirm controller methods are actually connected to tab signals
+6. **Set debug logging**: `MAP_COMPONENT_LOG_LEVEL=DEBUG` to see detailed signal flow information
+
+## Code Quality Standards
+
+### Import Organization (Updated 2025)
+
+All Python files **must** follow PEP 8 import organization with strict grouping and separation:
+
+```python
+# Standard library imports
+import json
+import os
+from typing import Optional, List, Dict, Tuple
+
+# Third-party library imports
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from structlog import get_logger
+
+# Local/project imports
+from utils.geometry_handler import GeometryHandler
+from ui.components.dialogs import SomeDialog
+
+# Relative imports (within same package)
+from .utils.coordinate_transformer import CoordinateTransformer
+from .base_feature_container import BaseFeatureContainer
+```
+
+**Rules:**
+1. **Three distinct groups** separated by blank lines
+2. **Alphabetical ordering** within each group
+3. **Combine imports** from same module: `from PyQt6.QtCore import Qt, pyqtSignal` not separate lines
+4. **No unused imports** - remove any imports not referenced in the code
+5. **Prefer specific imports**: `from module import SpecificClass` over `import module`
+
+**Tools:**
+- Use `python3 -m py_compile filename.py` to verify syntax after import changes
+- All map component files have been standardized as of Phase 2 improvements
+
+### Logging Standards (New)
+
+**Never use `print()` statements for debug output.** Use the configurable logging system instead:
+
+```python
+# For map component files - use configurable logging
+from .utils.map_logger import get_map_logger
+logger = get_map_logger(__name__)
+
+# For other files - use standard structlog
+from structlog import get_logger
+logger = get_logger(__name__)
+
+# Usage in code
+logger.debug("Detailed debug information")
+logger.info("General information") 
+logger.warning("Warning message")
+logger.error("Error message")
+```
+
+**Configuration:**
+- Set log level via environment variable: `MAP_COMPONENT_LOG_LEVEL=DEBUG`
+- Supported levels: `DEBUG`, `INFO`, `WARNING`, `ERROR`
+- Default level: `INFO` (configurable in `src/config/logging.json`)
+- Zero performance impact when debug logging disabled
+
+**Benefits:**
+- Runtime configurability without code changes
+- Structured logging with JSON format support
+- Performance optimization in production
+- Consistent with existing structlog infrastructure
+
+## Development Workflow Updates
+
+### File Modification Checklist
+
+When modifying any file in the codebase:
+
+1. **Check imports** - Ensure proper PEP 8 organization
+2. **Remove debug prints** - Replace with appropriate logging calls
+3. **Verify syntax** - Run `python3 -m py_compile filename.py`
+4. **Update CLAUDE.md** - Document any new patterns or significant changes
+5. **Test functionality** - Ensure no regressions introduced
+
+### Map Component Specific Guidelines
+
+The map component (`src/ui/components/map_component/`) has undergone significant architectural improvements:
+
+**Recent Improvements:**
+- **Automatic Point Reclassification**: Branching points automatically convert from red to blue when connections drop below 3 (implemented in `edit_mode.py`)
+- **Property Setters Fixed**: All branch creation properties now have proper setters (`map_tab.py`)
+- **Import Organization**: Standardized across all 24 Python files (Phase 2)
+- **Configurable Logging**: Implemented (`utils/map_logger.py`) with environment variable support (Phase 2)
+- **Code Cleanup**: 112 debug print statements removed, unused imports eliminated (Phase 2)
+
+**Key Files:**
+- `utils/map_logger.py` - Configurable logging infrastructure
+- All container files - Standardized import organization
+- All manager files - Clean, maintainable import structure

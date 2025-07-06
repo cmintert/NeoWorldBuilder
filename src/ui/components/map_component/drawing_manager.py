@@ -1,8 +1,8 @@
 from typing import Optional
 
-from PyQt6.QtCore import QObject, pyqtSignal, QPointF
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QObject, pyqtSignal, QPointF, Qt
 from PyQt6.QtGui import QPainter, QPen, QColor, QBrush
+
 from structlog import get_logger
 
 logger = get_logger(__name__)

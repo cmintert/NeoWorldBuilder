@@ -10,8 +10,10 @@ This replaces the original separate FeatureManager and EnhancedFeatureManager cl
 
 import json
 from typing import Dict, List, Tuple, Optional, Any
+
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget
+
 from structlog import get_logger
 
 # Import container classes from the containers package

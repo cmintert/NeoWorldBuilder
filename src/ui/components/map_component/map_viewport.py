@@ -166,7 +166,7 @@ class MapViewport(QLabel):
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         """Handle mouse wheel for zooming."""
-        print(f"MapViewport wheelEvent called with delta: {event.angleDelta().y()}")
+        pass
 
         # Accept the event to prevent it from being propagated
         event.accept()
@@ -181,7 +181,7 @@ class MapViewport(QLabel):
             # Regular zoom: approximately 20% per wheel notch
             zoom_factor = 1.0 + (delta / 600.0)
 
-        print(f"Emitting zoom_requested with factor: {zoom_factor}")
+        pass
         self.zoom_requested.emit(zoom_factor)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:

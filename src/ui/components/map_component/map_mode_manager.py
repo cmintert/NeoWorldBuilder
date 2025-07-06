@@ -89,7 +89,7 @@ class MapModeManager(QObject):
             self.parent_widget.image_label.set_cursor_for_mode("crosshair")
             self.parent_widget.toolbar_manager.update_branching_line_button_style(True)
             self.parent_widget.image_label.setFocus()
-            print(f"Branching line mode activated: {active}")
+            pass
         else:
             # Complete or cancel current drawing
             completing = self.parent_widget.drawing_manager._can_complete_branching_line()
@@ -97,7 +97,7 @@ class MapModeManager(QObject):
 
             self.parent_widget.image_label.set_cursor_for_mode("default")
             self.parent_widget.toolbar_manager.update_branching_line_button_style(False)
-            print(f"Branching line mode deactivated: {active}")
+            pass
 
     def toggle_edit_mode(self, active: bool) -> None:
         """Toggle edit mode for existing lines."""

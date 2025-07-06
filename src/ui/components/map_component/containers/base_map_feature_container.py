@@ -1,4 +1,5 @@
 from typing import Any, Dict, Optional, Tuple
+
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QWidget, QLabel
@@ -150,10 +151,10 @@ class BaseMapFeatureContainer(QWidget):
             level += 1
 
             if level > 10:  # Safety break
-                print("Too many levels, breaking")
+                pass
                 break
 
-        print("No MapTab found through widget hierarchy")
+        pass
 
         # Final fallback - try to find through controller chain
         controller = self._find_controller()
@@ -162,10 +163,10 @@ class BaseMapFeatureContainer(QWidget):
             and hasattr(controller, "ui")
             and hasattr(controller.ui, "map_tab")
         ):
-            print("Found MapTab through controller")
+            pass
             return controller.ui.map_tab
 
-        print("No MapTab found anywhere")
+        pass
         return None
 
     def _find_controller(self):

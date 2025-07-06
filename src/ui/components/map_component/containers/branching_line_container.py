@@ -48,9 +48,6 @@ class BranchingLineContainer(LineContainer):
         # No need to create a separate internal container or handle complex delegation
         # since we're directly inheriting all functionality from LineContainer
 
-        print(
-            f"Initialized BranchingLineContainer for {target_node} with {len(branches)} branches"
-        )
 
     def create_branch_from_point(
         self, start_x: int, start_y: int, end_x: int, end_y: int
@@ -67,7 +64,6 @@ class BranchingLineContainer(LineContainer):
         """
         # Call the parent class implementation directly
         super().create_branch_from_point(start_x, start_y, end_x, end_y)
-        print(f"Branch created from ({start_x}, {start_y}) to ({end_x}, {end_y})")
 
     def get_line_container(self) -> LineContainer:
         """Get the line container instance.

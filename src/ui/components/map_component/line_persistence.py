@@ -22,7 +22,6 @@ class LineGeometryPersistence:
 
             # Validate and process the geometry data
             if not original_points_or_branches:
-                print("No geometry data provided")
                 return
 
             # Check if this is a simple line or branching line
@@ -41,7 +40,6 @@ class LineGeometryPersistence:
                             valid_branches.append(valid_branch)
 
                 if not valid_branches:
-                    print("No valid branches found")
                     return
 
                 new_wkt = GeometryHandler.create_multi_line(valid_branches)
@@ -55,7 +53,6 @@ class LineGeometryPersistence:
                         valid_points.append((float(point[0]), float(point[1])))
 
                 if len(valid_points) < 2:
-                    print("Insufficient valid points for line")
                     return
 
                 new_wkt = GeometryHandler.create_line(valid_points)
@@ -63,13 +60,11 @@ class LineGeometryPersistence:
 
             # Find the parent map tab to access the controller
             if not controller:
-                print("No controller provided to update geometry")
                 return
 
             relationships_table = controller.ui.relationships_table
 
             if not relationships_table:
-                print("No relationships table found")
                 return
 
             # Find the row for this line feature
@@ -109,13 +104,10 @@ class LineGeometryPersistence:
                     # Update the table item
                     props_item.setText(json.dumps(properties))
 
-                    print(
-                        f"Updated geometry for {self.target_node} as {properties['geometry_type']}"
-                    )
                     break
 
         except Exception as e:
-            print(f"Error updating line geometry: {e}")
+            pass
             import traceback
 
             traceback.print_exc()

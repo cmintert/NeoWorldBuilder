@@ -89,17 +89,13 @@ class LineGeometry(BaseLineGeometry):
 
     def _update_scaled_points(self) -> None:
         """Update scaled points based on current scale."""
-        print(f"LineGeometry._update_scaled_points called")
-
         parent_map_tab = self._find_parent_map_tab()
-        print(f"Found parent_map_tab: {parent_map_tab}")
 
         if (
             parent_map_tab
             and hasattr(parent_map_tab, "image_manager")
             and parent_map_tab.image_manager.original_pixmap
         ):
-            print(f"Using ratio-based scaling")
             try:
                 # Get original and current dimensions
                 original_width = parent_map_tab.image_manager.original_pixmap.width()
@@ -114,24 +110,18 @@ class LineGeometry(BaseLineGeometry):
                     width_ratio = current_width / original_width
                     height_ratio = current_height / original_height
 
-                    print(
-                        f"Dimensions - Original: {original_width}x{original_height}, Current: {current_width}x{current_height}"
-                    )
-                    print(f"Ratios - width: {width_ratio}, height: {height_ratio}")
 
                     # Scale points using dimension ratios
                     self._scaled_points = [
                         (int(p[0] * width_ratio), int(p[1] * height_ratio))
                         for p in self.original_points
                     ]
-                    print(f"Ratio-based scaling successful")
                     return
             except (AttributeError, ZeroDivisionError) as e:
                 # Log the error but continue with fallback
-                print(f"Warning: Ratio-based scaling failed: {e}")
+                pass
 
         # Fallback to simple scaling if image manager not available
-        print(f"Using fallback simple scaling with scale: {self._scale}")
         self._scaled_points = [
             (int(p[0] * self._scale), int(p[1] * self._scale))
             for p in self.original_points
@@ -254,7 +244,7 @@ class BranchingLineGeometry(BaseLineGeometry):
                     return
             except (AttributeError, ZeroDivisionError) as e:
                 # Log the error but continue with fallback
-                print(f"Warning: Ratio-based scaling failed for branching line: {e}")
+                pass
 
         # Fallback to simple scaling if image manager not available
         self._scaled_branches = []

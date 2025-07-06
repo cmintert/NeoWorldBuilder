@@ -29,16 +29,11 @@ class MapCoordinateUtilities:
         Returns:
             Target node of nearest line, or None if no line found
         """
-        print(f"Finding nearest line at position ({x}, {y})")
-
         # Get all line containers from feature manager
         line_containers = self.parent_widget.feature_manager.get_line_containers()
 
         if not line_containers:
-            print("No line containers found")
             return None
-
-        print(f"Found {len(line_containers)} line containers")
 
         nearest_line = None
         min_distance = float("inf")
@@ -48,23 +43,17 @@ class MapCoordinateUtilities:
         scaled_y = y * self.parent_widget.current_scale
 
         for target_node, line_container in line_containers.items():
-            print(f"Checking line: {target_node}, type: {type(line_container)}")
 
             # Get line geometry and test for proximity
             if hasattr(line_container, "geometry"):
                 geometry = line_container.geometry
-                print(f"Geometry found, type: {type(geometry)}")
 
                 # Check if geometry has scaled_branches attribute
                 if not hasattr(geometry, "scaled_branches"):
-                    print(
-                        f"ERROR: geometry has no scaled_branches attribute: {dir(geometry)}"
-                    )
                     continue
 
                 # Debug what scaled_branches is
                 scaled_branches = geometry.scaled_branches
-                print(f"scaled_branches type: {type(scaled_branches)}")
 
                 # Test if point is near any branch of this line
                 for branch in scaled_branches:
@@ -86,10 +75,7 @@ class MapCoordinateUtilities:
 
         # Only return if within reasonable distance (e.g., 20 pixels)
         if min_distance <= 20:
-            print(f"Found nearest line: {nearest_line} at distance {min_distance}")
             return nearest_line
-        else:
-            print(f"Nearest line too far away (distance: {min_distance})")
 
         return None
 
@@ -105,38 +91,28 @@ class MapCoordinateUtilities:
         Returns:
             Tuple of (target_node, branch_idx, point_idx, point) or None if no point found
         """
-        print(f"Finding nearest control point to ({scaled_x}, {scaled_y})")
 
         # Get all line containers from feature manager
         line_containers = self.parent_widget.feature_manager.get_line_containers()
 
         if not line_containers:
-            print("No line containers found")
             return None
-
-        print(f"Found {len(line_containers)} line containers")
 
         nearest_info = None
         min_distance = float("inf")
 
         for target_node, line_container in line_containers.items():
-            print(f"Checking line: {target_node}, type: {type(line_container)}")
 
             # Get line geometry
             if hasattr(line_container, "geometry"):
                 geometry = line_container.geometry
-                print(f"Geometry found, type: {type(geometry)}")
 
                 # Check if geometry has scaled_branches attribute
                 if not hasattr(geometry, "scaled_branches"):
-                    print(
-                        f"ERROR: geometry has no scaled_branches attribute: {dir(geometry)}"
-                    )
                     continue
 
                 # Debug what scaled_branches is
                 scaled_branches = geometry.scaled_branches
-                print(f"scaled_branches type: {type(scaled_branches)}")
 
                 # Test all control points in all branches
                 for branch_idx, branch in enumerate(scaled_branches):
@@ -160,12 +136,7 @@ class MapCoordinateUtilities:
         # Only return if within reasonable distance (e.g., 20 pixels squared)
         if min_distance <= 400:  # 20 pixels squared
             target_node, branch_idx, point_idx, point = nearest_info
-            print(
-                f"Found nearest point: {target_node}, branch {branch_idx}, point {point_idx} at distance {min_distance}"
-            )
             return nearest_info
-        else:
-            print(f"Nearest point too far away (distance: {min_distance})")
 
         return None
 

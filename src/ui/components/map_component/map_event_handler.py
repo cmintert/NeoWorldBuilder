@@ -1,13 +1,16 @@
 from typing import Optional, Tuple
+
 from PyQt6.QtCore import Qt, QObject, pyqtSignal
 from PyQt6.QtGui import QKeyEvent, QCursor
 from structlog import get_logger
+
 from utils.geometry_handler import GeometryHandler
 from ui.components.map_component.dialogs.pin_placement_dialog import PinPlacementDialog
 from ui.components.map_component.dialogs.line_feature_dialog import LineFeatureDialog
 from ui.components.map_component.dialogs.branching_line_feature_dialog import (
     BranchingLineFeatureDialog,
 )
+
 from .utils.coordinate_transformer import CoordinateTransformer
 
 logger = get_logger(__name__)
@@ -140,24 +143,18 @@ class MapEventHandler(QObject):
         scaled_y = y * self.parent_widget.current_scale
 
         self.parent_widget.drawing_manager.add_branching_point(x, y, scaled_x, scaled_y)
-        print(f"Branching line point added at: ({x}, {y})")
 
     def handle_line_completion(self, points: list) -> None:
         """Handle completion of line drawing."""
-        print(f"_handle_line_completion called with {len(points)} points")
 
         if len(points) < 2:
             logger.warning("Attempted to complete line with insufficient points")
-            print("Line has insufficient points, aborting")
             return
 
         dialog = LineFeatureDialog(points, self.parent_widget, self.controller)
         if dialog.exec():
             target_node = dialog.get_target_node()
             line_style = dialog.get_line_style()
-            print(
-                f"Dialog accepted with target_node: {target_node}, style: {line_style}"
-            )
 
             try:
                 # Create WKT LineString
@@ -169,19 +166,14 @@ class MapEventHandler(QObject):
                     "style_width": line_style["width"],
                     "style_pattern": line_style["pattern"],
                 }
-                print(f"Created properties: {properties}")
 
                 # Create the line and emit signals
-                print(f"About to emit line_created signal")
                 self.line_created.emit(target_node, ">", properties)
-                print(f"line_created signal emitted")
 
                 # Create visual representation
-                print(f"Creating visual line representation")
                 self.parent_widget.feature_manager.create_line(
                     target_node, points, line_style
                 )
-                print(f"Visual line created")
 
                 # Exit line drawing mode
                 self.parent_widget.toolbar_manager.block_button_signals(True)
@@ -190,14 +182,11 @@ class MapEventHandler(QObject):
                 self.parent_widget.mode_manager.line_drawing_active = False
 
                 logger.debug(f"Line created successfully: {target_node}")
-                print(f"Line creation process completed")
 
             except Exception as e:
                 logger.error(f"Error creating line: {e}")
-                print(f"Exception during line creation: {e}")
                 import traceback
-
-                print(traceback.format_exc())
+                logger.error(traceback.format_exc())
 
     def handle_branching_line_completion(self, branches: list) -> None:
         """Handle completion of branching line drawing.
@@ -279,7 +268,6 @@ class MapEventHandler(QObject):
 
                 # Force redraw to highlight the selected point
                 self.parent_widget.feature_manager.update_positions(self.parent_widget)
-                print("Branch creation mode activated with highlighted point")
                 return
 
             elif nearest["type"] == "line_segment":
@@ -294,8 +282,6 @@ class MapEventHandler(QObject):
 
                 # Update cursor
                 self.parent_widget.image_label.set_cursor_for_mode("crosshair")
-
-                print(f"Branch creation mode activated from line segment")
                 return
 
     def _complete_branch_creation(self, end_x: int, end_y: int) -> None:
@@ -305,65 +291,51 @@ class MapEventHandler(QObject):
             end_x: X coordinate of branch end point
             end_y: Y coordinate of branch end point
         """
-        print(f"Completing branch creation: End point ({end_x}, {end_y})")
         logger.info(f"Completing branch creation: End point ({end_x}, {end_y})")
 
         if not self.parent_widget.branch_creation_mode:
-            print("Not in branch creation mode")
             logger.warning("Not in branch creation mode")
             return
 
         target_node = self.parent_widget.mode_manager.get_branch_creation_target()
         if not target_node:
-            print("No branch creation target set")
             logger.warning("No branch creation target set")
             return
 
         start_point = self.parent_widget.mode_manager.get_branch_creation_start_point()
         if not start_point:
-            print("No branch creation start point set")
             logger.warning("No branch creation start point set")
             return
 
         start_x, start_y = start_point
-        print(f"Branch from ({start_x}, {start_y}) to ({end_x}, {end_y})")
         logger.info(f"Branch from ({start_x}, {start_y}) to ({end_x}, {end_y})")
 
         # Get the line container for the target
         line_containers = self.parent_widget.feature_manager.get_line_containers()
         if target_node in line_containers:
             line_container = line_containers[target_node]
-            print(f"Found line container for {target_node}: {type(line_container)}")
             logger.info(
                 f"Found line container for {target_node}: {type(line_container)}"
             )
 
             # For branching lines, access the actual LineContainer
             if hasattr(line_container, "_container"):
-                print("Using _container from BranchingLineContainer")
                 logger.info("Using _container from BranchingLineContainer")
                 line_container = line_container._container
 
             # Request branch creation from the line container
             if hasattr(line_container, "create_branch_from_point"):
-                print(f"Calling create_branch_from_point")
                 logger.info(f"Calling create_branch_from_point")
                 line_container.create_branch_from_point(start_x, start_y, end_x, end_y)
-                print("Branch created successfully")
                 logger.info("Branch created successfully")
             else:
-                print(
-                    f"Error: line_container has no create_branch_from_point method: {dir(line_container)}"
-                )
                 logger.error(
                     f"line_container has no create_branch_from_point method: {dir(line_container)}"
                 )
         else:
-            print(f"Error: target_node {target_node} not found in line_containers")
             logger.error(f"target_node {target_node} not found in line_containers")
 
         # Reset branch creation mode
-        print("Resetting branch creation mode")
         logger.info("Resetting branch creation mode")
         self.parent_widget.mode_manager.reset_branch_creation_mode()
 

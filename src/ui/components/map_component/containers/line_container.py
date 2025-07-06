@@ -161,15 +161,11 @@ class LineContainer(BaseMapFeatureContainer):
         # First update the base class scale
         super().set_scale(scale)
 
-        print(f"LineContainer.set_scale called with scale: {scale}")
-
         # Then update the geometry's scale
         self.geometry.set_scale(scale)
 
         # Update geometry
         self._update_geometry()
-
-        print(f"LineContainer.set_scale completed")
 
     def _draw_branch_creation_preview(self, painter, map_tab, widget_offset):
         """Draw branch creation preview with orange line and start point indicator."""
@@ -252,7 +248,6 @@ class LineContainer(BaseMapFeatureContainer):
             edit_mode: Whether edit mode should be active.
         """
         super().set_edit_mode(edit_mode)
-        print(f"Line {self.target_node}: Edit mode = {edit_mode}")
 
         # Update cursor based on edit mode
         if edit_mode:
@@ -324,9 +319,6 @@ class LineContainer(BaseMapFeatureContainer):
                 and hasattr(map_tab, "_branch_creation_point_indices")
             ):
                 highlight_point = map_tab._branch_creation_point_indices
-                print(
-                    f"Highlighting point {highlight_point} for branch creation in {self.target_node}"
-                )
 
             # Draw control points with optional highlighting
             self.renderer.draw_control_points(
@@ -363,7 +355,6 @@ class LineContainer(BaseMapFeatureContainer):
                 self.dragged_branch_index = branch_idx
                 self.dragged_point_index = point_idx
                 self.drag_start_pos = event.pos()
-                print(f"Starting drag of control point {branch_idx}, {point_idx}")
                 event.accept()
                 return
 
@@ -415,7 +406,6 @@ class LineContainer(BaseMapFeatureContainer):
                 event.pos(), self.geometry, widget_offset
             )
             if branch_idx >= 0 and segment_idx >= 0:
-                print(f"Line clicked: {self.target_node}")
                 self.line_clicked.emit(self.target_node)
                 event.accept()
                 return
@@ -508,10 +498,6 @@ class LineContainer(BaseMapFeatureContainer):
             # Update widget geometry and trigger repaint
             self._update_geometry()
             self.update()
-
-            print(
-                f"Dragging point {self.dragged_point_index} to ({original_x}, {original_y})"
-            )
             event.accept()
         else:
             super().mouseMoveEvent(event)
@@ -519,7 +505,6 @@ class LineContainer(BaseMapFeatureContainer):
     def mouseReleaseEvent(self, event):
         """Handle mouse release events to end control point dragging."""
         if event.button() == Qt.MouseButton.LeftButton and self.dragging_control_point:
-            print(f"Finished dragging control point {self.dragged_point_index}")
 
             # Update geometry in database
             controller = self._find_controller()
@@ -585,9 +570,6 @@ class LineContainer(BaseMapFeatureContainer):
             original_x = int(map_x / current_scale)
             original_y = int(map_y / current_scale)
 
-        print(
-            f"Inserting point at branch {branch_index}, segment {segment_index}: ({original_x}, {original_y})"
-        )
 
         # Insert into geometry
         insert_index = segment_index + 1
@@ -613,17 +595,12 @@ class LineContainer(BaseMapFeatureContainer):
         self._update_geometry()
         self.update()
 
-        print(f"Point inserted. Line now has {self.geometry.point_count()} points")
-
     def _show_control_point_context_menu(
         self, branch_index: int, point_index: int, pos: QPoint
     ) -> None:
         """Show context menu for control point operations."""
         # Don't allow deletion if we only have minimum required points
         if self.geometry.point_count() <= self.MIN_LINE_POINTS:
-            print(
-                f"Cannot delete point - line must have at least {self.MIN_LINE_POINTS} points"
-            )
             return
 
         menu = QMenu(self)
@@ -648,12 +625,7 @@ class LineContainer(BaseMapFeatureContainer):
     def _delete_control_point(self, branch_index: int, point_index: int) -> None:
         """Delete a control point."""
         if not self.geometry.delete_point(branch_index, point_index):
-            print(
-                f"Cannot delete point - line must have at least {self.MIN_LINE_POINTS} points"
-            )
             return
-
-        print(f"Deleting control point {branch_index}, {point_index}")
 
         # Update geometry in database
         controller = self._find_controller()
@@ -674,8 +646,6 @@ class LineContainer(BaseMapFeatureContainer):
         # Update widget and repaint
         self._update_geometry()
         self.update()
-
-        print(f"Point deleted. Line now has {self.geometry.point_count()} points")
 
     def _show_line_context_menu(self, pos: QPoint, branch_idx: Optional[int] = None) -> None:
         """Show context menu for general line operations.
@@ -761,9 +731,6 @@ class LineContainer(BaseMapFeatureContainer):
         # Get the point coordinates
         point = self.geometry.branches[branch_index][point_index]
 
-        print(
-            f"Starting branch creation from point {point_index} in branch {branch_index}: {point}"
-        )
 
         # Trigger branch creation mode in MapTab
         map_tab = self._find_map_tab()
@@ -772,8 +739,6 @@ class LineContainer(BaseMapFeatureContainer):
             map_tab._branch_creation_target = self.target_node
             map_tab._branch_creation_start_point = point
             map_tab.image_label.set_cursor_for_mode("crosshair")
-
-            print(f"Branch creation mode activated for {self.target_node}")
 
     def _start_branch_creation_from_position(self, pos: QPoint) -> None:
         """Start branch creation from a position on the line."""
@@ -805,7 +770,6 @@ class LineContainer(BaseMapFeatureContainer):
             if map_tab and hasattr(map_tab, "image_label"):
                 current_pixmap = map_tab.image_label.pixmap()
                 if current_pixmap:
-                    from .utils.coordinate_transformer import CoordinateTransformer
 
                     original_coords = (
                         CoordinateTransformer.scaled_to_original_coordinates(
@@ -822,9 +786,6 @@ class LineContainer(BaseMapFeatureContainer):
                 original_x = int(map_x / current_scale)
                 original_y = int(map_y / current_scale)
 
-            print(
-                f"Starting branch creation from line position: ({original_x}, {original_y})"
-            )
 
             # Trigger branch creation mode in MapTab
             if map_tab:
@@ -832,8 +793,6 @@ class LineContainer(BaseMapFeatureContainer):
                 map_tab._branch_creation_target = self.target_node
                 map_tab._branch_creation_start_point = (original_x, original_y)
                 map_tab.image_label.set_cursor_for_mode("crosshair")
-
-                print(f"Branch creation mode activated for {self.target_node}")
 
     def create_branch_from_point(
         self, start_x: int, start_y: int, end_x: int, end_y: int
@@ -846,7 +805,6 @@ class LineContainer(BaseMapFeatureContainer):
             end_x: X coordinate of branch end point
             end_y: Y coordinate of branch end point
         """
-        print(f"Creating branch from ({start_x}, {start_y}) to ({end_x}, {end_y})")
 
         # Use the geometry's branch creation method
         if self.geometry.create_branch_from_position(
@@ -867,11 +825,3 @@ class LineContainer(BaseMapFeatureContainer):
             # Update the widget geometry and trigger repaint
             self._update_geometry()
             self.update()
-
-            print(
-                f"Branch created. Line now has {len(self.geometry.branches)} branches"
-            )
-        else:
-            print(
-                f"Failed to create branch from ({start_x}, {start_y}) to ({end_x}, {end_y})"
-            )

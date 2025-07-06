@@ -265,18 +265,15 @@ class MapTab(QWidget):
     # Zoom Management Methods
     def _handle_wheel_zoom(self, zoom_factor: float) -> None:
         """Handle zoom requests from mouse wheel."""
-        print(f"_handle_wheel_zoom called with factor: {zoom_factor}, current_scale: {self.current_scale}")
         new_scale = self.current_scale * zoom_factor
         # Clamp to match slider limits (10% to 500%)
         new_scale = max(0.1, min(5.0, new_scale))
         new_zoom_percentage = int(new_scale * 100)
-        print(f"Setting zoom slider to: {new_zoom_percentage}%")
         self.toolbar_manager.set_zoom_value(new_zoom_percentage)
 
     def _handle_zoom(self) -> None:
         """Handle zoom slider value changes with debouncing."""
         new_scale = self.toolbar_manager.zoom_slider.value() / 100
-        print(f"_handle_zoom: slider value={self.toolbar_manager.zoom_slider.value()}%, new_scale={new_scale}")
         self.pending_scale = new_scale
         self.zoom_timer.start(10)  # 10ms debounce
 
@@ -285,7 +282,6 @@ class MapTab(QWidget):
         if self.pending_scale is not None:
             old_scale = self.current_scale
             self.current_scale = self.pending_scale
-            print(f"_perform_zoom: updated current_scale from {old_scale} to {self.current_scale}")
             self._update_map_image_display()
             self.pending_scale = None
 
@@ -368,12 +364,6 @@ class MapTab(QWidget):
                     )
                 )
 
-                print(
-                    f"Setting feature container: pos=({container_x}, {container_y}), size=({new_width}, {new_height})"
-                )
-                print(
-                    f"Viewport size: {viewport_width}x{viewport_height}, Image size: {new_width}x{new_height}"
-                )
 
                 self.feature_container.setGeometry(
                     container_x, container_y, new_width, new_height
@@ -536,11 +526,9 @@ class MapTab(QWidget):
         """Event filter to catch key presses and wheel events."""
         # Handle wheel events on feature container or image label
         if event.type() == QEvent.Type.Wheel:
-            print(f"Event filter detected wheel event on {obj} (type: {type(obj).__name__})")
             
             # Only intercept wheel events on specific map-related objects
             if obj == self.feature_container or obj == self.image_label:
-                print("Forwarding wheel event to map viewport")
                 # Forward wheel event to the map viewport
                 if self.image_label and obj != self.image_label:  # Don't forward if it's already from image_label
                     self.image_label.wheelEvent(event)
@@ -551,15 +539,12 @@ class MapTab(QWidget):
         
         # Handle key press events
         if event.type() == QEvent.Type.KeyPress:
-            print(f"*** GLOBAL EVENT FILTER - KeyPress caught: {event.key()} ***")
 
             # Check for the 'b' key (ASCII 66 for 'B', 98 for 'b')
             if (
                 event.key() == 66 or event.key() == 98
             ):  # Use literal values for reliability
-                print("B KEY DETECTED IN EVENT FILTER")
                 if self.edit_mode_active:
-                    print("EDIT MODE IS ACTIVE - HANDLING B KEY PRESS")
                     self._handle_b_key_press()
                     return True  # Event handled
 
@@ -568,11 +553,8 @@ class MapTab(QWidget):
 
     def _handle_b_key_press(self) -> None:
         """Handle B key press for branch creation - delegates to event handler."""
-        print("MapTab._handle_b_key_press called")
         if hasattr(self, 'event_handler'):
             self.event_handler._handle_b_key_press()
-        else:
-            print("Warning: No event_handler available")
     
     def _reset_branch_creation_mode(self) -> None:
         """Reset branch creation mode state."""
