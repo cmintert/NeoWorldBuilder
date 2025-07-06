@@ -425,20 +425,39 @@ class MapTab(QWidget):
     def branch_creation_mode(self) -> bool:
         return self.mode_manager.branch_creation_mode
     
+    @branch_creation_mode.setter
+    def branch_creation_mode(self, active: bool) -> None:
+        self.mode_manager.branch_creation_mode = active
+    
     @property
     def _branch_creation_start_point(self) -> Optional[tuple]:
         """Get the branch creation start point from mode manager."""
         return self.mode_manager.get_branch_creation_start_point()
+    
+    @_branch_creation_start_point.setter
+    def _branch_creation_start_point(self, point: tuple) -> None:
+        """Set the branch creation start point via mode manager."""
+        self.mode_manager.set_branch_creation_start_point(point)
     
     @property
     def _branch_creation_target(self) -> Optional[str]:
         """Get the branch creation target from mode manager."""
         return self.mode_manager.get_branch_creation_target()
     
+    @_branch_creation_target.setter
+    def _branch_creation_target(self, target: str) -> None:
+        """Set the branch creation target via mode manager."""
+        self.mode_manager.set_branch_creation_target(target)
+    
     @property
     def _branch_creation_point_indices(self) -> Optional[tuple]:
         """Get the branch creation point indices from mode manager."""
         return self.mode_manager.get_branch_creation_point_indices()
+    
+    @_branch_creation_point_indices.setter
+    def _branch_creation_point_indices(self, indices: tuple) -> None:
+        """Set the branch creation point indices via mode manager."""
+        self.mode_manager.set_branch_creation_point_indices(indices)
 
     # Event Handling Methods (delegated to event_handler)
     def _handle_coordinate_click(self, x: int, y: int) -> None:

@@ -56,6 +56,61 @@ class UnifiedLineGeometry:
                 if point_key not in self._shared_points:
                     self._shared_points[point_key] = []
                 self._shared_points[point_key].append((branch_idx, point_idx))
+        
+        # Automatically reclassify points based on actual connections
+        self._reclassify_points()
+
+    def _count_point_connections(self, point_key: Tuple[int, int]) -> int:
+        """Count the number of line segments that connect to a point.
+        
+        Args:
+            point_key: The point coordinate as (x, y) tuple
+            
+        Returns:
+            Number of line segments connected to this point
+        """
+        connection_count = 0
+        
+        # Check each branch for segments connecting to this point
+        for branch in self.branches:
+            for i, point in enumerate(branch):
+                current_point_key = (int(point[0]), int(point[1]))
+                
+                if current_point_key == point_key:
+                    # Count segments before this point (if not first)
+                    if i > 0:
+                        connection_count += 1
+                    # Count segments after this point (if not last)  
+                    if i < len(branch) - 1:
+                        connection_count += 1
+        
+        return connection_count
+
+    def _reclassify_points(self):
+        """Reclassify shared points based on actual line segment connections.
+        
+        Points are only considered "shared" (branching points) if they have 3 or more 
+        line segments connecting to them. Points with only 2 connections are inline
+        points and should not be marked as shared.
+        """
+        if not self.is_branching:
+            return
+        
+        # Create new shared points mapping with only true branching points
+        reclassified_shared_points = {}
+        
+        for point_key, locations in self._shared_points.items():
+            # Count actual line segment connections to this point
+            connection_count = self._count_point_connections(point_key)
+            
+            # Only keep as shared if it has 3+ connections (true branching point)
+            if connection_count >= 3:
+                reclassified_shared_points[point_key] = locations
+        
+        # Update the shared points mapping
+        self._shared_points = reclassified_shared_points
+        
+        logger.debug(f"Reclassified points: {len(reclassified_shared_points)} true branching points remaining")
 
     def _update_scaled_branches(self):
         """Update scaled branches based on current scale."""

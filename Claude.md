@@ -182,3 +182,56 @@ This refactoring demonstrates the preferred pattern for large components: compos
 10. **Refactoring Pattern**: When refactoring large files, use the map component approach: extract to focused manager classes with clear responsibilities.
 
 11. **Development Tools**: Just note that you got flake8 and black at your disposal.
+
+## Signal/Slot Communication Patterns
+
+### Map Component Signal Flow
+The map component uses a complex signal chain for user interactions. Understanding this flow is critical for debugging UI issues:
+
+#### Feature Click Signal Chain
+```
+1. Label Click (Base Container) 
+   → _emit_container_click_signal()
+   → pin_clicked/line_clicked signal
+
+2. Feature Manager
+   → Receives container-specific signals
+   → Emits unified feature_clicked signal
+
+3. Map Tab  
+   → Receives feature_clicked
+   → Delegates to event_handler.handle_feature_click()
+   → Emits pin_clicked signal
+
+4. Controller (Map Mixin)
+   → Receives pin_clicked from map tab
+   → _handle_pin_click() loads target node
+```
+
+#### Critical Signal Connection Patterns
+- **Container Level**: Each feature type (PinContainer, LineContainer) has its own click signal (`pin_clicked`, `line_clicked`)
+- **Feature Manager**: Unifies different container signals into a single `feature_clicked` signal
+- **Map Tab**: Acts as signal relay between internal components and external controllers
+- **Controller**: Final destination that performs actual node navigation
+
+#### Map Tab Creation Gotcha
+**IMPORTANT**: There are two different `_ensure_map_tab_exists()` methods:
+
+1. **MapMixin Version** (`src/ui/mixins/mapmixin.py:12`): 
+   - Called when loading existing MAP nodes from database
+   - Sets up ALL signal connections including `pin_clicked` and `line_created`
+
+2. **UI Version** (`src/ui/main_window.py:1140`):
+   - Called when user types "MAP" into labels field in real-time
+   - Must mirror ALL connections from MapMixin version
+   - Missing connections here break feature navigation
+
+**Rule**: Both map tab creation paths must have identical signal connections, or UI features will appear to work but not function correctly.
+
+#### Debugging Signal Issues
+When UI interactions don't work:
+1. Add debug prints to trace signal emission through the chain
+2. Check both map tab creation methods have matching signal connections  
+3. Verify container-specific signals (pin_clicked vs line_clicked) are properly routed
+4. Ensure feature manager unifies signals correctly
+5. Confirm controller methods are actually connected to tab signals
