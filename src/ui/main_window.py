@@ -1144,6 +1144,8 @@ class WorldBuildingUI(QWidget):
             self.map_tab = MapTab(controller=self.controller)
             self.map_tab.map_image_changed.connect(self._handle_map_image_changed)
             self.map_tab.pin_created.connect(self._handle_pin_created)
+            self.map_tab.pin_clicked.connect(self.controller._handle_pin_click)
+            self.map_tab.line_created.connect(self.controller._handle_line_created)
             self.tabs.addTab(self.map_tab, "Map")
 
             # Set initial map image if available in properties

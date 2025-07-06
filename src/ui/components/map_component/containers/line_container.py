@@ -89,8 +89,7 @@ class LineContainer(BaseMapFeatureContainer):
         # Track cursor state
         self._current_cursor = Qt.CursorShape.PointingHandCursor
 
-        # Hide label initially, show on hover
-        self.text_label.hide()
+        # Labels are now always visible (handled by base class)
 
     def _update_geometry(self) -> None:
         """Update widget geometry based on line points and label size."""
@@ -279,12 +278,12 @@ class LineContainer(BaseMapFeatureContainer):
 
     # Event Handlers
     def enterEvent(self, event):
-        """Show label when mouse enters the line area."""
+        """Handle mouse enter events."""
         super().enterEvent(event)
         self.update()
 
     def leaveEvent(self, event):
-        """Hide label when mouse leaves the line area."""
+        """Handle mouse leave events - reset cursor."""
         super().leaveEvent(event)
 
         # Reset cursor when leaving the line area

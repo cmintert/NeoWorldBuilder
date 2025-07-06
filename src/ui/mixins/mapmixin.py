@@ -64,9 +64,7 @@ class MapMixin:
 
     def _handle_pin_click(self, target_node: str) -> None:
         """Handle pin click by loading the target node."""
-
         self.ui.name_input.setText(target_node)
-
         self.load_node_data()
         self.ui.tabs.setCurrentIndex(0)
 
