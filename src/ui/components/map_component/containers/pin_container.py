@@ -180,8 +180,11 @@ class PinContainer(BaseMapFeatureContainer):
             else:
                 # Normal click behavior
                 self.pin_clicked.emit(self.target_node)
-
-        event.accept()  # Make sure we handle the event
+                event.accept()
+                return
+        
+        # For non-left-click events, ignore them to allow propagation
+        event.ignore()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         """Handle mouse move events for pin dragging."""

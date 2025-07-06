@@ -352,9 +352,9 @@ class LineContainer(BaseMapFeatureContainer):
             event.ignore()  # Let the event pass through to parent handlers
             return
 
+        widget_offset = (self.x(), self.y())
+        
         if event.button() == Qt.MouseButton.LeftButton and self.edit_mode:
-            widget_offset = (self.x(), self.y())
-
             # First check control point hits using unified hit tester
             branch_idx, point_idx = self.hit_tester.test_control_points(
                 event.pos(), self.geometry, widget_offset
@@ -378,10 +378,13 @@ class LineContainer(BaseMapFeatureContainer):
                 self._insert_point_at_segment(branch_idx, segment_idx, insertion_point)
                 event.accept()
                 return
+                
+            # If we didn't hit anything in edit mode, ignore the event
+            event.ignore()
+            return
 
         # Handle right-clicks for context menu
         elif event.button() == Qt.MouseButton.RightButton and self.edit_mode:
-            widget_offset = (self.x(), self.y())
             branch_idx, point_idx = self.hit_tester.test_control_points(
                 event.pos(), self.geometry, widget_offset
             )
@@ -393,23 +396,33 @@ class LineContainer(BaseMapFeatureContainer):
                 return
             else:
                 # Test if we're on a line segment to get branch info
-                widget_offset = (self.x(), self.y())
                 branch_idx, segment_idx, _ = self.hit_tester.test_line_segments(
                     event.pos(), self.geometry, widget_offset
                 )
-                # Show general line context menu with branch info if available
-                self._show_line_context_menu(event.pos(), branch_idx if branch_idx >= 0 else None)
+                if branch_idx >= 0 and segment_idx >= 0:
+                    # Show general line context menu with branch info if available
+                    self._show_line_context_menu(event.pos(), branch_idx)
+                    event.accept()
+                    return
+                    
+            # If we didn't hit anything, ignore the event
+            event.ignore()
+            return
+
+        # Handle normal line clicks (non-edit mode)
+        elif event.button() == Qt.MouseButton.LeftButton and not self.edit_mode:
+            # Check if we actually hit the line
+            branch_idx, segment_idx, _ = self.hit_tester.test_line_segments(
+                event.pos(), self.geometry, widget_offset
+            )
+            if branch_idx >= 0 and segment_idx >= 0:
+                print(f"Line clicked: {self.target_node}")
+                self.line_clicked.emit(self.target_node)
                 event.accept()
                 return
-
-        # Handle normal line clicks
-        print(f"Line clicked: {self.target_node}")
-        if not self.edit_mode:
-            self.line_clicked.emit(self.target_node)
-        else:
-            print(f"Navigation blocked - in edit mode for {self.target_node}")
-
-        event.accept()
+        
+        # If none of the above conditions matched, ignore the event
+        event.ignore()
 
     def mouseMoveEvent(self, event):
         """Handle mouse move events for control point dragging and cursor changes."""
