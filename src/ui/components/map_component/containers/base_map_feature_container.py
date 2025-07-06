@@ -54,6 +54,9 @@ class BaseMapFeatureContainer(QWidget):
         self.text_label.setParent(self)
         self.update_label_style()
         
+        # Show labels by default (instead of only on hover)
+        self.text_label.show()
+        
     def update_label_style(self) -> None:
         """Update label style based on current scale.
         
@@ -150,15 +153,17 @@ class BaseMapFeatureContainer(QWidget):
         return None
         
     def enterEvent(self, event):
-        """Show label when mouse enters the feature area.
+        """Handle mouse enter events.
         
+        Labels are now always visible, so this just provides a hook for subclasses.
         Subclasses should call this method from their overridden implementation.
         """
-        self.text_label.show()
+        pass
         
     def leaveEvent(self, event):
-        """Hide label when mouse leaves the feature area.
+        """Handle mouse leave events.
         
+        Labels are now always visible, so this just provides a hook for subclasses.
         Subclasses should call this method from their overridden implementation.
         """
-        self.text_label.hide()
+        pass
