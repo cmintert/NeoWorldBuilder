@@ -74,6 +74,7 @@ class MapToolbarManager(QObject):
         self.edit_toggle_btn.setCheckable(True)
         self.edit_toggle_btn.toggled.connect(self._handle_edit_toggle)
         self.edit_toggle_btn.setToolTip("Edit existing lines (click line to edit)")
+        
 
         image_controls.addWidget(self.change_map_btn)
         image_controls.addWidget(self.clear_map_btn)
@@ -218,3 +219,4 @@ class MapToolbarManager(QObject):
         """Handle zoom reset button click."""
         if hasattr(self.parent_widget, "_reset_zoom"):
             self.parent_widget._reset_zoom()
+    

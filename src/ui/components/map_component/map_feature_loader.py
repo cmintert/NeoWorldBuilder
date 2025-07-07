@@ -66,12 +66,24 @@ class MapFeatureLoader:
                 target_node = self._extract_target_node(
                     target_item, relationships_table, row
                 )
+                logger.debug(f"Raw properties for {target_node}: {properties}")
 
+                # Handle style properties with proper defaults for empty values
+                style_width = properties.get("style_width", 2)
+                if isinstance(style_width, str) and not style_width.strip():
+                    style_width = 2
+                elif isinstance(style_width, str):
+                    try:
+                        style_width = int(style_width)
+                    except ValueError:
+                        style_width = 2
+                        
                 style_config = {
                     "color": properties.get("style_color", "#FF0000"),
-                    "width": properties.get("style_width", 2),
+                    "width": style_width,
                     "pattern": properties.get("style_pattern", "solid"),
                 }
+                logger.debug(f"Built style_config for {target_node}: {style_config}")
 
                 if geometry_type == "MultiLineString":
                     # Handle as branching line
@@ -102,23 +114,31 @@ class MapFeatureLoader:
                 logger.error(f"Error loading spatial feature: {e}")
                 continue
 
-        # Clear existing features
-        self.parent_widget.feature_manager.clear_all_features()
+        # Clear existing features (graphics mode)
+        if hasattr(self.parent_widget, 'graphics_adapter'):
+            self.parent_widget.graphics_adapter.feature_manager.clear_all_features()
 
-        # Create features using the unified manager
-        if pin_data:
+        # Create features using the graphics manager
+        if pin_data and hasattr(self.parent_widget, 'graphics_adapter'):
             logger.info(f"Creating {len(pin_data)} pins")
-            self.parent_widget.feature_manager.batch_create_pins(pin_data)
+            graphics_manager = self.parent_widget.graphics_adapter.feature_manager
+            for pin in pin_data:
+                target_node, x, y = pin  # Unpack tuple: (target_node, x, y)
+                graphics_manager.add_pin_feature(target_node, x, y)
 
-        if simple_line_data:
+        if simple_line_data and hasattr(self.parent_widget, 'graphics_adapter'):
             logger.info(f"Creating {len(simple_line_data)} simple lines")
-            self.parent_widget.feature_manager.batch_create_lines(simple_line_data)
+            graphics_manager = self.parent_widget.graphics_adapter.feature_manager
+            for line in simple_line_data:
+                target_node, points, style_config = line  # Unpack tuple: (target_node, points, style_config)
+                graphics_manager.add_line_feature(target_node, points, style_config)
 
-        if branching_line_data:
+        if branching_line_data and hasattr(self.parent_widget, 'graphics_adapter'):
             logger.info(f"Creating {len(branching_line_data)} branching lines")
-            self.parent_widget.feature_manager.batch_create_branching_lines(
-                branching_line_data
-            )
+            graphics_manager = self.parent_widget.graphics_adapter.feature_manager
+            for target_node, line_data in branching_line_data.items():
+                style_config = line_data.get('style', {})
+                graphics_manager.add_branching_line_feature(target_node, line_data['branches'], style_config)
 
     def _extract_target_node(self, target_item, relationships_table, row) -> str:
         """Extract target node name from table item."""
@@ -141,4 +161,6 @@ class MapFeatureLoader:
         Returns:
             Dictionary with counts of each feature type
         """
-        return self.parent_widget.feature_manager.get_feature_count()
+        if hasattr(self.parent_widget, 'graphics_adapter'):
+            return self.parent_widget.graphics_adapter.feature_manager.get_feature_count()
+        return {}

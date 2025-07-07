@@ -13,7 +13,6 @@ from structlog import get_logger
 from .drawing_manager import DrawingManager
 from .map_image_loader import ImageManager
 from .map_viewport import MapViewport
-from .feature_manager import UnifiedFeatureManager
 from .utils.coordinate_transformer import CoordinateTransformer
 from .map_toolbar_manager import MapToolbarManager
 from .map_mode_manager import MapModeManager
@@ -65,6 +64,9 @@ class MapTab(QWidget):
 
         # Install event filter to catch key presses
         self.installEventFilter(self)
+        
+        # Enable graphics mode (only mode available)
+        self._enable_graphics_mode()
 
     def _setup_components(self) -> None:
         """Initialize all the separated component managers."""
@@ -118,21 +120,7 @@ class MapTab(QWidget):
         # Create viewport for map display
         self.image_label = MapViewport(self, config=self.config)
 
-        # Create feature container and manager
-        self.feature_container = QWidget(self.image_label)
-        self.feature_container.setGeometry(
-            0, 0, self.image_label.width(), self.image_label.height()
-        )
-        self.feature_container.setMouseTracking(True)
-        # Make sure the feature container doesn't block wheel events
-        self.feature_container.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
-        self.feature_container.installEventFilter(self)
-        
-
-        # Initialize the unified feature manager
-        self.feature_manager = UnifiedFeatureManager(
-            self.feature_container, self.config
-        )
+        # Graphics mode is now the only mode - widget system removed
 
         self.scroll_area.setWidget(self.image_label)
         
@@ -191,8 +179,7 @@ class MapTab(QWidget):
         )
         self.drawing_manager.drawing_updated.connect(self._handle_drawing_update)
 
-        # Feature manager signals
-        self.feature_manager.feature_clicked.connect(self._handle_feature_click)
+        # Graphics feature manager signals connected via adapter
 
         # Mode manager signals
         self.mode_manager.pin_mode_toggled.connect(self.pin_mode_toggled.emit)
@@ -205,14 +192,9 @@ class MapTab(QWidget):
         # Connect to controller if available (handled through event_handler now)
 
     def resizeEvent(self, event):
-        """Handle resize events to keep feature container matched to viewport size."""
+        """Handle resize events for graphics mode."""
         super().resizeEvent(event)
-        if hasattr(self, "feature_container") and hasattr(self, "image_label"):
-            # Update feature container to match image label size
-            self.feature_container.setGeometry(
-                0, 0, self.image_label.width(), self.image_label.height()
-            )
-            self.feature_container.raise_()
+        # Graphics mode handles resizing automatically via QGraphicsView
 
     # Image Management Methods
     def set_map_image(self, image_path: Optional[str]) -> None:
@@ -248,17 +230,24 @@ class MapTab(QWidget):
 
         # Update display
         self._update_map_image_display()
+        
+        # Also load image in graphics adapter if available
+        if hasattr(self, 'graphics_adapter') and self.map_image_path:
+            self.graphics_adapter.load_image(self.map_image_path)
+        
         self.load_features()
 
     def _on_image_error(self, error_msg: str) -> None:
         """Handle image loading errors."""
-        self.feature_manager.clear_all_features()
+        if hasattr(self, 'graphics_adapter'):
+            self.graphics_adapter.feature_manager.clear_all_features()
         self.image_label.setText(f"Error loading map image: {error_msg}")
         logger.error(f"Map image loading failed: {error_msg}")
 
     def _clear_image(self) -> None:
         """Clear the current image and features."""
-        self.feature_manager.clear_all_features()
+        if hasattr(self, 'graphics_adapter'):
+            self.graphics_adapter.feature_manager.clear_all_features()
         self.image_label.clear()
         self.image_label.setText("No map image set")
 
@@ -355,24 +344,7 @@ class MapTab(QWidget):
             # Use a short delay to ensure the scroll area has updated its geometry
             QTimer.singleShot(1, lambda: self._set_scroll_position(new_x, new_y))
 
-            # Update feature container size AND position to match new image size
-            if hasattr(self, "feature_container"):
-                # Use coordinate transformer to calculate centering offsets
-                container_x, container_y = (
-                    CoordinateTransformer.calculate_centering_offsets(
-                        viewport_width, viewport_height, new_width, new_height
-                    )
-                )
-
-
-                self.feature_container.setGeometry(
-                    container_x, container_y, new_width, new_height
-                )
-                self.feature_container.raise_()
-
-            # Update feature positions
-            self.feature_manager.set_scale(self.current_scale)
-            self.feature_manager.update_positions(self)
+            # Graphics mode handles feature positioning automatically
 
             # Update drawing_decap manager for any active drawing_decap
             self.drawing_manager.update_scale(self.current_scale)
@@ -524,18 +496,11 @@ class MapTab(QWidget):
 
     def eventFilter(self, obj, event):
         """Event filter to catch key presses and wheel events."""
-        # Handle wheel events on feature container or image label
+        # Handle wheel events on image label (graphics mode handles its own events)
         if event.type() == QEvent.Type.Wheel:
-            
-            # Only intercept wheel events on specific map-related objects
-            if obj == self.feature_container or obj == self.image_label:
-                # Forward wheel event to the map viewport
-                if self.image_label and obj != self.image_label:  # Don't forward if it's already from image_label
-                    self.image_label.wheelEvent(event)
-                    return True  # Prevent other widgets from handling the event
-                elif obj == self.image_label:
-                    # Let the image label handle its own wheel event normally
-                    return False
+            if obj == self.image_label:
+                # Let the image label handle its own wheel event normally
+                return False
         
         # Handle key press events
         if event.type() == QEvent.Type.KeyPress:
@@ -567,8 +532,70 @@ class MapTab(QWidget):
 
     def get_feature_count(self) -> Dict[str, int]:
         """Get count of features by type."""
-        return self.feature_manager.get_feature_count()
+        if hasattr(self, 'graphics_adapter'):
+            return self.graphics_adapter.feature_manager.get_feature_count()
+        return {}
 
     def _complete_branch_creation(self, end_x: int, end_y: int) -> None:
         """Complete branch creation with the specified end point."""
         self.event_handler._complete_branch_creation(end_x, end_y)
+    
+    # Graphics Mode Integration (Phase 1 Migration)
+    def enable_graphics_mode(self) -> None:
+        """Enable experimental graphics mode using QGraphicsView.
+        
+        This is part of the migration from widget-based to graphics-based
+        map rendering. When enabled, it replaces the QLabel viewport with
+        a QGraphicsView implementation.
+        """
+        try:
+            # Import here to make it optional
+            from .graphics import MapTabGraphicsAdapter
+            
+            # Create adapter if not already created
+            if not hasattr(self, 'graphics_adapter'):
+                self.graphics_adapter = MapTabGraphicsAdapter(self, self.config)
+                
+                # Connect adapter signals to existing signals
+                self.graphics_adapter.pin_clicked.connect(self.pin_clicked.emit)
+                self.graphics_adapter.line_created.connect(self.line_created.emit)
+                self.graphics_adapter.map_image_changed.connect(self.map_image_changed.emit)
+                
+                logger.info("Graphics adapter created")
+            
+            # Enable graphics mode
+            self.graphics_adapter.enable_migration()
+            
+            # Load current image if any
+            if self.map_image_path:
+                self.graphics_adapter.load_image(self.map_image_path)
+            
+            logger.info("Graphics mode enabled")
+            
+        except Exception as e:
+            logger.error(f"Failed to enable graphics mode: {e}")
+    
+    def disable_graphics_mode(self) -> None:
+        """Graphics mode is now the only mode - this method is deprecated."""
+        logger.warning("disable_graphics_mode called but graphics mode is now the only mode")
+    
+    def is_graphics_mode(self) -> bool:
+        """Check if graphics mode is currently enabled.
+        
+        Returns:
+            True if graphics mode is active
+        """
+        return hasattr(self, 'graphics_adapter') and self.graphics_adapter.is_graphics_mode()
+    
+    def _enable_graphics_mode(self) -> None:
+        """Enable graphics mode (only mode available)."""
+        try:
+            self.enable_graphics_mode()
+            if hasattr(self, 'graphics_adapter'):
+                logger.info("Graphics mode enabled for MapTab successfully")
+            else:
+                logger.error("Graphics mode failed - no adapter created")
+                raise RuntimeError("Graphics adapter was not created")
+        except Exception as e:
+            logger.error(f"Failed to enable graphics mode: {e}")
+            raise RuntimeError("Graphics mode is required but failed to initialize")

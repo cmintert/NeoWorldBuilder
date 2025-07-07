@@ -29,54 +29,58 @@ class MapCoordinateUtilities:
         Returns:
             Target node of nearest line, or None if no line found
         """
-        # Get all line containers from feature manager
-        line_containers = self.parent_widget.feature_manager.get_line_containers()
-
-        if not line_containers:
-            return None
-
-        nearest_line = None
-        min_distance = float("inf")
-
-        # Convert original coordinates to scaled for hit testing
-        scaled_x = x * self.parent_widget.current_scale
-        scaled_y = y * self.parent_widget.current_scale
-
-        for target_node, line_container in line_containers.items():
-
-            # Get line geometry and test for proximity
-            if hasattr(line_container, "geometry"):
-                geometry = line_container.geometry
-
-                # Check if geometry has scaled_branches attribute
-                if not hasattr(geometry, "scaled_branches"):
-                    continue
-
-                # Debug what scaled_branches is
-                scaled_branches = geometry.scaled_branches
-
-                # Test if point is near any branch of this line
-                for branch in scaled_branches:
-                    if len(branch) < 2:
-                        continue
-
-                    for i in range(len(branch) - 1):
-                        p1 = branch[i]
-                        p2 = branch[i + 1]
-
-                        # Calculate distance to line segment
-                        distance = self.point_to_line_distance(
-                            (scaled_x, scaled_y), p1, p2
-                        )
-
+        # Graphics system implementation
+        if hasattr(self.parent_widget, 'graphics_adapter'):
+            try:
+                graphics_view = self.parent_widget.graphics_adapter.graphics_view
+                scene = graphics_view.scene()
+                
+                # Convert original coordinates to scene coordinates
+                scene_pos = scene.original_to_scene_coords(x, y)
+                
+                # Find items at this position
+                items = scene.items(scene_pos)
+                
+                # Look for line graphics items
+                from ui.components.map_component.graphics.line_graphics_item import LineGraphicsItem
+                
+                for item in items:
+                    if isinstance(item, LineGraphicsItem):
+                        logger.debug(f"Found line at position ({x}, {y}): {item.target_node}")
+                        return item.target_node
+                
+                # If no direct hit, find the nearest line within a reasonable distance
+                search_radius = 20  # pixels
+                nearby_items = scene.items(scene_pos.x() - search_radius, scene_pos.y() - search_radius, 
+                                         search_radius * 2, search_radius * 2)
+                
+                nearest_line = None
+                min_distance = float('inf')
+                
+                for item in nearby_items:
+                    if isinstance(item, LineGraphicsItem):
+                        # Calculate distance to the line
+                        item_center = item.boundingRect().center()
+                        distance = ((scene_pos.x() - item_center.x()) ** 2 + 
+                                   (scene_pos.y() - item_center.y()) ** 2) ** 0.5
+                        
                         if distance < min_distance:
                             min_distance = distance
-                            nearest_line = target_node
-
-        # Only return if within reasonable distance (e.g., 20 pixels)
-        if min_distance <= 20:
-            return nearest_line
-
+                            nearest_line = item.target_node
+                
+                if nearest_line:
+                    logger.debug(f"Found nearest line within {search_radius}px: {nearest_line}")
+                    return nearest_line
+                
+                logger.debug(f"No line found at position ({x}, {y})")
+                return None
+                
+            except Exception as e:
+                logger.error(f"Error finding line at position: {e}")
+                return None
+        
+        # Fallback - TODO: Migrate to graphics system - old widget feature manager removed
+        logger.warning("No graphics adapter available for line finding")
         return None
 
     def find_nearest_control_point(
@@ -92,52 +96,8 @@ class MapCoordinateUtilities:
             Tuple of (target_node, branch_idx, point_idx, point) or None if no point found
         """
 
-        # Get all line containers from feature manager
-        line_containers = self.parent_widget.feature_manager.get_line_containers()
-
-        if not line_containers:
-            return None
-
-        nearest_info = None
-        min_distance = float("inf")
-
-        for target_node, line_container in line_containers.items():
-
-            # Get line geometry
-            if hasattr(line_container, "geometry"):
-                geometry = line_container.geometry
-
-                # Check if geometry has scaled_branches attribute
-                if not hasattr(geometry, "scaled_branches"):
-                    continue
-
-                # Debug what scaled_branches is
-                scaled_branches = geometry.scaled_branches
-
-                # Test all control points in all branches
-                for branch_idx, branch in enumerate(scaled_branches):
-                    for point_idx, point in enumerate(branch):
-                        # Calculate distance to control point
-                        dx = scaled_x - point[0]
-                        dy = scaled_y - point[1]
-                        distance_sq = dx * dx + dy * dy
-
-                        if distance_sq < min_distance:
-                            min_distance = distance_sq
-                            # Store original point (not scaled)
-                            original_point = geometry.branches[branch_idx][point_idx]
-                            nearest_info = (
-                                target_node,
-                                branch_idx,
-                                point_idx,
-                                original_point,
-                            )
-
-        # Only return if within reasonable distance (e.g., 20 pixels squared)
-        if min_distance <= 400:  # 20 pixels squared
-            target_node, branch_idx, point_idx, point = nearest_info
-            return nearest_info
-
+        # TODO: Migrate to graphics system - old widget feature manager removed
+        logger.warning("Line container operations not yet implemented for graphics mode")
         return None
 
     def point_to_line_distance(

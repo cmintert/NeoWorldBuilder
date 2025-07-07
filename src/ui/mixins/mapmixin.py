@@ -49,11 +49,16 @@ class MapMixin:
             direction: Relationship direction
             properties: Properties including x,y coordinates
         """
+        logger.info(f"Pin created handler called for target: {target_node}")
+        
         # Get current node name (the map node)
         source_node = self.ui.name_input.text().strip()
         if not source_node:
+            logger.warning("No source node in name_input, skipping pin creation")
             return
 
+        logger.info(f"Creating pin relationship: {source_node} SHOWS {target_node}")
+        
         # Add new relationship row with SHOWS type
         self.ui.add_relationship_row(
             "SHOWS", target_node, direction, json.dumps(properties)
@@ -61,9 +66,12 @@ class MapMixin:
 
         # Update save state to reflect changes
         self.update_unsaved_changes_indicator()
+        
+        logger.info("Pin relationship created, staying on map tab")
 
     def _handle_pin_click(self, target_node: str) -> None:
         """Handle pin click by loading the target node."""
+        logger.info(f"Pin click handler called for target: {target_node} - NAVIGATING TO NODE")
         self.ui.name_input.setText(target_node)
         self.load_node_data()
         self.ui.tabs.setCurrentIndex(0)

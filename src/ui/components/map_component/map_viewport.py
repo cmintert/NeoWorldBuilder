@@ -159,10 +159,9 @@ class MapViewport(QLabel):
         # Update the target line container if in branch creation mode
         if branch_creation_active and self.parent_map_tab:
             target = getattr(self.parent_map_tab.mode_manager, "_branch_creation_target", None)
-            if target and hasattr(self.parent_map_tab, "feature_manager"):
-                line_containers = self.parent_map_tab.feature_manager.get_line_containers()
-                if target in line_containers:
-                    line_containers[target].update()
+            # TODO: Migrate branch creation preview to graphics mode
+            if target:
+                logger.debug("Branch creation preview not yet implemented for graphics mode")
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         """Handle mouse wheel for zooming."""

@@ -115,7 +115,12 @@ class MapModeManager(QObject):
             self.parent_widget.toolbar_manager.update_edit_button_style(True)
 
             # Set edit mode on feature manager
-            self.parent_widget.feature_manager.set_edit_mode(True)
+            # Activate edit mode in graphics system
+            if hasattr(self.parent_widget, 'graphics_adapter'):
+                self.parent_widget.graphics_adapter.feature_manager.set_edit_mode(active)
+                logger.debug("Edit mode enabled on graphics feature manager")
+            else:
+                logger.warning("No graphics adapter available for edit mode")
             logger.info("Edit mode activated on feature manager")
 
             # Set focus to the viewport so it can receive key events
@@ -126,7 +131,12 @@ class MapModeManager(QObject):
             self.parent_widget.toolbar_manager.update_edit_button_style(False)
 
             # Disable edit mode on feature manager
-            self.parent_widget.feature_manager.set_edit_mode(False)
+            # Deactivate edit mode in graphics system
+            if hasattr(self.parent_widget, 'graphics_adapter'):
+                self.parent_widget.graphics_adapter.feature_manager.set_edit_mode(active)
+                logger.debug("Edit mode disabled on graphics feature manager")
+            else:
+                logger.warning("No graphics adapter available for edit mode")
             logger.info("Edit mode deactivated on feature manager")
 
     def set_branch_creation_mode(self, active: bool) -> None:
@@ -150,7 +160,8 @@ class MapModeManager(QObject):
             self.parent_widget.image_label.set_cursor_for_mode("default")
 
         # Force redraw to remove any highlighted points
-        self.parent_widget.feature_manager.update_positions(self.parent_widget)
+        # Graphics mode handles position updates automatically
+        logger.debug("Position updates handled automatically (graphics mode)")
 
         # Force viewport update to clear branch creation feedback
         self.parent_widget.image_label.update()
