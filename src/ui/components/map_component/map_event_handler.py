@@ -424,6 +424,9 @@ class MapEventHandler(QObject):
         else:
             logger.warning("No graphics adapter available for branch creation")
         
+        # UX Enhancement: Remove target line highlight
+        self._set_target_line_highlight(target_node, False)
+        
         # Reset branch creation mode
         logger.info("Resetting branch creation mode")
         self.parent_widget.mode_manager.reset_branch_creation_mode()
@@ -455,6 +458,8 @@ class MapEventHandler(QObject):
             # Check if the line geometry supports branching (Option A: MultiLineString only)
             if not self._can_create_branch_on_line(nearest_line):
                 logger.warning(f"Line {nearest_line} does not support branch creation (LineString geometry)")
+                # UX Enhancement: Show user-friendly feedback
+                self._show_conversion_hint(nearest_line)
                 return False
 
             # Start branch creation mode for this line
@@ -462,12 +467,11 @@ class MapEventHandler(QObject):
             self.parent_widget.mode_manager.set_branch_creation_target(nearest_line)
             self.parent_widget.mode_manager.set_branch_creation_start_point((x, y))
 
-            # Set cursor to indicate branch creation mode
+            # UX Enhancement: Set GIS-standard crosshair cursor
             self.parent_widget.image_label.set_cursor_for_mode("crosshair")
             
-            # Update the target line container to show the preview
-            # TODO: Migrate to graphics system - old widget feature manager removed
-            logger.warning("Line container update not yet implemented for graphics mode")
+            # UX Enhancement: Highlight target line and show preview
+            self._set_target_line_highlight(nearest_line, True)
 
             logger.info(f"Started branch creation mode for line: {nearest_line}")
             return True
@@ -508,3 +512,43 @@ class MapEventHandler(QObject):
         else:
             logger.warning("No graphics adapter available for geometry type checking")
             return False
+
+    def _show_conversion_hint(self, target_node: str) -> None:
+        """Show user-friendly hint about converting LineString to support branching.
+        
+        Args:
+            target_node: Name of the line that needs conversion
+        """
+        # UX Enhancement: Visual feedback for conversion requirement
+        if hasattr(self.parent_widget, 'graphics_adapter'):
+            feature_manager = self.parent_widget.graphics_adapter.feature_manager
+            
+            if target_node in feature_manager.features:
+                line_item = feature_manager.features[target_node]
+                
+                # Temporarily highlight the line to show which one was selected
+                line_item.set_highlighted(True)
+                
+                # Auto-remove highlight after 2 seconds
+                from PyQt6.QtCore import QTimer
+                timer = QTimer()
+                timer.setSingleShot(True)
+                timer.timeout.connect(lambda: line_item.set_highlighted(False))
+                timer.start(2000)
+                
+                logger.info(f"Line {target_node} highlighted - requires conversion to support branching")
+
+    def _set_target_line_highlight(self, target_node: str, highlighted: bool) -> None:
+        """Set highlight state for the target line during branch creation.
+        
+        Args:
+            target_node: Name of the line to highlight
+            highlighted: Whether to highlight or unhighlight
+        """
+        # UX Enhancement: Visual feedback for branch creation target
+        if hasattr(self.parent_widget, 'graphics_adapter'):
+            feature_manager = self.parent_widget.graphics_adapter.feature_manager
+            
+            if target_node in feature_manager.features:
+                line_item = feature_manager.features[target_node]
+                line_item.set_highlighted(highlighted)

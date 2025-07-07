@@ -43,7 +43,11 @@ class UnifiedLineGeometry:
         self._update_scaled_branches()
 
     def _update_shared_points(self):
-        """Update mapping of shared points between branches."""
+        """Update mapping of shared points between branches with performance optimization."""
+        # UX Enhancement: Skip expensive operations during drag
+        if hasattr(self, '_skip_shared_points_update') and self._skip_shared_points_update:
+            return
+            
         self._shared_points = {}
 
         if not self.is_branching:
@@ -59,6 +63,14 @@ class UnifiedLineGeometry:
         
         # Automatically reclassify points based on actual connections
         self._reclassify_points()
+        
+    def set_performance_mode(self, enabled: bool):
+        """Enable/disable performance mode to skip expensive updates during dragging.
+        
+        Args:
+            enabled: True to skip expensive updates, False to re-enable them
+        """
+        self._skip_shared_points_update = enabled
 
     def _count_point_connections(self, point_key: Tuple[int, int]) -> int:
         """Count the number of line segments that connect to a point.

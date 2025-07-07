@@ -236,10 +236,17 @@ class PinGraphicsItem(QGraphicsItem):
         Args:
             event: Hover event
         """
-        if self.edit_mode:
-            self.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
-        else:
-            self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        # Check if we should override cursor based on current mode
+        current_mode = self._get_current_mode()
+        
+        # Only set item-specific cursors in default or edit modes
+        if current_mode in ["default", "edit", None]:
+            if self.edit_mode:
+                self.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
+            else:
+                self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        # Otherwise, let the mode's cursor remain active
+        
         super().hoverEnterEvent(event)
     
     def hoverLeaveEvent(self, event) -> None:
@@ -248,8 +255,29 @@ class PinGraphicsItem(QGraphicsItem):
         Args:
             event: Hover event
         """
-        self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+        # Only reset cursor if we're not in a special mode
+        current_mode = self._get_current_mode()
+        if current_mode in ["default", None]:
+            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+        # Otherwise, let the mode's cursor remain active
+        
         super().hoverLeaveEvent(event)
+    
+    def _get_current_mode(self) -> Optional[str]:
+        """Get the current interaction mode from the adapter.
+        
+        Returns:
+            Current mode string or None
+        """
+        scene = self.scene()
+        if scene and hasattr(scene, 'views'):
+            views = scene.views()
+            if views:
+                view = views[0]
+                if hasattr(view, 'parent') and hasattr(view.parent(), 'graphics_adapter'):
+                    adapter = view.parent().graphics_adapter
+                    return getattr(adapter, 'current_mode', None)
+        return None
     
     def set_scale(self, scale: float) -> None:
         """Set the display scale for the pin.

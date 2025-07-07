@@ -62,6 +62,9 @@ class MapTabGraphicsAdapter(QObject):
         self.is_migrated = False
         self.widget_viewport = None  # Store reference to old viewport
         
+        # Track current interaction mode
+        self.current_mode = "default"  # default, pin_placement, line_drawing, branching_line_drawing, edit
+        
         logger.info("MapTabGraphicsAdapter initialized")
     
     def _integrate_graphics_view(self) -> None:
@@ -142,6 +145,10 @@ class MapTabGraphicsAdapter(QObject):
                     self.map_tab.event_handler.handle_coordinate_click(x, y)
             elif mode_manager.branching_line_drawing_active:
                 # Branching line mode - forward to event handler
+                if hasattr(self.map_tab, 'event_handler'):
+                    self.map_tab.event_handler.handle_coordinate_click(x, y)
+            elif mode_manager.branch_creation_mode:
+                # Branch creation mode - forward to event handler
                 if hasattr(self.map_tab, 'event_handler'):
                     self.map_tab.event_handler.handle_coordinate_click(x, y)
     
@@ -365,3 +372,12 @@ class MapTabGraphicsAdapter(QObject):
             from .graphics_feature_manager import GraphicsFeatureManager
             self.feature_manager = GraphicsFeatureManager(self.graphics_scene)
             return self.feature_manager
+    
+    def set_current_mode(self, mode: str) -> None:
+        """Set the current interaction mode.
+        
+        Args:
+            mode: The mode name (default, pin_placement, line_drawing, etc.)
+        """
+        self.current_mode = mode
+        logger.debug(f"Graphics adapter current mode set to: {mode}")

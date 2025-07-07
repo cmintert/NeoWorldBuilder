@@ -3,7 +3,7 @@
 from typing import Optional
 
 from PyQt6.QtCore import Qt, pyqtSignal, QPointF, QEvent
-from PyQt6.QtGui import QMouseEvent, QWheelEvent, QPainter, QKeyEvent, QPen, QColor
+from PyQt6.QtGui import QMouseEvent, QWheelEvent, QPainter, QKeyEvent, QPen, QColor, QCursor, QPixmap, QBrush, QFont
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene
 from structlog import get_logger
 
@@ -294,3 +294,126 @@ class MapGraphicsView(QGraphicsView):
         
         painter.end()
         logger.debug(f"Drew temporary line with {len(view_points)} points (start/end indicators included)")
+    
+    def _create_professional_cursor(self, cursor_type: str) -> QCursor:
+        """Create a professional GIS/CAD-style cursor with precise interaction point.
+        
+        Professional cursor design principles:
+        - Small size (20x20) for minimal view obstruction
+        - Precise crosshair for exact interaction point
+        - High contrast black/white for visibility on any background
+        - Clean geometric tool icons matching GIS standards
+        - Hotspot at exact interaction point (crosshair center)
+        
+        Args:
+            cursor_type: Type of cursor ('pin', 'line', 'branch', 'edit')
+            
+        Returns:
+            QCursor with professional GIS-style design
+        """
+        size = 20  # Professional standard size
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Calculate center point for crosshair
+        center_x, center_y = size // 2, size // 2
+        crosshair_len = 6  # Length of crosshair arms
+        
+        # Draw precise crosshair (ALWAYS present for interaction point)
+        # Black outline for visibility on light backgrounds
+        painter.setPen(QPen(QColor(0, 0, 0), 2))
+        painter.drawLine(center_x - crosshair_len, center_y, center_x + crosshair_len, center_y)
+        painter.drawLine(center_x, center_y - crosshair_len, center_x, center_y + crosshair_len)
+        
+        # White inner lines for visibility on dark backgrounds
+        painter.setPen(QPen(QColor(255, 255, 255), 1))
+        painter.drawLine(center_x - crosshair_len, center_y, center_x + crosshair_len, center_y)
+        painter.drawLine(center_x, center_y - crosshair_len, center_x, center_y + crosshair_len)
+        
+        # Add mode-specific tool indicator (offset from crosshair)
+        icon_x, icon_y = center_x + 8, center_y - 8  # Top-right offset
+        icon_size = 6
+        
+        if cursor_type == "pin":
+            # Pin placement: Small location marker
+            painter.setPen(QPen(QColor(0, 0, 0), 2))
+            painter.setBrush(QBrush(QColor(255, 255, 255)))
+            painter.drawEllipse(icon_x - 2, icon_y - 2, 4, 4)
+            painter.drawLine(icon_x, icon_y + 2, icon_x, icon_y + 5)
+            
+        elif cursor_type == "line":
+            # Line drawing: Simple line segment
+            painter.setPen(QPen(QColor(0, 0, 0), 2))
+            painter.drawLine(icon_x - 3, icon_y + 1, icon_x + 3, icon_y - 1)
+            painter.setPen(QPen(QColor(255, 255, 255), 1))
+            painter.drawLine(icon_x - 3, icon_y + 1, icon_x + 3, icon_y - 1)
+            
+        elif cursor_type == "branch":
+            # Branching line: Y-shaped fork
+            painter.setPen(QPen(QColor(0, 0, 0), 2))
+            painter.drawLine(icon_x, icon_y + 2, icon_x, icon_y)      # Main stem
+            painter.drawLine(icon_x, icon_y, icon_x - 2, icon_y - 2)  # Left branch
+            painter.drawLine(icon_x, icon_y, icon_x + 2, icon_y - 2)  # Right branch
+            painter.setPen(QPen(QColor(255, 255, 255), 1))
+            painter.drawLine(icon_x, icon_y + 2, icon_x, icon_y)
+            painter.drawLine(icon_x, icon_y, icon_x - 2, icon_y - 2)
+            painter.drawLine(icon_x, icon_y, icon_x + 2, icon_y - 2)
+            
+        elif cursor_type == "edit":
+            # Edit mode: Selection handles
+            painter.setPen(QPen(QColor(0, 0, 0), 1))
+            painter.setBrush(QBrush(QColor(255, 255, 255)))
+            painter.drawRect(icon_x - 2, icon_y - 2, 2, 2)
+            painter.drawRect(icon_x + 1, icon_y - 2, 2, 2)
+            painter.drawRect(icon_x - 2, icon_y + 1, 2, 2)
+            painter.drawRect(icon_x + 1, icon_y + 1, 2, 2)
+        
+        painter.end()
+        
+        # Hotspot at crosshair center for precise interaction
+        return QCursor(pixmap, center_x, center_y)
+
+    def set_cursor_for_mode(self, mode: str) -> None:
+        """Set cursor based on current interaction mode with custom icons.
+
+        Args:
+            mode: One of 'default', 'pin_placement', 'line_drawing', 
+                  'branching_line_drawing', 'edit', 'crosshair', 'pointing'
+        """
+        logger.info(f"MapGraphicsView: Setting professional cursor for mode: {mode}")
+        
+        # Professional GIS/CAD-style cursors
+        if mode == "pin_placement":
+            cursor = self._create_professional_cursor("pin")
+            logger.info("Created professional pin placement cursor with crosshair + location marker")
+            
+        elif mode == "line_drawing":
+            cursor = self._create_professional_cursor("line")
+            logger.info("Created professional line drawing cursor with crosshair + line indicator")
+            
+        elif mode == "branching_line_drawing":
+            cursor = self._create_professional_cursor("branch")
+            logger.info("Created professional branching line cursor with crosshair + fork indicator")
+            
+        elif mode == "edit":
+            cursor = self._create_professional_cursor("edit")
+            logger.info("Created professional edit cursor with crosshair + selection handles")
+        elif mode == "crosshair":
+            # Use crosshair for precision
+            cursor = QCursor(Qt.CursorShape.CrossCursor)
+        elif mode == "pointing":
+            # Use pointing hand
+            cursor = QCursor(Qt.CursorShape.PointingHandCursor)
+        elif mode == "default":
+            # Default arrow
+            cursor = QCursor(Qt.CursorShape.ArrowCursor)
+        else:
+            # Fallback to default
+            logger.warning(f"Unknown cursor mode: {mode}, using default")
+            cursor = QCursor(Qt.CursorShape.ArrowCursor)
+        
+        self.setCursor(cursor)
+        logger.info(f"MapGraphicsView: Cursor successfully set for mode: {mode}, cursor type: {type(cursor)}")
