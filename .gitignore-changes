@@ -1,0 +1,7 @@
+# Old files that should be removed from the repository
+src/ui/components/map_component/feature_manager.py
+src/ui/components/map_component/enhanced_edit_mode.py
+src/ui/components/map_component/enhanced_edit_mode_debug.py
+src/ui/components/map_component/feature_manager_integration.py
+
+# These files can be removed as they are no longer needed

@@ -1,4 +1,5 @@
 from typing import List, Tuple, Dict, Any
+
 from PyQt6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -13,7 +14,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
+
 from structlog import get_logger
+
 from utils.geometry_handler import GeometryHandler
 
 logger = get_logger(__name__)

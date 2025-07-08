@@ -4,12 +4,26 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment=" Consolidate map edit modes and integrate coordinate transformers&#10;&#10;  • Extract coordinate transformations into reusable CoordinateTransformer utility&#10;  • Consolidate basic and enhanced edit modes into unified system&#10;  • Create consolidated_edit_mode.py with UnifiedLineGeometry, UnifiedHitTester, and UnifiedLineRenderer&#10;  • Update line_container.py to handle both simple and branching lines using unified components&#10;  • Integrate CoordinateTransformer throughout map_viewport.py, map_tab.py, and containers&#10;  • Remove duplicate enhanced_edit_mode.py (900+ lines) and test_enhanced_mode.py&#10;  • Add geometry_changed signals for branching line compatibility&#10;  • Standardize coordinate transformation across all map editing operations">
+    <list default="true" id="16e97d6d-592b-48a7-8529-85f346b9a8e9" name="Changes" comment="Remove debug print statements and replace with logging calls; enhance code quality and maintainability">
+      <change beforePath="$PROJECT_DIR$/.idea/NeoWorldBuilder.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/NeoWorldBuilder.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" beforeDir="false" afterPath="$PROJECT_DIR$/src/logs/neoworldbuilder.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/feature_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/feature_manager.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/line_container.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/line_container.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/pin_container.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/pin_container.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/containers/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/containers/base_map_feature_container.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/containers/branching_line_container.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/containers/line_container.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/containers/pin_container.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/feature_hit_tester.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/feature_manager.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_coordinate_utilities.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_coordinate_utilities.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_event_handler.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_event_handler.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_feature_loader.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_feature_loader.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_mode_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_mode_manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_tab.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_toolbar_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_toolbar_manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/components/map_component/map_viewport.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/components/map_component/map_viewport.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/mixins/mapmixin.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/mixins/mapmixin.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -54,6 +68,9 @@
       <envs />
     </McpServerCommand>
   </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="ProjectErrors" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 5
 }</component>
@@ -63,40 +80,41 @@
     <option name="showLibraryContents" value="true" />
     <option name="sortKey" value="BY_TIME_DESCENDING" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python tests.Python tests in calendar_tab_test.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in calendar_test.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_node_operations.TestBaseController.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_node_operations.TestBaseController.test_delete_node_debounce.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_node_operations.TestBaseController.test_load_empty_state.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_node_operations.test_load_node_data.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_search_analysis_service.TestSearchAnalysisService.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in calendar_config_dialog_test.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in calendar_tab_test.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_enhanced_mode.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_parser.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python.Run main.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python.core.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main_window.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;SONARLINT_PRECOMMIT_ANALYSIS&quot;: &quot;true&quot;,
-    &quot;ToolWindow.Run.ShowToolbar&quot;: &quot;false&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/chris/PycharmProjects/NeoWorldBuilder/src/resources/fast_injects&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python tests.Python tests in calendar_tab_test.py.executor": "Run",
+    "Python tests.Python tests in calendar_test.py.executor": "Run",
+    "Python tests.pytest for test_node_operations.TestBaseController.executor": "Run",
+    "Python tests.pytest for test_node_operations.TestBaseController.test_delete_node_debounce.executor": "Run",
+    "Python tests.pytest for test_node_operations.TestBaseController.test_load_empty_state.executor": "Run",
+    "Python tests.pytest for test_node_operations.test_load_node_data.executor": "Run",
+    "Python tests.pytest for test_search_analysis_service.TestSearchAnalysisService.executor": "Run",
+    "Python tests.pytest in calendar_config_dialog_test.py.executor": "Run",
+    "Python tests.pytest in calendar_tab_test.py.executor": "Run",
+    "Python tests.pytest in test_enhanced_mode.py.executor": "Run",
+    "Python tests.pytest in test_parser.py.executor": "Run",
+    "Python.Run main.py.executor": "Run",
+    "Python.core.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.main_window.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "SONARLINT_PRECOMMIT_ANALYSIS": "true",
+    "ToolWindow.Run.ShowToolbar": "false",
+    "git-widget-placeholder": "branching__edits",
+    "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "C:/Users/chris/PycharmProjects/NeoWorldBuilder/src/resources/fast_injects",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\chris\PycharmProjects\NeoWorldBuilder\src\resources\fast_injects" />
@@ -236,8 +254,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-6a121458b545-JavaScript-PY-251.25410.159" />
-        <option value="bundled-python-sdk-e0ed3721d81e-36ea0e71a18c-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-251.25410.159" />
+        <option value="bundled-js-predefined-d6986cc7102b-09060db00ec0-JavaScript-PY-251.26927.74" />
+        <option value="bundled-python-sdk-657d8234b839-64d779b69b7a-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-251.26927.74" />
       </set>
     </attachedChunks>
   </component>
@@ -317,70 +335,10 @@
       <workItem from="1748334996045" duration="77000" />
       <workItem from="1748335081049" duration="2071000" />
       <workItem from="1748338570454" duration="777000" />
-    </task>
-    <task id="LOCAL-00025" summary="Add TimelineMixin and TimelineTab for enhanced timeline functionality in controllers. This is the first try to implement a timeline tab. No real functionality for now.">
-      <option name="closed" value="true" />
-      <created>1739866056843</created>
-      <option name="number" value="00025" />
-      <option name="presentableId" value="LOCAL-00025" />
-      <option name="project" value="LOCAL" />
-      <updated>1739866056843</updated>
-    </task>
-    <task id="LOCAL-00026" summary="Enhance timeline functionality with improved event handling and visualization in controllers. further debugging.">
-      <option name="closed" value="true" />
-      <created>1739911424193</created>
-      <option name="number" value="00026" />
-      <option name="presentableId" value="LOCAL-00026" />
-      <option name="project" value="LOCAL" />
-      <updated>1739911424194</updated>
-    </task>
-    <task id="LOCAL-00027" summary="Enhance timeline functionality with improved event handling and visualization in controllers. further debugging.">
-      <option name="closed" value="true" />
-      <created>1739954886829</created>
-      <option name="number" value="00027" />
-      <option name="presentableId" value="LOCAL-00027" />
-      <option name="project" value="LOCAL" />
-      <updated>1739954886829</updated>
-    </task>
-    <task id="LOCAL-00028" summary="Add calendar lookup functionality and improve event data handling in timeline tab">
-      <option name="closed" value="true" />
-      <created>1739997041415</created>
-      <option name="number" value="00028" />
-      <option name="presentableId" value="LOCAL-00028" />
-      <option name="project" value="LOCAL" />
-      <updated>1739997041415</updated>
-    </task>
-    <task id="LOCAL-00029" summary="Enhance timeline tab setup and data loading with improved error handling and event processing">
-      <option name="closed" value="true" />
-      <created>1739997335381</created>
-      <option name="number" value="00029" />
-      <option name="presentableId" value="LOCAL-00029" />
-      <option name="project" value="LOCAL" />
-      <updated>1739997335381</updated>
-    </task>
-    <task id="LOCAL-00030" summary="Enhance timeline tab setup and data loading with improved error handling and event processing">
-      <option name="closed" value="true" />
-      <created>1739999955564</created>
-      <option name="number" value="00030" />
-      <option name="presentableId" value="LOCAL-00030" />
-      <option name="project" value="LOCAL" />
-      <updated>1739999955564</updated>
-    </task>
-    <task id="LOCAL-00031" summary="Fix mouse move event handling to ensure widget updates correctly">
-      <option name="closed" value="true" />
-      <created>1741722969371</created>
-      <option name="number" value="00031" />
-      <option name="presentableId" value="LOCAL-00031" />
-      <option name="project" value="LOCAL" />
-      <updated>1741722969371</updated>
-    </task>
-    <task id="LOCAL-00032" summary="Refactor calendar data retrieval to use properties for improved data access, both for setup event calendar and timeline calendar. Works kind of.">
-      <option name="closed" value="true" />
-      <created>1741723449728</created>
-      <option name="number" value="00032" />
-      <option name="presentableId" value="LOCAL-00032" />
-      <option name="project" value="LOCAL" />
-      <updated>1741723449728</updated>
+      <workItem from="1748377084189" duration="2712000" />
+      <workItem from="1748503158463" duration="3015000" />
+      <workItem from="1748586836823" duration="6959000" />
+      <workItem from="1751891822641" duration="13392000" />
     </task>
     <task id="LOCAL-00033" summary="Enhance calendar and timeline integration by loading detailed calendar data before timeline events, ensuring accurate event positioning. Update timeline tab to accept calendar data for improved event display.">
       <option name="closed" value="true" />
@@ -710,7 +668,71 @@
       <option name="project" value="LOCAL" />
       <updated>1748337169059</updated>
     </task>
-    <option name="localTasksCounter" value="74" />
+    <task id="LOCAL-00074" summary="Add branching line creation and validation in edit mode&#10;&#10;Introduced methods to create and manage branching lines, including validation for geometry types. Enhanced user interaction with branching tools, added control point highlighting, and ensured support for handling branch creation requests on both control points and line segments.">
+      <option name="closed" value="true" />
+      <created>1748373253502</created>
+      <option name="number" value="00074" />
+      <option name="presentableId" value="LOCAL-00074" />
+      <option name="project" value="LOCAL" />
+      <updated>1748373253502</updated>
+    </task>
+    <task id="LOCAL-00075" summary="Add comprehensive documentation for NeoWorldBuilder architecture and features">
+      <option name="closed" value="true" />
+      <created>1748457497563</created>
+      <option name="number" value="00075" />
+      <option name="presentableId" value="LOCAL-00075" />
+      <option name="project" value="LOCAL" />
+      <updated>1748457497564</updated>
+    </task>
+    <task id="LOCAL-00076" summary="Add FeatureHitTester for unified hit testing of map features; refactor hit testing logic in edit mode and line container">
+      <option name="closed" value="true" />
+      <created>1748466275193</created>
+      <option name="number" value="00076" />
+      <option name="presentableId" value="LOCAL-00076" />
+      <option name="project" value="LOCAL" />
+      <updated>1748466275193</updated>
+    </task>
+    <task id="LOCAL-00077" summary="Add BranchingLineContainer and refactor map feature containers for improved modularity; enhance documentation for container architecture">
+      <option name="closed" value="true" />
+      <created>1748468004418</created>
+      <option name="number" value="00077" />
+      <option name="presentableId" value="LOCAL-00077" />
+      <option name="project" value="LOCAL" />
+      <updated>1748468004418</updated>
+    </task>
+    <task id="LOCAL-00078" summary="Integrate unified feature manager into MapTab instance; enhance geometry handling and feature loading for improved modularity and performance">
+      <option name="closed" value="true" />
+      <created>1748468403080</created>
+      <option name="number" value="00078" />
+      <option name="presentableId" value="LOCAL-00078" />
+      <option name="project" value="LOCAL" />
+      <updated>1748468403080</updated>
+    </task>
+    <task id="LOCAL-00079" summary="Refactor map component architecture by introducing MapToolbarManager, MapModeManager, MapEventHandler, MapFeatureLoader, and MapCoordinateUtilities; enhance modularity and maintainability while preserving existing functionality">
+      <option name="closed" value="true" />
+      <created>1748556262474</created>
+      <option name="number" value="00079" />
+      <option name="presentableId" value="LOCAL-00079" />
+      <option name="project" value="LOCAL" />
+      <updated>1748556262474</updated>
+    </task>
+    <task id="LOCAL-00080" summary="Refactor map component architecture to enhance branch creation functionality; implement B key press handling for initiating branch creation in edit mode, ensuring seamless user interaction and improved modularity">
+      <option name="closed" value="true" />
+      <created>1748588366341</created>
+      <option name="number" value="00080" />
+      <option name="presentableId" value="LOCAL-00080" />
+      <option name="project" value="LOCAL" />
+      <updated>1748588366342</updated>
+    </task>
+    <task id="LOCAL-00081" summary="Add branch creation start point property to mode manager for improved functionality">
+      <option name="closed" value="true" />
+      <created>1748588554975</created>
+      <option name="number" value="00081" />
+      <option name="presentableId" value="LOCAL-00081" />
+      <option name="project" value="LOCAL" />
+      <updated>1748588554975</updated>
+    </task>
+    <option name="localTasksCounter" value="82" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -740,18 +762,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Add multi-line support and edit mode for line features" />
-    <MESSAGE value="Add line editing functionality with interactive controls&#10;&#10;Implemented edit mode for lines, allowing users to modify existing lines directly on the map. Added control points for precise line vertex manipulation and options to insert or edit points via context menus. Updated geometry handling and UI components to support smooth integration of editing features." />
-    <MESSAGE value="Add line editing functionality with interactive controls&#10;&#10;Implemented an edit mode for map lines, enabling users to modify lines directly with control points for vertex manipulation. Added new constants to streamline visual styles, hit detection, and geometry handling. Updated the map widget for better scaling, customization, and integration of editing features." />
-    <MESSAGE value="Implement line editing functionality with control points and geometry management" />
-    <MESSAGE value="Refactor line handling into modular components.&#10;&#10;Extracted line rendering and persistence logic into separate modules for improved modularity and maintainability. Enhanced line editing functionality with control point interactions, better rendering, and streamlined geometry updates. Updated related constants and UI components for consistency and scalability." />
-    <MESSAGE value="Refactor map component for modularity and simplification&#10;&#10;Reorganized map-related classes into separate modules to improve code modularity and maintainability. Simplified `map_tab.py` by extracting line rendering, image loading, and drawing logic into dedicated components. This enhances readability, scalability, and future development efficiency." />
-    <MESSAGE value="Modularize dialogs for map components&#10;&#10;Extracted `PinPlacementDialog` and `LineFeatureDialog` into standalone modules for improved structure and reusability. Refactored `map_tab.py` to reflect these changes, enhancing maintainability and code organization." />
-    <MESSAGE value="Add branching line drawing functionality to map feature&#10;&#10;Introduced branching line drawing mode with UI toggle support in `map_tab.py`. Added necessary handling for branching lines, including toggle status, point addition, and rendering preparation. Enhanced `line_container.py` to support modular line features required by the new functionality while improving code readability and error handling." />
-    <MESSAGE value="Add branching line drawing functionality to map feature&#10;&#10;Introduced branching line drawing mode with UI toggle support in `map_tab.py`. Added mechanisms to handle branching lines, including point addition, completion, and rendering updates in `drawing_manager.py`. Enhanced related classes like `line_container.py` and `line_geometry.py` to support accurate scaling, maintainability, and modularity for branching lines." />
-    <MESSAGE value="Refactor prompt templates and enhance line management logic&#10;&#10;Updated `prompt_templates.yaml` to include a new &quot;Create Plant Description&quot; template with detailed formatting and processing instructions. Refactored line scaling and geometry management in `line_geometry.py` and related components to improve modularity, ensure accurate scaling with dynamic image dimensions, and enhance debugging capabilities. Added comprehensive logging to aid in debugging and maintaining feature consistency throughout the map component hierarchy." />
-    <MESSAGE value="Add functionality to branch lines from nearest points&#10;&#10;Introduced a feature to start new branches from the nearest existing points in branching line drawing mode. Enhanced `DrawingManager` and `MapTab` to calculate the closest points based on user interactions and seamlessly create new branches. Improved visual debugging with updated drawing styles, point markers, and feedback for branch creation." />
-    <MESSAGE value="Add branching line configuration dialog for map component&#10;&#10;Introduced a dialog to configure branching line features, including target node selection, line style customization, and WKT geometry preview. Integrated the dialog into the map component to enhance branching line creation workflow and improve user interaction." />
     <MESSAGE value="Add branching line configuration and dialog for map component&#10;&#10;Introduced a branching line configuration dialog to enhance user workflows for branching line creation. The dialog supports features like target node selection, line style customization, and WKT geometry preview. Enhanced signal handling, line visualization updates, and error handling across multiple components to improve reliability and user feedback." />
     <MESSAGE value="Enhance map component with improved edit mode integration&#10;&#10;Added initialization for an enhanced edit mode in the map component, improving user interaction workflows. Updated XML and log entries to reflect new configurations, ensuring better tracking of recent activities and changes." />
     <MESSAGE value="Add enhanced edit mode integration for map component&#10;&#10;Integrated an improved edit mode for the map component, enhancing edit workflows and adding better diagnostic tools. Refactored branching line handling to use the enhanced feature manager when available, improving feature flexibility and logging for better debugging. Updated workspace configuration to reflect these changes." />
@@ -765,7 +775,19 @@
     <MESSAGE value="Refactor property search and enhance property type handling.&#10;&#10;Added dynamic property discovery to differentiate between array and scalar types, enabling improved query construction in Neo4j. Enhanced query builders to handle diverse property types with better error handling and code clarity. Updated methods to refresh property types and ensure consistent search functionality." />
     <MESSAGE value="Switch property inputs from radio buttons to checkboxes&#10;&#10;Replaced radio buttons with checkboxes to support multi-selection in property value input. Updated related UI methods for handling checkbox inputs, preserving selections, and editing property values. Enhanced functionality in `fast_inject_service` to handle and display multi-selected property values effectively." />
     <MESSAGE value=" Consolidate map edit modes and integrate coordinate transformers&#10;&#10;  • Extract coordinate transformations into reusable CoordinateTransformer utility&#10;  • Consolidate basic and enhanced edit modes into unified system&#10;  • Create consolidated_edit_mode.py with UnifiedLineGeometry, UnifiedHitTester, and UnifiedLineRenderer&#10;  • Update line_container.py to handle both simple and branching lines using unified components&#10;  • Integrate CoordinateTransformer throughout map_viewport.py, map_tab.py, and containers&#10;  • Remove duplicate enhanced_edit_mode.py (900+ lines) and test_enhanced_mode.py&#10;  • Add geometry_changed signals for branching line compatibility&#10;  • Standardize coordinate transformation across all map editing operations" />
-    <option name="LAST_COMMIT_MESSAGE" value=" Consolidate map edit modes and integrate coordinate transformers&#10;&#10;  • Extract coordinate transformations into reusable CoordinateTransformer utility&#10;  • Consolidate basic and enhanced edit modes into unified system&#10;  • Create consolidated_edit_mode.py with UnifiedLineGeometry, UnifiedHitTester, and UnifiedLineRenderer&#10;  • Update line_container.py to handle both simple and branching lines using unified components&#10;  • Integrate CoordinateTransformer throughout map_viewport.py, map_tab.py, and containers&#10;  • Remove duplicate enhanced_edit_mode.py (900+ lines) and test_enhanced_mode.py&#10;  • Add geometry_changed signals for branching line compatibility&#10;  • Standardize coordinate transformation across all map editing operations" />
+    <MESSAGE value="● Add pin movement functionality in edit mode&#10;&#10;  - Add drag support to PinContainer with proper coordinate transformation&#10;  - Update cursor to resize/move handle when hovering over pins in edit mode&#10;  - Add cursor change to resize/move handle when hovering over line control points&#10;  - Update relationship table properties when pin position changes&#10;  - Integrate pin edit mode into UnifiedFeatureManager&#10;  - Maintain consistent behavior with line point movement system" />
+    <MESSAGE value="Add branching line creation and validation in edit mode&#10;&#10;Introduced methods to create and manage branching lines, including validation for geometry types. Enhanced user interaction with branching tools, added control point highlighting, and ensured support for handling branch creation requests on both control points and line segments." />
+    <MESSAGE value="Add branching line creation and visualization in map tools&#10;&#10;Introduced functionality for creating, managing, and visualizing branching lines on the map. Enhanced user interaction with tools like control point highlighting, feedback visualization, and branch validation. Integrated logging and coordinate transformations for precise operations and improved debugging." />
+    <MESSAGE value="Add comprehensive documentation for NeoWorldBuilder architecture and features" />
+    <MESSAGE value="Refactor pin and line containers for improved readability and consistency; add FeatureHitTester for unified hit testing of map features" />
+    <MESSAGE value="Add FeatureHitTester for unified hit testing of map features; refactor hit testing logic in edit mode and line container" />
+    <MESSAGE value="Add BranchingLineContainer and refactor map feature containers for improved modularity; enhance documentation for container architecture" />
+    <MESSAGE value="Integrate unified feature manager into MapTab instance; enhance geometry handling and feature loading for improved modularity and performance" />
+    <MESSAGE value="Add CoordinateTransformer class for coordinate transformations in map components; implement methods for widget to scaled and original coordinates conversion" />
+    <MESSAGE value="Refactor map component architecture by introducing MapToolbarManager, MapModeManager, MapEventHandler, MapFeatureLoader, and MapCoordinateUtilities; enhance modularity and maintainability while preserving existing functionality" />
+    <MESSAGE value="Refactor map component architecture to enhance branch creation functionality; implement B key press handling for initiating branch creation in edit mode, ensuring seamless user interaction and improved modularity" />
+    <MESSAGE value="Add branch creation start point property to mode manager for improved functionality" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add branch creation start point property to mode manager for improved functionality" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -780,7 +802,7 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_parser_py.coverage" NAME="pytest in test_parser.py Coverage Results" MODIFIED="1738141005495" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/date_parser_module/tests" />
-    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1748339288750" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NeoWorldBuilder$Run_main_py.coverage" NAME="Run main.py Coverage Results" MODIFIED="1751914549063" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_in_test_calendar_handler_py.coverage" NAME="pytest in test_calendar_handler.py Coverage Results" MODIFIED="1737583404246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_test_load_node_data.coverage" NAME="pytest for test_node_operations.test_load_node_data Coverage Results" MODIFIED="1739348948172" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />
     <SUITE FILE_PATH="coverage/NeoWorldBuilder$pytest_for_test_node_operations_TestBaseController.coverage" NAME="pytest for test_node_operations.TestBaseController Coverage Results" MODIFIED="1739642873372" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/tests/controllers" />

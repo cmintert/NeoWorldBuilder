@@ -1,8 +1,9 @@
 import os
 from typing import Optional, Dict
-from PyQt6.QtCore import QThread, pyqtSignal, QTimer
+
+from PyQt6.QtCore import QThread, pyqtSignal, QTimer, Qt
 from PyQt6.QtGui import QPixmap, QTransform
-from PyQt6.QtCore import Qt
+
 from structlog import get_logger
 
 logger = get_logger(__name__)

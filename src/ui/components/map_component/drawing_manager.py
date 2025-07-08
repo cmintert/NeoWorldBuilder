@@ -1,17 +1,15 @@
-from typing import List, Tuple, Optional
-from PyQt6.QtCore import QObject, pyqtSignal, QPoint, QPointF
+from typing import Optional
+
+from PyQt6.QtCore import QObject, pyqtSignal, QPointF, Qt
 from PyQt6.QtGui import QPainter, QPen, QColor, QBrush
-from PyQt6.QtCore import Qt
+
 from structlog import get_logger
 
 logger = get_logger(__name__)
 
 
 class DrawingManager(QObject):
-    """Manages drawing_decap operations (line drawing_decap, temporary visualizations).
-
-    Handles temporary drawing_decap state and visual feedback during drawing_decap operations.
-    """
+    """Initialize the drawing manager."""
 
     # Drawing signals
     line_completed = pyqtSignal(list)  # Emits list of points when line is complete
