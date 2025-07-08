@@ -134,33 +134,49 @@ class MapGraphicsView(QGraphicsView):
             super().mouseReleaseEvent(event)
     
     def wheelEvent(self, event: QWheelEvent) -> None:
-        """Handle mouse wheel for zooming.
+        """Handle mouse wheel for zooming with zoom-to-cursor functionality.
         
         Args:
             event: Wheel event
         """
-        # Calculate zoom factor
-        zoom_in_factor = 1.15
-        zoom_out_factor = 1.0 / zoom_in_factor
+        # Calculate zoom factor based on wheel delta
+        delta = event.angleDelta().y()
         
-        # Get the current transformation matrix
-        old_pos = self.mapToScene(event.position().toPoint())
-        
-        # Apply zoom
-        if event.angleDelta().y() > 0:
-            zoom_factor = zoom_in_factor
+        # Check if Ctrl is held for fine zoom control
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            # Fine zoom: approximately 5% per wheel notch
+            zoom_factor = 1.0 + (delta / 2400.0)
         else:
-            zoom_factor = zoom_out_factor
+            # Regular zoom: approximately 20% per wheel notch  
+            zoom_factor = 1.0 + (delta / 600.0)
         
+        # Zoom-to-cursor implementation
+        mouse_pos = event.position().toPoint()
+        target_scene_pos = self.mapToScene(mouse_pos)
+        
+        # Apply the zoom transformation
         self.scale(zoom_factor, zoom_factor)
         self.current_zoom_level *= zoom_factor
         
-        # Get the new position and adjust to keep point under cursor
-        new_pos = self.mapToScene(event.position().toPoint())
-        delta = new_pos - old_pos
-        self.translate(delta.x(), delta.y())
+        # Calculate where the target point is now after zoom
+        current_target_in_view = self.mapFromScene(target_scene_pos)
         
-        # Emit zoom signal
+        # Calculate the difference in view coordinates
+        delta_view = mouse_pos - current_target_in_view
+        
+        # Apply translation using centerOn to correctly position the scene
+        current_center = self.mapToScene(self.rect().center())
+        
+        # Convert the view delta to scene delta by scaling with the current zoom
+        delta_scene_x = delta_view.x() / zoom_factor
+        delta_scene_y = delta_view.y() / zoom_factor
+        
+        # Calculate and apply the new center position
+        new_center_x = current_center.x() - delta_scene_x
+        new_center_y = current_center.y() - delta_scene_y
+        self.centerOn(new_center_x, new_center_y)
+        
+        # Emit zoom signal for other components that need to know about zoom changes
         self.zoom_requested.emit(self.current_zoom_level)
         
         event.accept()
@@ -295,125 +311,44 @@ class MapGraphicsView(QGraphicsView):
         painter.end()
         logger.debug(f"Drew temporary line with {len(view_points)} points (start/end indicators included)")
     
-    def _create_professional_cursor(self, cursor_type: str) -> QCursor:
-        """Create a professional GIS/CAD-style cursor with precise interaction point.
-        
-        Professional cursor design principles:
-        - Small size (20x20) for minimal view obstruction
-        - Precise crosshair for exact interaction point
-        - High contrast black/white for visibility on any background
-        - Clean geometric tool icons matching GIS standards
-        - Hotspot at exact interaction point (crosshair center)
-        
-        Args:
-            cursor_type: Type of cursor ('pin', 'line', 'branch', 'edit')
-            
-        Returns:
-            QCursor with professional GIS-style design
-        """
-        size = 20  # Professional standard size
-        pixmap = QPixmap(size, size)
-        pixmap.fill(Qt.GlobalColor.transparent)
-        
-        painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        # Calculate center point for crosshair
-        center_x, center_y = size // 2, size // 2
-        crosshair_len = 6  # Length of crosshair arms
-        
-        # Draw precise crosshair (ALWAYS present for interaction point)
-        # Black outline for visibility on light backgrounds
-        painter.setPen(QPen(QColor(0, 0, 0), 2))
-        painter.drawLine(center_x - crosshair_len, center_y, center_x + crosshair_len, center_y)
-        painter.drawLine(center_x, center_y - crosshair_len, center_x, center_y + crosshair_len)
-        
-        # White inner lines for visibility on dark backgrounds
-        painter.setPen(QPen(QColor(255, 255, 255), 1))
-        painter.drawLine(center_x - crosshair_len, center_y, center_x + crosshair_len, center_y)
-        painter.drawLine(center_x, center_y - crosshair_len, center_x, center_y + crosshair_len)
-        
-        # Add mode-specific tool indicator (offset from crosshair)
-        icon_x, icon_y = center_x + 8, center_y - 8  # Top-right offset
-        icon_size = 6
-        
-        if cursor_type == "pin":
-            # Pin placement: Small location marker
-            painter.setPen(QPen(QColor(0, 0, 0), 2))
-            painter.setBrush(QBrush(QColor(255, 255, 255)))
-            painter.drawEllipse(icon_x - 2, icon_y - 2, 4, 4)
-            painter.drawLine(icon_x, icon_y + 2, icon_x, icon_y + 5)
-            
-        elif cursor_type == "line":
-            # Line drawing: Simple line segment
-            painter.setPen(QPen(QColor(0, 0, 0), 2))
-            painter.drawLine(icon_x - 3, icon_y + 1, icon_x + 3, icon_y - 1)
-            painter.setPen(QPen(QColor(255, 255, 255), 1))
-            painter.drawLine(icon_x - 3, icon_y + 1, icon_x + 3, icon_y - 1)
-            
-        elif cursor_type == "branch":
-            # Branching line: Y-shaped fork
-            painter.setPen(QPen(QColor(0, 0, 0), 2))
-            painter.drawLine(icon_x, icon_y + 2, icon_x, icon_y)      # Main stem
-            painter.drawLine(icon_x, icon_y, icon_x - 2, icon_y - 2)  # Left branch
-            painter.drawLine(icon_x, icon_y, icon_x + 2, icon_y - 2)  # Right branch
-            painter.setPen(QPen(QColor(255, 255, 255), 1))
-            painter.drawLine(icon_x, icon_y + 2, icon_x, icon_y)
-            painter.drawLine(icon_x, icon_y, icon_x - 2, icon_y - 2)
-            painter.drawLine(icon_x, icon_y, icon_x + 2, icon_y - 2)
-            
-        elif cursor_type == "edit":
-            # Edit mode: Selection handles
-            painter.setPen(QPen(QColor(0, 0, 0), 1))
-            painter.setBrush(QBrush(QColor(255, 255, 255)))
-            painter.drawRect(icon_x - 2, icon_y - 2, 2, 2)
-            painter.drawRect(icon_x + 1, icon_y - 2, 2, 2)
-            painter.drawRect(icon_x - 2, icon_y + 1, 2, 2)
-            painter.drawRect(icon_x + 1, icon_y + 1, 2, 2)
-        
-        painter.end()
-        
-        # Hotspot at crosshair center for precise interaction
-        return QCursor(pixmap, center_x, center_y)
 
     def set_cursor_for_mode(self, mode: str) -> None:
-        """Set cursor based on current interaction mode with custom icons.
-
+        """Set cursor based on current interaction mode using Qt built-in cursors.
+        
+        Uses professional GIS/CAD standard cursors:
+        - CrossCursor for all precision operations (placement, drawing)
+        - ArrowCursor for selection mode
+        - Specialized cursors for specific interactions
+        
         Args:
             mode: One of 'default', 'pin_placement', 'line_drawing', 
                   'branching_line_drawing', 'edit', 'crosshair', 'pointing'
         """
-        logger.info(f"MapGraphicsView: Setting professional cursor for mode: {mode}")
+        logger.info(f"MapGraphicsView: Setting cursor for mode: {mode}")
         
-        # Professional GIS/CAD-style cursors
-        if mode == "pin_placement":
-            cursor = self._create_professional_cursor("pin")
-            logger.info("Created professional pin placement cursor with crosshair + location marker")
+        # Map modes to appropriate Qt built-in cursors
+        cursor_map = {
+            # Precision operations use crosshair (GIS/CAD standard)
+            "pin_placement": Qt.CursorShape.CrossCursor,
+            "line_drawing": Qt.CursorShape.CrossCursor,
+            "branching_line_drawing": Qt.CursorShape.CrossCursor,
             
-        elif mode == "line_drawing":
-            cursor = self._create_professional_cursor("line")
-            logger.info("Created professional line drawing cursor with crosshair + line indicator")
+            # Edit mode uses standard arrow for selection
+            "edit": Qt.CursorShape.ArrowCursor,
             
-        elif mode == "branching_line_drawing":
-            cursor = self._create_professional_cursor("branch")
-            logger.info("Created professional branching line cursor with crosshair + fork indicator")
+            # Specialized cursors
+            "crosshair": Qt.CursorShape.CrossCursor,
+            "pointing": Qt.CursorShape.PointingHandCursor,
+            "default": Qt.CursorShape.ArrowCursor,
             
-        elif mode == "edit":
-            cursor = self._create_professional_cursor("edit")
-            logger.info("Created professional edit cursor with crosshair + selection handles")
-        elif mode == "crosshair":
-            # Use crosshair for precision
-            cursor = QCursor(Qt.CursorShape.CrossCursor)
-        elif mode == "pointing":
-            # Use pointing hand
-            cursor = QCursor(Qt.CursorShape.PointingHandCursor)
-        elif mode == "default":
-            # Default arrow
-            cursor = QCursor(Qt.CursorShape.ArrowCursor)
-        else:
-            # Fallback to default
-            logger.warning(f"Unknown cursor mode: {mode}, using default")
-            cursor = QCursor(Qt.CursorShape.ArrowCursor)
+            # Additional interaction states
+            "move_point": Qt.CursorShape.SizeAllCursor,  # When hovering over draggable points
+            "panning": Qt.CursorShape.ClosedHandCursor,  # When panning the map
+            "forbidden": Qt.CursorShape.ForbiddenCursor,  # Invalid operations
+        }
+        
+        cursor_shape = cursor_map.get(mode, Qt.CursorShape.ArrowCursor)
+        cursor = QCursor(cursor_shape)
         
         self.setCursor(cursor)
-        logger.info(f"MapGraphicsView: Cursor successfully set for mode: {mode}, cursor type: {type(cursor)}")
+        logger.info(f"MapGraphicsView: Set Qt built-in cursor {cursor_shape} for mode: {mode}")

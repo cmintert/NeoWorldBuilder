@@ -106,6 +106,10 @@ class MapTabGraphicsAdapter(QObject):
         self.graphics_view.key_press_event.connect(
             self._handle_key_press_event
         )
+        # Forward zoom requests from graphics view to map tab
+        self.graphics_view.zoom_requested.connect(
+            self._handle_zoom_requested
+        )
         
         # Forward scene signals
         self.graphics_scene.image_loaded.connect(
@@ -178,6 +182,32 @@ class MapTabGraphicsAdapter(QObject):
             logger.debug(f"Key press forwarding result: {result}")
         else:
             logger.warning("No event handler available for key press forwarding")
+    
+    def _handle_zoom_requested(self, zoom_level: float) -> None:
+        """Handle zoom requests from graphics view and sync with map tab zoom state.
+        
+        Args:
+            zoom_level: Current zoom level from graphics view (absolute value)
+        """
+        # Synchronize MapTab's zoom state with graphics view
+        if hasattr(self.map_tab, 'current_scale'):
+            self.map_tab.current_scale = zoom_level
+        
+        # Update zoom slider to reflect current zoom level WITHOUT triggering legacy zoom
+        if hasattr(self.map_tab, 'toolbar_manager') and hasattr(self.map_tab.toolbar_manager, 'zoom_slider'):
+            # Convert zoom level to percentage for slider (zoom_level 1.0 = 100%)
+            zoom_percentage = int(zoom_level * 100)
+            
+            # Block signals to prevent triggering legacy zoom system
+            self.map_tab.toolbar_manager.zoom_slider.blockSignals(True)
+            self.map_tab.toolbar_manager.zoom_slider.setValue(zoom_percentage)
+            self.map_tab.toolbar_manager.zoom_slider.blockSignals(False)
+            
+            # Update zoom label directly
+            if hasattr(self.map_tab.toolbar_manager, 'zoom_label'):
+                self.map_tab.toolbar_manager.zoom_label.setText(f"{zoom_percentage}%")
+        else:
+            logger.warning("No toolbar manager available for zoom slider update")
     
     def _connect_drawing_manager(self) -> None:
         """Connect the drawing manager to graphics view for temporary line preview."""

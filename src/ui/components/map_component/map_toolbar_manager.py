@@ -74,7 +74,6 @@ class MapToolbarManager(QObject):
         self.edit_toggle_btn.setCheckable(True)
         self.edit_toggle_btn.toggled.connect(self._handle_edit_toggle)
         self.edit_toggle_btn.setToolTip("Edit existing lines (click line to edit)")
-        
 
         image_controls.addWidget(self.change_map_btn)
         image_controls.addWidget(self.clear_map_btn)
@@ -99,12 +98,14 @@ class MapToolbarManager(QObject):
         self.zoom_slider.setTickInterval(50)  # Tick marks every 50%
         self.zoom_slider.setPageStep(25)  # Page up/down changes by 25%
         self.zoom_slider.setSingleStep(5)  # Arrow keys change by 5%
-        self.zoom_slider.setFocusPolicy(Qt.FocusPolicy.WheelFocus)  # Enable wheel events on slider
+        self.zoom_slider.setFocusPolicy(
+            Qt.FocusPolicy.WheelFocus
+        )  # Enable wheel events on slider
         self.zoom_slider.valueChanged.connect(self._handle_zoom_change)
 
         self.reset_button = QPushButton("Reset Zoom")
         self.reset_button.clicked.connect(self._handle_zoom_reset)
-        
+
         # Add zoom percentage label
         self.zoom_label = QLabel("100%")
         self.zoom_label.setMinimumWidth(45)
@@ -123,7 +124,9 @@ class MapToolbarManager(QObject):
             if active:
                 self.pin_toggle_btn.setStyleSheet("background: white")
             else:
-                self.pin_toggle_btn.setStyleSheet("background: grey")
+                self.pin_toggle_btn.setStyleSheet(
+                    ""
+                )  # Return to default light grey styling
 
     def update_line_button_style(self, active: bool) -> None:
         """Update line button styling based on active state."""
@@ -158,7 +161,7 @@ class MapToolbarManager(QObject):
             self.zoom_slider.setValue(value)
             self.zoom_slider.blockSignals(False)
             # Update zoom label
-            if hasattr(self, 'zoom_label'):
+            if hasattr(self, "zoom_label"):
                 self.zoom_label.setText(f"{value}%")
             # Manually trigger zoom handling since signals are blocked
             if hasattr(self.parent_widget, "_handle_zoom"):
@@ -209,7 +212,7 @@ class MapToolbarManager(QObject):
     def _handle_zoom_change(self) -> None:
         """Handle zoom slider value change."""
         # Update zoom label
-        if hasattr(self, 'zoom_label') and self.zoom_slider:
+        if hasattr(self, "zoom_label") and self.zoom_slider:
             self.zoom_label.setText(f"{self.zoom_slider.value()}%")
         # Notify parent widget
         if hasattr(self.parent_widget, "_handle_zoom"):
@@ -219,4 +222,3 @@ class MapToolbarManager(QObject):
         """Handle zoom reset button click."""
         if hasattr(self.parent_widget, "_reset_zoom"):
             self.parent_widget._reset_zoom()
-    
