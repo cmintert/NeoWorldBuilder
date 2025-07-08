@@ -1,0 +1,46 @@
+repos:
+  # Sphinx documentation generation
+  - repo: local
+    hooks:
+      - id: sphinx-apidoc
+        name: Generate Sphinx API documentation
+        entry: sphinx-apidoc
+        language: system
+        args: [-f, -o, source/api, src/, --separate]
+        files: ^src/.*\.py$
+        pass_filenames: false
+        verbose: true
+        
+      - id: sphinx-build
+        name: Build Sphinx documentation
+        entry: sphinx-build
+        language: system
+        args: [-b, html, source, build/html, -W, --keep-going]
+        files: ^(source/.*\.rst|source/conf\.py)$
+        pass_filenames: false
+        verbose: true
+        always_run: false
+
+  # Code quality hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+  # Python code formatting
+  - repo: https://github.com/psf/black
+    rev: 23.3.0
+    hooks:
+      - id: black
+        language_version: python3
+
+  # Python import sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
