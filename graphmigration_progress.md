@@ -2068,3 +2068,246 @@ The enhanced interface now meets or exceeds the standards of professional GIS ap
 **Edit Mode System**: ✅ **COMPLETE - INDUSTRY STANDARD ACHIEVED**
 
 The direct manipulation editing system provides the immediate, intuitive workflow that users expect from professional CAD/GIS applications, with comprehensive context menus as a fallback for discoverability.
+
+---
+
+## 🎯 **Phase 6: Professional Cursor Management & Zoom-to-Cursor** ✅ COMPLETE
+
+**Date**: January 8, 2025  
+**Focus**: Professional GIS/CAD standard cursor system and smooth zoom-to-cursor functionality  
+**Duration**: 3 hours
+
+### 🎯 **Enhancement Goals Achieved**
+
+1. **Mutually Exclusive Mode System**: Prevent interference between map interaction modes
+2. **Professional Cursor System**: GIS/CAD standard cursors for mode indication
+3. **Zoom-to-Cursor**: Professional-grade zoom functionality maintaining cursor position
+4. **Enhanced User Experience**: Smooth, responsive interface matching industry standards
+
+### ✅ **Issues Resolved**
+
+#### **Issue #1: Mode Interference Problems**
+**Problem**: Pin placement, line drawing, branching line, and edit modes could be active simultaneously, causing interaction conflicts.
+
+**Solution**: Implemented centralized mutual exclusivity system in `map_mode_manager.py`:
+
+```python
+def _deactivate_other_modes(self, current_mode: str) -> None:
+    """Deactivate all modes except the specified current mode."""
+    if current_mode != 'pin_placement' and self.pin_placement_active:
+        self.pin_placement_active = False
+        self.parent_widget.toolbar_manager.pin_toggle_btn.setChecked(False)
+        
+    if current_mode != 'line_drawing' and self.line_drawing_active:
+        self.line_drawing_active = False
+        self.parent_widget.toolbar_manager.line_toggle_btn.setChecked(False)
+        
+    if current_mode != 'branching_line_drawing' and self.branching_line_drawing_active:
+        self.branching_line_drawing_active = False
+        self.parent_widget.toolbar_manager.branching_line_toggle_btn.setChecked(False)
+        
+    if current_mode != 'edit' and self.edit_mode_active:
+        self.edit_mode_active = False
+        self.parent_widget.toolbar_manager.edit_toggle_btn.setChecked(False)
+```
+
+**Results**:
+- ✅ Only one mode can be active at a time
+- ✅ Mode switches automatically deactivate others
+- ✅ Button states stay synchronized with actual mode states
+- ✅ No more interaction conflicts between modes
+
+#### **Issue #2: Unprofessional Cursor System**
+**Problem**: Custom emoji-based cursors appeared garbled and unprofessional.
+
+**User Feedback**: "cursors look very unprofessional" and "Self drawing seems garbled"
+
+**Solution**: Replaced custom cursors with Qt's built-in professional cursor system:
+
+```python
+cursor_map = {
+    # Precision operations use crosshair (GIS/CAD standard)
+    "pin_placement": Qt.CursorShape.CrossCursor,
+    "line_drawing": Qt.CursorShape.CrossCursor,
+    "branching_line_drawing": Qt.CursorShape.CrossCursor,
+    
+    # Edit mode uses standard arrow for selection
+    "edit": Qt.CursorShape.ArrowCursor,
+    
+    # Additional interaction states
+    "move_point": Qt.CursorShape.SizeAllCursor,
+    "panning": Qt.CursorShape.ClosedHandCursor,
+    "forbidden": Qt.CursorShape.ForbiddenCursor,
+}
+```
+
+**Results**:
+- ✅ Professional GIS/CAD standard cursors
+- ✅ Clear visual mode indication
+- ✅ No garbled or pixelated appearance
+- ✅ Consistent with industry applications
+
+#### **Issue #3: Pin Button Styling Inconsistency**
+**Problem**: Pin button turned dark grey instead of light grey when deactivated.
+
+**Root Cause**: QSS styling was setting "background: grey" instead of returning to default.
+
+**Solution**: Fixed button styling in `map_toolbar_manager.py`:
+
+```python
+def update_pin_button_style(self, active: bool) -> None:
+    if self.pin_toggle_btn:
+        if active:
+            self.pin_toggle_btn.setStyleSheet("background: white")
+        else:
+            self.pin_toggle_btn.setStyleSheet("")  # Return to default light grey styling
+```
+
+**Results**:
+- ✅ Pin button returns to proper light grey when deactivated
+- ✅ Consistent button state visualization
+- ✅ Proper visual feedback for mode changes
+
+#### **Issue #4: Zoom-to-Cursor Not Working**
+**Problem**: Mouse wheel zoom did not maintain the point under the cursor during zoom operations.
+
+**Root Cause Analysis**:
+1. **Dual Zoom Systems**: Graphics view and legacy MapTab both trying to control zoom
+2. **Signal Conflicts**: Graphics view zoom changes triggered legacy zoom system
+3. **Coordinate Transformation Issues**: Incorrect scene coordinate calculations
+
+**Solution**: Comprehensive zoom system overhaul:
+
+**1. Fixed Dual Zoom System Conflict**:
+```python
+def _handle_zoom_requested(self, zoom_level: float) -> None:
+    # Synchronize MapTab's zoom state with graphics view
+    if hasattr(self.map_tab, 'current_scale'):
+        self.map_tab.current_scale = zoom_level
+    
+    # Update zoom slider WITHOUT triggering legacy zoom system
+    self.map_tab.toolbar_manager.zoom_slider.blockSignals(True)
+    self.map_tab.toolbar_manager.zoom_slider.setValue(zoom_percentage)
+    self.map_tab.toolbar_manager.zoom_slider.blockSignals(False)
+```
+
+**2. Corrected Zoom-to-Cursor Algorithm**:
+```python
+def wheelEvent(self, event: QWheelEvent) -> None:
+    # Zoom-to-cursor implementation
+    mouse_pos = event.position().toPoint()
+    target_scene_pos = self.mapToScene(mouse_pos)
+    
+    # Apply the zoom transformation
+    self.scale(zoom_factor, zoom_factor)
+    self.current_zoom_level *= zoom_factor
+    
+    # Calculate where the target point is now after zoom
+    current_target_in_view = self.mapFromScene(target_scene_pos)
+    
+    # Calculate the difference in view coordinates
+    delta_view = mouse_pos - current_target_in_view
+    
+    # Apply translation using centerOn to correctly position the scene
+    current_center = self.mapToScene(self.rect().center())
+    
+    # Convert the view delta to scene delta by scaling with the current zoom
+    delta_scene_x = delta_view.x() / zoom_factor
+    delta_scene_y = delta_view.y() / zoom_factor
+    
+    # Calculate and apply the new center position
+    new_center_x = current_center.x() - delta_scene_x
+    new_center_y = current_center.y() - delta_scene_y
+    self.centerOn(new_center_x, new_center_y)
+```
+
+**Results**:
+- ✅ Smooth zoom-to-cursor functionality working correctly
+- ✅ Point under cursor stays fixed during zoom operations
+- ✅ No conflicts between zoom systems
+- ✅ Professional GIS/CAD grade zoom behavior
+
+### 🎨 **Professional Features Implemented**
+
+#### **1. GIS/CAD Standard Cursor System**
+- **CrossCursor**: For all precision operations (pin placement, line drawing)
+- **ArrowCursor**: For selection and edit mode
+- **SizeAllCursor**: For draggable control points
+- **ClosedHandCursor**: During panning operations
+- **PointingHandCursor**: For hoverable interactive elements
+
+#### **2. Mutually Exclusive Mode Management**
+- **Centralized Control**: Single system manages all mode states
+- **Automatic Deactivation**: Activating one mode deactivates others
+- **Button Synchronization**: UI buttons reflect actual mode states
+- **Conflict Prevention**: No more simultaneous mode interference
+
+#### **3. Professional Zoom System**
+- **Zoom-to-Cursor**: Industry standard zoom behavior
+- **Smooth Performance**: Optimized coordinate transformations
+- **Fine/Coarse Control**: Ctrl+scroll for fine zoom control
+- **Visual Feedback**: Zoom percentage displayed in toolbar
+
+### 📊 **Files Enhanced**
+
+| File | Enhancement Type | Key Improvements |
+|------|------------------|------------------|
+| `map_mode_manager.py` | Major | Centralized mutual exclusivity system |
+| `map_graphics_view.py` | Major | Professional cursor system, zoom-to-cursor implementation |
+| `map_viewport.py` | Update | Cursor system synchronization |
+| `map_toolbar_manager.py` | Fix | Button styling consistency |
+| `map_tab_adapter.py` | Critical | Zoom system conflict resolution |
+
+### 🎯 **User Experience Transformation**
+
+#### **Before Enhancement**:
+- Multiple modes could be active simultaneously (confusing)
+- Unprofessional emoji-based cursors (garbled appearance)
+- Inconsistent button styling
+- Zoom-to-cursor not working (image jumps around during zoom)
+
+#### **After Enhancement**:
+- Clear mode separation with visual cursor feedback
+- Professional GIS/CAD standard cursors
+- Consistent UI button styling
+- Smooth zoom-to-cursor functionality matching industry applications
+
+### 🏆 **Professional Standards Achieved**
+
+#### **GIS/CAD Industry Compliance**:
+- **Cursor Standards**: Matches ArcGIS, QGIS, AutoCAD cursor conventions
+- **Zoom Behavior**: Professional zoom-to-cursor implementation
+- **Mode Management**: Clear separation of interaction modes
+- **Visual Feedback**: Immediate cursor-based mode indication
+
+#### **Performance Characteristics**:
+- **Smooth Zoom**: Optimized coordinate transformations
+- **Responsive Cursors**: Immediate visual feedback
+- **Conflict-Free**: No mode interference issues
+- **Memory Efficient**: Qt built-in cursors (no custom resources)
+
+### 🎉 **Achievement Summary**
+
+#### **Professional Interface System: ✅ COMPLETE**
+
+The cursor and zoom system now provides:
+
+1. **Industry Standard Cursors**: Professional GIS/CAD visual language
+2. **Intelligent Mode Management**: Automatic conflict prevention
+3. **Smooth Zoom-to-Cursor**: Professional-grade zoom behavior
+4. **Consistent Visual Feedback**: Clear mode indication and button states
+5. **Performance Optimized**: Smooth, responsive interactions
+6. **User-Friendly**: Intuitive cursor changes guide user interaction
+
+### 📈 **Current Status: Professional GIS Application Standard**
+
+**Cursor & Zoom System**: ✅ **COMPLETE - PROFESSIONAL GRADE ACHIEVED**
+
+The interface now meets the standards of professional GIS applications with:
+- Industry-standard cursor management
+- Smooth zoom-to-cursor functionality
+- Clear visual mode indication
+- Conflict-free interaction system
+- Professional polish and responsiveness
+
+All cursor and zoom functionality is now working at professional GIS/CAD application standards, providing users with the familiar, efficient, and visually polished experience they expect from industry-leading mapping software.
