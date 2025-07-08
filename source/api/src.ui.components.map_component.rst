@@ -9,6 +9,7 @@ Subpackages
 
    src.ui.components.map_component.dialogs
    src.ui.components.map_component.graphics
+   src.ui.components.map_component.utils
 
 Submodules
 ----------
@@ -29,6 +30,7 @@ Submodules
    src.ui.components.map_component.map_tab
    src.ui.components.map_component.map_toolbar_manager
    src.ui.components.map_component.map_viewport
+   src.ui.components.map_component.snap_manager
 
 Module contents
 ---------------

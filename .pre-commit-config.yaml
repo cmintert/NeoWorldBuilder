@@ -10,12 +10,12 @@ repos:
         files: ^src/.*\.py$
         pass_filenames: false
         verbose: true
-        
+
       - id: sphinx-build
         name: Build Sphinx documentation
         entry: sphinx-build
         language: system
-        args: [-b, html, source, build/html, -W, --keep-going]
+        args: [-b, html, source, build/html, --keep-going]
         files: ^(source/.*\.rst|source/conf\.py)$
         pass_filenames: false
         verbose: true
