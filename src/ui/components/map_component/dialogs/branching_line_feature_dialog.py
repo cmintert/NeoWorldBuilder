@@ -1,22 +1,24 @@
-from typing import List, Tuple, Dict, Any
+from typing import Any, Dict, List, Tuple
 
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
+    QColorDialog,
+    QComboBox,
+    QCompleter,
     QDialog,
-    QVBoxLayout,
+    QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
-    QColorDialog,
-    QComboBox,
     QSpinBox,
-    QCompleter,
+    QVBoxLayout,
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor
-
 from structlog import get_logger
 
+from ui.components.map_component.line_geometry import BranchingLineGeometry
 from utils.geometry_handler import GeometryHandler
 
 logger = get_logger(__name__)
@@ -48,6 +50,10 @@ class BranchingLineFeatureDialog(QDialog):
             "pattern": "solid",
         }
 
+        # Create branching geometry to get stable IDs
+        self.branching_geometry = BranchingLineGeometry(branches)
+        self.branch_assignments = {}  # Maps stable ID to node ID
+
         # Log branch structure
         logger.debug(
             f"BranchingLineFeatureDialog created with {len(branches)} branches"
@@ -58,23 +64,44 @@ class BranchingLineFeatureDialog(QDialog):
         self.setup_ui()
 
     def setup_ui(self):
-
         """Set up dialog UI elements."""
         self.setWindowTitle("Branching Line Feature")
         self.resize(400, 300)
 
         layout = QVBoxLayout(self)
 
-        # Node selection
+        # Branch assignment section
+        branch_group = QGroupBox("Branch Assignments")
+        branch_layout = QFormLayout(branch_group)
+
+        self.branch_inputs = {}  # Maps stable ID to QLineEdit
+
+        # Create input fields for each branch
+        for stable_id in self.branching_geometry.stable_branch_ids:
+            display_name = self.branching_geometry.get_branch_display_name(stable_id)
+
+            branch_input = QLineEdit()
+            branch_input.setPlaceholderText(f"Enter node name for {display_name}...")
+
+            # Set up autocomplete for each input
+            if self.controller and hasattr(self.controller, "auto_completion_service"):
+                self.setup_completer_for_input(branch_input)
+
+            self.branch_inputs[stable_id] = branch_input
+            branch_layout.addRow(f"{display_name}:", branch_input)
+
+        layout.addWidget(branch_group)
+
+        # Legacy single target selection (for backward compatibility)
         target_layout = QHBoxLayout()
-        target_layout.addWidget(QLabel("Connect to:"))
+        target_layout.addWidget(QLabel("Primary Target:"))
 
         self.target_input = QLineEdit()
-        self.target_input.setPlaceholderText("Enter node name...")
+        self.target_input.setPlaceholderText("Enter primary node name...")
 
         # Set up node name autocomplete
         if self.controller and hasattr(self.controller, "auto_completion_service"):
-            self.setup_completer()
+            self.setup_completer_for_input(self.target_input)
 
         target_layout.addWidget(self.target_input)
         layout.addLayout(target_layout)
@@ -131,10 +158,18 @@ class BranchingLineFeatureDialog(QDialog):
         points_label = QLabel(f"Total Points: {total_points}")
         branch_info_layout.addWidget(points_label)
 
-        # For each branch, display starting and ending points
+        # For each branch, display starting and ending points using stable IDs
         for i, branch in enumerate(self.branches):
             if len(branch) >= 2:
-                branch_info = QLabel(f"Branch {i+1}: {len(branch)} points, from ({branch[0][0]}, {branch[0][1]}) to ({branch[-1][0]}, {branch[-1][1]})")
+                stable_id = self.branching_geometry.get_stable_id_from_branch_index(i)
+                display_name = (
+                    self.branching_geometry.get_branch_display_name(stable_id)
+                    if stable_id
+                    else f"Branch {i+1}"
+                )
+                branch_info = QLabel(
+                    f"{display_name}: {len(branch)} points, from ({branch[0][0]}, {branch[0][1]}) to ({branch[-1][0]}, {branch[-1][1]})"
+                )
                 branch_info_layout.addWidget(branch_info)
 
         # Generate WKT preview (truncated)
@@ -176,10 +211,17 @@ class BranchingLineFeatureDialog(QDialog):
 
     def accept_dialog(self):
         """Handle dialog acceptance with validation."""
-        # Validate target node
+        # Validate primary target node
         target_text = self.target_input.text().strip()
         if not target_text:
             return  # TODO: Show validation message
+
+        # Collect branch assignments
+        self.branch_assignments = {}
+        for stable_id, input_widget in self.branch_inputs.items():
+            node_name = input_widget.text().strip()
+            if node_name:
+                self.branch_assignments[stable_id] = node_name
 
         # Update line style from UI
         self.line_style["width"] = self.width_spinner.value()
@@ -201,8 +243,16 @@ class BranchingLineFeatureDialog(QDialog):
         """Get the WKT representation of the branching line."""
         return GeometryHandler.create_multi_line(self.branches)
 
+    def get_branch_assignments(self) -> Dict[str, str]:
+        """Get the branch assignments (stable ID -> node ID)."""
+        return self.branch_assignments.copy()
+
     def setup_completer(self):
         """Set up auto-completion for target node input."""
+        self.setup_completer_for_input(self.target_input)
+
+    def setup_completer_for_input(self, input_widget: QLineEdit):
+        """Set up auto-completion for a specific input widget."""
         from PyQt6.QtCore import QStringListModel
 
         if self.controller.name_cache_service:
@@ -214,4 +264,4 @@ class BranchingLineFeatureDialog(QDialog):
                 completer = QCompleter(model, self)
                 completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
                 completer.setFilterMode(Qt.MatchFlag.MatchContains)
-                self.target_input.setCompleter(completer)
+                input_widget.setCompleter(completer)

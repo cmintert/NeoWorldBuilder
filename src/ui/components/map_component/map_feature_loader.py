@@ -1,5 +1,5 @@
 import json
-from typing import List, Tuple, Dict, Optional
+from typing import Dict, List, Optional, Tuple
 
 from structlog import get_logger
 
@@ -77,7 +77,7 @@ class MapFeatureLoader:
                         style_width = int(style_width)
                     except ValueError:
                         style_width = 2
-                        
+
                 style_config = {
                     "color": properties.get("style_color", "#FF0000"),
                     "width": style_width,
@@ -92,13 +92,24 @@ class MapFeatureLoader:
                         f"Found MultiLineString for {target_node} with {len(branches)} branches"
                     )
 
+                    # Extract branch assignments from flat properties
+                    branch_assignments = {}
+                    for key, value in properties.items():
+                        if key.startswith("branch_"):
+                            stable_id = key[7:]  # Remove "branch_" prefix
+                            branch_assignments[stable_id] = value
+
                     if target_node not in branching_line_data:
                         branching_line_data[target_node] = {
                             "branches": [],
                             "style": style_config,
+                            "branch_assignments": {},
                         }
 
                     branching_line_data[target_node]["branches"] = branches
+                    branching_line_data[target_node][
+                        "branch_assignments"
+                    ] = branch_assignments
 
                 elif geometry_type == "LineString":
                     # Handle as simple line
@@ -115,30 +126,37 @@ class MapFeatureLoader:
                 continue
 
         # Clear existing features (graphics mode)
-        if hasattr(self.parent_widget, 'graphics_adapter'):
+        if hasattr(self.parent_widget, "graphics_adapter"):
             self.parent_widget.graphics_adapter.feature_manager.clear_all_features()
 
         # Create features using the graphics manager
-        if pin_data and hasattr(self.parent_widget, 'graphics_adapter'):
+        if pin_data and hasattr(self.parent_widget, "graphics_adapter"):
             logger.info(f"Creating {len(pin_data)} pins")
             graphics_manager = self.parent_widget.graphics_adapter.feature_manager
             for pin in pin_data:
                 target_node, x, y = pin  # Unpack tuple: (target_node, x, y)
                 graphics_manager.add_pin_feature(target_node, x, y)
 
-        if simple_line_data and hasattr(self.parent_widget, 'graphics_adapter'):
+        if simple_line_data and hasattr(self.parent_widget, "graphics_adapter"):
             logger.info(f"Creating {len(simple_line_data)} simple lines")
             graphics_manager = self.parent_widget.graphics_adapter.feature_manager
             for line in simple_line_data:
-                target_node, points, style_config = line  # Unpack tuple: (target_node, points, style_config)
+                (
+                    target_node,
+                    points,
+                    style_config,
+                ) = line  # Unpack tuple: (target_node, points, style_config)
                 graphics_manager.add_line_feature(target_node, points, style_config)
 
-        if branching_line_data and hasattr(self.parent_widget, 'graphics_adapter'):
+        if branching_line_data and hasattr(self.parent_widget, "graphics_adapter"):
             logger.info(f"Creating {len(branching_line_data)} branching lines")
             graphics_manager = self.parent_widget.graphics_adapter.feature_manager
             for target_node, line_data in branching_line_data.items():
-                style_config = line_data.get('style', {})
-                graphics_manager.add_branching_line_feature(target_node, line_data['branches'], style_config)
+                style_config = line_data.get("style", {})
+                branch_assignments = line_data.get("branch_assignments", {})
+                graphics_manager.add_branching_line_feature(
+                    target_node, line_data["branches"], style_config, branch_assignments
+                )
 
     def _extract_target_node(self, target_item, relationships_table, row) -> str:
         """Extract target node name from table item."""
@@ -161,6 +179,8 @@ class MapFeatureLoader:
         Returns:
             Dictionary with counts of each feature type
         """
-        if hasattr(self.parent_widget, 'graphics_adapter'):
-            return self.parent_widget.graphics_adapter.feature_manager.get_feature_count()
+        if hasattr(self.parent_widget, "graphics_adapter"):
+            return (
+                self.parent_widget.graphics_adapter.feature_manager.get_feature_count()
+            )
         return {}

@@ -1,15 +1,15 @@
 from typing import Optional, Tuple
 
-from PyQt6.QtCore import Qt, QObject, pyqtSignal
-from PyQt6.QtGui import QKeyEvent, QCursor
+from PyQt6.QtCore import QObject, Qt, pyqtSignal
+from PyQt6.QtGui import QCursor, QKeyEvent
 from structlog import get_logger
 
-from utils.geometry_handler import GeometryHandler
-from ui.components.map_component.dialogs.pin_placement_dialog import PinPlacementDialog
-from ui.components.map_component.dialogs.line_feature_dialog import LineFeatureDialog
 from ui.components.map_component.dialogs.branching_line_feature_dialog import (
     BranchingLineFeatureDialog,
 )
+from ui.components.map_component.dialogs.line_feature_dialog import LineFeatureDialog
+from ui.components.map_component.dialogs.pin_placement_dialog import PinPlacementDialog
+from utils.geometry_handler import GeometryHandler
 
 from .utils.coordinate_transformer import CoordinateTransformer
 
@@ -61,6 +61,12 @@ class MapEventHandler(QObject):
             self._handle_b_key_press()
             return
 
+        # Check for the 's' key (ASCII 83 for 'S', 115 for 's') to toggle snapping
+        if key_value == 83 or key_value == 115:  # Use literal values for reliability
+            logger.info("S key pressed - toggling snapping mode")
+            self._handle_s_key_press()
+            return
+
         # Try normal key handling in drawing manager
         if self.parent_widget.drawing_manager.handle_key_press(event.key()):
             # Drawing manager handled the key
@@ -75,69 +81,147 @@ class MapEventHandler(QObject):
     def _handle_b_key_press(self) -> None:
         """Handle B key press to start branch creation in edit mode."""
         logger.info("Handling B key press for branch creation")
-        
+
         # Check if we're in edit mode
         if not self.parent_widget.edit_mode_active:
             logger.info("Not in edit mode, ignoring B key press")
             return
-        
+
         # Get current mouse position - try graphics system first, then fall back to widget system
         coordinates = None
-        
-        if hasattr(self.parent_widget, 'graphics_adapter'):
+
+        if hasattr(self.parent_widget, "graphics_adapter"):
             # Graphics system - get mouse position from graphics view
             try:
                 graphics_view = self.parent_widget.graphics_adapter.graphics_view
-                if hasattr(graphics_view, 'current_mouse_position'):
+                if hasattr(graphics_view, "current_mouse_position"):
                     # Get the current mouse position in scene coordinates
                     scene_pos = graphics_view.current_mouse_position
                     # Convert scene coordinates to original coordinates
-                    if hasattr(graphics_view.scene(), 'scene_to_original_coords'):
-                        coordinates = graphics_view.scene().scene_to_original_coords(scene_pos)
-                        logger.debug(f"Got coordinates from graphics system: {coordinates}")
-                elif hasattr(graphics_view, 'mapFromGlobal') and hasattr(graphics_view, 'cursor'):
+                    if hasattr(graphics_view.scene(), "scene_to_original_coords"):
+                        coordinates = graphics_view.scene().scene_to_original_coords(
+                            scene_pos
+                        )
+                        logger.debug(
+                            f"Got coordinates from graphics system: {coordinates}"
+                        )
+                elif hasattr(graphics_view, "mapFromGlobal") and hasattr(
+                    graphics_view, "cursor"
+                ):
                     # Fallback - get global cursor position and map to view
                     from PyQt6.QtGui import QCursor
+
                     global_pos = QCursor.pos()
                     view_pos = graphics_view.mapFromGlobal(global_pos)
                     scene_pos = graphics_view.mapToScene(view_pos)
-                    if hasattr(graphics_view.scene(), 'scene_to_original_coords'):
-                        coordinates = graphics_view.scene().scene_to_original_coords(scene_pos)
-                        logger.debug(f"Got coordinates from global cursor position: {coordinates}")
+                    if hasattr(graphics_view.scene(), "scene_to_original_coords"):
+                        coordinates = graphics_view.scene().scene_to_original_coords(
+                            scene_pos
+                        )
+                        logger.debug(
+                            f"Got coordinates from global cursor position: {coordinates}"
+                        )
             except Exception as e:
-                logger.warning(f"Failed to get mouse position from graphics system: {e}")
-        
+                logger.warning(
+                    f"Failed to get mouse position from graphics system: {e}"
+                )
+
         # Fallback to widget system if graphics system failed
-        if not coordinates and hasattr(self.parent_widget, 'image_label') and hasattr(self.parent_widget.image_label, 'current_mouse_pos'):
+        if (
+            not coordinates
+            and hasattr(self.parent_widget, "image_label")
+            and hasattr(self.parent_widget.image_label, "current_mouse_pos")
+        ):
             mouse_pos = self.parent_widget.image_label.current_mouse_pos
             # Convert widget coordinates to original coordinates
-            coordinates = self.parent_widget.image_label._get_original_coordinates(mouse_pos)
+            coordinates = self.parent_widget.image_label._get_original_coordinates(
+                mouse_pos
+            )
             logger.debug(f"Got coordinates from widget system: {coordinates}")
-        
+
         if coordinates:
             x, y = coordinates
             logger.info(f"Starting branch creation at coordinates: ({x}, {y})")
-            
+
             # Use the existing branch creation request handler
             if self.handle_branch_creation_request(x, y):
                 logger.info("Branch creation mode activated successfully")
             else:
-                logger.warning("Failed to start branch creation - no line found at cursor position")
+                logger.warning(
+                    "Failed to start branch creation - no line found at cursor position"
+                )
         else:
-            logger.warning("Could not get coordinates from mouse position - trying center of view as fallback")
+            logger.warning(
+                "Could not get coordinates from mouse position - trying center of view as fallback"
+            )
             # Last resort - use center of the graphics view
-            if hasattr(self.parent_widget, 'graphics_adapter'):
+            if hasattr(self.parent_widget, "graphics_adapter"):
                 try:
                     graphics_view = self.parent_widget.graphics_adapter.graphics_view
                     center_view = graphics_view.rect().center()
                     center_scene = graphics_view.mapToScene(center_view)
-                    if hasattr(graphics_view.scene(), 'scene_to_original_coords'):
-                        coordinates = graphics_view.scene().scene_to_original_coords(center_scene)
+                    if hasattr(graphics_view.scene(), "scene_to_original_coords"):
+                        coordinates = graphics_view.scene().scene_to_original_coords(
+                            center_scene
+                        )
                         x, y = coordinates
-                        logger.info(f"Using view center for branch creation: ({x}, {y})")
+                        logger.info(
+                            f"Using view center for branch creation: ({x}, {y})"
+                        )
                         self.handle_branch_creation_request(x, y)
                 except Exception as e:
-                    logger.error(f"Failed to get coordinates even from view center: {e}")
+                    logger.error(
+                        f"Failed to get coordinates even from view center: {e}"
+                    )
+
+    def _handle_s_key_press(self) -> None:
+        """Handle S key press to toggle snapping in edit mode."""
+        logger.info("Handling S key press for snap toggle")
+
+        # Check if we're in edit mode
+        if not self.parent_widget.edit_mode_active:
+            logger.info("Not in edit mode, ignoring S key press")
+            return
+
+        # Toggle snapping for all line features in the scene
+        if hasattr(self.parent_widget, "graphics_adapter"):
+            # Graphics system - toggle snapping for all lines
+            try:
+                graphics_view = self.parent_widget.graphics_adapter.graphics_view
+                scene = graphics_view.scene()
+
+                # Find all line items and toggle their snap managers
+                snap_enabled = None
+                for item in scene.items():
+                    if hasattr(item, "snap_manager"):
+                        # Toggle based on first item's state
+                        if snap_enabled is None:
+                            snap_enabled = not item.snap_manager.enabled
+                        item.snap_manager.set_enabled(snap_enabled)
+
+                if snap_enabled is not None:
+                    logger.info(
+                        f"Snapping {'enabled' if snap_enabled else 'disabled'} for all lines"
+                    )
+
+                    # Show visual feedback to user
+                    from PyQt6.QtCore import QRect
+                    from PyQt6.QtGui import QCursor
+                    from PyQt6.QtWidgets import QToolTip
+
+                    cursor_pos = QCursor.pos()
+                    QToolTip.showText(
+                        cursor_pos,
+                        f"Snapping {'ON' if snap_enabled else 'OFF'}",
+                        None,
+                        QRect(),
+                        1000,
+                    )
+
+            except Exception as e:
+                logger.warning(f"Failed to toggle snapping in graphics system: {e}")
+        else:
+            logger.warning("No graphics adapter available for snap toggle")
 
     def handle_feature_click(self, target_node: str) -> None:
         """Handle clicks on features."""
@@ -162,16 +246,24 @@ class MapEventHandler(QObject):
 
                 self.pin_created.emit(target_node, ">", properties)
                 # Create pin in graphics mode
-                logger.debug(f"Checking for graphics adapter: {hasattr(self.parent_widget, 'graphics_adapter')}")
-                if hasattr(self.parent_widget, 'graphics_adapter'):
-                    logger.info(f"Creating pin in graphics mode: {target_node} at ({x}, {y})")
+                logger.debug(
+                    f"Checking for graphics adapter: {hasattr(self.parent_widget, 'graphics_adapter')}"
+                )
+                if hasattr(self.parent_widget, "graphics_adapter"):
+                    logger.info(
+                        f"Creating pin in graphics mode: {target_node} at ({x}, {y})"
+                    )
                     adapter = self.parent_widget.graphics_adapter
-                    logger.debug(f"Graphics adapter: {adapter}, is_migrated: {getattr(adapter, 'is_migrated', 'unknown')}")
+                    logger.debug(
+                        f"Graphics adapter: {adapter}, is_migrated: {getattr(adapter, 'is_migrated', 'unknown')}"
+                    )
                     adapter.feature_manager.add_pin_feature(target_node, x, y)
                     logger.info(f"Pin created successfully in graphics system")
                 else:
                     logger.warning("No graphics adapter available for pin creation")
-                    logger.debug(f"Parent widget attributes: {[attr for attr in dir(self.parent_widget) if 'graphics' in attr.lower()]}")
+                    logger.debug(
+                        f"Parent widget attributes: {[attr for attr in dir(self.parent_widget) if 'graphics' in attr.lower()]}"
+                    )
 
                 # Exit pin placement mode
                 self.parent_widget.pin_toggle_btn.setChecked(False)
@@ -220,14 +312,16 @@ class MapEventHandler(QObject):
 
                 # Create visual representation
                 # Create line in graphics mode with style properties
-                if hasattr(self.parent_widget, 'graphics_adapter'):
+                if hasattr(self.parent_widget, "graphics_adapter"):
                     # Convert properties to style config format expected by graphics system
                     style_properties = {
                         "color": properties.get("style_color", "#FF0000"),
                         "width": properties.get("style_width", 2),
                         "pattern": properties.get("style_pattern", "solid"),
                     }
-                    self.parent_widget.graphics_adapter.feature_manager.add_line_feature(target_node, points, style_properties)
+                    self.parent_widget.graphics_adapter.feature_manager.add_line_feature(
+                        target_node, points, style_properties
+                    )
 
                 # Exit line drawing mode
                 self.parent_widget.toolbar_manager.block_button_signals(True)
@@ -240,6 +334,7 @@ class MapEventHandler(QObject):
             except Exception as e:
                 logger.error(f"Error creating line: {e}")
                 import traceback
+
                 logger.error(traceback.format_exc())
 
     def handle_branching_line_completion(self, branches: list) -> None:
@@ -265,6 +360,7 @@ class MapEventHandler(QObject):
         if dialog.exec():
             target_node = dialog.get_target_node()
             line_style = dialog.get_line_style()
+            branch_assignments = dialog.get_branch_assignments()
 
             try:
                 # Create WKT MultiLineString
@@ -281,20 +377,26 @@ class MapEventHandler(QObject):
                     "style_pattern": line_style["pattern"],
                 }
 
+                # Add branch assignments as flat properties
+                for stable_id, node_id in branch_assignments.items():
+                    properties[f"branch_{stable_id}"] = node_id
+
                 # Store geometry in database
                 if self.controller:
                     self.controller._handle_line_created(target_node, ">", properties)
 
                 # Create visual representation using the unified feature manager
                 # Create branching line in graphics mode with style properties
-                if hasattr(self.parent_widget, 'graphics_adapter'):
+                if hasattr(self.parent_widget, "graphics_adapter"):
                     # Convert properties to style config format expected by graphics system
                     style_properties = {
                         "color": properties.get("style_color", "#FF0000"),
                         "width": properties.get("style_width", 2),
                         "pattern": properties.get("style_pattern", "solid"),
                     }
-                    self.parent_widget.graphics_adapter.feature_manager.add_branching_line_feature(target_node, branches, style_properties)
+                    self.parent_widget.graphics_adapter.feature_manager.add_branching_line_feature(
+                        target_node, branches, style_properties
+                    )
 
                 # Exit branching line drawing mode
                 self.parent_widget.toolbar_manager.block_button_signals(True)
@@ -372,61 +474,68 @@ class MapEventHandler(QObject):
         logger.info(f"Branch from ({start_x}, {start_y}) to ({end_x}, {end_y})")
 
         # Implement branch creation for graphics mode
-        if hasattr(self.parent_widget, 'graphics_adapter'):
+        if hasattr(self.parent_widget, "graphics_adapter"):
             try:
                 # Get the target line graphics item
                 scene = self.parent_widget.graphics_adapter.graphics_view.scene()
                 feature_manager = self.parent_widget.graphics_adapter.feature_manager
-                
+
                 if target_node in feature_manager.features:
                     line_item = feature_manager.features[target_node]
-                    
+
                     # Get current geometry
                     current_geometry = line_item.get_geometry_data()
-                    logger.debug(f"Current geometry for {target_node}: {current_geometry}")
-                    
+                    logger.debug(
+                        f"Current geometry for {target_node}: {current_geometry}"
+                    )
+
                     # Add new branch - only works on MultiLineString geometry (Option A)
                     new_branch = [[start_x, start_y], [end_x, end_y]]
-                    
+
                     # Verify this is already a branching line (MultiLineString)
                     if not isinstance(current_geometry[0], list):
-                        logger.error(f"Cannot create branch on LineString geometry {target_node} - requires explicit conversion")
+                        logger.error(
+                            f"Cannot create branch on LineString geometry {target_node} - requires explicit conversion"
+                        )
                         return
-                    
+
                     # Add new branch to existing MultiLineString
                     updated_geometry = current_geometry + [new_branch]
                     logger.info(f"Adding branch to existing branching line")
-                    
+
                     # Update the line item geometry
                     line_item.update_geometry(updated_geometry)
-                    
+
                     # Mark the geometry as branching
                     line_item.geometry.is_branching = True
                     line_item.geometry._update_shared_points()
                     line_item.geometry._update_scaled_branches()
-                    
+
                     # Update the visual
                     line_item._update_bounds()
                     line_item.update()
-                    
+
                     # Emit geometry changed signal to update database
                     line_item._emit_geometry_changed()
-                    
+
                     logger.info(f"Successfully created branch on {target_node}")
-                    
+
                 else:
-                    logger.error(f"Target line {target_node} not found in graphics features")
-                    
+                    logger.error(
+                        f"Target line {target_node} not found in graphics features"
+                    )
+
             except Exception as e:
                 logger.error(f"Error creating branch in graphics mode: {e}")
                 import traceback
+
                 traceback.print_exc()
         else:
             logger.warning("No graphics adapter available for branch creation")
-        
+
         # UX Enhancement: Remove target line highlight
         self._set_target_line_highlight(target_node, False)
-        
+
         # Reset branch creation mode
         logger.info("Resetting branch creation mode")
         self.parent_widget.mode_manager.reset_branch_creation_mode()
@@ -457,7 +566,9 @@ class MapEventHandler(QObject):
 
             # Check if the line geometry supports branching (Option A: MultiLineString only)
             if not self._can_create_branch_on_line(nearest_line):
-                logger.warning(f"Line {nearest_line} does not support branch creation (LineString geometry)")
+                logger.warning(
+                    f"Line {nearest_line} does not support branch creation (LineString geometry)"
+                )
                 # UX Enhancement: Show user-friendly feedback
                 self._show_conversion_hint(nearest_line)
                 return False
@@ -469,7 +580,7 @@ class MapEventHandler(QObject):
 
             # UX Enhancement: Set GIS-standard crosshair cursor
             self.parent_widget.image_label.set_cursor_for_mode("crosshair")
-            
+
             # UX Enhancement: Highlight target line and show preview
             self._set_target_line_highlight(nearest_line, True)
 
@@ -482,29 +593,33 @@ class MapEventHandler(QObject):
 
     def _can_create_branch_on_line(self, target_node: str) -> bool:
         """Check if branch creation is allowed on the specified line.
-        
+
         Option A: Only MultiLineString geometry supports branch creation.
         LineString geometry requires explicit conversion.
-        
+
         Args:
             target_node: Name of the line node to check
-            
+
         Returns:
             True if branch creation is allowed, False otherwise
         """
-        if hasattr(self.parent_widget, 'graphics_adapter'):
+        if hasattr(self.parent_widget, "graphics_adapter"):
             feature_manager = self.parent_widget.graphics_adapter.feature_manager
-            
+
             if target_node in feature_manager.features:
                 line_item = feature_manager.features[target_node]
-                
+
                 # Check if this is a branching line (MultiLineString)
-                if hasattr(line_item, 'geometry') and hasattr(line_item.geometry, 'is_branching'):
+                if hasattr(line_item, "geometry") and hasattr(
+                    line_item.geometry, "is_branching"
+                ):
                     is_branching = line_item.geometry.is_branching
                     logger.debug(f"Line {target_node} is_branching: {is_branching}")
                     return is_branching
                 else:
-                    logger.warning(f"Line {target_node} does not have geometry.is_branching attribute")
+                    logger.warning(
+                        f"Line {target_node} does not have geometry.is_branching attribute"
+                    )
                     return False
             else:
                 logger.warning(f"Line {target_node} not found in graphics features")
@@ -515,40 +630,43 @@ class MapEventHandler(QObject):
 
     def _show_conversion_hint(self, target_node: str) -> None:
         """Show user-friendly hint about converting LineString to support branching.
-        
+
         Args:
             target_node: Name of the line that needs conversion
         """
         # UX Enhancement: Visual feedback for conversion requirement
-        if hasattr(self.parent_widget, 'graphics_adapter'):
+        if hasattr(self.parent_widget, "graphics_adapter"):
             feature_manager = self.parent_widget.graphics_adapter.feature_manager
-            
+
             if target_node in feature_manager.features:
                 line_item = feature_manager.features[target_node]
-                
+
                 # Temporarily highlight the line to show which one was selected
                 line_item.set_highlighted(True)
-                
+
                 # Auto-remove highlight after 2 seconds
                 from PyQt6.QtCore import QTimer
+
                 timer = QTimer()
                 timer.setSingleShot(True)
                 timer.timeout.connect(lambda: line_item.set_highlighted(False))
                 timer.start(2000)
-                
-                logger.info(f"Line {target_node} highlighted - requires conversion to support branching")
+
+                logger.info(
+                    f"Line {target_node} highlighted - requires conversion to support branching"
+                )
 
     def _set_target_line_highlight(self, target_node: str, highlighted: bool) -> None:
         """Set highlight state for the target line during branch creation.
-        
+
         Args:
             target_node: Name of the line to highlight
             highlighted: Whether to highlight or unhighlight
         """
         # UX Enhancement: Visual feedback for branch creation target
-        if hasattr(self.parent_widget, 'graphics_adapter'):
+        if hasattr(self.parent_widget, "graphics_adapter"):
             feature_manager = self.parent_widget.graphics_adapter.feature_manager
-            
+
             if target_node in feature_manager.features:
                 line_item = feature_manager.features[target_node]
                 line_item.set_highlighted(highlighted)

@@ -8,9 +8,9 @@ This module provides a unified edit mode system that handles:
 5. Unified visual feedback and user experience
 """
 
-from typing import List, Tuple, Dict, Any
+from typing import Any, Dict, List, Tuple
 
-from PyQt6.QtGui import QPainter, QColor, QPen, QBrush
+from PyQt6.QtGui import QBrush, QColor, QPainter, QPen
 from structlog import get_logger
 
 logger = get_logger(__name__)
@@ -45,9 +45,12 @@ class UnifiedLineGeometry:
     def _update_shared_points(self):
         """Update mapping of shared points between branches with performance optimization."""
         # UX Enhancement: Skip expensive operations during drag
-        if hasattr(self, '_skip_shared_points_update') and self._skip_shared_points_update:
+        if (
+            hasattr(self, "_skip_shared_points_update")
+            and self._skip_shared_points_update
+        ):
             return
-            
+
         self._shared_points = {}
 
         if not self.is_branching:
@@ -55,18 +58,18 @@ class UnifiedLineGeometry:
 
         for branch_idx, branch in enumerate(self.branches):
             for point_idx, point in enumerate(branch):
-                # Convert point to integer tuple to ensure it's hashable
-                point_key = (int(point[0]), int(point[1]))
+                # Round to nearest integer for consistent key handling with floats
+                point_key = (round(point[0]), round(point[1]))
                 if point_key not in self._shared_points:
                     self._shared_points[point_key] = []
                 self._shared_points[point_key].append((branch_idx, point_idx))
-        
+
         # Automatically reclassify points based on actual connections
         self._reclassify_points()
-        
+
     def set_performance_mode(self, enabled: bool):
         """Enable/disable performance mode to skip expensive updates during dragging.
-        
+
         Args:
             enabled: True to skip expensive updates, False to re-enable them
         """
@@ -74,63 +77,63 @@ class UnifiedLineGeometry:
 
     def _count_point_connections(self, point_key: Tuple[int, int]) -> int:
         """Count the number of line segments that connect to a point.
-        
+
         Args:
             point_key: The point coordinate as (x, y) tuple
-            
+
         Returns:
             Number of line segments connected to this point
         """
         connection_count = 0
-        
+
         # Check each branch for segments connecting to this point
         for branch in self.branches:
             for i, point in enumerate(branch):
-                current_point_key = (int(point[0]), int(point[1]))
-                
+                current_point_key = (round(point[0]), round(point[1]))
+
                 if current_point_key == point_key:
                     # Count segments before this point (if not first)
                     if i > 0:
                         connection_count += 1
-                    # Count segments after this point (if not last)  
+                    # Count segments after this point (if not last)
                     if i < len(branch) - 1:
                         connection_count += 1
-        
+
         return connection_count
 
     def _reclassify_points(self):
         """Reclassify shared points based on actual line segment connections.
-        
-        Points are only considered "shared" (branching points) if they have 3 or more 
+
+        Points are only considered "shared" (branching points) if they have 3 or more
         line segments connecting to them. Points with only 2 connections are inline
         points and should not be marked as shared.
         """
         if not self.is_branching:
             return
-        
+
         # Create new shared points mapping with only true branching points
         reclassified_shared_points = {}
-        
+
         for point_key, locations in self._shared_points.items():
             # Count actual line segment connections to this point
             connection_count = self._count_point_connections(point_key)
-            
+
             # Only keep as shared if it has 3+ connections (true branching point)
             if connection_count >= 3:
                 reclassified_shared_points[point_key] = locations
-        
+
         # Update the shared points mapping
         self._shared_points = reclassified_shared_points
-        
-        logger.debug(f"Reclassified points: {len(reclassified_shared_points)} true branching points remaining")
+
+        logger.debug(
+            f"Reclassified points: {len(reclassified_shared_points)} true branching points remaining"
+        )
 
     def _update_scaled_branches(self):
         """Update scaled branches based on current scale."""
         self._scaled_branches = []
         for branch in self.branches:
-            scaled_branch = [
-                (int(p[0] * self._scale), int(p[1] * self._scale)) for p in branch
-            ]
+            scaled_branch = [(p[0] * self._scale, p[1] * self._scale) for p in branch]
             self._scaled_branches.append(scaled_branch)
         self._invalidate_bounds()
 
@@ -176,7 +179,9 @@ class UnifiedLineGeometry:
         min_x, min_y, max_x, max_y = self.get_bounds()
         return ((min_x + max_x) // 2, (min_y + max_y) // 2)
 
-    def update_point(self, branch_idx: int, point_idx: int, new_point: Tuple[int, int]):
+    def update_point(
+        self, branch_idx: int, point_idx: int, new_point: Tuple[float, float]
+    ):
         """Update a point, handling shared points for branching lines."""
         if branch_idx >= len(self.branches) or point_idx >= len(
             self.branches[branch_idx]
@@ -184,7 +189,8 @@ class UnifiedLineGeometry:
             return
 
         old_point = self.branches[branch_idx][point_idx]
-        old_point_key = (int(old_point[0]), int(old_point[1]))
+        # Round to nearest integer for key lookup to handle float precision issues
+        old_point_key = (round(old_point[0]), round(old_point[1]))
 
         # For branching lines, check if this point is shared
         if self.is_branching and old_point_key in self._shared_points:
@@ -201,7 +207,8 @@ class UnifiedLineGeometry:
             self.branches[branch_idx][point_idx] = new_point
 
         # Rebuild shared points mapping and scaled branches
-        if self.is_branching:
+        # Skip expensive _update_shared_points if in performance mode
+        if self.is_branching and not getattr(self, "_skip_shared_points_update", False):
             self._update_shared_points()
         self._update_scaled_branches()
 
@@ -235,10 +242,10 @@ class UnifiedLineGeometry:
 
     def delete_branch(self, branch_idx: int) -> bool:
         """Delete a branch, with safety checks.
-        
+
         Args:
             branch_idx: Index of the branch to delete
-            
+
         Returns:
             True if branch was deleted, False otherwise
         """
@@ -246,33 +253,35 @@ class UnifiedLineGeometry:
         if not self.is_branching:
             logger.warning("Cannot delete branch from non-branching line")
             return False
-            
+
         # Can't delete the main branch (index 0)
         if branch_idx <= 0:
             logger.warning("Cannot delete the main branch (index 0)")
             return False
-            
+
         # Check valid index
         if branch_idx >= len(self.branches):
             logger.warning(f"Invalid branch index {branch_idx}")
             return False
-            
+
         # Must have at least 2 branches to delete one
         if len(self.branches) <= 2:
             logger.warning("Cannot delete branch - would convert to simple line")
             return False
-            
+
         # Delete the branch
         del self.branches[branch_idx]
-        
+
         # Update internal state
         self._update_shared_points()
         self._update_scaled_branches()
         self._invalidate_bounds()
-        
-        logger.info(f"Deleted branch {branch_idx}, now have {len(self.branches)} branches")
+
+        logger.info(
+            f"Deleted branch {branch_idx}, now have {len(self.branches)} branches"
+        )
         return True
-    
+
     def point_count(self) -> int:
         """Get total point count across all branches."""
         return sum(len(branch) for branch in self.branches)
@@ -524,10 +533,12 @@ class UnifiedLineRenderer:
 
         # Use pre-computed shared points from geometry for branching lines
         shared_points = set()
-        if geometry.is_branching and hasattr(geometry, '_shared_points'):
+        if geometry.is_branching and hasattr(geometry, "_shared_points"):
             # Convert shared points (in original coordinates) to scaled coordinates
             for original_point, locations in geometry._shared_points.items():
-                if len(locations) > 1:  # Only include points shared between multiple branches
+                if (
+                    len(locations) > 1
+                ):  # Only include points shared between multiple branches
                     scaled_point = (
                         int(original_point[0] * geometry._scale),
                         int(original_point[1] * geometry._scale),

@@ -493,6 +493,44 @@ class LineGraphicsItem(QGraphicsItem):
             x - cross_size, y - cross_size, cross_size * 2, cross_size * 2
         )
 
+    def _get_branch_color(self, branch_idx: int) -> QColor:
+        """Get a consistent color for a branch based on its stable ID.
+
+        Args:
+            branch_idx: Index of the branch
+
+        Returns:
+            QColor for the branch
+        """
+        # Define a palette of distinct colors for branches
+        branch_colors = [
+            QColor(255, 100, 100),  # Red - Main stem
+            QColor(100, 150, 255),  # Blue - Branch 1
+            QColor(100, 255, 100),  # Green - Branch 2
+            QColor(255, 255, 100),  # Yellow - Branch 3
+            QColor(255, 100, 255),  # Magenta - Branch 4
+            QColor(100, 255, 255),  # Cyan - Branch 5
+            QColor(255, 150, 100),  # Orange - Branch 6
+            QColor(150, 100, 255),  # Purple - Branch 7
+        ]
+
+        # Get stable ID for this branch if available
+        if hasattr(self.geometry, "get_stable_id_from_branch_index"):
+            stable_id = self.geometry.get_stable_id_from_branch_index(branch_idx)
+            if stable_id:
+                # Use stable ID to ensure consistent colors
+                if stable_id == "main_line" or stable_id == "main_stem":
+                    return branch_colors[0]  # Always red for main
+                elif stable_id.startswith("branch_"):
+                    try:
+                        branch_num = int(stable_id.split("_")[1])
+                        return branch_colors[min(branch_num, len(branch_colors) - 1)]
+                    except (ValueError, IndexError):
+                        pass
+
+        # Fallback to index-based color
+        return branch_colors[branch_idx % len(branch_colors)]
+
     def paint(
         self,
         painter: QPainter,
@@ -519,7 +557,14 @@ class LineGraphicsItem(QGraphicsItem):
                 continue
 
             # Set up pen with enhanced styling
-            pen = QPen(self.line_color)
+            if self.edit_mode and hasattr(self.geometry, "stable_branch_ids"):
+                # Use different colors for each branch in edit mode
+                branch_color = self._get_branch_color(branch_idx)
+                pen = QPen(branch_color)
+            else:
+                # Use default color in normal mode
+                pen = QPen(self.line_color)
+
             pen.setWidth(self.line_width)
             pen.setStyle(self.line_pattern)
 
@@ -584,6 +629,13 @@ class LineGraphicsItem(QGraphicsItem):
 
         # Draw control points for all branches
         for branch_idx, branch in enumerate(self.geometry.branches):
+            # Get branch color for this branch
+            branch_color = (
+                self._get_branch_color(branch_idx)
+                if hasattr(self.geometry, "stable_branch_ids")
+                else QColor(255, 255, 255)
+            )
+
             for point_idx, point in enumerate(branch):
                 x, y = point[0], point[1]
 
@@ -595,11 +647,13 @@ class LineGraphicsItem(QGraphicsItem):
                     # Branching points: Diamond shape with blue color
                     self._draw_branching_point(painter, x, y, base_radius + 2)
                 elif point_idx == 0 or point_idx == len(branch) - 1:
-                    # Endpoints: Square with green color
-                    self._draw_endpoint(painter, x, y, base_radius)
+                    # Endpoints: Square with branch color
+                    self._draw_endpoint(painter, x, y, base_radius, branch_color)
                 else:
-                    # Regular control points: Circle with white color
-                    self._draw_regular_point(painter, x, y, base_radius - 1)
+                    # Regular control points: Circle with branch color
+                    self._draw_regular_point(
+                        painter, x, y, base_radius - 1, branch_color
+                    )
 
     def _draw_branching_point(
         self, painter: QPainter, x: float, y: float, radius: int
@@ -623,32 +677,64 @@ class LineGraphicsItem(QGraphicsItem):
         painter.drawPath(diamond)
 
     def _draw_endpoint(
-        self, painter: QPainter, x: float, y: float, radius: int
+        self,
+        painter: QPainter,
+        x: float,
+        y: float,
+        radius: int,
+        branch_color: QColor = None,
     ) -> None:
         """Draw a square-shaped endpoint."""
-        # GIS Enhancement: Square shape for endpoints
-        endpoint_pen = QPen(QColor(0, 150, 0), 2)
-        endpoint_brush = QBrush(QColor(100, 255, 100, 180))
+        # Use branch color if provided, otherwise default green
+        if branch_color:
+            # Make the branch color darker for the border
+            darker_color = branch_color.darker(150)
+            endpoint_pen = QPen(darker_color, 2)
+            # Make the branch color semi-transparent for the fill
+            fill_color = QColor(branch_color)
+            fill_color.setAlpha(180)
+            endpoint_brush = QBrush(fill_color)
+        else:
+            # Default green for endpoints
+            endpoint_pen = QPen(QColor(0, 150, 0), 2)
+            endpoint_brush = QBrush(QColor(100, 255, 100, 180))
 
         painter.setPen(endpoint_pen)
         painter.setBrush(endpoint_brush)
 
         # Draw square
-        painter.drawRect(x - radius, y - radius, radius * 2, radius * 2)
+        # Convert to int only for drawing
+        painter.drawRect(int(x - radius), int(y - radius), radius * 2, radius * 2)
 
     def _draw_regular_point(
-        self, painter: QPainter, x: float, y: float, radius: int
+        self,
+        painter: QPainter,
+        x: float,
+        y: float,
+        radius: int,
+        branch_color: QColor = None,
     ) -> None:
         """Draw a circular regular control point."""
-        # GIS Enhancement: Circle with outline for regular points
-        point_pen = QPen(QColor(100, 100, 100), 1)
-        point_brush = QBrush(QColor(255, 255, 255, 200))
+        # Use branch color if provided, otherwise default white
+        if branch_color:
+            # Make the branch color darker for the border
+            darker_color = branch_color.darker(150)
+            point_pen = QPen(darker_color, 1)
+            # Make the branch color semi-transparent for the fill
+            fill_color = QColor(branch_color)
+            fill_color.setAlpha(200)
+            point_brush = QBrush(fill_color)
+        else:
+            # Default white for regular points
+            point_pen = QPen(QColor(100, 100, 100), 1)
+            point_brush = QBrush(QColor(255, 255, 255, 200))
 
         painter.setPen(point_pen)
         painter.setBrush(point_brush)
 
         # Draw circle with subtle shadow effect
-        painter.drawEllipse(x - radius, y - radius, radius * 2, radius * 2)
+        # Convert to int only for drawing
+        painter.drawEllipse(int(x - radius), int(y - radius), radius * 2, radius * 2)
 
     def _is_shared_point(
         self, point: Tuple[int, int], branch_idx: int, point_idx: int
@@ -666,7 +752,7 @@ class LineGraphicsItem(QGraphicsItem):
         if not self.geometry.is_branching:
             return False
 
-        point_key = (int(point[0]), int(point[1]))
+        point_key = (round(point[0]), round(point[1]))
         return point_key in self.geometry._shared_points
 
     def mousePressEvent(self, event) -> None:
@@ -835,6 +921,19 @@ class LineGraphicsItem(QGraphicsItem):
 
         super().hoverMoveEvent(event)
 
+    def hoverLeaveEvent(self, event) -> None:
+        """Handle hover leave events to clear visual feedback.
+
+        Args:
+            event: Hover event
+        """
+        # Clear snap preview when cursor leaves the line
+        if self._snap_preview is not None:
+            self._snap_preview = None
+            self.update()  # Trigger repaint to remove snap preview
+
+        super().hoverLeaveEvent(event)
+
     def _test_control_point_hit(self, pos: QPointF) -> Optional[Tuple[int, int]]:
         """Test if position hits a control point.
 
@@ -891,10 +990,12 @@ class LineGraphicsItem(QGraphicsItem):
                 else:
                     self._snap_indicator_pos = None
 
-            # Update the point position with snapped coordinates
-            self.geometry.branches[self.dragged_branch_index][
-                self.dragged_point_index
-            ] = [int(snapped_pos[0]), int(snapped_pos[1])]
+            # Use the geometry's update_point method to properly handle shared points
+            # Keep coordinates as floats for smooth dragging
+            new_point = (snapped_pos[0], snapped_pos[1])
+            self.geometry.update_point(
+                self.dragged_branch_index, self.dragged_point_index, new_point
+            )
 
             # UX Enhancement: Defer expensive operations during drag
             if not self._is_being_dragged:
@@ -904,9 +1005,6 @@ class LineGraphicsItem(QGraphicsItem):
 
             # Mark that we need updates but don't do them during drag
             self._pending_updates = True
-
-            # Only update scaled branches for immediate visual feedback
-            self.geometry._update_scaled_branches()
 
             # Update bounds during drag for proper visual feedback
             self._update_bounds()
@@ -1096,6 +1194,15 @@ class LineGraphicsItem(QGraphicsItem):
         """Emit geometry changed signal."""
         geometry_data = self.get_geometry_data()
 
+        # Get branch assignments if this is a branching line
+        branch_assignments = {}
+        if hasattr(self.geometry, "is_branching") and self.geometry.is_branching:
+            # Convert to BranchingLineGeometry to get stable IDs
+            from ui.components.map_component.line_geometry import BranchingLineGeometry
+
+            branching_geometry = BranchingLineGeometry(geometry_data)
+            branch_assignments = branching_geometry.get_flat_properties_for_storage()
+
         # Find signal bridge
         scene = self.scene()
         if scene and hasattr(scene, "feature_items"):
@@ -1117,6 +1224,33 @@ class LineGraphicsItem(QGraphicsItem):
                             )
                             break
                 parent_widget = getattr(parent_widget, "parent", lambda: None)()
+
+        # Also update line persistence with branch assignments
+        if branch_assignments:
+            try:
+                from ui.components.map_component.line_persistence import (
+                    LineGeometryPersistence,
+                )
+
+                persistence = LineGeometryPersistence(self.target_node)
+
+                # Find the controller through the scene
+                controller = None
+                if scene:
+                    parent_widget = scene.parent()
+                    while parent_widget:
+                        if hasattr(parent_widget, "controller"):
+                            controller = parent_widget.controller
+                            break
+                        parent_widget = getattr(parent_widget, "parent", lambda: None)()
+
+                if controller:
+                    persistence.update_geometry(
+                        geometry_data, controller, branch_assignments
+                    )
+
+            except Exception as e:
+                logger.error(f"Error updating branch assignments: {e}")
 
         logger.debug(f"Line geometry changed: {self.target_node}")
 
@@ -1579,7 +1713,7 @@ class LineGraphicsItem(QGraphicsItem):
         # For branching lines, check if this is a shared point
         if self.geometry.is_branching:
             point = branch[point_idx]
-            point_key = (int(point[0]), int(point[1]))
+            point_key = (round(point[0]), round(point[1]))
 
             # If it's a shared point, warn user but allow deletion
             if point_key in self.geometry._shared_points:
