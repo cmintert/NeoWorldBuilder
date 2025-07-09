@@ -455,13 +455,8 @@ class LineGraphicsItem(QGraphicsItem):
         painter.setBrush(QBrush(QColor(255, 0, 255, 50)))
 
         # Draw snap circle
-        snap_radius = 6
-        painter.drawEllipse(
-            int(self._snap_preview.x() - snap_radius),
-            int(self._snap_preview.y() - snap_radius),
-            snap_radius * 2,
-            snap_radius * 2,
-        )
+        snap_radius = 6.0
+        painter.drawEllipse(self._snap_preview, snap_radius, snap_radius)
 
     def _draw_snap_indicator(
         self, painter: QPainter, snap_pos: Tuple[float, float]
@@ -480,18 +475,16 @@ class LineGraphicsItem(QGraphicsItem):
         painter.setBrush(Qt.BrushStyle.NoBrush)
 
         # Draw crosshair at snap position
-        x, y = int(snap_pos[0]), int(snap_pos[1])
+        x, y = snap_pos[0], snap_pos[1]
         cross_size = 8
 
         # Horizontal line
-        painter.drawLine(x - cross_size, y, x + cross_size, y)
+        painter.drawLine(QPointF(x - cross_size, y), QPointF(x + cross_size, y))
         # Vertical line
-        painter.drawLine(x, y - cross_size, x, y + cross_size)
+        painter.drawLine(QPointF(x, y - cross_size), QPointF(x, y + cross_size))
 
         # Draw a circle around the snap point
-        painter.drawEllipse(
-            x - cross_size, y - cross_size, cross_size * 2, cross_size * 2
-        )
+        painter.drawEllipse(QPointF(x, y), cross_size, cross_size)
 
     def _get_branch_color(self, branch_idx: int) -> QColor:
         """Get a consistent color for a branch based on its stable ID.
@@ -703,8 +696,7 @@ class LineGraphicsItem(QGraphicsItem):
         painter.setBrush(endpoint_brush)
 
         # Draw square
-        # Convert to int only for drawing
-        painter.drawRect(int(x - radius), int(y - radius), radius * 2, radius * 2)
+        painter.drawRect(QRectF(x - radius, y - radius, radius * 2, radius * 2))
 
     def _draw_regular_point(
         self,
@@ -733,8 +725,7 @@ class LineGraphicsItem(QGraphicsItem):
         painter.setBrush(point_brush)
 
         # Draw circle with subtle shadow effect
-        # Convert to int only for drawing
-        painter.drawEllipse(int(x - radius), int(y - radius), radius * 2, radius * 2)
+        painter.drawEllipse(QPointF(x, y), radius, radius)
 
     def _is_shared_point(
         self, point: Tuple[int, int], branch_idx: int, point_idx: int
@@ -752,7 +743,7 @@ class LineGraphicsItem(QGraphicsItem):
         if not self.geometry.is_branching:
             return False
 
-        point_key = (round(point[0]), round(point[1]))
+        point_key = (point[0], point[1])
         return point_key in self.geometry._shared_points
 
     def mousePressEvent(self, event) -> None:
@@ -1564,7 +1555,7 @@ class LineGraphicsItem(QGraphicsItem):
             return
 
         original_coords = scene.scene_to_original_coords(scene_pos)
-        new_point = (int(original_coords[0]), int(original_coords[1]))
+        new_point = (original_coords[0], original_coords[1])
 
         # Find the best insertion point
         insertion_info = self._find_insertion_point(scene_pos)
@@ -1713,7 +1704,7 @@ class LineGraphicsItem(QGraphicsItem):
         # For branching lines, check if this is a shared point
         if self.geometry.is_branching:
             point = branch[point_idx]
-            point_key = (round(point[0]), round(point[1]))
+            point_key = (point[0], point[1])
 
             # If it's a shared point, warn user but allow deletion
             if point_key in self.geometry._shared_points:

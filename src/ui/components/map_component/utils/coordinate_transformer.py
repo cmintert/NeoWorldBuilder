@@ -1,4 +1,5 @@
-from typing import Tuple, Optional
+from typing import Optional, Tuple
+
 from PyQt6.QtCore import QPoint
 
 
@@ -22,7 +23,7 @@ class CoordinateTransformer:
         """
         # Get image display parameters
         pixmap_size = pixmap.size()
-        
+
         # Calculate centering offsets
         offset_x, offset_y = CoordinateTransformer.calculate_centering_offsets(
             widget_width, widget_height, pixmap_size.width(), pixmap_size.height()
@@ -33,7 +34,9 @@ class CoordinateTransformer:
         scaled_y = widget_pos.y() - offset_y
 
         # Check if within image bounds
-        if not CoordinateTransformer.is_within_image_bounds(scaled_x, scaled_y, pixmap_size):
+        if not CoordinateTransformer.is_within_image_bounds(
+            scaled_x, scaled_y, pixmap_size
+        ):
             return None
 
         return scaled_x, scaled_y
@@ -58,9 +61,7 @@ class CoordinateTransformer:
         return offset_x, offset_y
 
     @staticmethod
-    def is_within_image_bounds(
-        scaled_x: int, scaled_y: int, pixmap_size
-    ) -> bool:
+    def is_within_image_bounds(scaled_x: int, scaled_y: int, pixmap_size) -> bool:
         """Check if scaled coordinates are within image bounds.
 
         Args:
@@ -72,13 +73,16 @@ class CoordinateTransformer:
             True if coordinates are within bounds, False otherwise
         """
         return (
-            0 <= scaled_x < pixmap_size.width() 
-            and 0 <= scaled_y < pixmap_size.height()
+            0 <= scaled_x < pixmap_size.width() and 0 <= scaled_y < pixmap_size.height()
         )
 
     @staticmethod
     def scaled_to_original_coordinates(
-        scaled_x: int, scaled_y: int, pixmap, original_pixmap=None, current_scale: float = 1.0
+        scaled_x: int,
+        scaled_y: int,
+        pixmap,
+        original_pixmap=None,
+        current_scale: float = 1.0,
     ) -> Tuple[int, int]:
         """Convert scaled image coordinates to original image coordinates.
 
@@ -127,8 +131,8 @@ class CoordinateTransformer:
         )
 
         # Convert to original coordinates using the ratios
-        original_x = int(scaled_x * x_ratio)
-        original_y = int(scaled_y * y_ratio)
+        original_x = scaled_x * x_ratio
+        original_y = scaled_y * y_ratio
 
         return original_x, original_y
 
@@ -164,14 +168,18 @@ class CoordinateTransformer:
         Returns:
             Tuple of (original_x, original_y)
         """
-        original_x = int(scaled_x / current_scale)
-        original_y = int(scaled_y / current_scale)
+        original_x = scaled_x / current_scale
+        original_y = scaled_y / current_scale
         return original_x, original_y
 
     @staticmethod
     def widget_to_original_coordinates(
-        widget_pos: QPoint, pixmap, widget_width: int, widget_height: int,
-        original_pixmap=None, current_scale: float = 1.0
+        widget_pos: QPoint,
+        pixmap,
+        widget_width: int,
+        widget_height: int,
+        original_pixmap=None,
+        current_scale: float = 1.0,
     ) -> Optional[Tuple[int, int]]:
         """Convert widget position directly to original image coordinates.
 
@@ -202,8 +210,13 @@ class CoordinateTransformer:
 
     @staticmethod
     def original_to_widget_coordinates(
-        original_x: int, original_y: int, pixmap, widget_width: int, widget_height: int,
-        original_pixmap=None, current_scale: float = 1.0
+        original_x: int,
+        original_y: int,
+        pixmap,
+        widget_width: int,
+        widget_height: int,
+        original_pixmap=None,
+        current_scale: float = 1.0,
     ) -> Optional[Tuple[int, int]]:
         """Convert original image coordinates to widget position.
 
@@ -221,15 +234,22 @@ class CoordinateTransformer:
         """
         # For logging
         import logging
+
         logger = logging.getLogger(__name__)
-        logger.debug(f"Converting original coordinates ({original_x}, {original_y}) to widget coordinates")
-        logger.debug(f"Widget dimensions: {widget_width}x{widget_height}, scale: {current_scale}")
-        
+        logger.debug(
+            f"Converting original coordinates ({original_x}, {original_y}) to widget coordinates"
+        )
+        logger.debug(
+            f"Widget dimensions: {widget_width}x{widget_height}, scale: {current_scale}"
+        )
+
         if original_pixmap:
-            logger.debug(f"Original pixmap size: {original_pixmap.width()}x{original_pixmap.height()}")
+            logger.debug(
+                f"Original pixmap size: {original_pixmap.width()}x{original_pixmap.height()}"
+            )
         else:
             logger.debug("No original pixmap provided")
-            
+
         if pixmap:
             logger.debug(f"Current pixmap size: {pixmap.width()}x{pixmap.height()}")
         else:
@@ -249,8 +269,8 @@ class CoordinateTransformer:
         logger.debug(f"Centering offsets: ({offset_x}, {offset_y})")
 
         # Convert scaled coordinates to widget coordinates
-        widget_x = int(scaled_x + offset_x)
-        widget_y = int(scaled_y + offset_y)
+        widget_x = scaled_x + offset_x
+        widget_y = scaled_y + offset_y
         logger.debug(f"Widget coordinates: ({widget_x}, {widget_y})")
 
         # Check if within widget bounds
@@ -262,7 +282,11 @@ class CoordinateTransformer:
 
     @staticmethod
     def original_to_scaled_coordinates(
-        original_x: int, original_y: int, pixmap, original_pixmap=None, current_scale: float = 1.0
+        original_x: int,
+        original_y: int,
+        pixmap,
+        original_pixmap=None,
+        current_scale: float = 1.0,
     ) -> Tuple[int, int]:
         """Convert original image coordinates to scaled image coordinates.
 
@@ -288,11 +312,11 @@ class CoordinateTransformer:
             )
 
             # Convert to scaled coordinates using the inverse ratios
-            scaled_x = int(original_x / x_ratio)
-            scaled_y = int(original_y / y_ratio)
+            scaled_x = original_x / x_ratio
+            scaled_y = original_y / y_ratio
         else:
             # Use scale factor as fallback
-            scaled_x = int(original_x * current_scale)
-            scaled_y = int(original_y * current_scale)
+            scaled_x = original_x * current_scale
+            scaled_y = original_y * current_scale
 
         return scaled_x, scaled_y
