@@ -133,6 +133,138 @@ The ``GraphicsSignalBridge`` connects QGraphicsItem signals to PyQt signals:
 
 **Why needed**: QGraphicsItem doesn't inherit from QObject, so can't use pyqtSignal directly.
 
+QGIS-like Branching Line System (MVP)
+--------------------------------------
+
+Branch-Level Interaction
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The system provides professional GIS-level interaction with branching lines, enabling road networks and river systems.
+
+**Branch Click Detection**
+
+Located in ``LineGraphicsItem._detect_clicked_branch()``:
+
+.. code-block:: python
+
+    def _detect_clicked_branch(self, pos: QPointF) -> Optional[Tuple[int, str, Optional[str]]]:
+        """Returns (branch_index, stable_id, assigned_node)"""
+        # Point-to-line-segment distance algorithm
+        # 10-pixel tolerance for user-friendly clicking
+        # Returns full branch information including assignments
+
+**Branch-Specific Signal**
+
+Added to ``GraphicsSignalBridge``:
+
+.. code-block:: python
+
+    branch_clicked = pyqtSignal(str, str, object)  # node_name, stable_id, assigned_node
+
+Signal emitted when user clicks specific branch, not just the line.
+
+**Smart Navigation Flow**
+
+.. code-block:: python
+
+    # User clicks on branch
+    LineGraphicsItem.mousePressEvent()
+        → _detect_clicked_branch(pos)
+        → _emit_branch_click_signal(branch_idx, stable_id, assigned_node)
+        → signal_bridge.branch_clicked.emit(...)
+        → map_tab_adapter connection
+        → Navigate to assigned_node (or fallback to main node if unassigned)
+
+Visual Feedback System
+~~~~~~~~~~~~~~~~~~~~~~
+
+**Branch Labels**
+
+``LineGraphicsItem._draw_branch_labels()``:
+
+* Displays "→ NodeName" at branch midpoints
+* Color-coded backgrounds matching branch colors
+* Scale-responsive font sizing
+* Only shown for assigned branches
+
+**Interactive Tooltips**
+
+``LineGraphicsItem._update_branch_tooltip()``:
+
+* Updates on hover: "Branch 1 → Northern_Village\\nClick to navigate"
+* Shows assignment status and navigation instructions
+* Real-time updates based on mouse position
+
+**Junction Markers**
+
+``LineGraphicsItem._draw_branching_point()`` enhanced with:
+
+* Red circular badges showing connection count (for 3+ branches)
+* Scale-responsive badge sizing
+* Visual distinction of network topology
+
+Network Topology Features
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Junction Connectivity Query**
+
+``LineGraphicsItem._show_connected_features()``:
+
+Right-click junction → Context menu "Show Connected (N branches)" → Dialog displays:
+
+* Junction coordinates
+* Connected branch count
+* Each branch's: stable_id, assignment, point count
+
+**Example Output**:
+
+.. code-block:: text
+
+    Junction at (450, 320)
+    Connected branches: 4
+
+    Branch details:
+      • Main Stem → City_Center (8 points)
+      • Branch 1 → Northern_District (5 points)
+      • Branch 2 → Western_Port (6 points)
+      • Branch 3 (unassigned) (4 points)
+
+Dialog Validation
+~~~~~~~~~~~~~~~~~
+
+``BranchingLineFeatureDialog.accept_dialog()`` improvements:
+
+1. **Primary Target Validation**: Red border + error message if empty
+2. **Branch Assignment Warning**: Confirmation dialog if no assignments
+3. **Visual Feedback**: Clears styling when valid
+
+Data Model
+~~~~~~~~~~
+
+Branch assignments stored as flat properties in Neo4j:
+
+.. code-block:: cypher
+
+    (Map)-[:SHOWS {
+        geometry: "MULTILINESTRING ((0 0, 100 100), (100 100, 200 50))",
+        geometry_type: "MultiLineString",
+        branch_count: 2,
+        branch_main_stem: "City_Center",
+        branch_branch_1: "Northern_District",
+        style_color: "#FF0000",
+        style_width: 2
+    }]->(RoadNetwork)
+
+Stable IDs ensure consistent branch identification across sessions.
+
+Use Cases
+~~~~~~~~~
+
+1. **Road Networks**: Highway systems with exit branches to cities
+2. **River Systems**: Main rivers with tributary branches to sources
+3. **Rail Networks**: Main lines with branch lines to terminals
+4. **Trade Routes**: Primary routes with branches to trading posts
+
 Feature Management
 ------------------
 

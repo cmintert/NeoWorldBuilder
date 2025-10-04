@@ -73,30 +73,74 @@ Lines
 * Drag control points to reshape lines
 * Press **S** to toggle snapping mode
 
-Branching Lines
-~~~~~~~~~~~~~~~
+Branching Lines (Road Networks & River Systems)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Purpose**: Create complex route networks with branching paths
+**Purpose**: Create complex networks with branching paths - ideal for road systems, river tributaries, rail networks, and trade routes
 
-**How to Add**:
+**How to Create**:
 
-1. Click the **Branching Line** button
-2. Draw the main route with multiple clicks
+1. Click the **Branching Line** button in toolbar
+2. Draw the main route by clicking points
 3. Press **Enter** to save the first branch
 4. Continue adding branches as needed
 
-**Branch Creation**:
+**Branch Assignment Dialog**:
+
+* **Primary Target**: Main node for the entire network (required)
+* **Branch Assignments**: Assign each branch to specific locations
+
+  * Main Stem → "City_Center"
+  * Branch 1 → "Northern_District"
+  * Branch 2 → "Southern_Port"
+
+* **Validation**: Dialog prevents saving without primary target
+* **Warning**: Get confirmation if no branches assigned
+
+**Interactive Navigation (QGIS-like)**:
+
+* **Click any branch** → Navigate to that branch's assigned node
+* **Click main stem** → Navigate to primary target node
+* **Unassigned branches** → Navigate to primary target (fallback)
+
+**Visual Branch Labels**:
+
+* Each assigned branch displays: "→ NodeName"
+* Color-coded backgrounds match branch colors in edit mode
+* Labels positioned at branch midpoints
+* Scale-responsive sizing
+
+**Hover Tooltips**:
+
+* Hover over any branch to see:
+
+  * Branch name and assignment
+  * Navigation instructions
+  * Example: "Branch 1 → Northern_Village\nClick to navigate"
+
+**Junction Points (Network Topology)**:
+
+* **Visual Markers**: Diamond-shaped blue junction indicators
+* **Connection Counts**: Red badges show number of branches (for 3+ connections)
+* **Right-click Junction** → "Show Connected (N branches)" to see:
+
+  * Junction coordinates
+  * All connected branches
+  * Each branch's assignment and point count
+
+**Branch Creation in Edit Mode**:
 
 * Enter **Edit Mode**
-* Press **B** while hovering over a line
-* Click to set the branch start point
+* Press **B** while hovering over a line, or
+* Right-click → "Create Branch"
+* Click to set branch start point
 * Click again to create the branch
 
 **Automatic Reclassification**:
 
-* Branch points with 3+ connections shown in blue
-* Points with <3 connections automatically turn red
-* This helps visualize the branch structure
+* Junction points (3+ connections): Blue diamond with count badge
+* Regular points (<3 connections): Automatically turn red
+* Visual feedback helps identify network structure
 
 Polygons
 ~~~~~~~~
