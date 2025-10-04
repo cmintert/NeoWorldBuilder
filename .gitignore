@@ -80,6 +80,9 @@ source/.doctrees/
 # Auto-generated summary files
 source/_autosummary/
 
+# Auto-generated Sphinx API documentation
+source/api/
+
 # Sphinx temporary files
 *.tmp
 

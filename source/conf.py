@@ -48,7 +48,8 @@ autodoc_default_options = {
 
 # Autosummary configuration
 autosummary_generate = True
-autosummary_imported_members = True
+autosummary_generate_overwrite = True  # Always regenerate
+autosummary_imported_members = False  # Don't document imported items
 
 # Napoleon configuration for Google/NumPy style docstrings
 napoleon_google_docstring = True
@@ -59,7 +60,13 @@ napoleon_use_rtype = True
 napoleon_preprocess_types = True
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "_templates"]
+exclude_patterns = [
+    "_build",
+    "_templates",
+    "**/test_*.py",
+    "**/*_test.py",
+    "**/tests/*",
+]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
