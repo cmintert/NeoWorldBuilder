@@ -124,16 +124,9 @@ class MapGraphicsScene(QGraphicsScene):
         x = scene_point.x()
         y = scene_point.y()
 
-        # Debug: Log the raw scene coordinates
-        logger.debug(
-            f"Converting scene coords: ({x}, {y}) with image bounds ({self.image_width}, {self.image_height})"
-        )
-
         # Clamp to image bounds (keep as floats for precision)
         x = max(0.0, min(x, float(self.image_width - 1)))
         y = max(0.0, min(y, float(self.image_height - 1)))
-
-        logger.debug(f"Final original coords: ({x}, {y})")
 
         return x, y
 
