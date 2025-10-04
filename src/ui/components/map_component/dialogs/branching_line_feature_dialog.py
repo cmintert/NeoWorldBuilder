@@ -214,14 +214,40 @@ class BranchingLineFeatureDialog(QDialog):
         # Validate primary target node
         target_text = self.target_input.text().strip()
         if not target_text:
-            return  # TODO: Show validation message
+            # Show validation error
+            self.target_input.setStyleSheet("QLineEdit { border: 2px solid red; }")
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Validation Error",
+                "Primary target node is required. Please enter a node name."
+            )
+            return
+        else:
+            # Clear any previous error styling
+            self.target_input.setStyleSheet("")
 
         # Collect branch assignments
         self.branch_assignments = {}
+        has_any_assignment = False
         for stable_id, input_widget in self.branch_inputs.items():
             node_name = input_widget.text().strip()
             if node_name:
                 self.branch_assignments[stable_id] = node_name
+                has_any_assignment = True
+
+        # Warn if no branch assignments (optional validation)
+        if not has_any_assignment:
+            from PyQt6.QtWidgets import QMessageBox
+            reply = QMessageBox.question(
+                self,
+                "No Branch Assignments",
+                "You haven't assigned any nodes to branches. Branch navigation won't work.\n\nDo you want to continue anyway?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.No:
+                return
 
         # Update line style from UI
         self.line_style["width"] = self.width_spinner.value()

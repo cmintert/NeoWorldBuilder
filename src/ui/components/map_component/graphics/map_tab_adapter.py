@@ -119,6 +119,12 @@ class MapTabGraphicsAdapter(QObject):
                 node
             )  # Use same signal for compatibility
         )
+        # Branch-specific click handler - navigates to assigned node if available
+        self.feature_manager.signal_bridge.branch_clicked.connect(
+            lambda node_name, stable_id, assigned_node: self.pin_clicked.emit(
+                assigned_node if assigned_node else node_name
+            )
+        )
         self.feature_manager.signal_bridge.feature_created.connect(
             lambda ftype, node: self.pin_created.emit(
                 ftype, node, {}

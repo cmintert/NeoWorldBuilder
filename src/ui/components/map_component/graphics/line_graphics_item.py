@@ -590,6 +590,10 @@ class LineGraphicsItem(QGraphicsItem):
         if self.edit_mode:
             self._draw_control_points(painter)
 
+        # Draw branch labels for branching lines (both edit and normal mode)
+        if self.geometry.is_branching and hasattr(self.geometry, "get_branch_assignment"):
+            self._draw_branch_labels(painter)
+
         # Draw text background
         if self.text_item:
             text_rect = self.text_item.boundingRect()
@@ -651,8 +655,8 @@ class LineGraphicsItem(QGraphicsItem):
     def _draw_branching_point(
         self, painter: QPainter, x: float, y: float, radius: int
     ) -> None:
-        """Draw a diamond-shaped branching point."""
-        # GIS Enhancement: Diamond shape for branching points
+        """Draw a diamond-shaped branching point with connection count."""
+        # GIS Enhancement: Diamond shape for branching points (junctions)
         diamond_pen = QPen(QColor(0, 100, 200), 2)
         diamond_brush = QBrush(QColor(100, 150, 255, 200))
 
@@ -668,6 +672,33 @@ class LineGraphicsItem(QGraphicsItem):
         diamond.closeSubpath()
 
         painter.drawPath(diamond)
+
+        # Draw connection count indicator
+        point_key = (int(x), int(y))
+        if hasattr(self.geometry, "_shared_points") and point_key in self.geometry._shared_points:
+            connection_count = len(self.geometry._shared_points[point_key])
+
+            # Only show count for significant junctions (3+ connections)
+            if connection_count >= 3:
+                # Draw small circle with count
+                count_radius = radius * 0.6
+                count_bg = QBrush(QColor(255, 100, 100, 220))
+                count_pen = QPen(QColor(255, 255, 255), 1)
+
+                painter.setBrush(count_bg)
+                painter.setPen(count_pen)
+                painter.drawEllipse(QPointF(x + radius * 0.7, y - radius * 0.7), count_radius, count_radius)
+
+                # Draw count text
+                font = painter.font()
+                font.setPointSize(max(6, int(8 * self._scale)))
+                font.setBold(True)
+                painter.setFont(font)
+                painter.setPen(QPen(QColor(255, 255, 255)))
+
+                text_rect = QRectF(x + radius * 0.7 - count_radius, y - radius * 0.7 - count_radius,
+                                   count_radius * 2, count_radius * 2)
+                painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, str(connection_count))
 
     def _draw_endpoint(
         self,
@@ -746,6 +777,100 @@ class LineGraphicsItem(QGraphicsItem):
         point_key = (point[0], point[1])
         return point_key in self.geometry._shared_points
 
+    def _draw_branch_labels(self, painter: QPainter) -> None:
+        """Draw labels on each branch showing assigned node names.
+
+        Labels are positioned at the midpoint of each branch and scale with zoom.
+        Only displays if branch has an assigned node.
+        """
+        # Scale-responsive font size
+        font_size = max(int(self.LABEL_FONT_SIZE_BASE * self._scale), self.MIN_LABEL_FONT_SIZE)
+        font = painter.font()
+        font.setPointSize(font_size)
+        font.setBold(True)
+        painter.setFont(font)
+
+        # Draw label for each branch
+        for branch_idx, branch in enumerate(self.geometry.branches):
+            if len(branch) < 2:
+                continue
+
+            # Get stable ID and assigned node
+            stable_id = None
+            if hasattr(self.geometry, "get_stable_id_from_branch_index"):
+                stable_id = self.geometry.get_stable_id_from_branch_index(branch_idx)
+
+            assigned_node = None
+            if stable_id and hasattr(self.geometry, "get_branch_assignment"):
+                assigned_node = self.geometry.get_branch_assignment(stable_id)
+
+            # Only draw label if branch has an assignment
+            if not assigned_node:
+                continue
+
+            # Calculate midpoint of branch
+            mid_idx = len(branch) // 2
+            mid_point = branch[mid_idx]
+
+            # Get branch color for label background
+            branch_color = self._get_branch_color(branch_idx) if hasattr(self.geometry, "stable_branch_ids") else QColor(255, 0, 0)
+
+            # Prepare label text
+            label_text = f"→ {assigned_node}"
+
+            # Measure text size
+            text_rect = painter.fontMetrics().boundingRect(label_text)
+            text_width = text_rect.width()
+            text_height = text_rect.height()
+
+            # Position label at midpoint with offset
+            label_x = mid_point[0] - text_width // 2
+            label_y = mid_point[1] - 15  # Offset above the line
+
+            # Draw background rectangle
+            bg_rect = QRectF(
+                label_x - 4, label_y - text_height - 2,
+                text_width + 8, text_height + 4
+            )
+
+            # Semi-transparent background with branch color
+            bg_color = QColor(branch_color)
+            bg_color.setAlpha(180)
+            painter.setBrush(QBrush(bg_color))
+            painter.setPen(QPen(QColor(255, 255, 255, 200), 1))
+            painter.drawRoundedRect(bg_rect, 3, 3)
+
+            # Draw text
+            painter.setPen(QPen(QColor(255, 255, 255)))
+            painter.drawText(QPointF(label_x, label_y), label_text)
+
+    def _update_branch_tooltip(self, pos: QPointF) -> None:
+        """Update tooltip based on which branch is being hovered.
+
+        Args:
+            pos: Mouse position
+        """
+        branch_info = self._detect_clicked_branch(pos)
+
+        if branch_info:
+            branch_idx, stable_id, assigned_node = branch_info
+
+            # Get display name for branch
+            display_name = stable_id.replace("_", " ").title()
+            if hasattr(self.geometry, "get_branch_display_name"):
+                display_name = self.geometry.get_branch_display_name(stable_id)
+
+            # Build tooltip text
+            if assigned_node:
+                tooltip = f"{display_name} → {assigned_node}\nClick to navigate"
+            else:
+                tooltip = f"{display_name} (Unassigned)\nClick to navigate to {self.target_node}"
+
+            self.setToolTip(tooltip)
+        else:
+            # Clear tooltip if not over a branch
+            self.setToolTip("")
+
     def mousePressEvent(self, event) -> None:
         """Handle mouse press events with enhanced UX feedback.
 
@@ -802,7 +927,18 @@ class LineGraphicsItem(QGraphicsItem):
                     return
 
             # Not in edit mode, emit click signal for node navigation
-            self._emit_click_signal()
+            # For branching lines, detect which specific branch was clicked
+            if self.geometry.is_branching:
+                branch_info = self._detect_clicked_branch(event.pos())
+                if branch_info:
+                    branch_idx, stable_id, assigned_node = branch_info
+                    self._emit_branch_click_signal(branch_idx, stable_id, assigned_node)
+                else:
+                    # Fall back to whole line click if no specific branch detected
+                    self._emit_click_signal()
+            else:
+                # Simple line - use standard click
+                self._emit_click_signal()
             event.accept()
         elif event.button() == Qt.MouseButton.RightButton:
             # Handle right-click for context menu
@@ -910,6 +1046,10 @@ class LineGraphicsItem(QGraphicsItem):
             # UX Enhancement: Show snap preview for branch creation
             self._update_snap_preview(event.pos())
 
+        # Update tooltip for branching lines
+        if self.geometry.is_branching:
+            self._update_branch_tooltip(event.pos())
+
         super().hoverMoveEvent(event)
 
     def hoverLeaveEvent(self, event) -> None:
@@ -949,6 +1089,104 @@ class LineGraphicsItem(QGraphicsItem):
                     return (branch_idx, point_idx)
 
         return None
+
+    def _detect_clicked_branch(
+        self, pos: QPointF
+    ) -> Optional[Tuple[int, str, Optional[str]]]:
+        """Detect which branch was clicked at the given position.
+
+        Tests each branch to find which one is closest to the click position.
+        Returns information about the clicked branch including its stable ID
+        and assigned node (if any).
+
+        Args:
+            pos: Click position in scene coordinates
+
+        Returns:
+            Tuple of (branch_index, stable_id, assigned_node) if a branch was hit,
+            None otherwise. The assigned_node will be None if no node is assigned
+            to this branch.
+        """
+        CLICK_TOLERANCE = 10  # pixels - distance threshold for click detection
+
+        closest_distance = float("inf")
+        closest_branch_idx = None
+
+        # Check each branch
+        for branch_idx, branch in enumerate(self.geometry.branches):
+            if len(branch) < 2:
+                continue
+
+            # Check each line segment in the branch
+            for i in range(len(branch) - 1):
+                p1 = QPointF(branch[i][0], branch[i][1])
+                p2 = QPointF(branch[i + 1][0], branch[i + 1][1])
+
+                # Calculate distance from click point to line segment
+                distance = self._point_to_line_segment_distance(pos, p1, p2)
+
+                if distance < closest_distance:
+                    closest_distance = distance
+                    closest_branch_idx = branch_idx
+
+        # If we found a branch within tolerance
+        if closest_branch_idx is not None and closest_distance <= CLICK_TOLERANCE:
+            # Get stable ID for this branch
+            stable_id = None
+            if hasattr(self.geometry, "get_stable_id_from_branch_index"):
+                stable_id = self.geometry.get_stable_id_from_branch_index(
+                    closest_branch_idx
+                )
+
+            # Get assigned node for this branch (if it's a BranchingLineGeometry)
+            assigned_node = None
+            if stable_id and hasattr(self.geometry, "get_branch_assignment"):
+                assigned_node = self.geometry.get_branch_assignment(stable_id)
+
+            return (closest_branch_idx, stable_id or f"branch_{closest_branch_idx}", assigned_node)
+
+        return None
+
+    def _point_to_line_segment_distance(
+        self, point: QPointF, line_start: QPointF, line_end: QPointF
+    ) -> float:
+        """Calculate the shortest distance from a point to a line segment.
+
+        Args:
+            point: The point to measure from
+            line_start: Start point of line segment
+            line_end: End point of line segment
+
+        Returns:
+            Distance in pixels
+        """
+        # Vector from line_start to line_end
+        line_vec = line_end - line_start
+        line_length_sq = line_vec.x() ** 2 + line_vec.y() ** 2
+
+        if line_length_sq == 0:
+            # Line segment has zero length, return distance to start point
+            return (point - line_start).manhattanLength()
+
+        # Vector from line_start to point
+        point_vec = point - line_start
+
+        # Project point onto line segment (parameter t in [0,1])
+        t = max(
+            0,
+            min(
+                1,
+                (point_vec.x() * line_vec.x() + point_vec.y() * line_vec.y())
+                / line_length_sq,
+            ),
+        )
+
+        # Find closest point on line segment
+        closest_point = line_start + t * line_vec
+
+        # Return distance from point to closest point on segment
+        diff = point - closest_point
+        return (diff.x() ** 2 + diff.y() ** 2) ** 0.5
 
     def _update_control_point_position(self, pos: QPointF) -> None:
         """Update control point position during drag with optimized performance and snapping.
@@ -1181,6 +1419,61 @@ class LineGraphicsItem(QGraphicsItem):
 
         logger.debug(f"Line clicked: {self.target_node}")
 
+    def _emit_branch_click_signal(
+        self, branch_idx: int, stable_id: str, assigned_node: Optional[str]
+    ) -> None:
+        """Emit branch-specific click signal through signal bridge.
+
+        Args:
+            branch_idx: Index of the clicked branch
+            stable_id: Stable ID of the branch (e.g., "main_stem", "branch_1")
+            assigned_node: Node assigned to this branch, or None if unassigned
+        """
+        # Find signal bridge through scene's feature manager
+        scene = self.scene()
+        if scene and hasattr(scene, "feature_items"):
+            parent_widget = scene.parent()
+            while parent_widget:
+                if hasattr(parent_widget, "graphics_adapter"):
+                    if hasattr(parent_widget.graphics_adapter, "signal_bridge"):
+                        # Emit branch_clicked signal with branch information
+                        if hasattr(
+                            parent_widget.graphics_adapter.signal_bridge, "branch_clicked"
+                        ):
+                            parent_widget.graphics_adapter.signal_bridge.branch_clicked.emit(
+                                self.target_node, stable_id, assigned_node
+                            )
+                        else:
+                            # Fallback: emit line_clicked if branch_clicked not available
+                            parent_widget.graphics_adapter.signal_bridge.line_clicked.emit(
+                                self.target_node
+                            )
+                        break
+                    elif hasattr(parent_widget.graphics_adapter, "feature_manager"):
+                        if hasattr(
+                            parent_widget.graphics_adapter.feature_manager,
+                            "signal_bridge",
+                        ):
+                            # Emit branch_clicked signal with branch information
+                            if hasattr(
+                                parent_widget.graphics_adapter.feature_manager.signal_bridge,
+                                "branch_clicked",
+                            ):
+                                parent_widget.graphics_adapter.feature_manager.signal_bridge.branch_clicked.emit(
+                                    self.target_node, stable_id, assigned_node
+                                )
+                            else:
+                                # Fallback: emit line_clicked if branch_clicked not available
+                                parent_widget.graphics_adapter.feature_manager.signal_bridge.line_clicked.emit(
+                                    self.target_node
+                                )
+                            break
+                parent_widget = getattr(parent_widget, "parent", lambda: None)()
+
+        logger.debug(
+            f"Branch clicked: {self.target_node}, branch: {stable_id}, assigned: {assigned_node}"
+        )
+
     def _emit_geometry_changed(self) -> None:
         """Emit geometry changed signal."""
         geometry_data = self.get_geometry_data()
@@ -1278,6 +1571,26 @@ class LineGraphicsItem(QGraphicsItem):
             )  # Can't delete if only one branch
             delete_branch_action.triggered.connect(lambda: self._delete_branch(pos))
             menu.addAction(delete_branch_action)
+
+            # Show connected features at junctions
+            # Detect if click is on a junction point
+            hit_result = self._test_control_point_hit(pos)
+            if hit_result:
+                branch_idx, point_idx = hit_result
+                if branch_idx < len(self.geometry.branches):
+                    point = self.geometry.branches[branch_idx][point_idx]
+                    point_key = (int(point[0]), int(point[1]))
+
+                    # Check if this is a junction (shared point)
+                    if hasattr(self.geometry, "_shared_points") and point_key in self.geometry._shared_points:
+                        connection_count = len(self.geometry._shared_points[point_key])
+                        if connection_count >= 3:
+                            show_connected_action = QAction(f"🔍 Show Connected ({connection_count} branches)", menu)
+                            show_connected_action.setStatusTip("Show all branches connected at this junction")
+                            show_connected_action.triggered.connect(
+                                lambda: self._show_connected_features(point_key)
+                            )
+                            menu.addAction(show_connected_action)
 
         else:
             # LineString - offer conversion option
@@ -1538,6 +1851,59 @@ class LineGraphicsItem(QGraphicsItem):
             self._emit_geometry_changed()
         else:
             logger.warning(f"Failed to delete branch {branch_to_delete}")
+
+    def _show_connected_features(self, junction_point: Tuple[int, int]) -> None:
+        """Show information about all branches connected at a junction point.
+
+        Args:
+            junction_point: The (x, y) coordinates of the junction
+        """
+        from PyQt6.QtWidgets import QMessageBox
+
+        if not hasattr(self.geometry, "_shared_points"):
+            return
+
+        if junction_point not in self.geometry._shared_points:
+            return
+
+        # Get all branches connected at this junction
+        connected_branches = self.geometry._shared_points[junction_point]
+        connection_count = len(connected_branches)
+
+        # Build information message
+        info_lines = [
+            f"Junction at ({junction_point[0]}, {junction_point[1]})",
+            f"Connected branches: {connection_count}",
+            "",
+            "Branch details:"
+        ]
+
+        for branch_idx, point_idx in connected_branches:
+            # Get stable ID
+            stable_id = None
+            if hasattr(self.geometry, "get_stable_id_from_branch_index"):
+                stable_id = self.geometry.get_stable_id_from_branch_index(branch_idx)
+
+            # Get assigned node
+            assigned_node = None
+            if stable_id and hasattr(self.geometry, "get_branch_assignment"):
+                assigned_node = self.geometry.get_branch_assignment(stable_id)
+
+            # Format branch info
+            branch_name = stable_id.replace("_", " ").title() if stable_id else f"Branch {branch_idx}"
+            node_info = f" → {assigned_node}" if assigned_node else " (unassigned)"
+
+            branch_len = len(self.geometry.branches[branch_idx]) if branch_idx < len(self.geometry.branches) else 0
+            info_lines.append(f"  • {branch_name}{node_info} ({branch_len} points)")
+
+        # Show dialog
+        msg_box = QMessageBox()
+        msg_box.setWindowTitle("Junction Connectivity")
+        msg_box.setText("\n".join(info_lines))
+        msg_box.setIcon(QMessageBox.Icon.Information)
+        msg_box.exec()
+
+        logger.info(f"Showed connectivity info for junction at {junction_point}")
 
     def _add_point(self, pos) -> None:
         """Add a point to the line at the clicked position.

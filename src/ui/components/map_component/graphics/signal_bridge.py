@@ -28,6 +28,7 @@ class GraphicsSignalBridge(QObject):
     
     # Line-specific signals
     line_clicked = pyqtSignal(str)  # node_name
+    branch_clicked = pyqtSignal(str, str, object)  # node_name, stable_id, assigned_node (None if unassigned)
     line_geometry_changed = pyqtSignal(str, list)  # node_name, points
     control_point_moved = pyqtSignal(str, int, int, int, int)  # node, branch, point, x, y
     line_segment_inserted = pyqtSignal(str, int, int)  # node, branch, segment
