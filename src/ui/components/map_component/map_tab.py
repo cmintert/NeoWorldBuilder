@@ -2,7 +2,7 @@ from typing import Dict, List, Optional, Tuple
 
 from PyQt6.QtCore import QEvent, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QKeyEvent, QPainter
-from PyQt6.QtWidgets import QFileDialog, QScrollArea, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFileDialog, QMessageBox, QScrollArea, QVBoxLayout, QWidget
 from structlog import get_logger
 
 from .drawing_manager import DrawingManager
@@ -468,17 +468,75 @@ class MapTab(QWidget):
         self.feature_loader.load_features()
 
     # File Operations
+    def _validate_image_file(self, file_path: str) -> Tuple[bool, str]:
+        """Validate that image file exists and is readable.
+
+        Args:
+            file_path: Path to the image file to validate.
+
+        Returns:
+            Tuple of (is_valid: bool, error_message: str)
+        """
+        import os
+        from pathlib import Path
+
+        if not file_path:
+            return False, "No file selected"
+
+        path = Path(file_path)
+
+        if not path.exists():
+            return False, f"File does not exist:\n{file_path}"
+
+        if not path.is_file():
+            return False, f"Path is not a file:\n{file_path}"
+
+        if not os.access(file_path, os.R_OK):
+            return False, f"File is not readable:\n{file_path}"
+
+        # Validate file extension
+        valid_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.gif'}
+        if path.suffix.lower() not in valid_extensions:
+            return False, f"Unsupported image format: {path.suffix}\nSupported formats: PNG, JPG, JPEG, BMP, GIF"
+
+        return True, ""
+
     def _change_map_image(self) -> None:
-        """Handle changing the map image."""
-        file_name, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select Map Image",
-            "",
-            "Image Files (*.png *.jpg *.jpeg);;All Files (*)",
-        )
-        if file_name:
+        """Handle changing the map image with validation and error handling."""
+        try:
+            file_name, _ = QFileDialog.getOpenFileName(
+                self,
+                "Select Map Image",
+                "",
+                "Image Files (*.png *.jpg *.jpeg *.bmp *.gif);;All Files (*)",
+            )
+
+            if not file_name:
+                logger.debug("No image file selected")
+                return
+
+            # Validate file before setting
+            is_valid, error_msg = self._validate_image_file(file_name)
+            if not is_valid:
+                logger.error("Invalid image file", path=file_name, error=error_msg)
+                QMessageBox.warning(
+                    self,
+                    "Invalid Image File",
+                    f"Cannot load image:\n\n{error_msg}"
+                )
+                return
+
             self.set_map_image(file_name)
             self.map_image_changed.emit(file_name)
+            logger.info("Map image changed successfully", path=file_name)
+
+        except Exception as e:
+            logger.error("Error selecting map image", exc_info=True)
+            QMessageBox.critical(
+                self,
+                "Error Loading Image",
+                f"An unexpected error occurred:\n\n{str(e)}"
+            )
 
     def _clear_map_image(self) -> None:
         """Clear the current map image."""
