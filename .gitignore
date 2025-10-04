@@ -164,7 +164,7 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# IDE files
+# IDE files - user-specific settings
 .idea/
 .vscode/
 *.swp
@@ -173,3 +173,18 @@ cython_debug/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Application logs - runtime generated
+src/logs/*.log
+*.log
+
+# Build artifacts - PyInstaller output
+*.spec
+dist/
+build/
+
+# Development tracking files - personal notes
+development_tracking.md
+graphmigration_progress.md
+migrationgraphic.md
+.gitignore-changes
