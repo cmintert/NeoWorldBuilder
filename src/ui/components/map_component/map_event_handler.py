@@ -435,7 +435,7 @@ class MapEventHandler(QObject):
                         "pattern": properties.get("style_pattern", "solid"),
                     }
                     self.parent_widget.graphics_adapter.feature_manager.add_branching_line_feature(
-                        target_node, branches, style_properties
+                        target_node, branches, style_properties, branch_assignments
                     )
 
                 # Exit branching line drawing mode
