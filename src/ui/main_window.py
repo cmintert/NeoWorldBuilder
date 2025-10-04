@@ -1,30 +1,30 @@
 import json
-from typing import Optional, Set, Dict, Any
+from typing import Any, Dict, Optional, Set
 
-from PyQt6.QtCore import pyqtSignal, Qt, QPoint, QTimer
+from PyQt6.QtCore import QPoint, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QWidget,
-    QHBoxLayout,
-    QSplitter,
-    QVBoxLayout,
-    QTreeView,
-    QLabel,
-    QSpinBox,
-    QProgressBar,
-    QTabWidget,
-    QLineEdit,
-    QPushButton,
-    QFormLayout,
-    QGroupBox,
-    QTableWidget,
-    QMenu,
-    QHeaderView,
-    QMessageBox,
-    QTableWidgetItem,
+    QApplication,
     QComboBox,
     QDialog,
     QDialogButtonBox,
-    QApplication,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QMenu,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QSpinBox,
+    QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QTreeView,
+    QVBoxLayout,
+    QWidget,
 )
 from structlog import get_logger
 
@@ -57,7 +57,6 @@ class WorldBuilderTreeView(QTreeView):
 
 
 class WorldBuildingUI(QWidget):
-
     # Class-level signals
     name_selected = pyqtSignal(str)
     refresh_requested = pyqtSignal()
@@ -1020,9 +1019,9 @@ class WorldBuildingUI(QWidget):
                 key_item = self.properties_table.item(row, 0)
                 value_item = self.properties_table.item(row, 1)
                 if key_item and value_item and key_item.text().startswith("calendar_"):
-                    raw_props[key_item.text().replace("calendar_", "")] = (
-                        value_item.text().strip()
-                    )
+                    raw_props[
+                        key_item.text().replace("calendar_", "")
+                    ] = value_item.text().strip()
 
             if raw_props:
                 return raw_props
@@ -1146,6 +1145,9 @@ class WorldBuildingUI(QWidget):
             self.map_tab.pin_created.connect(self._handle_pin_created)
             self.map_tab.pin_clicked.connect(self.controller._handle_pin_click)
             self.map_tab.line_created.connect(self.controller._handle_line_created)
+            self.map_tab.polygon_created.connect(
+                self.controller._handle_polygon_created
+            )
             self.tabs.addTab(self.map_tab, "Map")
 
             # Set initial map image if available in properties
@@ -1228,7 +1230,6 @@ class WorldBuildingUI(QWidget):
 
         # Look for existing property
         for row in range(self.properties_table.rowCount()):
-
             if self.properties_table.item(row, 0).text() == key:
                 self.properties_table.item(row, 1).setText(value)
                 return

@@ -34,6 +34,7 @@ class MapFeatureLoader:
         pin_data = []
         simple_line_data = []
         branching_line_data = {}
+        polygon_data = []
 
         relationships_table = self.controller.ui.relationships_table
         logger.info(
@@ -121,6 +122,39 @@ class MapFeatureLoader:
                     x, y = GeometryHandler.get_coordinates(properties["geometry"])
                     pin_data.append((target_node, x, y))
 
+                elif geometry_type == "Polygon":
+                    # Handle polygons
+                    points = GeometryHandler.get_coordinates(properties["geometry"])
+
+                    # Create polygon style config with defaults
+                    polygon_style = {
+                        "fill_color": properties.get("fill_color", "#4a90e2"),
+                        "fill_opacity": properties.get("fill_opacity", 0.3),
+                        "outline_color": properties.get("outline_color", "#2c5aa0"),
+                        "outline_width": properties.get("outline_width", 2.0),
+                        "outline_pattern": properties.get("outline_pattern", "solid"),
+                    }
+
+                    # Handle numeric values that might be stored as strings
+                    try:
+                        if isinstance(polygon_style["fill_opacity"], str):
+                            polygon_style["fill_opacity"] = float(
+                                polygon_style["fill_opacity"]
+                            )
+                        if isinstance(polygon_style["outline_width"], str):
+                            polygon_style["outline_width"] = float(
+                                polygon_style["outline_width"]
+                            )
+                    except (ValueError, TypeError):
+                        # Use defaults if conversion fails
+                        polygon_style["fill_opacity"] = 0.3
+                        polygon_style["outline_width"] = 2.0
+
+                    polygon_data.append((target_node, points, polygon_style))
+                    logger.debug(
+                        f"Loaded polygon for {target_node} with {len(points)} vertices"
+                    )
+
             except Exception as e:
                 logger.error(f"Error loading spatial feature: {e}")
                 continue
@@ -157,6 +191,13 @@ class MapFeatureLoader:
                 graphics_manager.add_branching_line_feature(
                     target_node, line_data["branches"], style_config, branch_assignments
                 )
+
+        if polygon_data and hasattr(self.parent_widget, "graphics_adapter"):
+            logger.info(f"Creating {len(polygon_data)} polygons")
+            graphics_manager = self.parent_widget.graphics_adapter.feature_manager
+            for polygon in polygon_data:
+                target_node, points, style_config = polygon
+                graphics_manager.add_polygon_feature(target_node, points, style_config)
 
     def _extract_target_node(self, target_item, relationships_table, row) -> str:
         """Extract target node name from table item."""

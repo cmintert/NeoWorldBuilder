@@ -9,6 +9,9 @@ from ui.components.map_component.dialogs.branching_line_feature_dialog import (
 )
 from ui.components.map_component.dialogs.line_feature_dialog import LineFeatureDialog
 from ui.components.map_component.dialogs.pin_placement_dialog import PinPlacementDialog
+from ui.components.map_component.dialogs.polygon_feature_dialog import (
+    PolygonFeatureDialog,
+)
 from utils.geometry_handler import GeometryHandler
 
 from .utils.coordinate_transformer import CoordinateTransformer
@@ -26,6 +29,7 @@ class MapEventHandler(QObject):
     # Signals
     pin_created = pyqtSignal(str, str, dict)
     line_created = pyqtSignal(str, str, dict)
+    polygon_created = pyqtSignal(str, str, dict)
     pin_clicked = pyqtSignal(str)
 
     def __init__(self, parent_widget, controller=None):
@@ -49,6 +53,8 @@ class MapEventHandler(QObject):
             self._handle_line_point_add(x, y)
         elif self.parent_widget.branching_line_drawing_active:
             self._handle_branching_line_point_add(x, y)
+        elif self.parent_widget.polygon_drawing_active:
+            self._handle_polygon_point_add(x, y)
 
     def handle_viewport_key_press(self, event: QKeyEvent) -> None:
         """Handle key press events from the viewport."""
@@ -65,6 +71,12 @@ class MapEventHandler(QObject):
         if key_value == 83 or key_value == 115:  # Use literal values for reliability
             logger.info("S key pressed - toggling snapping mode")
             self._handle_s_key_press()
+            return
+
+        # Check for the Tab key (ASCII 9) to toggle polygon drawing
+        if key_value == 9:  # Tab key
+            logger.info("Tab key pressed - toggling polygon drawing mode")
+            self._handle_tab_key_press()
             return
 
         # Try normal key handling in drawing manager
@@ -223,6 +235,26 @@ class MapEventHandler(QObject):
         else:
             logger.warning("No graphics adapter available for snap toggle")
 
+    def _handle_tab_key_press(self) -> None:
+        """Handle Tab key press to toggle polygon drawing mode."""
+        logger.info("Handling Tab key press for polygon drawing toggle")
+
+        # Toggle polygon drawing mode
+        current_state = self.parent_widget.polygon_drawing_active
+        new_state = not current_state
+
+        logger.info(f"Toggling polygon drawing: {current_state} -> {new_state}")
+
+        # Use the toolbar manager to toggle the button (this will trigger the mode change)
+        if (
+            hasattr(self.parent_widget, "toolbar_manager")
+            and self.parent_widget.toolbar_manager.polygon_toggle_btn
+        ):
+            self.parent_widget.toolbar_manager.polygon_toggle_btn.setChecked(new_state)
+        else:
+            # Direct mode toggle if toolbar manager isn't available
+            self.parent_widget.toggle_polygon_drawing(new_state)
+
     def handle_feature_click(self, target_node: str) -> None:
         """Handle clicks on features."""
         self.pin_clicked.emit(target_node)
@@ -283,6 +315,14 @@ class MapEventHandler(QObject):
         scaled_y = y * self.parent_widget.current_scale
 
         self.parent_widget.drawing_manager.add_branching_point(x, y, scaled_x, scaled_y)
+
+    def _handle_polygon_point_add(self, x: int, y: int) -> None:
+        """Handle adding a point to the current polygon being drawn."""
+        # Convert to scaled coordinates for display
+        scaled_x = x * self.parent_widget.current_scale
+        scaled_y = y * self.parent_widget.current_scale
+
+        self.parent_widget.drawing_manager.add_polygon_point(x, y, scaled_x, scaled_y)
 
     def handle_line_completion(self, points: list) -> None:
         """Handle completion of line drawing."""
@@ -410,6 +450,75 @@ class MapEventHandler(QObject):
 
                 logger.error(traceback.format_exc())
                 return
+
+    def handle_polygon_completion(self, points: list) -> None:
+        """Handle completion of polygon drawing.
+
+        Args:
+            points: List of (x, y) coordinates defining the polygon vertices
+        """
+        if len(points) < 3:
+            logger.warning("Attempted to complete polygon with insufficient points")
+            return
+
+        # Get existing node names for autocomplete
+        existing_names = []
+        if (
+            hasattr(self.controller, "name_cache_service")
+            and self.controller.name_cache_service
+        ):
+            existing_names = list(self.controller.name_cache_service.get_cached_names())
+
+        dialog = PolygonFeatureDialog(
+            self.controller, existing_names, self.parent_widget
+        )
+        if dialog.exec():
+            target_node = dialog.get_node_name()
+            style = dialog.get_style_properties()
+
+            try:
+                # Create WKT Polygon
+                wkt_polygon = GeometryHandler.create_polygon(points)
+                properties = {
+                    "geometry": wkt_polygon,
+                    "geometry_type": "Polygon",
+                    "fill_color": style["fill_color"],
+                    "fill_opacity": style["fill_opacity"],
+                    "outline_color": style["outline_color"],
+                    "outline_width": style["outline_width"],
+                    "outline_pattern": style["outline_pattern"],
+                }
+
+                # Create the polygon and emit signals
+                self.polygon_created.emit(target_node, ">", properties)
+
+                # Create visual representation
+                if hasattr(self.parent_widget, "graphics_adapter"):
+                    # Convert properties to style config format expected by graphics system
+                    style_properties = {
+                        "fill_color": properties.get("fill_color", "#4a90e2"),
+                        "fill_opacity": properties.get("fill_opacity", 0.3),
+                        "outline_color": properties.get("outline_color", "#2c5aa0"),
+                        "outline_width": properties.get("outline_width", 2.0),
+                        "outline_pattern": properties.get("outline_pattern", "solid"),
+                    }
+                    self.parent_widget.graphics_adapter.feature_manager.add_polygon_feature(
+                        target_node, points, style_properties
+                    )
+
+                # Exit polygon drawing mode
+                self.parent_widget.toolbar_manager.block_button_signals(True)
+                self.parent_widget.polygon_toggle_btn.setChecked(False)
+                self.parent_widget.toolbar_manager.block_button_signals(False)
+                self.parent_widget.mode_manager.polygon_drawing_active = False
+
+                logger.debug(f"Polygon created successfully: {target_node}")
+
+            except Exception as e:
+                logger.error(f"Error creating polygon: {e}")
+                import traceback
+
+                logger.error(traceback.format_exc())
 
         elif self.parent_widget.edit_mode_active:
             if nearest["type"] == "control_point":

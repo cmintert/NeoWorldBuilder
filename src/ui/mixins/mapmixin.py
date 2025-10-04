@@ -1,14 +1,14 @@
 import json
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
+from structlog import get_logger
 
 from ui.components.map_component.map_tab import MapTab
-from structlog import get_logger
 
 logger = get_logger(__name__)
 
 
 class MapMixin:
-
     def _ensure_map_tab_exists(self) -> None:
         """Create map tab if it doesn't exist."""
         if not self.ui.map_tab:
@@ -28,6 +28,9 @@ class MapMixin:
             print("Connecting line_created signal")
             self.ui.map_tab.line_created.connect(self._handle_line_created)
 
+            print("Connecting polygon_created signal")
+            self.ui.map_tab.polygon_created.connect(self._handle_polygon_created)
+
             # Check if connections were successful
             print(f"Signal connections status:")
             print(
@@ -36,6 +39,9 @@ class MapMixin:
             print(f"- pin_clicked: {self.ui.map_tab.pin_clicked.receivers() > 0}")
             print(f"- pin_created: {self.ui.map_tab.pin_created.receivers() > 0}")
             print(f"- line_created: {self.ui.map_tab.line_created.receivers() > 0}")
+            print(
+                f"- polygon_created: {self.ui.map_tab.polygon_created.receivers() > 0}"
+            )
 
             self.ui.tabs.addTab(self.ui.map_tab, "Map")
 
@@ -50,7 +56,7 @@ class MapMixin:
             properties: Properties including x,y coordinates
         """
         logger.info(f"Pin created handler called for target: {target_node}")
-        
+
         # Get current node name (the map node)
         source_node = self.ui.name_input.text().strip()
         if not source_node:
@@ -58,7 +64,7 @@ class MapMixin:
             return
 
         logger.info(f"Creating pin relationship: {source_node} SHOWS {target_node}")
-        
+
         # Add new relationship row with SHOWS type
         self.ui.add_relationship_row(
             "SHOWS", target_node, direction, json.dumps(properties)
@@ -66,12 +72,14 @@ class MapMixin:
 
         # Update save state to reflect changes
         self.update_unsaved_changes_indicator()
-        
+
         logger.info("Pin relationship created, staying on map tab")
 
     def _handle_pin_click(self, target_node: str) -> None:
         """Handle pin click by loading the target node."""
-        logger.info(f"Pin click handler called for target: {target_node} - NAVIGATING TO NODE")
+        logger.info(
+            f"Pin click handler called for target: {target_node} - NAVIGATING TO NODE"
+        )
         self.ui.name_input.setText(target_node)
         self.load_node_data()
         self.ui.tabs.setCurrentIndex(0)
@@ -147,3 +155,46 @@ class MapMixin:
         # Update save state to reflect changes
         self.update_unsaved_changes_indicator()
         print("Line relationship creation completed")
+
+    def _handle_polygon_created(
+        self, target_node: str, direction: str, properties: dict
+    ) -> None:
+        """Handle creation of a new map polygon relationship.
+
+        Args:
+            target_node: The node to link to
+            direction: Relationship direction
+            properties: Properties including polygon geometry and style
+        """
+        logger.info(f"Polygon created handler called for target: {target_node}")
+        logger.info(f"Properties: {properties}")
+
+        # Get current node name (the map node)
+        source_node = self.ui.name_input.text().strip()
+        logger.info(f"Source node: {source_node}")
+
+        if not source_node:
+            logger.warning("No source node, cannot create polygon relationship")
+            return
+
+        # Add new relationship row with SHOWS type (same as pins and lines)
+        logger.info(
+            f"Adding polygon relationship row: SHOWS, {target_node}, {direction}"
+        )
+        try:
+            properties_json = json.dumps(properties)
+            logger.info(f"Properties JSON: {properties_json[:100]}...")
+            self.ui.add_relationship_row(
+                "SHOWS", target_node, direction, properties_json
+            )
+            logger.info("Polygon relationship row added successfully")
+        except Exception as e:
+            logger.error(f"Error adding polygon relationship row: {e}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            return
+
+        # Update save state to reflect changes
+        self.update_unsaved_changes_indicator()
+        logger.info("Polygon relationship creation completed")

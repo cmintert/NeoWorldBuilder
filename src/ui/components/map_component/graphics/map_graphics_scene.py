@@ -111,22 +111,29 @@ class MapGraphicsScene(QGraphicsScene):
         logger.info("Map scene cleared")
 
     # Coordinate transformation methods
-    def scene_to_original_coords(self, scene_point: QPointF) -> Tuple[int, int]:
+    def scene_to_original_coords(self, scene_point: QPointF) -> Tuple[float, float]:
         """Convert scene coordinates to original image coordinates.
 
         Args:
             scene_point: Point in scene coordinates
 
         Returns:
-            Tuple of (x, y) in original image coordinates
+            Tuple of (x, y) in original image coordinates as floats for precision
         """
         # Scene coordinates are 1:1 with image pixels by design
         x = scene_point.x()
         y = scene_point.y()
 
-        # Clamp to image bounds
-        x = max(0, min(x, self.image_width - 1))
-        y = max(0, min(y, self.image_height - 1))
+        # Debug: Log the raw scene coordinates
+        logger.debug(
+            f"Converting scene coords: ({x}, {y}) with image bounds ({self.image_width}, {self.image_height})"
+        )
+
+        # Clamp to image bounds (keep as floats for precision)
+        x = max(0.0, min(x, float(self.image_width - 1)))
+        y = max(0.0, min(y, float(self.image_height - 1)))
+
+        logger.debug(f"Final original coords: ({x}, {y})")
 
         return x, y
 

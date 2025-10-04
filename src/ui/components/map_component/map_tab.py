@@ -1,24 +1,19 @@
-from typing import Optional, List, Tuple, Dict
+from typing import Dict, List, Optional, Tuple
 
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QEvent
+from PyQt6.QtCore import QEvent, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QKeyEvent, QPainter
-from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QScrollArea,
-    QFileDialog,
-)
+from PyQt6.QtWidgets import QFileDialog, QScrollArea, QVBoxLayout, QWidget
 from structlog import get_logger
 
 from .drawing_manager import DrawingManager
+from .map_coordinate_utilities import MapCoordinateUtilities
+from .map_event_handler import MapEventHandler
+from .map_feature_loader import MapFeatureLoader
 from .map_image_loader import ImageManager
+from .map_mode_manager import MapModeManager
+from .map_toolbar_manager import MapToolbarManager
 from .map_viewport import MapViewport
 from .utils.coordinate_transformer import CoordinateTransformer
-from .map_toolbar_manager import MapToolbarManager
-from .map_mode_manager import MapModeManager
-from .map_coordinate_utilities import MapCoordinateUtilities
-from .map_feature_loader import MapFeatureLoader
-from .map_event_handler import MapEventHandler
 
 logger = get_logger(__name__)
 
@@ -36,6 +31,7 @@ class MapTab(QWidget):
     pin_created = pyqtSignal(str, str, dict)
     pin_clicked = pyqtSignal(str)
     line_created = pyqtSignal(str, str, dict)
+    polygon_created = pyqtSignal(str, str, dict)
 
     def __init__(self, parent: Optional[QWidget] = None, controller=None) -> None:
         """Initialize the map tab.
@@ -64,7 +60,7 @@ class MapTab(QWidget):
 
         # Install event filter to catch key presses
         self.installEventFilter(self)
-        
+
         # Enable graphics mode (only mode available)
         self._enable_graphics_mode()
 
@@ -123,7 +119,7 @@ class MapTab(QWidget):
         # Graphics mode is now the only mode - widget system removed
 
         self.scroll_area.setWidget(self.image_label)
-        
+
         # Install event filter only on image label to handle wheel events over the map
         # Don't install on scroll_area.viewport() to allow zoom slider to receive wheel events
         self.image_label.installEventFilter(self)
@@ -137,31 +133,35 @@ class MapTab(QWidget):
     @property
     def change_map_btn(self):
         return self.toolbar_manager.change_map_btn
-    
+
     @property
     def clear_map_btn(self):
         return self.toolbar_manager.clear_map_btn
-    
+
     @property
     def pin_toggle_btn(self):
         return self.toolbar_manager.pin_toggle_btn
-    
+
     @property
     def line_toggle_btn(self):
         return self.toolbar_manager.line_toggle_btn
-    
+
     @property
     def branching_line_toggle_btn(self):
         return self.toolbar_manager.branching_line_toggle_btn
-    
+
+    @property
+    def polygon_toggle_btn(self):
+        return self.toolbar_manager.polygon_toggle_btn
+
     @property
     def edit_toggle_btn(self):
         return self.toolbar_manager.edit_toggle_btn
-    
+
     @property
     def zoom_slider(self):
         return self.toolbar_manager.zoom_slider
-    
+
     @property
     def reset_button(self):
         return self.toolbar_manager.reset_button
@@ -177,6 +177,7 @@ class MapTab(QWidget):
         self.drawing_manager.branching_line_completed.connect(
             self._handle_branching_line_completion
         )
+        self.drawing_manager.polygon_completed.connect(self._handle_polygon_completion)
         self.drawing_manager.drawing_updated.connect(self._handle_drawing_update)
 
         # Graphics feature manager signals connected via adapter
@@ -187,6 +188,7 @@ class MapTab(QWidget):
         # Event handler signals
         self.event_handler.pin_created.connect(self.pin_created.emit)
         self.event_handler.line_created.connect(self.line_created.emit)
+        self.event_handler.polygon_created.connect(self.polygon_created.emit)
         self.event_handler.pin_clicked.connect(self.pin_clicked.emit)
 
         # Connect to controller if available (handled through event_handler now)
@@ -230,23 +232,23 @@ class MapTab(QWidget):
 
         # Update display
         self._update_map_image_display()
-        
+
         # Also load image in graphics adapter if available
-        if hasattr(self, 'graphics_adapter') and self.map_image_path:
+        if hasattr(self, "graphics_adapter") and self.map_image_path:
             self.graphics_adapter.load_image(self.map_image_path)
-        
+
         self.load_features()
 
     def _on_image_error(self, error_msg: str) -> None:
         """Handle image loading errors."""
-        if hasattr(self, 'graphics_adapter'):
+        if hasattr(self, "graphics_adapter"):
             self.graphics_adapter.feature_manager.clear_all_features()
         self.image_label.setText(f"Error loading map image: {error_msg}")
         logger.error(f"Map image loading failed: {error_msg}")
 
     def _clear_image(self) -> None:
         """Clear the current image and features."""
-        if hasattr(self, 'graphics_adapter'):
+        if hasattr(self, "graphics_adapter"):
             self.graphics_adapter.feature_manager.clear_all_features()
         self.image_label.clear()
         self.image_label.setText("No map image set")
@@ -362,6 +364,10 @@ class MapTab(QWidget):
         """Toggle branching line drawing mode."""
         self.mode_manager.toggle_branching_line_drawing(active)
 
+    def toggle_polygon_drawing(self, active: bool) -> None:
+        """Toggle polygon drawing mode."""
+        self.mode_manager.toggle_polygon_drawing(active)
+
     def toggle_edit_mode(self, active: bool) -> None:
         """Toggle edit mode for existing lines."""
         self.mode_manager.toggle_edit_mode(active)
@@ -380,42 +386,46 @@ class MapTab(QWidget):
         return self.mode_manager.branching_line_drawing_active
 
     @property
+    def polygon_drawing_active(self) -> bool:
+        return self.mode_manager.polygon_drawing_active
+
+    @property
     def edit_mode_active(self) -> bool:
         return self.mode_manager.edit_mode_active
 
     @property
     def branch_creation_mode(self) -> bool:
         return self.mode_manager.branch_creation_mode
-    
+
     @branch_creation_mode.setter
     def branch_creation_mode(self, active: bool) -> None:
         self.mode_manager.branch_creation_mode = active
-    
+
     @property
     def _branch_creation_start_point(self) -> Optional[tuple]:
         """Get the branch creation start point from mode manager."""
         return self.mode_manager.get_branch_creation_start_point()
-    
+
     @_branch_creation_start_point.setter
     def _branch_creation_start_point(self, point: tuple) -> None:
         """Set the branch creation start point via mode manager."""
         self.mode_manager.set_branch_creation_start_point(point)
-    
+
     @property
     def _branch_creation_target(self) -> Optional[str]:
         """Get the branch creation target from mode manager."""
         return self.mode_manager.get_branch_creation_target()
-    
+
     @_branch_creation_target.setter
     def _branch_creation_target(self, target: str) -> None:
         """Set the branch creation target via mode manager."""
         self.mode_manager.set_branch_creation_target(target)
-    
+
     @property
     def _branch_creation_point_indices(self) -> Optional[tuple]:
         """Get the branch creation point indices from mode manager."""
         return self.mode_manager.get_branch_creation_point_indices()
-    
+
     @_branch_creation_point_indices.setter
     def _branch_creation_point_indices(self, indices: tuple) -> None:
         """Set the branch creation point indices via mode manager."""
@@ -435,6 +445,10 @@ class MapTab(QWidget):
     ) -> None:
         """Handle completion of branching line drawing."""
         self.event_handler.handle_branching_line_completion(branches)
+
+    def _handle_polygon_completion(self, points: List[Tuple[int, int]]) -> None:
+        """Handle completion of polygon drawing."""
+        self.event_handler.handle_polygon_completion(points)
 
     def _handle_drawing_update(self) -> None:
         """Handle updates to drawing state."""
@@ -501,10 +515,9 @@ class MapTab(QWidget):
             if obj == self.image_label:
                 # Let the image label handle its own wheel event normally
                 return False
-        
+
         # Handle key press events
         if event.type() == QEvent.Type.KeyPress:
-
             # Check for the 'b' key (ASCII 66 for 'B', 98 for 'b')
             if (
                 event.key() == 66 or event.key() == 98
@@ -518,9 +531,9 @@ class MapTab(QWidget):
 
     def _handle_b_key_press(self) -> None:
         """Handle B key press for branch creation - delegates to event handler."""
-        if hasattr(self, 'event_handler'):
+        if hasattr(self, "event_handler"):
             self.event_handler._handle_b_key_press()
-    
+
     def _reset_branch_creation_mode(self) -> None:
         """Reset branch creation mode state."""
         self.mode_manager.reset_branch_creation_mode()
@@ -532,18 +545,18 @@ class MapTab(QWidget):
 
     def get_feature_count(self) -> Dict[str, int]:
         """Get count of features by type."""
-        if hasattr(self, 'graphics_adapter'):
+        if hasattr(self, "graphics_adapter"):
             return self.graphics_adapter.feature_manager.get_feature_count()
         return {}
 
     def _complete_branch_creation(self, end_x: int, end_y: int) -> None:
         """Complete branch creation with the specified end point."""
         self.event_handler._complete_branch_creation(end_x, end_y)
-    
+
     # Graphics Mode Integration (Phase 1 Migration)
     def enable_graphics_mode(self) -> None:
         """Enable experimental graphics mode using QGraphicsView.
-        
+
         This is part of the migration from widget-based to graphics-based
         map rendering. When enabled, it replaces the QLabel viewport with
         a QGraphicsView implementation.
@@ -551,47 +564,54 @@ class MapTab(QWidget):
         try:
             # Import here to make it optional
             from .graphics import MapTabGraphicsAdapter
-            
+
             # Create adapter if not already created
-            if not hasattr(self, 'graphics_adapter'):
+            if not hasattr(self, "graphics_adapter"):
                 self.graphics_adapter = MapTabGraphicsAdapter(self, self.config)
-                
+
                 # Connect adapter signals to existing signals
                 self.graphics_adapter.pin_clicked.connect(self.pin_clicked.emit)
                 self.graphics_adapter.line_created.connect(self.line_created.emit)
-                self.graphics_adapter.map_image_changed.connect(self.map_image_changed.emit)
-                
+                self.graphics_adapter.map_image_changed.connect(
+                    self.map_image_changed.emit
+                )
+
                 logger.info("Graphics adapter created")
-            
+
             # Enable graphics mode
             self.graphics_adapter.enable_migration()
-            
+
             # Load current image if any
             if self.map_image_path:
                 self.graphics_adapter.load_image(self.map_image_path)
-            
+
             logger.info("Graphics mode enabled")
-            
+
         except Exception as e:
             logger.error(f"Failed to enable graphics mode: {e}")
-    
+
     def disable_graphics_mode(self) -> None:
         """Graphics mode is now the only mode - this method is deprecated."""
-        logger.warning("disable_graphics_mode called but graphics mode is now the only mode")
-    
+        logger.warning(
+            "disable_graphics_mode called but graphics mode is now the only mode"
+        )
+
     def is_graphics_mode(self) -> bool:
         """Check if graphics mode is currently enabled.
-        
+
         Returns:
             True if graphics mode is active
         """
-        return hasattr(self, 'graphics_adapter') and self.graphics_adapter.is_graphics_mode()
-    
+        return (
+            hasattr(self, "graphics_adapter")
+            and self.graphics_adapter.is_graphics_mode()
+        )
+
     def _enable_graphics_mode(self) -> None:
         """Enable graphics mode (only mode available)."""
         try:
             self.enable_graphics_mode()
-            if hasattr(self, 'graphics_adapter'):
+            if hasattr(self, "graphics_adapter"):
                 logger.info("Graphics mode enabled for MapTab successfully")
             else:
                 logger.error("Graphics mode failed - no adapter created")

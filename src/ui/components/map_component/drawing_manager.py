@@ -1,8 +1,7 @@
 from typing import Optional
 
-from PyQt6.QtCore import QObject, pyqtSignal, QPointF, Qt
-from PyQt6.QtGui import QPainter, QPen, QColor, QBrush
-
+from PyQt6.QtCore import QObject, QPointF, Qt, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor, QPainter, QPen
 from structlog import get_logger
 
 logger = get_logger(__name__)
@@ -15,6 +14,9 @@ class DrawingManager(QObject):
     line_completed = pyqtSignal(list)  # Emits list of points when line is complete
     drawing_updated = pyqtSignal()  # Signals that drawing_decap state changed
     branching_line_completed = pyqtSignal(list)  # Emits list of branches when complete
+    polygon_completed = pyqtSignal(
+        list
+    )  # Emits list of points when polygon is complete
 
     def __init__(self):
         """Initialize the drawing_decap manager."""
@@ -35,10 +37,17 @@ class DrawingManager(QObject):
         self.last_mouse_position = (0, 0)  # Original coordinates
         self.last_mouse_position_scaled = (0, 0)  # Scaled coordinates
 
+        # Polygon drawing state
+        self.is_drawing_polygon = False
+        self.current_polygon_points = []  # Original coordinates
+        self.temp_polygon_coordinates = []  # Scaled coordinates for display
+
         # Drawing style
         self.temp_line_color = QColor("#3388FF")
         self.temp_line_width = 2
         self.temp_line_style = Qt.PenStyle.DashLine
+        self.temp_polygon_fill_color = QColor("#4a90e2")
+        self.temp_polygon_fill_opacity = 0.3
 
     def start_line_drawing(self) -> None:
         """Start line drawing_decap mode."""
@@ -70,6 +79,41 @@ class DrawingManager(QObject):
             logger.debug("Line drawing_decap completed")
         else:
             logger.debug("Line drawing_decap cancelled")
+
+    def start_polygon_drawing(self) -> None:
+        """Start polygon drawing mode."""
+        self.is_drawing_polygon = True
+        self.current_polygon_points = []
+        self.temp_polygon_coordinates = []
+        self.drawing_updated.emit()
+        logger.debug("Started polygon drawing mode")
+
+    def stop_polygon_drawing(self, complete: bool = False) -> None:
+        """Stop polygon drawing mode.
+
+        Args:
+            complete: Whether to complete the polygon (emit signal) or just cancel
+        """
+        if (
+            self.is_drawing_polygon
+            and complete
+            and len(self.current_polygon_points) >= 3
+        ):
+            # Complete the polygon
+            points = self.current_polygon_points.copy()
+            logger.debug(f"Completing polygon with {len(points)} points")
+            self.polygon_completed.emit(points)
+
+        # Reset polygon state
+        self.is_drawing_polygon = False
+        self.current_polygon_points = []
+        self.temp_polygon_coordinates = []
+        self.drawing_updated.emit()
+
+        if complete:
+            logger.debug("Polygon drawing completed")
+        else:
+            logger.debug("Polygon drawing cancelled")
 
     def start_branching_line_drawing(self) -> None:
         """Start branching line drawing_decap mode."""
@@ -302,6 +346,34 @@ class DrawingManager(QObject):
         self.drawing_updated.emit()
         return True
 
+    def add_polygon_point(
+        self, original_x: int, original_y: int, scaled_x: float, scaled_y: float
+    ) -> bool:
+        """Add a point to the polygon being drawn.
+
+        Args:
+            original_x: X coordinate in original image space
+            original_y: Y coordinate in original image space
+            scaled_x: X coordinate in scaled display space
+            scaled_y: Y coordinate in scaled display space
+
+        Returns:
+            True if point was added, False if not in drawing mode
+        """
+        if not self.is_drawing_polygon:
+            return False
+
+        self.current_polygon_points.append((original_x, original_y))
+        self.temp_polygon_coordinates.append((scaled_x, scaled_y))
+
+        logger.debug(
+            f"Added point to polygon: ({original_x}, {original_y}) - "
+            f"Total points: {len(self.current_polygon_points)}"
+        )
+
+        self.drawing_updated.emit()
+        return True
+
     def add_branching_point(
         self, original_x: int, original_y: int, scaled_x: float, scaled_y: float
     ) -> bool:
@@ -347,6 +419,14 @@ class DrawingManager(QObject):
         """
         return len(self.current_line_points) >= 2
 
+    def can_complete_polygon(self) -> bool:
+        """Check if the current polygon can be completed.
+
+        Returns:
+            True if polygon has at least 3 points
+        """
+        return len(self.current_polygon_points) >= 3
+
     def get_point_count(self) -> int:
         """Get number of points in current line.
 
@@ -376,6 +456,50 @@ class DrawingManager(QObject):
             p2 = self.temp_line_coordinates[i + 1]
             painter.drawLine(int(p1[0]), int(p1[1]), int(p2[0]), int(p2[1]))
 
+    def draw_temporary_polygon(self, painter: QPainter) -> None:
+        """Draw the temporary polygon being constructed.
+
+        Args:
+            painter: QPainter instance to draw with
+        """
+        if not self.is_drawing_polygon or len(self.temp_polygon_coordinates) < 1:
+            return
+
+        # Create a polygon from the points
+        from PyQt6.QtGui import QPolygonF
+
+        polygon = QPolygonF(
+            [QPointF(p[0], p[1]) for p in self.temp_polygon_coordinates]
+        )
+
+        # Set up pen for outline
+        pen = QPen(self.temp_line_color)
+        pen.setWidth(self.temp_line_width)
+        pen.setStyle(self.temp_line_style)
+        painter.setPen(pen)
+
+        # Set up brush for fill (semi-transparent)
+        fill_color = QColor(self.temp_polygon_fill_color)
+        fill_color.setAlphaF(self.temp_polygon_fill_opacity)
+        painter.setBrush(QBrush(fill_color))
+
+        if len(self.temp_polygon_coordinates) >= 3:
+            # Draw filled polygon
+            painter.drawPolygon(polygon)
+        else:
+            # Just draw lines if we don't have enough points yet
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            for i in range(len(self.temp_polygon_coordinates) - 1):
+                p1 = self.temp_polygon_coordinates[i]
+                p2 = self.temp_polygon_coordinates[i + 1]
+                painter.drawLine(int(p1[0]), int(p1[1]), int(p2[0]), int(p2[1]))
+
+        # Draw vertex markers
+        painter.setBrush(QBrush(QColor("#FF0000")))
+        painter.setPen(QPen(QColor("#FFFFFF"), 2))
+        for point in self.temp_polygon_coordinates:
+            painter.drawEllipse(QPointF(point[0], point[1]), 4, 4)
+
     def handle_key_press(self, key: int) -> bool:
         """Handle key press events for drawing_decap operations.
 
@@ -392,12 +516,18 @@ class DrawingManager(QObject):
             elif self.is_drawing_branching_line:
                 self.stop_branching_line_drawing(complete=False)
                 return True
+            elif self.is_drawing_polygon:
+                self.stop_polygon_drawing(complete=False)
+                return True
         elif key == Qt.Key.Key_Return:
             if self.is_drawing_line and self.can_complete_line():
                 self.stop_line_drawing(complete=True)
                 return True
             elif self.is_drawing_branching_line and self._can_complete_branching_line():
                 self.stop_branching_line_drawing(complete=True)
+                return True
+            elif self.is_drawing_polygon and self.can_complete_polygon():
+                self.stop_polygon_drawing(complete=True)
                 return True
 
         # Removed B key handling since it's now handled in MapTab
@@ -424,6 +554,14 @@ class DrawingManager(QObject):
                 self.temp_branch_coordinates[i] = [
                     (point[0] * scale, point[1] * scale) for point in branch
                 ]
+            self.drawing_updated.emit()
+
+        if self.is_drawing_polygon:
+            # Recalculate temp coordinates from original points
+            self.temp_polygon_coordinates = [
+                (point[0] * scale, point[1] * scale)
+                for point in self.current_polygon_points
+            ]
             self.drawing_updated.emit()
 
     def set_drawing_style(
@@ -508,7 +646,6 @@ class DrawingManager(QObject):
                 and nearest_point_idx
                 < len(self.temp_branch_coordinates[nearest_branch_idx])
             ):
-
                 # Get scaled version of nearest point
                 temp_point = self.temp_branch_coordinates[nearest_branch_idx][
                     nearest_point_idx

@@ -254,6 +254,59 @@ class GraphicsFeatureManager(QObject):
 
         return line_item
 
+    def add_polygon_feature(
+        self,
+        node_name: str,
+        points: List[Tuple[int, int]],
+        properties: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        """Add a polygon feature to the scene.
+
+        Args:
+            node_name: Name of the node
+            points: List of (x, y) coordinates in original image space
+            properties: Style properties for the polygon
+
+        Returns:
+            The created graphics item
+        """
+        # Import here to avoid circular imports
+        from .polygon_graphics_item import PolygonGraphicsItem
+
+        # Remove existing feature if present
+        if node_name in self.features:
+            self.remove_feature(node_name)
+
+        # Convert coordinates to float for precision
+        float_points = [(float(x), float(y)) for x, y in points]
+
+        # Create polygon graphics item
+        logger.debug(
+            f"Creating polygon graphics item for {node_name} with style properties: {properties}"
+        )
+        polygon_item = PolygonGraphicsItem(
+            points=float_points,
+            feature_id=node_name,
+            node_name=node_name,
+            style=properties,
+        )
+
+        # Set edit mode if currently enabled
+        polygon_item.set_edit_mode(self.edit_mode_enabled)
+
+        # Add to scene and track
+        self.scene.add_feature_item(node_name, polygon_item)
+        self.features[node_name] = polygon_item
+        self.feature_types[node_name] = "polygon"
+
+        # Connect to signal bridge
+        self.signal_bridge.connect_graphics_item(node_name, polygon_item)
+
+        self.feature_added.emit("polygon", node_name)
+        logger.info(f"Created polygon feature: {node_name} with {len(points)} vertices")
+
+        return polygon_item
+
     def remove_feature(self, node_name: str) -> None:
         """Remove a feature from the scene.
 

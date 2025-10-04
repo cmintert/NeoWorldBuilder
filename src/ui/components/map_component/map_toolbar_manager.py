@@ -1,12 +1,7 @@
 from typing import Optional
-from PyQt6.QtCore import Qt, QObject
-from PyQt6.QtWidgets import (
-    QHBoxLayout,
-    QVBoxLayout,
-    QLabel,
-    QSlider,
-    QPushButton,
-)
+
+from PyQt6.QtCore import QObject, Qt
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSlider, QVBoxLayout
 
 
 class MapToolbarManager(QObject):
@@ -33,6 +28,7 @@ class MapToolbarManager(QObject):
         self.pin_toggle_btn = None
         self.line_toggle_btn = None
         self.branching_line_toggle_btn = None
+        self.polygon_toggle_btn = None
         self.edit_toggle_btn = None
         self.zoom_slider = None
         self.reset_button = None
@@ -70,6 +66,13 @@ class MapToolbarManager(QObject):
             "Toggle branching line drawing mode (ESC to cancel, Enter to complete)"
         )
 
+        self.polygon_toggle_btn = QPushButton("🔷 Draw Polygon")
+        self.polygon_toggle_btn.setCheckable(True)
+        self.polygon_toggle_btn.toggled.connect(self._handle_polygon_toggle)
+        self.polygon_toggle_btn.setToolTip(
+            "Toggle polygon drawing mode (ESC to cancel, Enter to complete)"
+        )
+
         self.edit_toggle_btn = QPushButton("✏️ Edit Mode")
         self.edit_toggle_btn.setCheckable(True)
         self.edit_toggle_btn.toggled.connect(self._handle_edit_toggle)
@@ -81,6 +84,7 @@ class MapToolbarManager(QObject):
         image_controls.addWidget(self.pin_toggle_btn)
         image_controls.addWidget(self.line_toggle_btn)
         image_controls.addWidget(self.branching_line_toggle_btn)
+        image_controls.addWidget(self.polygon_toggle_btn)
         image_controls.addWidget(self.edit_toggle_btn)
         image_controls.addStretch()
 
@@ -146,6 +150,14 @@ class MapToolbarManager(QObject):
             else:
                 self.branching_line_toggle_btn.setStyleSheet("")
 
+    def update_polygon_button_style(self, active: bool) -> None:
+        """Update polygon button styling based on active state."""
+        if self.polygon_toggle_btn:
+            if active:
+                self.polygon_toggle_btn.setStyleSheet("background-color: #4a90e2;")
+            else:
+                self.polygon_toggle_btn.setStyleSheet("")
+
     def update_edit_button_style(self, active: bool) -> None:
         """Update edit button styling based on active state."""
         if self.edit_toggle_btn:
@@ -173,6 +185,7 @@ class MapToolbarManager(QObject):
             self.pin_toggle_btn,
             self.line_toggle_btn,
             self.branching_line_toggle_btn,
+            self.polygon_toggle_btn,
             self.edit_toggle_btn,
         ]
         for button in buttons:
@@ -203,6 +216,11 @@ class MapToolbarManager(QObject):
         """Handle branching line toggle button state change."""
         if hasattr(self.parent_widget, "toggle_branching_line_drawing"):
             self.parent_widget.toggle_branching_line_drawing(active)
+
+    def _handle_polygon_toggle(self, active: bool) -> None:
+        """Handle polygon toggle button state change."""
+        if hasattr(self.parent_widget, "toggle_polygon_drawing"):
+            self.parent_widget.toggle_polygon_drawing(active)
 
     def _handle_edit_toggle(self, active: bool) -> None:
         """Handle edit toggle button state change."""
