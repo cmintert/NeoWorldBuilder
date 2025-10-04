@@ -12,35 +12,33 @@ class MapMixin:
     def _ensure_map_tab_exists(self) -> None:
         """Create map tab if it doesn't exist."""
         if not self.ui.map_tab:
-            print("Creating map tab and connecting signals...")
+            logger.debug("Creating map tab and connecting signals")
             self.ui.map_tab = MapTab(controller=self)
 
-            print("Connecting map_image_changed signal")
+            logger.debug("Connecting map_image_changed signal")
             self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
 
-            print("Connecting pin_clicked signal")
+            logger.debug("Connecting pin_clicked signal")
             self.ui.map_tab.pin_clicked.connect(self._handle_pin_click)
 
             # Add new connection for pin creation
-            print("Connecting pin_created signal")
+            logger.debug("Connecting pin_created signal")
             self.ui.map_tab.pin_created.connect(self._handle_pin_created)
 
-            print("Connecting line_created signal")
+            logger.debug("Connecting line_created signal")
             self.ui.map_tab.line_created.connect(self._handle_line_created)
 
-            print("Connecting polygon_created signal")
+            logger.debug("Connecting polygon_created signal")
             self.ui.map_tab.polygon_created.connect(self._handle_polygon_created)
 
             # Check if connections were successful
-            print(f"Signal connections status:")
-            print(
-                f"- map_image_changed: {self.ui.map_tab.map_image_changed.receivers() > 0}"
-            )
-            print(f"- pin_clicked: {self.ui.map_tab.pin_clicked.receivers() > 0}")
-            print(f"- pin_created: {self.ui.map_tab.pin_created.receivers() > 0}")
-            print(f"- line_created: {self.ui.map_tab.line_created.receivers() > 0}")
-            print(
-                f"- polygon_created: {self.ui.map_tab.polygon_created.receivers() > 0}"
+            logger.debug(
+                "Map tab signal connections status",
+                map_image_changed=self.ui.map_tab.map_image_changed.receivers() > 0,
+                pin_clicked=self.ui.map_tab.pin_clicked.receivers() > 0,
+                pin_created=self.ui.map_tab.pin_created.receivers() > 0,
+                line_created=self.ui.map_tab.line_created.receivers() > 0,
+                polygon_created=self.ui.map_tab.polygon_created.receivers() > 0
             )
 
             self.ui.tabs.addTab(self.ui.map_tab, "Map")
@@ -123,38 +121,49 @@ class MapMixin:
             direction: Relationship direction
             properties: Properties including line geometry
         """
-        print(
-            f"*** _handle_line_created called with target={target_node}, direction={direction}"
+        logger.debug(
+            "Line created handler called",
+            target=target_node,
+            direction=direction,
+            properties_preview=str(properties)[:100]
         )
-        print(f"*** Properties: {properties}")
 
         # Get current node name (the map node)
         source_node = self.ui.name_input.text().strip()
-        print(f"Source node: {source_node}")
+        logger.debug("Line creation source node", source_node=source_node)
 
         if not source_node:
-            print("No source node, cannot create relationship")
+            logger.warning("No source node, cannot create line relationship")
             return
 
         # Add new relationship row with SHOWS type (same as pins)
-        print(f"Adding relationship row: SHOWS, {target_node}, {direction}")
+        logger.debug(
+            "Adding line relationship row",
+            rel_type="SHOWS",
+            target=target_node,
+            direction=direction
+        )
         try:
             properties_json = json.dumps(properties)
-            print(f"Properties JSON: {properties_json[:100]}...")
+            logger.debug(
+                "Line properties JSON preview",
+                json_preview=properties_json[:100]
+            )
             self.ui.add_relationship_row(
                 "SHOWS", target_node, direction, properties_json
             )
-            print("Relationship row added successfully")
+            logger.info("Line relationship created successfully")
         except Exception as e:
-            print(f"Error adding relationship row: {e}")
-            import traceback
-
-            print(traceback.format_exc())
+            logger.error(
+                "Failed to create line relationship",
+                error=str(e),
+                exc_info=True
+            )
             return
 
         # Update save state to reflect changes
         self.update_unsaved_changes_indicator()
-        print("Line relationship creation completed")
+        logger.info("Line relationship creation completed")
 
     def _handle_polygon_created(
         self, target_node: str, direction: str, properties: dict
