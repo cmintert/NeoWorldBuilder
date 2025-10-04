@@ -39,15 +39,7 @@ class MapMixin:
         logger.debug("Connecting polygon_created signal")
         self.ui.map_tab.polygon_created.connect(self._handle_polygon_created)
 
-        # Verify all connections were successful
-        logger.debug(
-            "Map tab signal connections status",
-            map_image_changed=self.ui.map_tab.map_image_changed.receivers() > 0,
-            pin_clicked=self.ui.map_tab.pin_clicked.receivers() > 0,
-            pin_created=self.ui.map_tab.pin_created.receivers() > 0,
-            line_created=self.ui.map_tab.line_created.receivers() > 0,
-            polygon_created=self.ui.map_tab.polygon_created.receivers() > 0
-        )
+        logger.debug("All map tab signals connected successfully")
 
         self.ui.tabs.addTab(self.ui.map_tab, "Map")
 
