@@ -64,7 +64,10 @@ class GeometryHandler:
             return (int(geometry.x), int(geometry.y))
         elif isinstance(geometry, MultiPoint):
             return [(int(x), int(y)) for x, y in geometry.coords]
-        elif isinstance(geometry, (Polygon, LineString)):
+        elif isinstance(geometry, Polygon):
+            # Polygons use .exterior.coords for the outer ring
+            return [(int(x), int(y)) for x, y in geometry.exterior.coords]
+        elif isinstance(geometry, LineString):
             return [(int(x), int(y)) for x, y in geometry.coords]
         elif isinstance(geometry, MultiLineString):
             return [

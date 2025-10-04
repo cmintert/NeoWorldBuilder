@@ -32,7 +32,11 @@ class GraphicsSignalBridge(QObject):
     control_point_moved = pyqtSignal(str, int, int, int, int)  # node, branch, point, x, y
     line_segment_inserted = pyqtSignal(str, int, int)  # node, branch, segment
     control_point_removed = pyqtSignal(str, int, int)  # node, branch, point
-    
+
+    # Polygon-specific signals
+    polygon_clicked = pyqtSignal(str)  # node_name
+    polygon_geometry_changed = pyqtSignal(str, list)  # node_name, points
+
     # Edit mode signals
     edit_mode_changed = pyqtSignal(bool)  # enabled
     feature_selection_changed = pyqtSignal(str, bool)  # node_name, selected
@@ -67,12 +71,14 @@ class GraphicsSignalBridge(QObject):
             
         # Type-specific connections
         item_type = getattr(graphics_item, 'feature_type', 'unknown')
-        
+
         if item_type == 'pin':
             self._connect_pin_signals(node_name, graphics_item)
         elif item_type in ['line', 'branching_line']:
             self._connect_line_signals(node_name, graphics_item)
-            
+        elif item_type == 'polygon':
+            self._connect_polygon_signals(node_name, graphics_item)
+
         logger.debug(f"Connected graphics item signals for: {node_name}")
     
     def _connect_pin_signals(self, node_name: str, pin_item: Any) -> None:
@@ -116,7 +122,18 @@ class GraphicsSignalBridge(QObject):
             line_item.control_point_removed.connect(
                 lambda b, p: self.control_point_removed.emit(node_name, b, p)
             )
-    
+
+    def _connect_polygon_signals(self, node_name: str, polygon_item: Any) -> None:
+        """Connect polygon-specific signals.
+
+        Args:
+            node_name: Node name
+            polygon_item: Polygon graphics item
+        """
+        # Similar to pins, polygons don't have Qt signals yet
+        # They emit through the bridge directly when needed
+        logger.debug(f"Polygon item connected for signal routing: {node_name}")
+
     def disconnect_graphics_item(self, node_name: str) -> None:
         """Disconnect a graphics item from the bridge.
         

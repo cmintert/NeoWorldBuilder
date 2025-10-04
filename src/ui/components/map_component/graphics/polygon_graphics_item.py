@@ -16,10 +16,7 @@ logger = get_map_logger(__name__)
 
 class PolygonGraphicsItem(QGraphicsPolygonItem):
     """Graphics item for rendering polygon features on the map."""
-    
-    # Class-level signal for click events (will be connected per instance)
-    clicked = pyqtSignal(str, str)  # feature_id, node_name
-    
+
     def __init__(
         self,
         points: List[Tuple[float, float]],
@@ -41,7 +38,8 @@ class PolygonGraphicsItem(QGraphicsPolygonItem):
         # Create QPolygonF from points
         polygon = QPolygonF([QPointF(x, y) for x, y in points])
         super().__init__(polygon, parent)
-        
+
+        self.feature_type = 'polygon'  # Identifier for signal bridge
         self.feature_id = feature_id
         self.node_name = node_name
         self._is_hovered = False

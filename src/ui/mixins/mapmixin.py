@@ -20,28 +20,17 @@ class MapMixin:
         if hasattr(self.ui, "map_tab") and self.ui.map_tab:
             return  # Already exists
 
-        logger.debug("Creating map tab and connecting signals")
         self.ui.map_tab = MapTab(controller=self)
 
         # Connect all signals - this is the authoritative list
-        logger.debug("Connecting map_image_changed signal")
         self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
-
-        logger.debug("Connecting pin_clicked signal")
         self.ui.map_tab.pin_clicked.connect(self._handle_pin_click)
-
-        logger.debug("Connecting pin_created signal")
         self.ui.map_tab.pin_created.connect(self._handle_pin_created)
-
-        logger.debug("Connecting line_created signal")
         self.ui.map_tab.line_created.connect(self._handle_line_created)
-
-        logger.debug("Connecting polygon_created signal")
         self.ui.map_tab.polygon_created.connect(self._handle_polygon_created)
 
-        logger.debug("All map tab signals connected successfully")
-
         self.ui.tabs.addTab(self.ui.map_tab, "Map")
+        logger.info("Map tab created with all signals connected")
 
         # Set initial map image if available in properties
         map_image_path = self.ui._get_property_value("mapimage")
@@ -59,25 +48,20 @@ class MapMixin:
             direction: Relationship direction
             properties: Properties including x,y coordinates
         """
-        logger.info(f"Pin created handler called for target: {target_node}")
-
-        # Get current node name (the map node)
         source_node = self.ui.name_input.text().strip()
+
         if not source_node:
-            logger.warning("No source node in name_input, skipping pin creation")
+            logger.warning("Cannot create pin: no source node selected")
             return
 
-        logger.info(f"Creating pin relationship: {source_node} SHOWS {target_node}")
-
-        # Add new relationship row with SHOWS type
-        self.ui.add_relationship_row(
-            "SHOWS", target_node, direction, json.dumps(properties)
-        )
-
-        # Update save state to reflect changes
-        self.update_unsaved_changes_indicator()
-
-        logger.info("Pin relationship created, staying on map tab")
+        try:
+            self.ui.add_relationship_row(
+                "SHOWS", target_node, direction, json.dumps(properties)
+            )
+            self.update_unsaved_changes_indicator()
+            logger.info(f"Pin relationship created: {source_node} → {target_node}")
+        except Exception as e:
+            logger.error("Failed to create pin relationship", error=str(e), exc_info=True)
 
     def _handle_pin_click(self, target_node: str) -> None:
         """Handle pin click by loading the target node."""
@@ -127,49 +111,20 @@ class MapMixin:
             direction: Relationship direction
             properties: Properties including line geometry
         """
-        logger.debug(
-            "Line created handler called",
-            target=target_node,
-            direction=direction,
-            properties_preview=str(properties)[:100]
-        )
-
-        # Get current node name (the map node)
         source_node = self.ui.name_input.text().strip()
-        logger.debug("Line creation source node", source_node=source_node)
 
         if not source_node:
-            logger.warning("No source node, cannot create line relationship")
+            logger.warning("Cannot create line: no source node selected")
             return
 
-        # Add new relationship row with SHOWS type (same as pins)
-        logger.debug(
-            "Adding line relationship row",
-            rel_type="SHOWS",
-            target=target_node,
-            direction=direction
-        )
         try:
-            properties_json = json.dumps(properties)
-            logger.debug(
-                "Line properties JSON preview",
-                json_preview=properties_json[:100]
-            )
             self.ui.add_relationship_row(
-                "SHOWS", target_node, direction, properties_json
+                "SHOWS", target_node, direction, json.dumps(properties)
             )
-            logger.info("Line relationship created successfully")
+            self.update_unsaved_changes_indicator()
+            logger.info(f"Line relationship created: {source_node} → {target_node}")
         except Exception as e:
-            logger.error(
-                "Failed to create line relationship",
-                error=str(e),
-                exc_info=True
-            )
-            return
-
-        # Update save state to reflect changes
-        self.update_unsaved_changes_indicator()
-        logger.info("Line relationship creation completed")
+            logger.error("Failed to create line relationship", error=str(e), exc_info=True)
 
     def _handle_polygon_created(
         self, target_node: str, direction: str, properties: dict
@@ -181,35 +136,17 @@ class MapMixin:
             direction: Relationship direction
             properties: Properties including polygon geometry and style
         """
-        logger.info(f"Polygon created handler called for target: {target_node}")
-        logger.info(f"Properties: {properties}")
-
-        # Get current node name (the map node)
         source_node = self.ui.name_input.text().strip()
-        logger.info(f"Source node: {source_node}")
 
         if not source_node:
-            logger.warning("No source node, cannot create polygon relationship")
+            logger.warning("Cannot create polygon: no source node selected")
             return
 
-        # Add new relationship row with SHOWS type (same as pins and lines)
-        logger.info(
-            f"Adding polygon relationship row: SHOWS, {target_node}, {direction}"
-        )
         try:
-            properties_json = json.dumps(properties)
-            logger.info(f"Properties JSON: {properties_json[:100]}...")
             self.ui.add_relationship_row(
-                "SHOWS", target_node, direction, properties_json
+                "SHOWS", target_node, direction, json.dumps(properties)
             )
-            logger.info("Polygon relationship row added successfully")
+            self.update_unsaved_changes_indicator()
+            logger.info(f"Polygon relationship created: {source_node} → {target_node}")
         except Exception as e:
-            logger.error(f"Error adding polygon relationship row: {e}")
-            import traceback
-
-            logger.error(traceback.format_exc())
-            return
-
-        # Update save state to reflect changes
-        self.update_unsaved_changes_indicator()
-        logger.info("Polygon relationship creation completed")
+            logger.error("Failed to create polygon relationship", error=str(e), exc_info=True)

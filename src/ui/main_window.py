@@ -1230,17 +1230,6 @@ class WorldBuildingUI(QWidget):
         delete_button = self.create_delete_button(self.properties_table, row)
         self.properties_table.setCellWidget(row, 2, delete_button)
 
-    def _handle_pin_created(
-        self, target: str, direction: str, properties: dict
-    ) -> None:
-        """Handle creation of new pin relationship."""
-        self.add_relationship_row(
-            rel_type="SHOWS",
-            target=target,
-            direction=direction,
-            properties=json.dumps(properties),
-        )
-
     def _show_name_context_menu(self, position: QPoint) -> None:
         """Show context menu for name input field."""
         # Only show rename option if we have a node loaded
