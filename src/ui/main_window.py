@@ -1137,26 +1137,13 @@ class WorldBuildingUI(QWidget):
             self._remove_event_tab_if_exists()
 
     def _ensure_map_tab_exists(self) -> None:
-        """Create and configure map tab if it doesn't exist."""
-        if not hasattr(self, "map_tab") or not self.map_tab:
-            logger.debug("creating_map_tab", widget_id=self.objectName())
-            self.map_tab = MapTab(controller=self.controller)
-            self.map_tab.map_image_changed.connect(self._handle_map_image_changed)
-            self.map_tab.pin_created.connect(self._handle_pin_created)
-            self.map_tab.pin_clicked.connect(self.controller._handle_pin_click)
-            self.map_tab.line_created.connect(self.controller._handle_line_created)
-            self.map_tab.polygon_created.connect(
-                self.controller._handle_polygon_created
-            )
-            self.tabs.addTab(self.map_tab, "Map")
+        """Create and configure map tab if it doesn't exist.
 
-            # Set initial map image if available in properties
-            map_image_path = self._get_property_value("mapimage")
-            if map_image_path:
-                self.map_tab.set_map_image(map_image_path)
-                logger.info(
-                    "map_image_loaded", path=map_image_path, widget_id=self.objectName()
-                )
+        Delegates to controller's MapMixin for single source of truth.
+        """
+        # Delegate to controller's MapMixin implementation
+        # This ensures signal connections are always identical
+        self.controller._ensure_map_tab_exists()
 
     def _ensure_event_tab_exists(self) -> None:
         """Create and configure event tab if it doesn't exist"""

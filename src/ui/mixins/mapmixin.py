@@ -10,38 +10,52 @@ logger = get_logger(__name__)
 
 class MapMixin:
     def _ensure_map_tab_exists(self) -> None:
-        """Create map tab if it doesn't exist."""
-        if not self.ui.map_tab:
-            logger.debug("Creating map tab and connecting signals")
-            self.ui.map_tab = MapTab(controller=self)
+        """Create map tab if it doesn't exist and connect all signals.
 
-            logger.debug("Connecting map_image_changed signal")
-            self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
+        This is the single source of truth for map tab creation, used by both:
+        - Real-time label detection (when user types "MAP")
+        - Loading existing MAP nodes from database
+        """
+        # Handle both attribute styles: hasattr check for UI, direct check for mixin
+        if hasattr(self.ui, "map_tab") and self.ui.map_tab:
+            return  # Already exists
 
-            logger.debug("Connecting pin_clicked signal")
-            self.ui.map_tab.pin_clicked.connect(self._handle_pin_click)
+        logger.debug("Creating map tab and connecting signals")
+        self.ui.map_tab = MapTab(controller=self)
 
-            # Add new connection for pin creation
-            logger.debug("Connecting pin_created signal")
-            self.ui.map_tab.pin_created.connect(self._handle_pin_created)
+        # Connect all signals - this is the authoritative list
+        logger.debug("Connecting map_image_changed signal")
+        self.ui.map_tab.map_image_changed.connect(self.ui._handle_map_image_changed)
 
-            logger.debug("Connecting line_created signal")
-            self.ui.map_tab.line_created.connect(self._handle_line_created)
+        logger.debug("Connecting pin_clicked signal")
+        self.ui.map_tab.pin_clicked.connect(self._handle_pin_click)
 
-            logger.debug("Connecting polygon_created signal")
-            self.ui.map_tab.polygon_created.connect(self._handle_polygon_created)
+        logger.debug("Connecting pin_created signal")
+        self.ui.map_tab.pin_created.connect(self._handle_pin_created)
 
-            # Check if connections were successful
-            logger.debug(
-                "Map tab signal connections status",
-                map_image_changed=self.ui.map_tab.map_image_changed.receivers() > 0,
-                pin_clicked=self.ui.map_tab.pin_clicked.receivers() > 0,
-                pin_created=self.ui.map_tab.pin_created.receivers() > 0,
-                line_created=self.ui.map_tab.line_created.receivers() > 0,
-                polygon_created=self.ui.map_tab.polygon_created.receivers() > 0
-            )
+        logger.debug("Connecting line_created signal")
+        self.ui.map_tab.line_created.connect(self._handle_line_created)
 
-            self.ui.tabs.addTab(self.ui.map_tab, "Map")
+        logger.debug("Connecting polygon_created signal")
+        self.ui.map_tab.polygon_created.connect(self._handle_polygon_created)
+
+        # Verify all connections were successful
+        logger.debug(
+            "Map tab signal connections status",
+            map_image_changed=self.ui.map_tab.map_image_changed.receivers() > 0,
+            pin_clicked=self.ui.map_tab.pin_clicked.receivers() > 0,
+            pin_created=self.ui.map_tab.pin_created.receivers() > 0,
+            line_created=self.ui.map_tab.line_created.receivers() > 0,
+            polygon_created=self.ui.map_tab.polygon_created.receivers() > 0
+        )
+
+        self.ui.tabs.addTab(self.ui.map_tab, "Map")
+
+        # Set initial map image if available in properties
+        map_image_path = self.ui._get_property_value("mapimage")
+        if map_image_path:
+            self.ui.map_tab.set_map_image(map_image_path)
+            logger.info("Map image loaded from properties", path=map_image_path)
 
     def _handle_pin_created(
         self, target_node: str, direction: str, properties: dict
